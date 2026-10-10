@@ -1,362 +1,215 @@
-import { XMLBool, XMLDictionary, XMLFloat, XMLInt, XMLIntArray, XMLString } from '../xml'
-import { ScriptNode } from './scriptNode'
-import type { Doodad, DoodadTypeName } from './doodad'
+/**
+ * The Anniversary Edition WorldScript vocabulary the generator uses.
+ *
+ * Every class names a real AE WorldScript (`<assets>/scripts/WorldScript/**`)
+ * and writes the param names stock levels use — surveyed across Castle
+ * Hammerwatch, Shaftlocke Tower and Temple of the Sun with
+ * `scripts/dev/script-shapes.ts` (DISCOVERY-LOG "Scripts"). Enum values are
+ * from the `.as` sources.
+ *
+ * Several classes keep their HW1-era names so the rigs that build them read
+ * the same (`NodeToggleElement`, `NodeGlobalEventTrigger`, `NodeSpawnObject`);
+ * the comment on each says which AE script it really is.
+ */
+import { P } from '../ae/model'
+import type { Param } from '../ae/model'
+import { ScriptNode, SensorShape } from './scriptNode'
 import type { GenerationContext } from '../core/context'
-import type { Item } from './item'
+import { SPREAD_DEGREES_PER_UNIT } from '../traps/slots'
 
-/** Ported from NodeAreaTrigger.java */
+export { SensorShape }
+
+type HasId = { id: number }
+const ids = (xs: readonly HasId[]) => xs.map((x) => x.id)
+
+// --- Enums ([VERIFIED] from the WorldScript .as sources) ----------------------
+
+/** `ToggleScripts.State`, `ToggleImmortality.State`: 1 Enable, 2 Disable, 3 Toggle */
+export const TOGGLE_ENABLE = 1
+export const TOGGLE_DISABLE = 2
+export const TOGGLE_TOGGLE = 3
+
+/** `AreaTrigger.Event` */
+export const AREA_ON_ENTER = 1
+export const AREA_ON_EXIT = 2
+
+/** `AreaTrigger.Filter` / `DangerArea.Filter` flags */
+export const FILTER_NEUTRAL = 1
+export const FILTER_PLAYER = 2
+export const FILTER_ENEMY = 4
+
+/** `ChangeVariables.Function` */
+export const CHANGE_VAR_SET = 1
+export const CHANGE_VAR_ADD = 2
+export const CHANGE_VAR_SUB = 3
+
+/** `CheckVariables.Function` */
+export const CHECK_VAR_EQUAL = 1
+export const CHECK_VAR_GREATER_EQUAL = 4
+
+/** `ActorHealthTrigger.Function` (FloatCompareFunc): 1 Greater, 2 Less */
+export const HEALTH_LESS = 2
+
+/** `UseTrigger.Icon` (UsableIcon in scripts/Behaviors/IUsable.as) */
+export const ICON_SHOP = 4
+export const ICON_EXIT = 6
+export const ICON_BUTTON = 11
+
+/** `ShopArea.Type`: 0 skills, 1 power, 2 equipment */
+export const SHOP_SKILLS = 0
+export const SHOP_POWER = 1
+
+// --- Triggers ------------------------------------------------------------------
+
+/** `AreaTrigger` — fires when a filtered unit enters (or leaves) its areas. */
 export class NodeAreaTrigger extends ScriptNode {
-  event = 0
-  types = 1
-  shapeId = 0
+  areas: SensorShape[] = []
+  event = AREA_ON_ENTER
+  filter = FILTER_PLAYER
 
   constructor(ctx: GenerationContext, x: number, y: number) {
     super(ctx, x, y, 'AreaTrigger')
   }
 
-  connectToShape(n: ScriptNode): void {
-    this.shapeId = n.id
+  connectToShape(s: SensorShape): void {
+    this.areas.push(s)
   }
 
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLInt('event', this.event))
-    d.addData(new XMLInt('types', this.types))
-    const shapeDict = new XMLDictionary('shape')
-    shapeDict.addData(new XMLIntArray('static', [this.shapeId]))
-    d.addData(shapeDict)
-    return d
-  }
-}
-
-/** Ported from NodeToggleElement.java */
-export class NodeToggleElement extends ScriptNode {
-  state = 1 // disable
-  element = 0
-
-  constructor(ctx: GenerationContext, x: number, y: number) {
-    super(ctx, x, y, 'ToggleElement')
-  }
-
-  connectToElement(n: ScriptNode): void {
-    this.element = n.id
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLInt('state', this.state))
-    const eDict = new XMLDictionary('element')
-    eDict.addData(new XMLIntArray('static', [this.element]))
-    d.addData(eDict)
-    return d
+  params(): Param[] {
+    const out = [P.ids('Areas', ids(this.areas))]
+    if (this.event !== AREA_ON_ENTER) out.push(P.int('Event', this.event))
+    if (this.filter !== FILTER_PLAYER) out.push(P.int('Filter', this.filter))
+    return out
   }
 }
 
 /**
- * Makes an ACTOR immortal, or takes it back. Same `{state, element:{static:[id]}}`
- * parameter shape as NodeToggleElement, and the same polarity: `state: 0` turns
- * immortality ON, `state: 1` turns it off.
- *
- * `element` holds an **actor** id, not a script-node id — hence setTarget(id)
- * rather than a connectToElement(node). [VERIFIED] 2026-08-22 against the
- * shipped campaign/levels/level_boss_4.xml, where the pair points at the
- * dragon's actor id.
+ * `UseTrigger` — fires when a player presses the use key (F) inside its areas.
+ * Outputs `User`, which `ShopArea.#PlayerTarget` reads.
  */
-export class NodeToggleImmortality extends ScriptNode {
-  state = 0 // 0 = immortal
-  element = 0
-
-  constructor(ctx: GenerationContext, x: number, y: number) {
-    super(ctx, x, y, 'ToggleImmortality')
-  }
-
-  setTarget(actorId: number): void {
-    this.element = actorId
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLInt('state', this.state))
-    const eDict = new XMLDictionary('element')
-    eDict.addData(new XMLIntArray('static', [this.element]))
-    d.addData(eDict)
-    return d
-  }
-}
-
-/**
- * Switches a doodad to one of the named states its asset declares.
- *
- * `object` holds a **doodad** id, not a script-node id — hence `setTarget(d)`
- * rather than a connectTo(node), the same distinction `NodeToggleImmortality`
- * above draws for actor ids. [VERIFIED] 2026-08-24 against the shipped
- * campaign/levels/level_1.xml node 2180, which drives a floor button this way.
- *
- * The state names come from the target asset's `<sprite name="...">` entries and
- * its `<states>` block, so they are per-doodad strings, not an enum.
- */
-export class NodeChangeDoodadState extends ScriptNode {
-  target = 0
+export class NodeUseTrigger extends ScriptNode {
+  areas: SensorShape[] = []
 
   constructor(
     ctx: GenerationContext,
     x: number,
     y: number,
-    public state: string
+    public icon: number
   ) {
-    super(ctx, x, y, 'ChangeDoodadState')
+    super(ctx, x, y, 'UseTrigger')
   }
 
-  setTarget(d: Doodad): void {
-    this.target = d.id
+  connectToShape(s: SensorShape): void {
+    this.areas.push(s)
   }
 
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLString('state', this.state))
-    const oDict = new XMLDictionary('object')
-    oDict.addData(new XMLIntArray('static', [this.target]))
-    d.addData(oDict)
-    return d
-  }
-}
-
-/** Ported from NodeAnnounceText.java */
-export class NodeAnnounceText extends ScriptNode {
-  text = 'You win!!!'
-  time = 10000
-  textType = 0
-
-  constructor(ctx: GenerationContext, x: number, y: number) {
-    super(ctx, x, y, 'AnnounceText')
-  }
-
-  setText(text: string): void {
-    this.text = text
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLString('text', this.text))
-    d.addData(new XMLInt('time', this.time))
-    d.addData(new XMLInt('type', this.textType))
-    return d
-  }
-}
-
-/** Ported from NodeLevelStart.java */
-export class NodeLevelStart extends ScriptNode {
-  pId = 0
-  pDir = 2
-
-  constructor(ctx: GenerationContext, x: number, y: number) {
-    super(ctx, x, y, 'LevelStart')
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLInt('id', this.pId))
-    d.addData(new XMLInt('dir', this.pDir))
-    return d
+  params(): Param[] {
+    return [P.int('Icon', this.icon), P.ids('Areas', ids(this.areas))]
   }
 }
 
 /**
- * Ported from NodeLevelExit.java — points at the next level's index.
+ * `AllPlayersArea` — a conditional: runs `OnTrue` when every player is inside
+ * its area, `OnFalse` otherwise. Has no connections of its own; `connectTo`
+ * appends to `OnTrue`.
+ */
+export class NodeAllPlayersArea extends ScriptNode {
+  area: SensorShape[] = []
+  onTrue: ScriptNode[] = []
+  onFalse: ScriptNode[] = []
+  onlyAlivePlayers = false
+
+  constructor(ctx: GenerationContext, x: number, y: number) {
+    super(ctx, x, y, 'AllPlayersArea')
+  }
+
+  connectTo(n: ScriptNode): void {
+    this.onTrue.push(n)
+  }
+
+  params(): Param[] {
+    return [
+      P.bool('OnlyAlivePlayers', this.onlyAlivePlayers),
+      P.ids('OnTrue', ids(this.onTrue)),
+      P.ids('OnFalse', ids(this.onFalse)),
+      P.ids('Area', ids(this.area))
+    ]
+  }
+}
+
+/**
+ * HW1's `GlobalEventTrigger`, translated — AE has no engine-wide boss events:
  *
- * `level` defaults to the next numeric floor, matching the original, but also
- * accepts the string ids the boss feature's extra levels use (`bossprep`,
- * `boss`) — set it after construction, same shape as `NodeGlobalEventTrigger`'s
- * bare-string parameter.
- */
-export class NodeLevelExit extends ScriptNode {
-  level: number | string
-  startId = 0
-  shapeId = 0
-
-  constructor(ctx: GenerationContext, x: number, y: number) {
-    super(ctx, x, y, 'LevelExitArea')
-    this.level = ctx.currentLevel + 1
-  }
-
-  connectToShape(n: ScriptNode): void {
-    this.shapeId = n.id
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLString('level', `${this.level}`))
-    d.addData(new XMLInt('start id', this.startId))
-    const shapeDict = new XMLDictionary('shape')
-    shapeDict.addData(new XMLIntArray('static', [this.shapeId]))
-    d.addData(shapeDict)
-    return d
-  }
-}
-
-interface ShopTypeDef {
-  categories: string
-  vendor: DoodadTypeName
-}
-
-const SHOP_TYPES: ShopTypeDef[] = [
-  { categories: 'combo1 combo2 combo3 combo4 combo5', vendor: 'VendorCombo' },
-  { categories: 'off1 off2 off3 off4 off5', vendor: 'VendorOffense' },
-  { categories: 'def1 def2 def3 def4 def5', vendor: 'VendorDefense' },
-  { categories: 'misc1 misc2 misc3 misc4 misc5', vendor: 'VendorMisc' }
-]
-
-/** Ported from NodeShopArea.java — picks a random shop category set. */
-export class NodeShopArea extends ScriptNode {
-  shopType: ShopTypeDef
-  shapeId = 0
-
-  constructor(ctx: GenerationContext, x: number, y: number) {
-    super(ctx, x, y, 'ShopArea')
-    this.shopType = SHOP_TYPES[ctx.rand.iRand(0, SHOP_TYPES.length)]
-  }
-
-  connectToShape(n: ScriptNode): void {
-    this.shapeId = n.id
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLString('cats', this.shopType.categories))
-    const shapeDict = new XMLDictionary('shape')
-    shapeDict.addData(new XMLIntArray('static', [this.shapeId]))
-    d.addData(shapeDict)
-    return d
-  }
-}
-
-/**
- * Ported from NodeObjectEventTrigger.java.
+ * - `LevelLoaded` → a `ScriptLink` that executes on level start, once;
+ * - `Boss 75%` / `Boss 50%` / `Boss 25%` → `ActorHealthTrigger` (health LESS
+ *   than the fraction) over the boss actors, once;
+ * - `Boss Died` → `UnitDestroyedTrigger` over the boss actors, once.
  *
- * Generalised (issue #64 part 1) to watch any object by raw id — an ACTOR's,
- * for the "all bosses died" rig (`boss/tierSource.ts`), [VERIFIED 2026-09-23]
- * to fire on a boss actor's death — not only an
- * `Item`. `itemConnections` and `connectItem` are unchanged so the orb's
- * existing wiring (`objects/objectSet.ts`) emits exactly what it always did;
- * `connectObject` is the same underlying array under a name that does not
- * imply "item".
+ * The boss actors are `ctx.bossActors` at construction, which the arena and
+ * the dungeon-boss rig set before building their tier rigs.
  */
-export class NodeObjectEventTrigger extends ScriptNode {
-  event = 'Destroyed'
-  itemConnections: Item[] = []
-  private objectIds: number[] = []
-
-  constructor(ctx: GenerationContext, x: number, y: number) {
-    super(ctx, x, y, 'ObjectEventTrigger')
-  }
-
-  connectItem(i: Item): void {
-    this.itemConnections.push(i)
-  }
-
-  /** Watches any object (an actor, a doodad, …) by its raw id. */
-  connectObject(o: { id: number }): void {
-    this.objectIds.push(o.id)
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLString('event', this.event))
-    const objectDict = new XMLDictionary('object')
-    objectDict.addData(new XMLIntArray('static', [...this.itemConnections.map((i) => i.id), ...this.objectIds]))
-    d.addData(objectDict)
-    return d
-  }
-}
-
-/** Ported from NodeGameEnd.java */
-export class NodeGameEnd extends ScriptNode {
-  text = 'YOU WIN!!'
-
-  constructor(ctx: GenerationContext, x: number, y: number) {
-    super(ctx, x, y, 'GameEnd')
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLString('text', this.text))
-    return d
-  }
-}
-
-/** Ported from NodeRectangleShape.java */
-export class NodeRectangleShape extends ScriptNode {
-  width = 1.0
-  height = 1.0
-  types = 15
-
-  constructor(ctx: GenerationContext, x: number, y: number) {
-    super(ctx, x, y, 'RectangleShape')
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLFloat('w', this.width))
-    d.addData(new XMLFloat('h', this.height))
-    d.addData(new XMLInt('types', this.types))
-    return d
-  }
-}
-
-/** Spawns one actor per incoming trigger at its own position. */
-export class NodeSpawnObject extends ScriptNode {
-  constructor(
-    ctx: GenerationContext,
-    x: number,
-    y: number,
-    public actorPath: string
-  ) {
-    super(ctx, x, y, 'SpawnObject')
-  }
-
-  protected getParametersXML(): string {
-    return new XMLString('parameters', this.actorPath).getXML()
-  }
-}
-
-/**
- * Sets the party's respawn point and, when `saveGame` is true, writes a save.
- * `parameters` is a bare bool — not a dictionary — verified against shipped
- * campaign levels: `True` sets the spawn point AND saves; `False` sets the
- * spawn point only. [VERIFIED] see DISCOVERY-LOG.md.
- */
-export class NodeCheckpoint extends ScriptNode {
-  constructor(
-    ctx: GenerationContext,
-    x: number,
-    y: number,
-    public saveGame: boolean
-  ) {
-    super(ctx, x, y, 'Checkpoint')
-  }
-
-  protected getParametersXML(): string {
-    return new XMLBool('parameters', this.saveGame).getXML()
-  }
-}
-
-/** Listens for an engine-wide event, e.g. "Boss 50%" or "Boss Died". */
 export class NodeGlobalEventTrigger extends ScriptNode {
+  private units: HasId[]
+  private fraction = 0
+
   constructor(
     ctx: GenerationContext,
     x: number,
     y: number,
     public eventName: string
   ) {
-    super(ctx, x, y, 'GlobalEventTrigger')
+    const m = /^Boss (\d+)%$/.exec(eventName)
+    super(ctx, x, y, eventName === 'LevelLoaded' ? 'ScriptLink' : m !== null ? 'ActorHealthTrigger' : 'UnitDestroyedTrigger')
+    this.units = [...ctx.bossActors]
+    if (eventName === 'LevelLoaded') this.executeOnStart = true
+    if (m !== null) this.fraction = Number(m[1]) / 100
+    this.triggerTimes = 1
   }
 
-  protected getParametersXML(): string {
-    return new XMLString('parameters', this.eventName).getXML()
+  params(): Param[] {
+    if (this.cls === 'ScriptLink') return []
+    if (this.cls === 'ActorHealthTrigger') {
+      return [P.ids('Units', ids(this.units)), P.int('Function', HEALTH_LESS), P.float('Value', this.fraction)]
+    }
+    return [P.ids('Units', ids(this.units))]
   }
 }
 
-/** Fires every `intervalMs`. Ships disabled; a ToggleElement{state:0} starts it. */
+/** `UnitDestroyedTrigger` — fires when any listed unit dies or is destroyed (HW1 ObjectEventTrigger). */
+export class NodeObjectEventTrigger extends ScriptNode {
+  private units: HasId[] = []
+
+  constructor(ctx: GenerationContext, x: number, y: number) {
+    super(ctx, x, y, 'UnitDestroyedTrigger')
+  }
+
+  connectItem(i: HasId): void {
+    this.units.push(i)
+  }
+
+  connectObject(o: HasId): void {
+    this.units.push(o)
+  }
+
+  params(): Param[] {
+    return [P.ids('Units', ids(this.units))]
+  }
+}
+
+/** `UnitPickedUpTrigger` — fires when a listed pickup is collected. */
+export class NodeUnitPickedUpTrigger extends ScriptNode {
+  units: HasId[] = []
+
+  constructor(ctx: GenerationContext, x: number, y: number) {
+    super(ctx, x, y, 'UnitPickedUpTrigger')
+  }
+
+  params(): Param[] {
+    return [P.ids('Units', ids(this.units))]
+  }
+}
+
+/** `TimerTrigger` — fires every `intervalMs`. Ships disabled; a ToggleScripts enables it. */
 export class NodeTimerTrigger extends ScriptNode {
   constructor(
     ctx: GenerationContext,
@@ -368,51 +221,440 @@ export class NodeTimerTrigger extends ScriptNode {
     this.enabled = false
   }
 
-  protected getParametersXML(): string {
-    return new XMLInt('parameters', this.intervalMs).getXML()
+  params(): Param[] {
+    return [P.int('Frequency', this.intervalMs)]
+  }
+}
+
+/** `ScriptLink` — a relay with no params; fires its connections. */
+export class NodeScriptLink extends ScriptNode {
+  constructor(ctx: GenerationContext, x: number, y: number) {
+    super(ctx, x, y, 'ScriptLink')
+  }
+}
+
+// --- Script control -------------------------------------------------------------
+
+/** What a `ToggleScripts` does to its targets. */
+export type ToggleAction = 'enable' | 'disable' | 'toggle'
+
+const TOGGLE_STATE: Record<ToggleAction, number> = {
+  enable: TOGGLE_ENABLE,
+  disable: TOGGLE_DISABLE,
+  toggle: TOGGLE_TOGGLE
+}
+
+/**
+ * `ToggleScripts` (HW1 ToggleElement). Defaults to disabling its targets, as
+ * HW1's did. A named action rather than the raw `State` int: HW1 used 0 for
+ * enable and 1 for disable, AE uses 1 and 2, and a number copied across from
+ * the old rigs would silently invert them.
+ */
+export class NodeToggleElement extends ScriptNode {
+  action: ToggleAction = 'disable'
+  elements: ScriptNode[] = []
+
+  constructor(ctx: GenerationContext, x: number, y: number) {
+    super(ctx, x, y, 'ToggleScripts')
+  }
+
+  connectToElement(n: ScriptNode): void {
+    this.elements.push(n)
+  }
+
+  params(): Param[] {
+    return [P.ids('Scripts', ids(this.elements)), P.int('State', TOGGLE_STATE[this.action])]
+  }
+}
+
+/** `ToggleImmortality` — `immortal` true makes the actors unkillable. */
+export class NodeToggleImmortality extends ScriptNode {
+  immortal = true
+  actors: HasId[] = []
+
+  constructor(ctx: GenerationContext, x: number, y: number) {
+    super(ctx, x, y, 'ToggleImmortality')
+  }
+
+  setTarget(actor: HasId | number): void {
+    this.actors.push(typeof actor === 'number' ? { id: actor } : actor)
+  }
+
+  params(): Param[] {
+    return [P.ids('Units', ids(this.actors)), P.int('State', this.immortal ? TOGGLE_ENABLE : TOGGLE_DISABLE)]
+  }
+}
+
+/** `SetUnitScene` (HW1 ChangeDoodadState) — switches units to a named scene. */
+export class NodeChangeDoodadState extends ScriptNode {
+  units: HasId[] = []
+
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public state: string
+  ) {
+    super(ctx, x, y, 'SetUnitScene')
+  }
+
+  setTarget(u: HasId): void {
+    this.units.push(u)
+  }
+
+  params(): Param[] {
+    return [P.ids('Units', ids(this.units)), P.str('State', this.state)]
+  }
+}
+
+// --- Variables -----------------------------------------------------------------
+
+/** `Variable` — an integer that persists with the level save. */
+export class NodeVariable extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public initial: number
+  ) {
+    super(ctx, x, y, 'Variable')
+  }
+
+  params(): Param[] {
+    return [P.int('Value', this.initial)]
+  }
+}
+
+/** `ChangeVariables` — applies `func` (CHANGE_VAR_*) with `value`. */
+export class NodeChangeVariable extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public variable: NodeVariable,
+    public func: number,
+    public value: number
+  ) {
+    super(ctx, x, y, 'ChangeVariables')
+  }
+
+  params(): Param[] {
+    return [P.int('Function', this.func), P.ids('Variables', [this.variable.id]), P.int('Value', this.value)]
   }
 }
 
 /**
- * Destroys doodads by id. Note: the id array sits DIRECTLY under
- * `parameters`, with no `object`/`element` wrapper dict — unlike
- * ObjectEventTrigger and ToggleElement. [VERIFIED] 2026-08-10
+ * `CheckVariables` — compares and runs `OnTrue` / `OnFalse`. Equality by
+ * default. `connectTo` appends to `OnTrue` (the array is taken by reference so
+ * several checks can share one list). No per-target delay exists.
  */
-export class NodeDestroyObject extends ScriptNode {
-  targets: Doodad[] = []
+export class NodeCheckVariable extends ScriptNode {
+  func = CHECK_VAR_EQUAL
+  onFalse: ScriptNode[] = []
 
-  constructor(ctx: GenerationContext, x: number, y: number) {
-    super(ctx, x, y, 'DestroyObject')
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public variable: NodeVariable,
+    public cmpVal: number,
+    public onTrue: ScriptNode[] = []
+  ) {
+    super(ctx, x, y, 'CheckVariables')
   }
 
-  connectDoodad(d: Doodad): void {
+  connectTo(n: ScriptNode, delayMs = 0): void {
+    if (delayMs !== 0) throw new Error('CheckVariables OnTrue targets cannot carry a delay')
+    this.onTrue.push(n)
+  }
+
+  params(): Param[] {
+    const out = [P.ids('Variable', [this.variable.id]), P.int('Value', this.cmpVal), P.ids('OnTrue', ids(this.onTrue))]
+    if (this.func !== CHECK_VAR_EQUAL) out.unshift(P.int('Function', this.func))
+    if (this.onFalse.length > 0) out.push(P.ids('OnFalse', ids(this.onFalse)))
+    return out
+  }
+}
+
+// --- Players, levels, campaign -----------------------------------------------------
+
+/** `LevelStart` — where players arrive; no StartID marks the default spawn. */
+export class NodeLevelStart extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public startId?: string
+  ) {
+    super(ctx, x, y, 'LevelStart')
+    this.label = startId ?? 'default spawn'
+  }
+
+  params(): Param[] {
+    return this.startId === undefined ? [] : [P.str('StartID', this.startId)]
+  }
+}
+
+/** `LevelExit` — sends the party to `level` (scenario-relative .lvl path) at `startId`. */
+export class NodeLevelExit extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public level: string,
+    public startId: string
+  ) {
+    super(ctx, x, y, 'LevelExit')
+    this.label = startId
+  }
+
+  params(): Param[] {
+    return [P.str('Level', this.level), P.str('StartID', this.startId)]
+  }
+}
+
+/** `SetRespawnPoint` — where dead players come back (a LevelStart's StartID). */
+export class NodeSetRespawnPoint extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public spawnId: string
+  ) {
+    super(ctx, x, y, 'SetRespawnPoint')
+    this.label = spawnId
+  }
+
+  params(): Param[] {
+    return [P.str('SpawnId', this.spawnId)]
+  }
+}
+
+/** `SuperCheckPoint` — a save point (HW1 Checkpoint with save). */
+export class NodeCheckpoint extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public name: string
+  ) {
+    super(ctx, x, y, 'SuperCheckPoint')
+    this.triggerTimes = 1
+  }
+
+  params(): Param[] {
+    return [P.str('Name', this.name)]
+  }
+}
+
+/** `AnnounceText` — on-screen text; `Text` is a string or a `.lang.key`. */
+export class NodeAnnounceText extends ScriptNode {
+  text = ''
+  title?: string
+  /** how long the text stays up, ms (AE `TimeOverride`); undefined = the style's default */
+  time?: number
+  /** HW1's text type; AE styles text by `Style` instead, so this is kept but not written */
+  textType = 0
+
+  constructor(ctx: GenerationContext, x: number, y: number) {
+    super(ctx, x, y, 'AnnounceText')
+  }
+
+  setText(text: string): void {
+    this.text = text
+  }
+
+  params(): Param[] {
+    const out = [P.str('Text', this.text)]
+    if (this.title !== undefined) out.unshift(P.str('Title', this.title))
+    if (this.time !== undefined) out.push(P.int('TimeOverride', this.time))
+    return out
+  }
+}
+
+/**
+ * `ShowGameOver` — ends the run (HW1 GameEnd). With no slideshow `Filename`
+ * it pauses, fades out and stops the scenario. [UNVERIFIED] in game for a
+ * generated scenario — see docs/BOOT-CHECKLIST.md "victory".
+ */
+export class NodeGameEnd extends ScriptNode {
+  showCredits = false
+
+  constructor(ctx: GenerationContext, x: number, y: number) {
+    super(ctx, x, y, 'ShowGameOver')
+  }
+
+  params(): Param[] {
+    return [P.bool('ShowCredits', this.showCredits)]
+  }
+}
+
+/**
+ * `ShopArea` — opens a shop for the player `#PlayerTarget` names (a
+ * UseTrigger's `User`). `categories` are space-separated shop categories
+ * (`off1 def2 misc3 combo1`, `power`); `type` 0 skills / 1 power.
+ */
+export class NodeShopArea extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public use: NodeUseTrigger,
+    public categories: string,
+    public type = SHOP_SKILLS
+  ) {
+    super(ctx, x, y, 'ShopArea')
+  }
+
+  params(): Param[] {
+    const out = [P.target('#PlayerTarget', this.use.id, 'User'), P.str('Categories', this.categories)]
+    if (this.type !== SHOP_SKILLS) out.push(P.int('Type', this.type))
+    return out
+  }
+}
+
+/** `DoorController` — opens `doors` when a player carrying `collectable` uses them. */
+export class NodeDoorController extends ScriptNode {
+  doors: HasId[] = []
+
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public collectable: string
+  ) {
+    super(ctx, x, y, 'DoorController')
+  }
+
+  params(): Param[] {
+    return [P.str('Collectable', this.collectable), P.ids('Doors', ids(this.doors))]
+  }
+}
+
+/** `CreateBossBar` — shows a health bar over the actors. */
+export class NodeCreateBossBar extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public actors: HasId[],
+    public name: string
+  ) {
+    super(ctx, x, y, 'CreateBossBar')
+  }
+
+  params(): Param[] {
+    return [P.ids('Actors', ids(this.actors)), P.str('Name', this.name)]
+  }
+}
+
+// --- Units -------------------------------------------------------------------------
+
+/** `SpawnUnit` (HW1 SpawnObject) — spawns `unitPath` where the script stands. */
+export class NodeSpawnObject extends ScriptNode {
+  aggro = true
+
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public actorPath: string
+  ) {
+    super(ctx, x, y, 'SpawnUnit')
+  }
+
+  params(): Param[] {
+    const out = [P.str('UnitType', this.actorPath)]
+    if (this.aggro && this.actorPath.startsWith('actors/')) out.push(P.bool('AggroEnemy', true))
+    return out
+  }
+}
+
+/** `DestroyUnits` (HW1 DestroyObject) — removes units (seal walls, props). */
+export class NodeDestroyObject extends ScriptNode {
+  targets: HasId[] = []
+
+  constructor(ctx: GenerationContext, x: number, y: number) {
+    super(ctx, x, y, 'DestroyUnits')
+  }
+
+  connectDoodad(d: HasId): void {
     this.targets.push(d)
   }
 
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    // zero targets must omit the <int-arr> entirely — LevelPacker.exe throws
-    // on an empty one (same rule as the lobby's diamonds(), lobby/build.ts)
-    if (this.targets.length > 0) {
-      d.addData(new XMLIntArray('static', this.targets.map((t) => t.id)))
-    }
-    return d
+  params(): Param[] {
+    return [P.ids('Units', ids(this.targets))]
+  }
+}
+
+/** `DangerArea` — damage (or a buff) every `freqMs` to filtered units in its areas. Ships disabled. */
+export class NodeDangerArea extends ScriptNode {
+  damage = 1
+  freqMs = 1000
+  /** `actors/buffs.sval:<name>` or '' for pure damage */
+  buff = ''
+  filter = FILTER_PLAYER
+  areas: SensorShape[] = []
+  canKill = true
+
+  constructor(ctx: GenerationContext, x: number, y: number) {
+    super(ctx, x, y, 'DangerArea')
+    this.enabled = false
+  }
+
+  connectToShape(s: SensorShape): void {
+    this.areas.push(s)
+  }
+
+  params(): Param[] {
+    const filter = this.areas.find((a) => a.types !== undefined)?.types ?? this.filter
+    const out = [
+      P.ids('Areas', ids(this.areas)),
+      P.int('Damage', this.damage),
+      P.int('Frequency', this.freqMs),
+      P.int('Filter', filter)
+    ]
+    if (this.buff !== '') out.push(P.str('Buff', this.buff))
+    if (!this.canKill) out.push(P.bool('CanKill', false))
+    return out
   }
 }
 
 /**
- * Plays one sound cue. `sound` is a `sound/<bank>.xml:<cue>` pair, not a file
- * path — the bank XML names the cues.
- *
- * `play3d` false means the cue is heard at full volume anywhere on the floor,
- * which is what a "something just opened elsewhere" cue wants; `range3d` is
- * then unused but still written, matching what the game's editor emits.
- * [EMITTED] 2026-08-24 — parameter shape copied from an editor-saved level.
+ * `ProjectileSpewer` — fires `projectile` (a unit path) every `frequencyMs`
+ * from where it stands, toward `directionDeg` (0 east, 90 south, 180 west,
+ * 270 north — screen y points down) within a fan of `spread` units (the trap
+ * parameter, 0..2; SPREAD_DEGREES_PER_UNIT degrees each). Ships disabled.
  */
+export class NodeProjectileSpewer extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public projectilePath: string,
+    public directionDeg: number,
+    public spread: number,
+    public frequencyMs: number
+  ) {
+    super(ctx, x, y, 'ProjectileSpewer')
+    this.enabled = false
+  }
+
+  params(): Param[] {
+    return [
+      P.str('Projectile', this.projectilePath),
+      P.int('Direction', Math.round(this.directionDeg)),
+      P.float('Spread', this.spread * SPREAD_DEGREES_PER_UNIT),
+      P.int('Frequency', this.frequencyMs)
+    ]
+  }
+}
+
+// --- Sound -------------------------------------------------------------------------
+
+/** `PlaySound` — an FMOD event (`event:/SFX/...`). */
 export class NodePlaySound extends ScriptNode {
-  loop = false
-  play3d = false
-  range3d = 5
+  looping = false
 
   constructor(
     ctx: GenerationContext,
@@ -423,240 +665,28 @@ export class NodePlaySound extends ScriptNode {
     super(ctx, x, y, 'PlaySound')
   }
 
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLString('sound', this.sound))
-    d.addData(new XMLBool('loop', this.loop))
-    d.addData(new XMLBool('play3d', this.play3d))
-    d.addData(new XMLFloat('range3d', this.range3d))
-    return d
+  params(): Param[] {
+    const out = [P.str('Sound', this.sound)]
+    if (this.looping) out.push(P.bool('Looping', true))
+    return out
   }
 }
 
-/**
- * Swaps the level's music track. `sound` is a `sound/<bank>.xml:<cue>` pair,
- * same dialect as `NodePlaySound.sound` — e.g. `sound/music.xml:act2`.
- *
- * Unlike `NodePlaySound` this carries no `play3d`/`range3d` — music is not
- * positional. [EMITTED] 2026-09-05 — parameter shape copied from a
- * hand-placed editor node (`PlayMusic`, `sound/music.xml:boss_final`, `loop:
- * True`); see DISCOVERY-LOG.md.
- */
+/** `PlayMusic` — switches the music mode (an int; see music/tracks.ts). */
 export class NodePlayMusic extends ScriptNode {
-  loop = true
-
   constructor(
     ctx: GenerationContext,
     x: number,
     y: number,
-    public sound: string
+    public music: number
   ) {
     super(ctx, x, y, 'PlayMusic')
   }
 
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLString('sound', this.sound))
-    d.addData(new XMLBool('loop', this.loop))
-    return d
+  params(): Param[] {
+    return [P.int('Music', this.music)]
   }
 }
 
-/**
- * A damage-over-time field bound to a shape. Ships **disabled** — the floor-timer
- * rig switches it on with a NodeToggleElement{state:0} once its countdown ends.
- *
- * `damage` is applied every `freq` milliseconds to every entity the shape's
- * `types` bitmask admits (the rig uses `types: 1`, players only). A **negative**
- * damage heals, which is a deliberate use of this node, not an accident.
- *
- * `buff` is emitted even when empty — `<string name="buff"></string>` is what the
- * shipped campaign/levels/level_2.xml writes for a pure-damage field.
- * [VERIFIED] 2026-08-23
- */
-export class NodeDangerArea extends ScriptNode {
-  damage = 1
-  freqMs = 1000
-  /** A `buffs/*.xml` path, or '' for pure damage. Reserved for the buff feature. */
-  buff = ''
-  shapeId = 0
-
-  constructor(ctx: GenerationContext, x: number, y: number) {
-    super(ctx, x, y, 'DangerArea')
-    this.enabled = false
-  }
-
-  connectToShape(n: ScriptNode): void {
-    this.shapeId = n.id
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLInt('damage', this.damage))
-    const shapeDict = new XMLDictionary('shape')
-    shapeDict.addData(new XMLIntArray('static', [this.shapeId]))
-    d.addData(shapeDict)
-    d.addData(new XMLInt('freq', this.freqMs))
-    d.addData(new XMLString('buff', this.buff))
-    return d
-  }
-}
-
-/**
- * Fires a stream of projectiles in one cardinal direction, forever, from the
- * tile it sits on. This is what the boss arena's traps are made of — see
- * boss/traps.ts.
- *
- * Parameter shape [VERIFIED] 2026-09-01 against three sources that agree:
- * `campaign/levels/level_10.xml`, `campaign2/levels/level_temple_3.xml`, and a
- * test level the owner hand-built and loaded in game.
- *
- *   direction   int    0 up, 1 down, 2 left, 3 right (see boss/traps.ts)
- *   projectile  str    a `projectiles/*.xml` path
- *   spread      float  0..2 — 0 is a single linear stream, 2 the widest fan
- *   spawn-rate  int    milliseconds between shots
- *
- * Ships disabled, like NodeTimerTrigger and NodeDangerArea, because the tier
- * rig switches it on with a ToggleElement; the opening tier flips `enabled`
- * back to true itself. A disabled spewer waiting on a toggle is exactly the
- * shape the owner's test level uses, so the engine is known to accept it.
- */
-export class NodeProjectileSpewer extends ScriptNode {
-  constructor(
-    ctx: GenerationContext,
-    x: number,
-    y: number,
-    public projectilePath: string,
-    public direction: number,
-    public spread: number,
-    public spawnRateMs: number
-  ) {
-    super(ctx, x, y, 'ProjectileSpewer')
-    this.enabled = false
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    d.addData(new XMLInt('direction', this.direction))
-    d.addData(new XMLString('projectile', this.projectilePath))
-    d.addData(new XMLFloat('spread', this.spread))
-    d.addData(new XMLInt('spawn-rate', this.spawnRateMs))
-    return d
-  }
-}
-
-/**
- * An integer script variable, read and written by `ChangeVariable` and
- * `CheckVariable` — the counter of the "all bosses died" rig
- * (`boss/tierSource.ts`), initialised to the boss count.
- *
- * [VERIFIED 2026-09-23] — shape copied from the user's editor-saved, playtested
- * `level0_fixed.xml`: the initial value is a bare `<int name="parameters">`
- * (hence the scalar seam, like `NodeGlobalEventTrigger`), and the editor saved
- * it with `trigger-times` 1, which is kept here.
- */
-export class NodeVariable extends ScriptNode {
-  constructor(
-    ctx: GenerationContext,
-    x: number,
-    y: number,
-    public initial: number
-  ) {
-    super(ctx, x, y, 'Variable')
-    this.triggerTimes = 1
-  }
-
-  protected getParametersXML(): string {
-    return new XMLInt('parameters', this.initial).getXML()
-  }
-}
-
-/** `ChangeVariable`'s `mod` for "subtract `value`" — [VERIFIED 2026-09-23]. */
-export const CHANGE_VAR_SUB = 2
-
-/**
- * Applies `mod` with `value` to a `NodeVariable` each time it is triggered.
- *
- * [VERIFIED 2026-09-23] — shape from `level0_fixed.xml`: `vars` wraps the
- * variable's id in a `static` array, then `mod`, `round` and `value`. Only
- * `mod` 2 (subtract) is known; `round` is always 0 there.
- */
-export class NodeChangeVariable extends ScriptNode {
-  constructor(
-    ctx: GenerationContext,
-    x: number,
-    y: number,
-    public variable: NodeVariable,
-    public mod: number,
-    public value: number
-  ) {
-    super(ctx, x, y, 'ChangeVariable')
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    const vars = new XMLDictionary('vars')
-    vars.addData(new XMLIntArray('static', [this.variable.id]))
-    d.addData(vars)
-    d.addData(new XMLInt('mod', this.mod))
-    d.addData(new XMLInt('round', 0))
-    d.addData(new XMLInt('value', this.value))
-    return d
-  }
-}
-
-/** `CheckVariable`'s `cmp-func` for "equals `cmp-val`" — [VERIFIED 2026-09-23]. */
-export const CHECK_VAR_EQUAL = 0
-
-/**
- * Compares a `NodeVariable` against `cmpVal` each time it is triggered and
- * fires its `on-true` targets when the comparison holds. It has no
- * `connections` of its own.
- *
- * [VERIFIED 2026-09-23] — shape from `level0_fixed.xml`, where `on-true`
- * listed the seal's `DestroyObject` and the "bosses are dead" `AnnounceText`
- * and an empty `on-false` dictionary loaded fine.
- *
- * `connectTo` appends to `onTrue` instead of `connections`, so a rig that
- * "connects from" this node — as every death-tier rig does from a
- * `TierSource` trigger — lands in `on-true` without knowing the difference.
- * `on-true` carries no per-target delay, so a delayed connection is refused.
- * The array is taken by reference: the all-bosses-died rig hands the same one
- * to every boss's CheckVariable, so wiring one wires them all.
- */
-export class NodeCheckVariable extends ScriptNode {
-  constructor(
-    ctx: GenerationContext,
-    x: number,
-    y: number,
-    public variable: NodeVariable,
-    public cmpVal: number,
-    public onTrue: ScriptNode[] = []
-  ) {
-    super(ctx, x, y, 'CheckVariable')
-  }
-
-  connectTo(n: ScriptNode, delayMs?: number): void {
-    if (delayMs !== undefined && delayMs !== 0) {
-      throw new Error('CheckVariable on-true targets cannot carry a delay')
-    }
-    this.onTrue.push(n)
-  }
-
-  protected getParametersDict(): XMLDictionary {
-    const d = new XMLDictionary('parameters')
-    const vars = new XMLDictionary('vars')
-    vars.addData(new XMLIntArray('static', [this.variable.id]))
-    d.addData(vars)
-    d.addData(new XMLInt('cmp-func', CHECK_VAR_EQUAL))
-    d.addData(new XMLInt('cmp-val', this.cmpVal))
-    // An empty `<int-arr>` crashes LevelPacker.exe, so an `on-true` with
-    // nothing wired to it ships as an empty dictionary — the same shape the
-    // editor itself saved for `on-false`.
-    const onTrue = new XMLDictionary('on-true')
-    if (this.onTrue.length > 0) onTrue.addData(new XMLIntArray('static', this.onTrue.map((n) => n.id)))
-    d.addData(onTrue)
-    d.addData(new XMLDictionary('on-false'))
-    return d
-  }
-}
+/** HW1's `RectangleShape` is an AE sensor unit; the old name keeps the rigs readable. */
+export { SensorShape as NodeRectangleShape }

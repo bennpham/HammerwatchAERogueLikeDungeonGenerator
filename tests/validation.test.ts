@@ -26,7 +26,7 @@ import { CAMPAIGN_PRESETS } from '../src/generator/config/presets'
 import { DEFAULT_LOBBY_PRESET_ID, LOBBY_PRESETS } from '../src/generator/lobby/presets'
 import { plainParameters } from './params'
 import { samplePool } from './mysterySample'
-import { noUpgrades, oneOfEachUpgrade } from '../src/generator/levelTemplate/surgery'
+import { noUpgrades, oneOfEachUpgrade } from '../src/generator/lobby/payout'
 import type { CampaignSlot } from '../src/generator/campaign'
 
 const fieldsOf = (issues: Array<{ field: string }>) => issues.map((i) => i.field)
@@ -113,15 +113,15 @@ describe('parameter validation', () => {
 
   it('warns once about a theme with a cosmetic caveat, however many levels use it', () => {
     const p = defaultParameters()
-    p.themes = p.themes.map(() => 'h')
+    p.themes = p.themes.map(() => 'bonus1')
     const result = validateParameters(p)
     // advisory only — a caveat must never block generation
     expect(result.valid).toBe(true)
     expect(fieldsOf(result.errors)).not.toContain('themes')
-    // one warning for 8 levels of theme h, not eight
+    // one warning for 8 levels of bonus1, not eight
     const themeWarnings = result.warnings.filter((w) => w.field === 'themes')
     expect(themeWarnings).toHaveLength(1)
-    expect(themeWarnings[0].message).toContain('Theme h')
+    expect(themeWarnings[0].message).toContain('onus')
   })
 
   it('stays silent for themes with no caveat', () => {
@@ -614,37 +614,37 @@ describe('boss validation', () => {
 
   it('rejects an unknown monster in a wave pool', () => {
     const waves = defaultParameters().boss.fights[0].arena.waves
-    waves[1].monsters = ['skeleton1', 'dragon']
+    waves[1].monsters = ['skeleton_warrior', 'dragon']
     const result = withBoss({ arena: { ...defaultParameters().boss.fights[0].arena, waves } })
     expect(fieldsOf(result.errors)).toContain('boss.fights.0.arena.waves.1.monsters')
   })
 
   it('accepts a spawner or elite variant key in a wave pool', () => {
     const waves = defaultParameters().boss.fights[0].arena.waves
-    waves[1].monsters = ['skeleton1#0', 'archer1#2']
+    waves[1].monsters = ['skeleton_warrior#0', 'skeleton_archer#2']
     const result = withBoss({ arena: { ...defaultParameters().boss.fights[0].arena, waves } })
     expect(fieldsOf(result.errors)).not.toContain('boss.fights.0.arena.waves.1.monsters')
   })
 
   it('rejects a variant index the monster does not have', () => {
     const waves = defaultParameters().boss.fights[0].arena.waves
-    waves[1].monsters = ['bat1#99']
+    waves[1].monsters = ['bat#99']
     const result = withBoss({ arena: { ...defaultParameters().boss.fights[0].arena, waves } })
     const issue = result.errors.find((e) => e.field === 'boss.fights.0.arena.waves.1.monsters')
     expect(issue?.message).toContain('has no variant 99')
   })
 
   it('rejects a non-canonical spelling of the default variant', () => {
-    // bat1#1 and bat1 are the same actor — allowing both would let one actor
+    // bat#1 and bat are the same actor — allowing both would let one actor
     // hold two pool slots with two different max counts.
     const waves = defaultParameters().boss.fights[0].arena.waves
-    waves[1].monsters = ['bat1#1']
+    waves[1].monsters = ['bat#1']
     const result = withBoss({ arena: { ...defaultParameters().boss.fights[0].arena, waves } })
     const issue = result.errors.find((e) => e.field === 'boss.fights.0.arena.waves.1.monsters')
     expect(issue?.message).toContain('is not canonical')
   })
 
-  it.each(['bat1#', 'bat1#x', 'bat1#1.5'])('rejects the malformed variant key %s', (key) => {
+  it.each(['bat#', 'bat#x', 'bat#1.5'])('rejects the malformed variant key %s', (key) => {
     const waves = defaultParameters().boss.fights[0].arena.waves
     waves[1].monsters = [key]
     const result = withBoss({ arena: { ...defaultParameters().boss.fights[0].arena, waves } })
@@ -662,16 +662,16 @@ describe('boss validation', () => {
 
   it('rejects a monsterMax below -1', () => {
     const waves = defaultParameters().boss.fights[0].arena.waves
-    waves[0].monsterMax = { ...waves[0].monsterMax, bat1: -2 }
+    waves[0].monsterMax = { ...waves[0].monsterMax, bat: -2 }
     const result = withBoss({ arena: { ...defaultParameters().boss.fights[0].arena, waves } })
-    expect(fieldsOf(result.errors)).toContain('boss.fights.0.arena.waves.0.monsterMax.bat1')
+    expect(fieldsOf(result.errors)).toContain('boss.fights.0.arena.waves.0.monsterMax.bat')
   })
 
   it('accepts -1 (endless) in monsterMax', () => {
     const waves = defaultParameters().boss.fights[0].arena.waves
-    waves[0].monsterMax = { ...waves[0].monsterMax, bat1: -1 }
+    waves[0].monsterMax = { ...waves[0].monsterMax, bat: -1 }
     const result = withBoss({ arena: { ...defaultParameters().boss.fights[0].arena, waves } })
-    expect(fieldsOf(result.errors)).not.toContain('boss.fights.0.arena.waves.0.monsterMax.bat1')
+    expect(fieldsOf(result.errors)).not.toContain('boss.fights.0.arena.waves.0.monsterMax.bat')
   })
 
   it('warns (without blocking) on an empty wave monster pool', () => {
@@ -703,7 +703,7 @@ describe('boss validation', () => {
   // error: clearing it when the user switches theme would lose their choice.
   it('accepts a floor pattern on a theme that ignores it', () => {
     const result = withBoss({
-      arena: { ...defaultParameters().boss.fights[0].arena, theme: 'g', floorPattern: 'rings' }
+      arena: { ...defaultParameters().boss.fights[0].arena, theme: 'pyramid_inside', floorPattern: 'rings' }
     })
     expect(fieldsOf(result.errors)).not.toContain('boss.fights.0.arena.floorPattern')
   })
@@ -805,7 +805,7 @@ describe('boss validation', () => {
             maxHeight: 24,
             spawn: { ...arena.spawn, spacing: 4, batchSize: 500 },
             waves: arena.waves.map((w, i) =>
-              i === 0 ? { ...w, monsterMax: { ...w.monsterMax, bat1: 400 }, spawnMode: { bat1: 'random' as const } } : w
+              i === 0 ? { ...w, monsterMax: { ...w.monsterMax, bat: 400 }, spawnMode: { bat: 'random' as const } } : w
             )
           }
         }
@@ -855,44 +855,44 @@ describe('boss validation', () => {
   })
 
   it('rejects an unknown spawn mode', () => {
-    const result = withWave0({ spawnMode: { bat1: 'spiral' as never } })
-    expect(fieldsOf(result.errors)).toContain('boss.fights.0.arena.waves.0.spawnMode.bat1')
+    const result = withWave0({ spawnMode: { bat: 'spiral' as never } })
+    expect(fieldsOf(result.errors)).toContain('boss.fights.0.arena.waves.0.spawnMode.bat')
   })
 
   it('rejects scattering a monster whose wreck still blocks movement', () => {
-    // tower_nova_1's razed doodad keeps a shoot-through collision circle, so a
-    // scattered field of them can wall the arena off after the kill (issue #21).
+    // the AE static frost tower leaves a solid wreck, so a scattered field of
+    // them can wall the arena off after the kill (issue #21).
     const result = withWave0({
-      monsters: ['tower_nova1'],
-      monsterMax: { tower_nova1: 6 },
-      spawnMode: { tower_nova1: 'random' }
+      monsters: ['tower_static_frost'],
+      monsterMax: { tower_static_frost: 6 },
+      spawnMode: { tower_static_frost: 'random' }
     })
     expect(result.valid).toBe(false)
-    expect(fieldsOf(result.errors)).toContain('boss.fights.0.arena.waves.0.spawnMode.tower_nova1')
+    expect(fieldsOf(result.errors)).toContain('boss.fights.0.arena.waves.0.spawnMode.tower_static_frost')
   })
 
   it('accepts the same monster on the anchors mode', () => {
     const result = withWave0({
-      monsters: ['tower_nova1'],
-      monsterMax: { tower_nova1: 6 },
-      spawnMode: { tower_nova1: 'anchors' }
+      monsters: ['tower_static_frost'],
+      monsterMax: { tower_static_frost: 6 },
+      spawnMode: { tower_static_frost: 'anchors' }
     })
-    expect(fieldsOf(result.errors)).not.toContain('boss.fights.0.arena.waves.0.spawnMode.tower_nova1')
+    expect(fieldsOf(result.errors)).not.toContain('boss.fights.0.arena.waves.0.spawnMode.tower_static_frost')
   })
 
   it('accepts scattering a monster whose wreck is passable', () => {
     const result = withWave0({
-      monsters: ['skeleton1#0'],
-      monsterMax: { 'skeleton1#0': 6 },
-      spawnMode: { 'skeleton1#0': 'gaussian' }
+      monsters: ['skeleton_warrior#0'],
+      monsterMax: { 'skeleton_warrior#0': 6 },
+      spawnMode: { 'skeleton_warrior#0': 'gaussian' }
     })
     expect(result.valid).toBe(true)
   })
 
   it('rejects an endless count on a scattered monster', () => {
-    const result = withWave0({ monsterMax: { bat1: -1, tick1: 10, maggot: 10 }, spawnMode: { bat1: 'ring' } })
+    const result = withWave0({ monsterMax: { bat: -1, tick: 10, maggot: 10 }, spawnMode: { bat: 'ring' } })
     expect(result.valid).toBe(false)
-    expect(fieldsOf(result.errors)).toContain('boss.fights.0.arena.waves.0.spawnMode.bat1')
+    expect(fieldsOf(result.errors)).toContain('boss.fights.0.arena.waves.0.spawnMode.bat')
   })
 
   it('accepts a huge scattered count — there is no upper limit', () => {
@@ -907,7 +907,7 @@ describe('boss validation', () => {
             ...arena,
             monsterMultiplier: 4.0,
             waves: arena.waves.map((w, i) =>
-              i === 0 ? { ...w, monsterMax: { ...w.monsterMax, bat1: 400 }, spawnMode: { bat1: 'random' as const } } : w
+              i === 0 ? { ...w, monsterMax: { ...w.monsterMax, bat: 400 }, spawnMode: { bat: 'random' as const } } : w
             )
           }
         }
@@ -924,10 +924,10 @@ describe('boss validation', () => {
     // threshold, together they do.
     const arena = defaultParameters().boss.fights[0].arena
     const half = (max: number) => ({
-      monsters: ['bat1'],
-      monsterMax: { bat1: max },
+      monsters: ['bat'],
+      monsterMax: { bat: max },
       defaultIntervalMs: 4000,
-      spawnMode: { bat1: 'random' as const }
+      spawnMode: { bat: 'random' as const }
     })
     const quiet = withBoss({
       arena: { ...arena, waves: [half(900), half(900), half(0), half(0), half(0)] }
@@ -944,17 +944,17 @@ describe('boss validation', () => {
 
   it('warns, without blocking, about an interval a scattered monster will ignore', () => {
     const result = withWave0({
-      monsters: ['bat1', 'tick1', 'maggot'],
-      monsterMax: { bat1: 80, tick1: 10, maggot: 10 },
-      intervalMs: { bat1: 5000 },
-      spawnMode: { bat1: 'random' }
+      monsters: ['bat', 'tick', 'maggot'],
+      monsterMax: { bat: 80, tick: 10, maggot: 10 },
+      intervalMs: { bat: 5000 },
+      spawnMode: { bat: 'random' }
     })
     expect(result.valid).toBe(true)
-    expect(fieldsOf(result.warnings).filter((f) => f === 'boss.fights.0.arena.waves.0.spawnMode.bat1')).toHaveLength(1)
+    expect(fieldsOf(result.warnings).filter((f) => f === 'boss.fights.0.arena.waves.0.spawnMode.bat')).toHaveLength(1)
   })
 
   it('ignores a spawn mode left behind for a monster no longer in the pool', () => {
-    const result = withWave0({ spawnMode: { tower_nova1: 'random' } })
+    const result = withWave0({ spawnMode: { tower_nova_ice: 'random' } })
     expect(result.valid).toBe(true)
   })
 
@@ -1056,7 +1056,7 @@ describe('boss count validation (issue #64 part 1)', () => {
         ...arena,
         bossPool: ['boss_knight', 'boss_lich'],
         bossCount: 2,
-        waves: arena.waves.map((w, i) => (i === 1 ? { ...w, monsters: ['bat1'], monsterMax: { bat1: 5 } } : w)),
+        waves: arena.waves.map((w, i) => (i === 1 ? { ...w, monsters: ['bat'], monsterMax: { bat: 5 } } : w)),
         invulnerability: { enabled: true, seconds: [30, 30, 30], countdown: true },
         checkpoints: { respawnPlayers: '50', saveGame: 'never' }
       }
@@ -1214,22 +1214,21 @@ describe('boss arena theme warning', () => {
   }
 
   // validateParameters surfaces a theme's cosmeticWarning once per dungeon
-  // theme, but only walks p.themes — so picking theme h for the ARENA used to
-  // say nothing at all, despite its cliff art needing deliberately overlapping
-  // joints to stay sealed.
-  it('warns on the arena theme field of the fight that uses theme h', () => {
-    const result = withBoss({ arena: { ...defaultParameters().boss.fights[0].arena, theme: 'h' } })
+  // theme, but only walks p.themes — so a caveated ARENA theme needs its own
+  // check.
+  it('warns on the arena theme field of the fight that uses a bonus theme', () => {
+    const result = withBoss({ arena: { ...defaultParameters().boss.fights[0].arena, theme: 'bonus1' } })
     expect(result.valid).toBe(true) // cosmetic, never blocking
     expect(fieldsOf(result.warnings)).toContain('boss.fights.0.arena.theme')
   })
 
   it('says nothing for a theme with no caveat', () => {
-    const result = withBoss({ arena: { ...defaultParameters().boss.fights[0].arena, theme: 'g' } })
+    const result = withBoss({ arena: { ...defaultParameters().boss.fights[0].arena, theme: 'pyramid_inside' } })
     expect(fieldsOf(result.warnings)).not.toContain('boss.fights.0.arena.theme')
   })
 
   it('stays quiet while the boss is disabled', () => {
-    const result = withBoss({ enabled: false, arena: { ...defaultParameters().boss.fights[0].arena, theme: 'h' } })
+    const result = withBoss({ enabled: false, arena: { ...defaultParameters().boss.fights[0].arena, theme: 'cave_desert' } })
     expect(fieldsOf(result.warnings)).not.toContain('boss.fights.0.arena.theme')
   })
 })
@@ -1544,7 +1543,7 @@ describe('mystery button validation (issue #67)', () => {
   it('rejects unknown loot, monsters and projectiles, and out-of-range counts', () => {
     const p = armed()
     p.mysteryButtons![0].loot = [{ item: 'golden_toilet', count: 1 }, { item: 'chest_red', count: MAX_PICKUP_COUNT + 1 }]
-    p.mysteryButtons![2].monsters = [{ monster: 'nope', count: 1 }, { monster: 'mb_skeleton', count: MAX_MYSTERY_MONSTERS + 1 }]
+    p.mysteryButtons![2].monsters = [{ monster: 'nope', count: 1 }, { monster: 'mb_skeleton_guard#0', count: MAX_MYSTERY_MONSTERS + 1 }]
     p.mysteryButtons![3].traps = [
       { projectile: 'nope', direction: 'up', spread: 0, spawnRateMs: 500, count: 1 },
       { projectile: 'shooter_arrow', direction: 'up', spread: 3, spawnRateMs: 0, count: MAX_TRAP_COUNT + 1 }

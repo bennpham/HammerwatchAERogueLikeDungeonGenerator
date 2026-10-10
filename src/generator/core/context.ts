@@ -3,7 +3,7 @@ import type { DungeonParameters } from '../config/parameters'
 import type { Monster } from '../objects/monster'
 import type { Item } from '../objects/item'
 import type { Doodad } from '../objects/doodad'
-import type { ScriptNode } from '../objects/scriptNode'
+import type { ScriptNode, SensorShape } from '../objects/scriptNode'
 import type { ObjectSet } from '../objects/objectSet'
 import type { Gateway } from '../campaign'
 
@@ -79,7 +79,55 @@ export class GenerationContext {
   readonly mysteryRand: Rand
 
   currentLevel = 0
-  idCounter = 0
+  /**
+   * The single per-level id counter units and scripts share (AE resolves script
+   * arrays against both). Starts at 1: AE's own levels never use id 0.
+   */
+  idCounter = 1
+
+  /**
+   * The scenario id — the folder name and the `levels/<id>/` namespace every
+   * level path in this campaign lives under (level paths are global across all
+   * scenarios and the base game).
+   */
+  readonly scenarioId: string
+
+  /**
+   * The boss actors of the arena or floor whose rigs are being built — what
+   * `NodeGlobalEventTrigger` turns "Boss 75%" / "Boss Died" into AE's
+   * `ActorHealthTrigger` / `UnitDestroyedTrigger` over. Empty otherwise.
+   */
+  bossActors: Array<{ id: number }> = []
+
+  /**
+   * The stem of the level being built (`floor2`, `boss0`) — its file name and
+   * the StartID its arrival LevelStart answers to. Set by the generator.
+   */
+  currentStem = ''
+
+  /**
+   * Whether the level being built is the campaign's first: it also gets the
+   * default spawn (a LevelStart with no StartID), where a new game puts the
+   * party. Without one AE spawns players at 0,0. Set by the generator.
+   */
+  isStartLevel = false
+
+  /** The banner shown as the party arrives ("Floor 3"). Set by the generator. */
+  currentBanner = ''
+
+  /**
+   * Whether an ACCEPTED floor of this run already carries a shop selling the
+   * Warlock gargoyle (`def2`) — see `DungeonParameters.ensureGargoyleShop`.
+   * Run-wide; committed by the generator only once a floor is accepted, from
+   * `levelGargoyleShop`, so a discarded candidate floor never counts.
+   */
+  gargoyleShopPlaced = false
+  /** The floor being built placed a `def2` shop (reset per candidate). */
+  levelGargoyleShop = false
+
+  /** The theme of the level being built — what door art and seal walls resolve against. */
+  currentTheme = ''
+
   lastLockType = 0
 
   /**
@@ -138,6 +186,10 @@ export class GenerationContext {
   items: Item[] = []
   doodads: Doodad[] = []
   scriptNodes: ScriptNode[] = []
+  /** trigger areas (AE :Physics_Rectangle / :Physics_Circle units) */
+  sensors: SensorShape[] = []
+  /** plain units nothing references (lobby diamonds, upgrade pickups); ids assigned at emit */
+  extraUnits: Array<{ path: string; x: number; y: number }> = []
   objectSets: ObjectSet[] = []
   /**
    * Extra tiles the player must be able to walk to for this floor to be
@@ -150,8 +202,9 @@ export class GenerationContext {
    */
   reachTargets: Array<{ x: number; y: number }> = []
 
-  constructor(params: DungeonParameters, seed: number) {
+  constructor(params: DungeonParameters, seed: number, scenarioId = `dungeon_${seed}`) {
     this.params = params
+    this.scenarioId = scenarioId
     this.rand = new Rand(seed)
     this.cosmeticRand = new Rand(seed + 1)
     this.bossRand = new Rand(seed + 2)
@@ -160,14 +213,23 @@ export class GenerationContext {
     this.mysteryRand = new Rand(seed + 5)
   }
 
+  /** Scenario-relative path of the level a slot stem (`floor2`, `boss0`, `lobby1`) is written to. */
+  levelPath(stem: string): string {
+    return `levels/${this.scenarioId}/${stem}.lvl`
+  }
+
   /** Equivalent of the Clear() calls between levels in HammerwatchGen.main */
   clearLevel(): void {
     this.monsters = []
     this.items = []
     this.doodads = []
     this.scriptNodes = []
+    this.sensors = []
+    this.extraUnits = []
     this.objectSets = []
     this.reachTargets = []
-    this.idCounter = 0
+    this.bossActors = []
+    this.levelGargoyleShop = false
+    this.idCounter = 1
   }
 }

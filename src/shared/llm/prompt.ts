@@ -17,13 +17,13 @@ import { diffSerialized } from './reply'
 /** Claude presets shown as worked examples: a short one, a floor-boss one, a trap/timer one. */
 const EXAMPLE_PRESET_IDS = ['claude-pandemonium', 'claude-beat-the-clock', 'claude-frozen-descent']
 
-const RULES = `You configure a Hammerwatch rogue-like campaign generator by writing lines of its parameters.txt file.
+const RULES = `You configure a Hammerwatch Anniversary Edition rogue-like campaign generator by writing lines of its parameters.txt file.
 
 Reply with a short plain-language summary (2-5 sentences), then exactly ONE fenced block tagged "parameters" holding the lines to change:
 
 \`\`\`parameters
 levels=4
-themes=f_mixed,f_mixed,f_mixed,f_mixed
+themes=cave_crystal,cave_crystal,cave_dark,cave_dark
 \`\`\`
 
 Rules:

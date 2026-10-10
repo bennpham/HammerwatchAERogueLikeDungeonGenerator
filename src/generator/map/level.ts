@@ -3,18 +3,22 @@ import { sealRoomWall, sealRoomWallWithButton, sealRoomWithButton } from './butt
 import type { LockButton } from './buttonSeal'
 import { Passage } from './passage'
 import { Tile } from './tile'
-import { searchPatterns } from './wallPattern'
-import { Doodad } from '../objects/doodad'
+import type { Doodad } from '../objects/doodad'
 import { GOLD_LOCK_TIER } from '../objects/item'
-import { getTheme, THEME_DEFS } from '../config/themes'
-import { XMLArray, XMLDictionary, XMLInt, XMLIntArray, XMLString } from '../xml'
-import { mixedDatasets, overlayDataset } from './tilemapOverlay'
+import { getTheme, themeEnvironment, THEME_DEFS } from '../config/themes'
+import { AeLevel } from '../ae/model'
+import { TileLayers } from '../ae/tiles'
+import { emitObjects, emitWalls } from '../ae/emit'
+import { isLineCell } from './aeWalls'
+import type { WallGrid } from './aeWalls'
+import { tilesetSize } from '../catalog/assets'
 import { exitReachable } from './reachability'
 import { sealHolds } from './sealCheck'
 import type { GenerationContext } from '../core/context'
 import type { ScriptNode } from '../objects/scriptNode'
 
-const TILEMAP_SIZE = 20
+/** The black mask tileset (layer -79, above every floor): hides floor spill outside the wall line. */
+const BLACK_TILESET = 'tilesets/__black.tileset'
 
 /**
  * One generated floor: places rooms, connects them with passages, assigns
@@ -91,9 +95,10 @@ export class Level {
     const params = ctx.params
     const rand = ctx.rand
 
-    ctx.idCounter = 0
+    ctx.idCounter = 1
     ctx.currentLevel = level
     this.theme = params.themes[level]
+    ctx.currentTheme = this.theme
     this.levelNum = level
     this.width = params.mapWidth
     this.height = params.mapHeight
@@ -228,8 +233,9 @@ export class Level {
       }
     }
 
-    // shop
-    if (rand.fRand(0, 1) < params.shopChance) {
+    // shop — always on the first floor while a gargoyle shop is still owed
+    const owedGargoyle = params.ensureGargoyleShop === true && !ctx.gargoyleShopPlaced
+    if (rand.fRand(0, 1) < params.shopChance || owedGargoyle) {
       for (const r of this.rooms) {
         if (r.transform('Shop')) break
       }
@@ -397,7 +403,6 @@ export class Level {
     }
 
     this.buildTileArray()
-    this.buildWalls()
 
     // Last, because it reads the finished tile grid: a floor whose exit (or
     // orb, or a key) the player physically cannot walk to is discarded and
@@ -419,194 +424,78 @@ export class Level {
     }
   }
 
-  /** Serialize the level to Hammerwatch's XML dialect. */
-  getXML(): string {
+  /** The wall grid the AE wall placer and the floor painter read. */
+  wallGrid(): WallGrid {
+    const { width, height, tileArray } = this
+    return {
+      width,
+      height,
+      solid: (x, y) => x < 0 || y < 0 || x >= width || y >= height || tileArray[x + y * width].wall,
+      reserved: (x, y) => x >= 0 && y >= 0 && x < width && y < height && tileArray[x + y * width].reserved
+    }
+  }
+
+  /**
+   * The finished floor as an Anniversary Edition level: floor tilesets, every
+   * placed object, then the wall pieces computed from the tile grid.
+   *
+   * Floors: the theme's bottom tileset is painted one cell past the walkable
+   * floor so it reaches under the wall line (AE's own levels do the same);
+   * further layers cover walkable floor only; a mixed theme gives each room
+   * and corridor one surface off the cosmetic stream; and `__black` masks every
+   * solid cell that is not part of a wall line, hiding 32-px floor tiles that
+   * spill past a wall.
+   */
+  toAeLevel(): AeLevel {
     const ctx = this.ctx
-    const tiledataArray = new XMLArray('tiledata')
+    const theme = getTheme(this.theme) ?? THEME_DEFS[0]
+    const level = new AeLevel(themeEnvironment(theme, this.levelNum))
+    const grid = this.wallGrid()
+    const { width, height } = this
 
-    // the map is written as 20x20 tilemap blocks
-    const xTiles = Math.ceil(this.ctx.params.mapWidth / TILEMAP_SIZE)
-    const yTiles = Math.ceil(this.ctx.params.mapHeight / TILEMAP_SIZE)
+    const floor: Array<[number, number]> = []
+    const roomFloor: Array<[number, number]> = []
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const t = this.tileArray[x + y * width]
+        if (!t.wall) roomFloor.push([x, y])
+        if (!t.wall || t.reserved) floor.push([x, y])
+      }
+    }
+    const layers = new TileLayers(tilesetSize)
+    layers.paint16(theme.floor[0], roomFloor, [1, 1, 1, 1])
+    for (const ts of theme.floor.slice(1)) layers.paint16(ts, floor)
 
-    // validation rejects an unknown theme before we get here; the fallback
-    // matches the original's default branch rather than throwing
-    const tilemap = getTheme(this.theme) ?? THEME_DEFS[0]
-
-    // A mixed theme gives every room and every corridor its own floor surface:
-    // one palette slot each, rolled here rather than per tile so a room reads as
-    // a single deliberate surface. Guarded so a plain or paired theme draws
-    // nothing at all and every seed generated before this existed is unchanged.
-    const palette = tilemap.mixed
-    const regionVariant =
-      palette === undefined
-        ? null
-        : Array.from({ length: this.rooms.length + this.passageList.length }, () =>
-            Math.trunc(ctx.cosmeticRand.nextFloat() * palette.length)
-          )
-
-    for (let x = 0; x < xTiles + 1; x++) {
-      for (let y = 0; y < yTiles + 1; y++) {
-        const dataT = this.getTiles(x * TILEMAP_SIZE, y * TILEMAP_SIZE, tilemap.tiles)
-
-        const tileSet = new XMLDictionary('')
-        tileSet.addData(new XMLString('tileset', tilemap.tilemap))
-        tileSet.addData(new XMLIntArray('data-t', dataT))
-        tileSet.addData(this.defaultIntArray('data-r'))
-        tileSet.addData(this.defaultIntArray('data-g'))
-        tileSet.addData(this.defaultIntArray('data-b'))
-        // deliberately a flat 255, not the 0/255 mask the overlay below uses:
-        // this is the bottom layer and there is nothing under it to show through
-        tileSet.addData(this.defaultIntArray('data-a'))
-
-        const dataSets = new XMLArray('datasets')
-        dataSets.addData(tileSet)
-
-        // A paired theme (`c - tiles`) stacks its alternate tileset on top of the
-        // base at full coverage. Plain themes get `null` back having drawn no
-        // random numbers at all, so their output is unchanged — see the note on
-        // `overlayDataset`.
-        const overlay = overlayDataset(tilemap, dataT, ctx.cosmeticRand)
-        if (overlay !== null) dataSets.addData(overlay)
-
-        // A mixed theme instead adds one masked dataset per palette overlay that
-        // any region in this block landed on — often none, since most blocks sit
-        // inside a single room.
-        if (regionVariant !== null) {
-          const regionIds = this.getRegionIds(x * TILEMAP_SIZE, y * TILEMAP_SIZE)
-          const cellVariant = regionIds.map((r) => (r < 0 ? -1 : regionVariant[r]))
-          for (const d of mixedDatasets(tilemap, dataT, cellVariant, ctx.cosmeticRand)) {
-            dataSets.addData(d)
-          }
-        }
-
-        const tileBlock = new XMLDictionary('')
-        tileBlock.addData(new XMLInt('x', x * TILEMAP_SIZE))
-        tileBlock.addData(new XMLInt('y', y * TILEMAP_SIZE))
-        tileBlock.addData(dataSets)
-
-        tiledataArray.addData(tileBlock)
+    // one surface per room and corridor, drawn only when the theme mixes
+    const palette = theme.mixed
+    if (palette !== undefined && palette.length > 0) {
+      const regions = this.rooms.length + this.passageList.length
+      const slots = Array.from({ length: regions }, () => Math.trunc(ctx.cosmeticRand.nextFloat() * (palette.length + 1)))
+      for (let slot = 1; slot <= palette.length; slot++) {
+        const cells = roomFloor.filter(([x, y]) => {
+          const r = this.regionMap[x + y * width]
+          return r >= 0 && slots[r] === slot
+        })
+        if (cells.length > 0) layers.paint16(palette[slot - 1], cells)
       }
     }
 
-    const tilemapDict = new XMLDictionary('tilemap')
-    tilemapDict.addData(tiledataArray)
-
-    const doodadsArray = new XMLArray('doodads')
-    for (const d of ctx.doodads) {
-      doodadsArray.addData(d)
-    }
-    const doodadsDict = new XMLDictionary('doodads')
-    doodadsDict.addData(doodadsArray)
-
-    const actorsArray = new XMLArray('actors')
-    for (const m of ctx.monsters) {
-      actorsArray.addData(m)
-    }
-    const actorsDict = new XMLDictionary('actors')
-    actorsDict.addData(actorsArray)
-
-    const itemsArray = new XMLArray('items')
-    for (const i of ctx.items) {
-      itemsArray.addData(i)
-    }
-    const itemsDict = new XMLDictionary('items')
-    itemsDict.addData(itemsArray)
-
-    const nodesArray = new XMLArray('nodes')
-    for (const n of ctx.scriptNodes) {
-      nodesArray.addData(n)
-    }
-    const scriptingDict = new XMLDictionary('scripting')
-    scriptingDict.addData(nodesArray)
-
-    const lightingArray = new XMLArray('lights')
-
-    const ambientDict = new XMLDictionary('ambient-color')
-    ambientDict.addData(new XMLInt('r', 255))
-    ambientDict.addData(new XMLInt('g', 255))
-    ambientDict.addData(new XMLInt('b', 255))
-    ambientDict.addData(new XMLInt('a', 255))
-
-    const shadowDict = new XMLDictionary('shadow-color')
-    shadowDict.addData(new XMLInt('r', 128))
-    shadowDict.addData(new XMLInt('g', 128))
-    shadowDict.addData(new XMLInt('b', 128))
-    shadowDict.addData(new XMLInt('a', 128))
-
-    const lightingDict = new XMLDictionary('lighting')
-    lightingDict.addData(lightingArray)
-    lightingDict.addData(ambientDict)
-    lightingDict.addData(shadowDict)
-
-    const masterDict = new XMLDictionary('')
-    masterDict.addData(tilemapDict)
-    masterDict.addData(doodadsDict)
-    masterDict.addData(actorsDict)
-    masterDict.addData(scriptingDict)
-    masterDict.addData(itemsDict)
-    masterDict.addData(lightingDict)
-
-    return masterDict.getXML()
-  }
-
-  /**
-   * Floor tile variants for one 20x20 block (0 = wall/void). The original
-   * used an unseeded Math.random() here; we use the seeded cosmetic stream
-   * so output is fully reproducible.
-   */
-  private getTiles(x: number, y: number, tileVariants: number): number[] {
-    const tiles = new Array<number>(TILEMAP_SIZE * TILEMAP_SIZE)
-    for (let i = 0; i < TILEMAP_SIZE * TILEMAP_SIZE; i++) {
-      const tileX = x - 10 + (i % TILEMAP_SIZE)
-      const tileY = y - 10 + Math.trunc(i / TILEMAP_SIZE)
-      const tileIndex = tileX + tileY * this.width
-      if (
-        tileIndex >= 0 &&
-        tileIndex < this.width * this.height &&
-        tileX >= 0 &&
-        tileX < this.width &&
-        tileY >= 0 &&
-        tileY < this.height &&
-        !this.tileArray[tileIndex].wall
-      ) {
-        tiles[i] = Math.trunc(this.ctx.cosmeticRand.nextFloat() * tileVariants) + 1
-      } else {
-        tiles[i] = 0
+    const mask: Array<[number, number]> = []
+    for (let y = -2; y < height + 2; y++) {
+      for (let x = -2; x < width + 2; x++) {
+        if (grid.solid(x, y) && !grid.reserved(x, y) && !isLineCell(grid, x, y)) mask.push([x, y])
       }
     }
-    return tiles
+    layers.paint16(BLACK_TILESET, mask)
+    level.tileCells = layers.cells()
+
+    emitObjects(level, ctx)
+    this.missingWallPieces = emitWalls(level, ctx, grid, theme)
+    return level
   }
 
-  /**
-   * `regionMap` sampled for one 20x20 block — the same index math and the same
-   * `-10` block-centring offset as `getTiles`, so cell `i` here describes the
-   * same tile as cell `i` there. Draws no random numbers.
-   */
-  private getRegionIds(x: number, y: number): number[] {
-    const ids = new Array<number>(TILEMAP_SIZE * TILEMAP_SIZE)
-    for (let i = 0; i < TILEMAP_SIZE * TILEMAP_SIZE; i++) {
-      const tileX = x - 10 + (i % TILEMAP_SIZE)
-      const tileY = y - 10 + Math.trunc(i / TILEMAP_SIZE)
-      const tileIndex = tileX + tileY * this.width
-      if (
-        tileIndex >= 0 &&
-        tileIndex < this.width * this.height &&
-        tileX >= 0 &&
-        tileX < this.width &&
-        tileY >= 0 &&
-        tileY < this.height
-      ) {
-        ids[i] = this.regionMap[tileIndex]
-      } else {
-        ids[i] = -1
-      }
-    }
-    return ids
-  }
-
-  private defaultIntArray(name: string): XMLIntArray {
-    return new XMLIntArray(name, new Array<number>(TILEMAP_SIZE * TILEMAP_SIZE).fill(255))
-  }
+  /** Wall pieces the theme could not supply when the level was last emitted (should be empty). */
+  missingWallPieces: string[] = []
 
   /** Rasterize rooms + passages into the wall/floor grid. */
   private buildTileArray(): void {
@@ -640,33 +529,12 @@ export class Level {
 
       tile.wall = isWall
 
-      // stair prefabs bring their own walls
-      for (const s of this.ctx.objectSets) {
-        if (s.replaceWalls && s.containsWall(x, y)) {
-          tile.wallSet = true
-        }
-      }
     }
-  }
 
-  /** Pattern-match every tile to place the wall doodad pieces. */
-  private buildWalls(): void {
-    for (let i = 0; i < this.width * this.height; i++) {
-      const x = i % this.width
-      const y = Math.trunc(i / this.width)
-
-      if (this.tileArray[i].wallSet) continue
-
-      let type = searchPatterns(x, y, this.tileArray, this.width, true)
-      if (type !== null) {
-        Doodad.create(this.ctx, x, y, type, this.theme)
-      }
-
-      // non-wall decorations (cover)
-      if (getTheme(this.theme)?.omitCover === true) continue
-      type = searchPatterns(x, y, this.tileArray, this.width, false)
-      if (type !== null) {
-        Doodad.create(this.ctx, x, y, type, this.theme)
+    // exit doorways: wall-line cells the stairs art stands in
+    for (const set of this.ctx.objectSets) {
+      for (const [x, y] of set.reserved) {
+        if (x >= 0 && y >= 0 && x < this.width && y < this.height) this.tileArray[x + y * this.width].reserved = true
       }
     }
   }

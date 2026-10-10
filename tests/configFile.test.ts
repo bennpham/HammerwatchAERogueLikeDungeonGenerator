@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { plainParameters } from './params'
 import { parseParametersTxt, serializeParametersTxt } from '../src/generator/config/configFile'
-import { noUpgrades, oneOfEachUpgrade } from '../src/generator/levelTemplate/surgery'
+import { noUpgrades, oneOfEachUpgrade } from '../src/generator/lobby/payout'
 import {
   gatewayLockedFloors,
   BOSS_DEATH_WAVE,
@@ -72,12 +72,12 @@ describe.skipIf(!existsSync(JAVA_FIXTURE))('reference/original-java/parameters.t
     expect(parsed.params.levelMonsters).toEqual([
       ['bat', 'tick', 'maggot'],
       ['bat', 'tick', 'slime', 'maggot'],
-      ['slime', 'skeleton1', 'maggot'],
-      ['eye', 'skeleton1', 'archer', 'archer'],
-      ['wisp', 'skeleton1', 'archer', 'eye', 'army1'],
-      ['skeleton1', 'archer', 'army1', 'skeleton2', 'wisp'],
-      ['skeleton2', 'archer', 'lich', 'army1'],
-      ['skeleton2', 'army2', 'lich2']
+      ['slime', 'skeleton_warrior', 'maggot'],
+      ['eye', 'skeleton_warrior', 'archer', 'archer'],
+      ['wisp', 'skeleton_warrior', 'archer', 'eye', 'army1'],
+      ['skeleton_warrior', 'archer', 'army1', 'skeleton_soldier', 'wisp'],
+      ['skeleton_soldier', 'archer', 'skeleton_lich', 'army1'],
+      ['skeleton_soldier', 'army2', 'lich2']
     ])
     // The renamed `max*` keys (`maxBats`, `maxArmy`, `maxLiches1`, …) no
     // longer match any current configKey and are reported, never fatal.
@@ -113,10 +113,10 @@ describe.skipIf(!existsSync(JAVA_FIXTURE))('reference/original-java/parameters.t
 
 describe('parameters.txt parsing', () => {
   it('overrides only the keys present in the file', () => {
-    const parsed = parseParametersTxt('levels=4\nmapWidth=100\nthemes=a,b,c,d\n')
+    const parsed = parseParametersTxt('levels=4\nmapWidth=100\nthemes=prison,armory,archives,chambers\n')
     expect(parsed.params.levels).toBe(4)
     expect(parsed.params.mapWidth).toBe(100)
-    expect(parsed.params.themes).toEqual(['a', 'b', 'c', 'd'])
+    expect(parsed.params.themes).toEqual(['prison', 'armory', 'archives', 'chambers'])
     // untouched keys keep defaults
     expect(parsed.params.maxRoomSize).toBe(20)
     expect(parsed.unknownKeys).toEqual([])
@@ -130,9 +130,9 @@ describe('parameters.txt parsing', () => {
 
   it('parses per-level monster pools and monster max counts', () => {
     const parsed = parseParametersTxt('monsters0=bat1,tick1\nmaxBats1=123\nmaxMB_Liches=4\n')
-    expect(parsed.params.levelMonsters[0]).toEqual(['bat1', 'tick1'])
-    expect(parsed.params.monsterMax['bat1']).toBe(123)
-    expect(parsed.params.monsterMax['mb_lich']).toBe(4)
+    expect(parsed.params.levelMonsters[0]).toEqual(['bat', 'tick'])
+    expect(parsed.params.monsterMax['bat']).toBe(123)
+    expect(parsed.params.monsterMax['mb_wizard']).toBe(4)
   })
 
   it('collects unknown keys instead of failing', () => {
@@ -149,8 +149,8 @@ describe('parameters.txt parsing', () => {
   it('round-trips through serialize + parse', () => {
     const original = defaultParameters()
     original.levels = 5
-    original.themes = ['a', 'b', 'c', 'd', 'e']
-    original.monsterMax['bat1'] = 42
+    original.themes = ['prison', 'crypt', 'mine_granite', 'cave_dark', 'bonus3']
+    original.monsterMax['bat'] = 42
     original.shopChance = 0.5
 
     const text = serializeParametersTxt(original, 'D:/HW', false)
@@ -159,37 +159,18 @@ describe('parameters.txt parsing', () => {
     expect(parsed.path).toBe('D:/HW')
     expect(parsed.cleanupFiles).toBe(false)
     expect(parsed.params.levels).toBe(5)
-    expect(parsed.params.themes).toEqual(['a', 'b', 'c', 'd', 'e'])
-    expect(parsed.params.monsterMax['bat1']).toBe(42)
+    expect(parsed.params.themes).toEqual(['prison', 'crypt', 'mine_granite', 'cave_dark', 'bonus3'])
+    expect(parsed.params.monsterMax['bat']).toBe(42)
     expect(parsed.params.shopChance).toBeCloseTo(0.5)
     expect(parsed.unknownKeys).toEqual([])
   })
 
-  // Overlay theme ids are the overlay tileset's filename (`c_tiles`), which is
-  // longer than a letter and must survive the comma-separated `themes=` list
-  it('round-trips overlay theme ids', () => {
-    const original = defaultParameters()
-    original.levels = 3
-    original.themes = ['c_tiles', 'd_carpet', 'f_frozen']
-    original.boss.fights[0].arena.theme = 'g_path_dense'
-
-    const parsed = parseParametersTxt(serializeParametersTxt(original))
-
-    expect(parsed.params.themes).toEqual(['c_tiles', 'd_carpet', 'f_frozen'])
-    expect(parsed.params.boss.fights[0].arena.theme).toBe('g_path_dense')
-    expect(parsed.unknownKeys).toEqual([])
-  })
-
-  it('round-trips mixed theme ids', () => {
-    const original = defaultParameters()
-    original.levels = 3
-    original.themes = ['a_mixed', 'c_mixed', 'f_mixed']
-    original.boss.fights[0].arena.theme = 'g_mixed'
-
-    const parsed = parseParametersTxt(serializeParametersTxt(original))
-
-    expect(parsed.params.themes).toEqual(['a_mixed', 'c_mixed', 'f_mixed'])
-    expect(parsed.params.boss.fights[0].arena.theme).toBe('g_mixed')
+  // A file written by the HW1 remake names themes by letter, overlay tileset
+  // (`c_tiles`) or mixed entry (`d_mixed`); each imports as its AE theme.
+  it('translates HW1 theme ids, overlays and mixed entries included, to AE themes', () => {
+    const parsed = parseParametersTxt('levels=4\nthemes=a,c_tiles,d_mixed,f_frozen\nboss0Theme=g_mixed\n')
+    expect(parsed.params.themes).toEqual(['prison', 'archives', 'chambers', 'cave_crystal'])
+    expect(parsed.params.boss.fights[0].arena.theme).toBe('pyramid_inside')
     expect(parsed.unknownKeys).toEqual([])
   })
 
@@ -302,7 +283,7 @@ describe('parameters.txt parsing', () => {
   it('round-trips the boss options', () => {
     const original = defaultParameters()
     original.boss.enabled = true
-    original.boss.fights[0].arena.theme = 'h'
+    original.boss.fights[0].arena.theme = 'cave_desert'
     original.boss.fights[0].arena.minWidth = 20
     original.boss.fights[0].arena.maxWidth = 40
     original.boss.fights[0].arena.minHeight = 24
@@ -313,13 +294,13 @@ describe('parameters.txt parsing', () => {
     // waves set out in full rather than patched onto the stock ones, which are
     // long and nearly all scattered — this test is about the wire format
     original.boss.fights[0].arena.waves[0] = {
-      monsters: ['bat1', 'tick1', 'maggot'],
-      monsterMax: { bat1: 10, tick1: 10, maggot: 10 },
+      monsters: ['bat', 'tick', 'maggot'],
+      monsterMax: { bat: 10, tick: 10, maggot: 10 },
       defaultIntervalMs: 3500
     }
     original.boss.fights[0].arena.waves[1] = {
-      monsters: ['skeleton1', 'archer1'],
-      monsterMax: { skeleton1: 10, archer1: 10 },
+      monsters: ['skeleton_warrior', 'skeleton_archer'],
+      monsterMax: { skeleton_warrior: 10, skeleton_archer: 10 },
       defaultIntervalMs: 2500
     }
 
@@ -331,7 +312,7 @@ describe('parameters.txt parsing', () => {
     expect(text).toContain('boss0Cover=ring,0.6,5,2')
     expect(text).toContain('boss0Invuln=30,45,60')
     expect(text).toContain('boss0InvulnCountdown=0')
-    expect(text).toContain('boss0Wave1=bat1,tick1,maggot|3500|bat1:10,tick1:10,maggot:10|')
+    expect(text).toContain('boss0Wave1=bat,tick,maggot|3500|bat:10,tick:10,maggot:10|')
 
     const parsed = parseParametersTxt(text)
     // whole-struct comparison, not a dozen field asserts — this is what
@@ -439,8 +420,8 @@ describe('parameters.txt parsing', () => {
   it('round-trips per-monster interval overrides and a -1 (endless) monsterMax', () => {
     const original = defaultParameters()
     original.boss.fights[0].arena.waves[2] = {
-      monsters: ['eye', 'wisp1'],
-      monsterMax: { eye: -1, wisp1: 5 },
+      monsters: ['eye', 'wisp'],
+      monsterMax: { eye: -1, wisp: 5 },
       defaultIntervalMs: 2000,
       intervalMs: { eye: 8000 }
     }
@@ -452,8 +433,8 @@ describe('parameters.txt parsing', () => {
 
   it('rebuilds monsterMax from a user-chosen pool, leaving no undefined entries', () => {
     const original = defaultParameters()
-    original.boss.fights[0].arena.waves[0].monsters = ['bat1', 'tick1', 'maggot', 'slime']
-    original.boss.fights[0].arena.waves[0].monsterMax = { bat1: 20, tick1: 5, maggot: 5, slime: 5 }
+    original.boss.fights[0].arena.waves[0].monsters = ['bat', 'tick', 'maggot', 'slime']
+    original.boss.fights[0].arena.waves[0].monsterMax = { bat: 20, tick: 5, maggot: 5, slime: 5 }
 
     const parsed = parseParametersTxt(serializeParametersTxt(original))
     for (const id of original.boss.fights[0].arena.waves[0].monsters) {
@@ -465,10 +446,10 @@ describe('parameters.txt parsing', () => {
   it('round-trips the boss-death tier as boss0Wave5', () => {
     const original = defaultParameters()
     original.boss.fights[0].arena.waves[BOSS_DEATH_WAVE] = {
-      monsters: ['eye', 'wisp1'],
-      monsterMax: { eye: 12, wisp1: -1 },
+      monsters: ['eye', 'wisp'],
+      monsterMax: { eye: 12, wisp: -1 },
       defaultIntervalMs: 1500,
-      intervalMs: { wisp1: 6000 },
+      intervalMs: { wisp: 6000 },
       spawnMode: { eye: 'ring' },
       // The stock death tier is buffed, and buffs ride their own boss0WaveBuff5
       // key rather than a boss0Wave5 field — so replacing the wave leaves them
@@ -477,7 +458,7 @@ describe('parameters.txt parsing', () => {
     }
 
     const text = serializeParametersTxt(original)
-    expect(text).toContain('boss0Wave5=eye,wisp1|1500|eye:12,wisp1:-1|wisp1:6000|eye:ring')
+    expect(text).toContain('boss0Wave5=eye,wisp|1500|eye:12,wisp:-1|wisp:6000|eye:ring')
 
     const parsed = parseParametersTxt(text)
     expect(parsed.params.boss).toEqual(original.boss)
@@ -488,7 +469,7 @@ describe('parameters.txt parsing', () => {
     // A parameters.txt from an older build carries boss0Wave1..4 and nothing
     // else. That file described a fight with no death wave, and that is exactly
     // what it must still describe.
-    const parsed = parseParametersTxt('boss0Wave1=bat1|4000\nbossWave2=tick1|3000\nbossWave3=eye|2000\nbossWave4=lich|1000\n')
+    const parsed = parseParametersTxt('boss0Wave1=bat|4000\nbossWave2=tick|3000\nbossWave3=eye|2000\nbossWave4=lich|1000\n')
     expect(parsed.unknownKeys).toEqual([])
     expect(parsed.params.boss.fights[0].arena.waves).toHaveLength(BOSS_WAVE_COUNT)
     expect(parsed.params.boss.fights[0].arena.waves[BOSS_DEATH_WAVE].monsters).toEqual([])
@@ -496,18 +477,18 @@ describe('parameters.txt parsing', () => {
   })
 
   it('reports a boss0Wave beyond the last tier instead of writing off the end of the array', () => {
-    const parsed = parseParametersTxt('boss0Wave6=bat1|4000\n')
+    const parsed = parseParametersTxt('boss0Wave6=bat|4000\n')
     expect(parsed.unknownKeys).toEqual(['boss0Wave6'])
     expect(parsed.params.boss.fights[0].arena.waves).toHaveLength(BOSS_WAVE_COUNT)
   })
 
   it('still parses the legacy two-field bosswave form', () => {
-    const parsed = parseParametersTxt('bosswave1=bat1|4000\n')
+    const parsed = parseParametersTxt('bosswave1=bat|4000\n')
     expect(parsed.unknownKeys).toEqual([])
-    expect(parsed.params.boss.fights[0].arena.waves[0].monsters).toEqual(['bat1'])
+    expect(parsed.params.boss.fights[0].arena.waves[0].monsters).toEqual(['bat'])
     expect(parsed.params.boss.fights[0].arena.waves[0].defaultIntervalMs).toBe(4000)
     // rebuilt from the pool, not left stale or undefined
-    expect(parsed.params.boss.fights[0].arena.waves[0].monsterMax).toEqual({ bat1: 10 })
+    expect(parsed.params.boss.fights[0].arena.waves[0].monsterMax).toEqual({ bat: 10 })
     expect(parsed.params.boss.fights[0].arena.waves[0].intervalMs).toBeUndefined()
   })
 
@@ -529,16 +510,16 @@ describe('parameters.txt parsing', () => {
     const original = defaultParameters()
     original.boss.fights[0].arena.spawn = { spacing: 3, ringSpacing: 6, clusters: 5, batchSize: 12, batchIntervalMs: 2500 }
     original.boss.fights[0].arena.waves[0] = {
-      monsters: ['bat1', 'tick1', 'maggot'],
-      monsterMax: { bat1: 10, tick1: 10, maggot: 10 },
+      monsters: ['bat', 'tick', 'maggot'],
+      monsterMax: { bat: 10, tick: 10, maggot: 10 },
       defaultIntervalMs: 4000,
-      spawnMode: { bat1: 'gaussian', maggot: 'ring' }
+      spawnMode: { bat: 'gaussian', maggot: 'ring' }
     }
 
     const text = serializeParametersTxt(original)
     expect(text).toContain('boss0Spawn=3,6,5,12,2500')
     // the fifth wave field, sorted by id like the interval overrides before it
-    expect(text).toContain('boss0Wave1=bat1,tick1,maggot|4000|bat1:10,tick1:10,maggot:10||bat1:gaussian,maggot:ring')
+    expect(text).toContain('boss0Wave1=bat,tick,maggot|4000|bat:10,tick:10,maggot:10||bat:gaussian,maggot:ring')
 
     const parsed = parseParametersTxt(text)
     expect(parsed.params.boss).toEqual(original.boss)
@@ -574,22 +555,22 @@ describe('parameters.txt parsing', () => {
   it('writes no spawn-mode field while every monster is on the anchors mode', () => {
     const params = defaultParameters()
     params.boss.fights[0].arena.waves[0] = {
-      monsters: ['bat1', 'tick1', 'maggot'],
-      monsterMax: { bat1: 10, tick1: 10, maggot: 10 },
+      monsters: ['bat', 'tick', 'maggot'],
+      monsterMax: { bat: 10, tick: 10, maggot: 10 },
       defaultIntervalMs: 4000,
-      spawnMode: { bat1: 'anchors' }
+      spawnMode: { bat: 'anchors' }
     }
     expect(serializeParametersTxt(params)).toContain(
-      'boss0Wave1=bat1,tick1,maggot|4000|bat1:10,tick1:10,maggot:10||\r\n'
+      'boss0Wave1=bat,tick,maggot|4000|bat:10,tick:10,maggot:10||\r\n'
     )
   })
 
   it('drops a spawn mode naming an unknown mode or a monster outside the pool', () => {
-    const parsed = parseParametersTxt('bosswave1=bat1|4000|||bat1:spiral,tick1:random\n')
+    const parsed = parseParametersTxt('bosswave1=bat|4000|||bat:spiral,tick:random\n')
     expect(parsed.params.boss.fights[0].arena.waves[0].spawnMode).toBeUndefined()
     expect(parsed.unknownKeys).toEqual([
-      'bosswave1 spawnMode "bat1:spiral"',
-      'bosswave1 spawnMode "tick1:random"'
+      'bosswave1 spawnMode "bat:spiral"',
+      'bosswave1 spawnMode "tick:random"'
     ])
   })
 
@@ -725,14 +706,14 @@ describe('parameters.txt — boss wave variant keys (issue #20)', () => {
     // `#` has to survive the |, `,` and `:` separators of the wave grammar.
     const original = defaultParameters()
     original.boss.fights[0].arena.waves[0] = {
-      monsters: ['bat1', 'bat1#0', 'archer1#2'],
-      monsterMax: { bat1: 10, 'bat1#0': 3, 'archer1#2': 5 },
+      monsters: ['bat', 'bat#0', 'skeleton_archer#2'],
+      monsterMax: { bat: 10, 'bat#0': 3, 'skeleton_archer#2': 5 },
       defaultIntervalMs: 4000,
-      intervalMs: { 'bat1#0': 5000 }
+      intervalMs: { 'bat#0': 5000 }
     }
 
     const text = serializeParametersTxt(original)
-    expect(text).toContain('boss0Wave1=bat1,bat1#0,archer1#2|4000|bat1:10,bat1#0:3,archer1#2:5|bat1#0:5000')
+    expect(text).toContain('boss0Wave1=bat,bat#0,skeleton_archer#2|4000|bat:10,bat#0:3,skeleton_archer#2:5|bat#0:5000')
 
     const parsed = parseParametersTxt(text)
     expect(parsed.params.boss.fights[0].arena.waves[0]).toEqual(original.boss.fights[0].arena.waves[0])
@@ -741,8 +722,8 @@ describe('parameters.txt — boss wave variant keys (issue #20)', () => {
 
   it('re-serializes a parsed variant wave byte-identically', () => {
     const original = defaultParameters()
-    original.boss.fights[0].arena.waves[2].monsters = ['skeleton1#0', 'lich#3']
-    original.boss.fights[0].arena.waves[2].monsterMax = { 'skeleton1#0': -1, 'lich#3': 2 }
+    original.boss.fights[0].arena.waves[2].monsters = ['skeleton_warrior#0', 'skeleton_lich#3']
+    original.boss.fights[0].arena.waves[2].monsterMax = { 'skeleton_warrior#0': -1, 'skeleton_lich#3': 2 }
 
     const text = serializeParametersTxt(original)
     expect(serializeParametersTxt(parseParametersTxt(text).params)).toBe(text)
@@ -1093,7 +1074,7 @@ describe('bossWaveBuffN — per-tier arena buffs', () => {
   })
 
   it('keeps the stock death-tier buff when the file says nothing about that tier', () => {
-    const parsed = parseParametersTxt('boss0Wave1=bat1|1000|bat1:10||')
+    const parsed = parseParametersTxt('boss0Wave1=bat|1000|bat:10||')
     expect(waveBuffs(parsed.params.boss.fights[0].arena.waves[BOSS_DEATH_WAVE])).toEqual([
       { buff: 'bloodlust', target: 'monsters' }
     ])
@@ -1380,13 +1361,13 @@ describe('parameters.txt — lobbies (issue #48)', () => {
     // must be re-parsed against the object they were exported from)
     const original = defaultParameters()
     original.lobbies[0].startingGold = 2500
-    original.lobbies[0].preset = 'BETA-boss-prep'
+    original.lobbies[0].preset = 'standin'
     original.lobbies[1].shopCategories = ['misc1', 'power']
     original.lobbies[1].startingGold = 15000
 
     const text = serializeParametersTxt(original)
     expect(text).toContain('lobbies=2')
-    expect(text).toContain('lobby0Preset=BETA-boss-prep')
+    expect(text).toContain('lobby0Preset=standin')
     expect(text).toContain('lobby0Gold=2500')
     expect(text).toContain('lobby1Shops=misc1 power')
     expect(text).toContain('lobby1Gold=15000')
@@ -1399,13 +1380,13 @@ describe('parameters.txt — lobbies (issue #48)', () => {
 
   it('overwrites a named lobby without a `lobbies=` count, and never trims', () => {
     // index 1 already exists (the base object's second stock lobby is
-    // 'BETA-boss-prep'); naming it a different preset proves the key was
+    // 'standin'); naming it a different preset proves the key was
     // actually read rather than just already matching the default
-    const text = ['lobby1Preset=BETA-dungeon-prep'].join('\r\n')
+    const text = ['lobby1Preset=standin'].join('\r\n')
     const parsed = parseParametersTxt(text)
     expect(parsed.unknownKeys).toEqual([])
     expect(parsed.params.lobbies).toHaveLength(2)
-    expect(parsed.params.lobbies[1].preset).toBe('BETA-dungeon-prep')
+    expect(parsed.params.lobbies[1].preset).toBe('standin')
   })
 
   it('grows past the base object\'s own lobbies when a higher index is named', () => {
@@ -1425,7 +1406,7 @@ describe('parameters.txt — lobbies (issue #48)', () => {
   })
 
   it('reports keys for a lobby past `lobbies` instead of adding one', () => {
-    const text = ['lobbies=1', 'lobby0Preset=BETA-boss-prep', 'lobby1Preset=BETA-boss-prep'].join('\r\n')
+    const text = ['lobbies=1', 'lobby0Preset=standin', 'lobby1Preset=standin'].join('\r\n')
     const parsed = parseParametersTxt(text)
     expect(parsed.params.lobbies).toHaveLength(1)
     expect(parsed.unknownKeys).toEqual(['lobby1Preset'])
@@ -1491,14 +1472,14 @@ describe('parameters.txt — multiple boss fights (issue #43)', () => {
       JSON.parse(JSON.stringify(stock)),
       JSON.parse(JSON.stringify(stock))
     ]
-    original.boss.fights[1].arena.theme = 'h'
+    original.boss.fights[1].arena.theme = 'cave_desert'
     original.boss.fights[1].arena.bossPool = ['boss_anubis']
     original.boss.fights[2].arena.cover = { pattern: 'ring', density: 0.2, ringSpacing: 5, clusters: 2 }
     original.boss.fights[2].arena.waves[0].defaultIntervalMs = 7000
 
     const text = serializeParametersTxt(original)
     expect(text).toContain('bossFights=3')
-    expect(text).toContain('boss1Theme=h')
+    expect(text).toContain('boss1Theme=cave_desert')
     expect(text).toContain('boss1Pool=boss_anubis')
     expect(text).toContain('boss2Cover=ring,0.2,5,2')
     expect(text).toMatch(/^boss2Wave1=[^|]*\|7000\|/m)
@@ -1509,11 +1490,11 @@ describe('parameters.txt — multiple boss fights (issue #43)', () => {
   })
 
   it('derives the fight count from the highest index when bossFights is absent', () => {
-    const text = ['boss=1', 'boss1Theme=h'].join('\r\n')
+    const text = ['boss=1', 'boss1Theme=cave_desert'].join('\r\n')
     const parsed = parseParametersTxt(text)
     expect(parsed.unknownKeys).toEqual([])
     expect(parsed.params.boss.fights).toHaveLength(2)
-    expect(parsed.params.boss.fights[1].arena.theme).toBe('h')
+    expect(parsed.params.boss.fights[1].arena.theme).toBe('cave_desert')
     // the fight it never mentioned is the stock one
     expect(parsed.params.boss.fights[0]).toEqual(defaultParameters().boss.fights[0])
   })
@@ -1521,7 +1502,7 @@ describe('parameters.txt — multiple boss fights (issue #43)', () => {
   it('reports keys for a fight past bossFights instead of adding one', () => {
     // boss1Width is a real, recognized suffix — the point is that its INDEX
     // is past the declared count, not that the suffix itself is unknown
-    const text = ['boss=1', 'bossFights=1', 'boss1Theme=h', 'boss1Width=10,20'].join('\r\n')
+    const text = ['boss=1', 'bossFights=1', 'boss1Theme=cave_desert', 'boss1Width=10,20'].join('\r\n')
     const parsed = parseParametersTxt(text)
     expect(parsed.params.boss.fights).toHaveLength(1)
     expect(parsed.unknownKeys).toEqual(['boss1Theme', 'boss1Width'])
@@ -1533,7 +1514,7 @@ describe('parameters.txt — multiple boss fights (issue #43)', () => {
     const stock = defaultParameters().boss.fights[0]
     const lines = ['boss=1', 'bossFights=2']
     for (let i = 0; i < BOSS_WAVE_COUNT; i++) {
-      lines.push(`boss0Wave${i + 1}=bat1|2000|bat1:5||`)
+      lines.push(`boss0Wave${i + 1}=bat|2000|bat:5||`)
     }
     const parsed = parseParametersTxt(lines.join('\r\n'))
 
@@ -1544,13 +1525,13 @@ describe('parameters.txt — multiple boss fights (issue #43)', () => {
   })
 
   it('still imports the unprefixed arena keys older files used, as fight 0', () => {
-    const text = ['boss=1', 'bossTheme=h', 'bossGold=1500', 'bossWave1=bat1|2500|bat1:9||'].join('\r\n')
+    const text = ['boss=1', 'bossTheme=cave_desert', 'bossGold=1500', 'bossWave1=bat|2500|bat:9||'].join('\r\n')
     const parsed = parseParametersTxt(text)
 
     // bossTheme and bossWave1 still land on fight 0, unprefixed form and all
     expect(parsed.params.boss.fights).toHaveLength(1)
-    expect(parsed.params.boss.fights[0].arena.theme).toBe('h')
-    expect(parsed.params.boss.fights[0].arena.waves[0].monsters).toEqual(['bat1'])
+    expect(parsed.params.boss.fights[0].arena.theme).toBe('cave_desert')
+    expect(parsed.params.boss.fights[0].arena.waves[0].monsters).toEqual(['bat'])
     // bossGold named the fight's old welded-on prep room, gone since issue
     // #48 — not aliased onto a lobby, so it is reported like any other key
     // this parser no longer recognizes (invariant #5: never fatal)

@@ -22,51 +22,35 @@ function walkable(level: Level, x: number, y: number): boolean {
   return blockedGrid(level)[x + y * level.width] === 0
 }
 
-describe('overhang-aware walkability', () => {
-  it('buries the rows under a wall, and only those', () => {
-    // one wall row on top, five floor rows below it
-    const level = gridLevel(['###', '...', '...', '...', '...', '...'])
-
-    for (let y = 1; y <= OVERHANG_ROWS; y++) {
-      expect(walkable(level, 1, y), `row ${y} is inside the overhang`).toBe(false)
-    }
-    expect(walkable(level, 1, OVERHANG_ROWS + 1), 'first row clear of the overhang').toBe(true)
-  })
-
-  it('leaves floor with open sky above it walkable', () => {
-    const level = gridLevel(['...', '...', '...'])
-    expect(walkable(level, 1, 0)).toBe(true)
+describe('AE walkability: walls bury nothing below them', () => {
+  // An AE wall piece's collision is its own footprint cell; its art rises
+  // above the footprint, never over the floor below (DISCOVERY-LOG "Walls").
+  it('leaves the rows under a wall walkable', () => {
+    const level = gridLevel(['###', '...', '...'])
+    expect(OVERHANG_ROWS).toBe(0)
+    expect(walkable(level, 1, 0)).toBe(false)
+    expect(walkable(level, 1, 1)).toBe(true)
     expect(walkable(level, 1, 2)).toBe(true)
   })
 
-  it('seals a one-row neck running under a wall mass — the seed 431297690 shape', () => {
-    // two rooms joined by a single row that passes directly beneath a wall:
-    // connected in tiles, impassable in game
-    const sealed = gridLevel([
+  it('passes a one-row neck running under a wall mass', () => {
+    const neck = gridLevel([
       '....###....',
       '....###....',
       '....###....',
-      '...........', // the neck: its only row, buried by the wall above
+      '...........',
       '....###....',
       '....###....'
     ])
-    const blocked = blockedGrid(sealed)
-    const visited = floodFill(blocked, sealed.width, sealed.height, { x: 1, y: 3 })
-    expect(visited[9 + 3 * sealed.width], 'right side reached through the neck').toBe(0)
+    const visited = floodFill(blockedGrid(neck), neck.width, neck.height, { x: 1, y: 3 })
+    expect(visited[9 + 3 * neck.width], 'right side reached through the neck').toBe(1)
   })
 
-  it('opens the same neck once it clears the overhang', () => {
-    const open = gridLevel([
-      '....###....',
-      '....###....',
-      '....###....',
-      '...........',
-      '...........',
-      '...........' // OVERHANG_ROWS + 1 rows of neck, so the last one is clear
-    ])
-    const blocked = blockedGrid(open)
-    const visited = floodFill(blocked, open.width, open.height, { x: 1, y: 5 })
-    expect(visited[9 + 5 * open.width], 'right side reached through the neck').toBe(1)
+  it('treats an exit doorway (a reserved wall-line cell) as floor', () => {
+    const level = gridLevel(['#####', '#####', '.....'])
+    level.tileArray[2 + 1 * level.width].reserved = true
+    expect(walkable(level, 2, 1)).toBe(true)
+    expect(walkable(level, 1, 1)).toBe(false)
   })
 })
 

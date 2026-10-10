@@ -345,35 +345,17 @@ describe('loadout sheet', () => {
 })
 
 describe('generateDungeon with tweaks', () => {
-  it('ships exactly one tweak file for stock parameters — the extra-life removal', () => {
-    // Stock is no longer tweak-free: defaultParameters() turns off the
-    // repeatable extra-life shop upgrade (CLAUDE.md invariant 6).
-    const result = generateDungeon(defaultParameters(), 42)
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    const tweaks = result.files.filter((f) => f.path.startsWith('tweak/'))
-    expect(tweaks.map((f) => f.path)).toEqual(['tweak/shared.xml'])
-    expect(tweaks[0].content).not.toContain('"life"')
-  })
-
-  it('emits no tweak folder at all once every tweak is cleared', () => {
-    const params = defaultParameters()
-    params.playerTweaks = {}
-    const result = generateDungeon(params, 42)
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.files.filter((f) => f.path.startsWith('tweak/'))).toEqual([])
-  })
-
-  it('adds the edited tweak file to the campaign', () => {
+  // HW1 tweak/*.xml has no meaning in Anniversary Edition, whose class balance
+  // lives in players/*.sval and AngelScript (docs/discovery/PLAYER-TWEAKS-AE.md),
+  // so an AE scenario never ships the HW1 files, edited or not.
+  it('ships no HW1 tweak files, even with edits', () => {
     const params = defaultParameters()
     params.playerTweaks = { 'player.knight.param.max-health': 120 }
     const result = generateDungeon(params, 42)
     expect(result.ok).toBe(true)
     if (!result.ok) return
     const paths = result.files.map((f) => f.path)
-    expect(paths).toContain('tweak/knight.xml')
+    expect(paths.filter((p) => p.startsWith('tweak/'))).toEqual([])
     expect(paths).toContain('info.xml')
-    expect(paths).toContain('levels.xml')
   })
 })

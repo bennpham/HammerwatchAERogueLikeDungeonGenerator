@@ -1,75 +1,105 @@
-import { XMLDictionary, XMLFloat, XMLInt, XMLObject, XMLString } from '../xml'
+import { getTheme } from '../config/themes'
 import type { GenerationContext } from '../core/context'
 
+/**
+ * Pickups and props placed in rooms, as Anniversary Edition units. The HW1
+ * categories and their indices are kept (rooms draw an index with `iRand`, so
+ * each category's LENGTH is part of the RNG contract); the paths are AE's.
+ * HW1→AE pairs follow hw2ae's table (matched on identical hp/value).
+ */
+
+/** valuable_1..9 → copper/silver/gold small/medium/large */
 const TREASURE = [
-  'items/valuable_1.xml',
-  'items/valuable_2.xml',
-  'items/valuable_3.xml',
-  'items/valuable_4.xml',
-  'items/valuable_5.xml',
-  'items/valuable_6.xml',
-  'items/valuable_7.xml',
-  'items/valuable_8.xml',
-  'items/valuable_9.xml'
+  'items/pickups/money/coin_copper_small.unit',
+  'items/pickups/money/coin_copper_medium.unit',
+  'items/pickups/money/coin_copper_large.unit',
+  'items/pickups/money/coin_silver_small.unit',
+  'items/pickups/money/coin_silver_medium.unit',
+  'items/pickups/money/coin_silver_large.unit',
+  'items/pickups/money/coin_gold_small.unit',
+  'items/pickups/money/coin_gold_medium.unit',
+  'items/pickups/money/coin_gold_large.unit'
 ]
 
+/** AE breakables are doodads under doodads/generic/containers; ten slots like HW1 */
 const BREAKABLES = [
-  'items/breakable_barrel.xml',
-  'items/breakable_barrel_b.xml',
-  'items/breakable_barrel_b_v2.xml',
-  'items/breakable_barrel_v2.xml',
-  'items/breakable_crate.xml',
-  'items/breakable_crate_b.xml',
-  'items/breakable_vase.xml',
-  'items/breakable_vase_v2.xml',
-  'items/breakable_vase_v3.xml',
-  'items/breakable_vase_v4.xml'
+  'doodads/generic/containers/barrel_wood.unit',
+  'doodads/generic/containers/barrel_wood_poor.unit',
+  'doodads/generic/containers/barrel_wood_poor.unit',
+  'doodads/generic/containers/barrel_wood.unit',
+  'doodads/generic/containers/crate_wood_12x12.unit',
+  'doodads/generic/containers/crate_wood_16x16.unit',
+  'doodads/generic/containers/vase_big.unit',
+  'doodads/generic/containers/vase_big.unit',
+  'doodads/generic/containers/vase_small.unit',
+  'doodads/generic/containers/vase_small.unit'
 ]
 
-const FOOD = ['items/health_1.xml', 'items/mana_1.xml']
+const FOOD = ['items/pickups/health_1.unit', 'items/pickups/mana_1.unit']
 
 const POWERUPS = [
-  'items/powerup_potion1.xml',
-  'items/powerup_potion2.xml',
-  'items/powerup_potion3.xml',
-  'items/powerup_health.xml',
-  'items/chest_blue.xml',
-  'items/chest_red.xml',
-  'items/chest_green.xml',
-  'items/chest_wood.xml'
+  'items/pickups/powerup_potion_1_invul.unit',
+  'items/pickups/powerup_potion_2_rejuv.unit',
+  'items/pickups/powerup_potion_3_dmg.unit',
+  'items/pickups/special_serious_health.unit',
+  'items/misc/chest_blue.unit',
+  'items/misc/chest_red.unit',
+  'items/misc/chest_green.unit',
+  'items/misc/chest_wood.unit'
 ]
 
-const KEYS = ['items/key_bronze.xml', 'items/key_silver.xml', 'items/key_gold.xml']
+/** key index = lock tier: bronze, silver, gold */
+export const KEY_UNITS = ['items/pickups/key_bronze.unit', 'items/pickups/key_silver.unit', 'items/pickups/key_gold.unit']
 
-const DOORS = [
-  'items/door_a_bronze_h_v2.xml',
-  'items/door_a_silver_h_v2.xml',
-  'items/door_a_gold_h_v2.xml',
-  'items/door_a_bronze_v.xml',
-  'items/door_a_silver_v.xml',
-  'items/door_a_gold_v.xml'
-]
+/** the `Collectable` a DoorController asks for, per lock tier */
+export const KEY_COLLECTABLES = ['key_bronze', 'key_silver', 'key_gold']
+
+const DOOR_METALS = ['bronze', 'silver', 'gold']
 
 /** Index into KEYS/DOORS for the gold tier — the highest of the three. */
 export const GOLD_LOCK_TIER = 2
 
-const ORBS = ['items/crystal_purple.xml', 'items/crystal_green.xml', 'items/crystal_red.xml']
+/**
+ * The run-ending pickup. AE has no HW1 crystal; the sphere collectable is
+ * what hw2ae ported the generator's win orb to. The second and third slots are
+ * kept for index compatibility.
+ */
+const ORBS = [
+  'items/pickups/collectable_10_sphere.unit',
+  'items/pickups/collectable_10_sphere.unit',
+  'items/pickups/collectable_10_sphere.unit'
+]
+
+/**
+ * Door slots: 0..2 horizontal bronze/silver/gold, 3..5 vertical. The unit is
+ * resolved per floor theme (`ThemeDef.doors`) in `itemPath`.
+ */
+const DOORS = ['h0', 'h1', 'h2', 'v0', 'v1', 'v2']
 
 export const ItemType = {
   Treasure: TREASURE,
   Breakable: BREAKABLES,
   Food: FOOD,
   Powerup: POWERUPS,
-  Key: KEYS,
+  Key: KEY_UNITS,
   Door: DOORS,
   Orb: ORBS
 } as const
 
 export type ItemTypeName = keyof typeof ItemType
 
+/** `doodads/doors/door_{h|v}_mid_<metal>_<style>.unit` for a door slot on a theme. */
+export function doorUnitPath(slot: number, themeId: string): string {
+  const style = getTheme(themeId)?.doors ?? 'prison'
+  const orient = slot >= 3 ? 'v' : 'h'
+  return `doodads/doors/door_${orient}_mid_${DOOR_METALS[slot % 3]}_${style}.unit`
+}
+
 /** A pickup/prop placed on the level (ported from Item.java). */
-export class Item extends XMLObject {
+export class Item {
   id: number
+  /** the floor theme at creation, which picks door art */
+  theme: string
 
   constructor(
     ctx: GenerationContext,
@@ -78,8 +108,8 @@ export class Item extends XMLObject {
     public type: ItemTypeName,
     public index: number
   ) {
-    super()
     this.id = ctx.idCounter++
+    this.theme = ctx.currentTheme
   }
 
   static create(ctx: GenerationContext, x: number, y: number, type: ItemTypeName, index?: number): Item {
@@ -89,12 +119,9 @@ export class Item extends XMLObject {
     return i
   }
 
-  getXML(): string {
-    const dict = new XMLDictionary('')
-    dict.addData(new XMLInt('id', this.id))
-    dict.addData(new XMLString('type', ItemType[this.type][this.index]))
-    dict.addData(new XMLFloat('x', this.x))
-    dict.addData(new XMLFloat('y', this.y))
-    return dict.getXML()
+  /** The AE unit this item places. */
+  get path(): string {
+    if (this.type === 'Door') return doorUnitPath(this.index, this.theme)
+    return ItemType[this.type][this.index]
   }
 }

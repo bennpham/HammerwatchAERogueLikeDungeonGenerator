@@ -1,47 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import { MONSTER_TYPES, corpseCollision, corpseCollisionPaths, monsterVariants } from '../src/generator'
+import { aeAssetsDir } from './aeInstall'
+// @ts-expect-error untyped dev helper shared with scripts/dev/corpse-survey.ts
+import { preprocess } from '../scripts/lib/aeunit.mjs'
 
 /**
- * The verified corpse-collision table, transcribed independently of
- * actorCollision.ts from the razed XML in a stock install
- * (Hammerwatch/editor/assetsExtract/actors/**). Duplicated on purpose: if
- * someone flips a value in the registry, this table is what disagrees.
+ * The AE wrecks that still block, transcribed independently of
+ * actorCollision.ts. Duplicated on purpose: if someone flips a value in the
+ * registry, this table is what disagrees.
  */
+const BLOCKING = ['actors/towers/tower_static_frost.unit', 'actors/spawners/shaftlocke/spawner_lich.unit']
+
 const PASSABLE = [
-  'actors/tower_banner_1.xml',
-  'actors/tower_banner_2.xml',
-  'actors/tower_banner_3.xml',
-  'actors/tower_battlement_archer_1.xml',
-  'actors/tower_battlement_archer_3.xml',
-  'actors/tower_battlement_empty.xml',
-  'actors/tower_flower_1.xml',
-  'actors/tower_flower_1_small.xml',
-  'actors/tower_flower_2.xml',
-  'actors/tower_flower_3.xml',
-  'actors/spawners/archer_1.xml',
-  'actors/spawners/archer_2.xml',
-  'actors/spawners/doomspawn_1.xml',
-  'actors/spawners/eye_1.xml',
-  'actors/spawners/mummy_1.xml',
-  'actors/spawners/mummy_ranged_1.xml',
-  'actors/spawners/skeleton_1.xml',
-  'actors/spawners/skeleton_2.xml',
-  'actors/spawners/tick_1.xml',
-  'actors/spawners/bonus/skeleton_1.xml',
-  'actors/slime_1_host.xml'
+  'actors/towers/tower_nova_ice.unit',
+  'actors/towers/tower_laser_fire.unit',
+  'actors/towers/tower_battlement_empty.unit',
+  'actors/banners/banner_healing.unit',
+  'actors/aberrations/flowers/flower_eater.unit',
+  'actors/spawners/hammerwatch/spawner_bats.unit',
+  'actors/spawners/suntemple/spawner_mummy_soldier.unit'
 ]
 
-const BLOCKING = [
-  'actors/tower_nova_1.xml',
-  'actors/tower_nova_2.xml',
-  'actors/tower_static_frost.xml',
-  'actors/tower_tracking_1.xml',
-  'actors/tower_tracking_2.xml',
-  'actors/tower_tracking_3.xml',
-  'actors/spawners/bats.xml',
-  'actors/spawners/maggot_1.xml',
-  'actors/spawners/wisp_1.xml'
-]
+const ASSETS = aeAssetsDir()
 
 describe('corpse collision registry', () => {
   it.each(PASSABLE)('%s leaves a walkable wreck', (path) => {
@@ -52,51 +32,68 @@ describe('corpse collision registry', () => {
     expect(corpseCollision(path)).toBe('blocking')
   })
 
-  it('holds exactly the paths in the two tables and nothing else', () => {
-    expect([...corpseCollisionPaths()].sort()).toEqual([...PASSABLE, ...BLOCKING].sort())
+  it('lists exactly the blocking table', () => {
+    expect([...corpseCollisionPaths()].sort()).toEqual([...BLOCKING].sort())
   })
 
   it('reports undefined for an ordinary monster, which leaves only gibs', () => {
-    expect(corpseCollision('actors/bat_1.xml')).toBeUndefined()
-    expect(corpseCollision('actors/skeleton_3.xml')).toBeUndefined()
+    expect(corpseCollision('actors/beasts/bats/bat_black.unit')).toBeUndefined()
+    expect(corpseCollision('actors/undead/skeletons/hammerwatch/skeleton_runner.unit')).toBeUndefined()
   })
 
   it('reports undefined rather than throwing for an unknown path', () => {
-    expect(corpseCollision('actors/does_not_exist.xml')).toBeUndefined()
+    expect(corpseCollision('actors/does_not_exist.unit')).toBeUndefined()
   })
 
   /**
-   * The point of the registry: nothing that leaves a permanent doodad may be
-   * missing from it, or the arena picker silently shows no passability badge
-   * and the future placement pass has no data. Every tower and spawner in the
-   * roster is such an actor.
+   * Nothing that leaves a permanent doodad may be missing from the registry,
+   * or the arena picker silently shows no passability badge. Every tower,
+   * spawner, banner and flower in the roster is such an actor.
    */
-  it('covers every tower and spawner actor in the roster', () => {
+  it('covers every tower, spawner, banner and flower in the roster', () => {
     const missing = MONSTER_TYPES.flatMap((t) => t.tiers).filter(
-      (p) => (p.startsWith('actors/spawners/') || p.startsWith('actors/tower_')) && corpseCollision(p) === undefined
+      (p) => /^actors\/(spawners|towers|banners|aberrations\/flowers)\//.test(p) && corpseCollision(p) === undefined
     )
     expect(missing).toEqual([])
   })
 
-  it('gives every spawner variant a corpse value', () => {
-    const spawners = MONSTER_TYPES.flatMap(monsterVariants).filter((v) => v.role === 'spawner')
-    expect(spawners.length).toBeGreaterThan(0)
-    for (const v of spawners) {
-      expect(v.corpse, v.actorPath).toBeDefined()
-    }
+  it('gives every spawner prop under actors/spawners/ a corpse value', () => {
+    const spawners = MONSTER_TYPES.flatMap(monsterVariants).filter(
+      (v) => v.role === 'spawner' && v.actorPath.startsWith('actors/spawners/')
+    )
+    expect(spawners.length).toBeGreaterThan(20)
+    for (const v of spawners) expect(v.corpse, v.actorPath).toBeDefined()
   })
 
   /**
-   * The converse of the rule above: role is not derivable from the folder, so a
-   * spawner outside actors/spawners/ has to be listed by hand in monsterTypes.
-   * Pinning the exception list keeps that opt-in visible — a new hive-shaped
-   * actor that nobody registers shows up here rather than silently landing
-   * among the creatures.
+   * Role is not derivable from the folder, so a spawner outside
+   * actors/spawners/ has to be listed by hand in monsterTypes. Pinning the
+   * exception list keeps that opt-in visible.
    */
-  it('keeps slime_1_host as the only spawner outside actors/spawners/', () => {
+  it('keeps the two slime blobs as the only spawners outside actors/spawners/', () => {
     const odd = MONSTER_TYPES.flatMap(monsterVariants)
       .filter((v) => v.role === 'spawner' && !v.actorPath.startsWith('actors/spawners/'))
       .map((v) => v.actorPath)
-    expect(odd).toEqual(['actors/slime_1_host.xml'])
+    expect(odd.sort()).toEqual(['actors/aberrations/slimes/blood/slime_blob.unit', 'actors/aberrations/slimes/slime_blob.unit'])
+  })
+
+  /**
+   * The registry agrees with the install: a roster actor whose wreck (its
+   * `*_razed.unit`) keeps a collision shape is listed as blocking, and one
+   * whose wreck has none is not. Skipped without an AE install.
+   */
+  it.skipIf(ASSETS === null)('matches every razed wreck in the install', () => {
+    const paths = [...new Set(MONSTER_TYPES.flatMap((t) => t.tiers))]
+    let checked = 0
+    for (const p of paths) {
+      const unit: string = preprocess(ASSETS, p)
+      const razed = /(actors\/[^<"]+_razed\.unit)/.exec(unit)?.[1]
+      if (razed === undefined) continue
+      checked++
+      const raw: string = preprocess(ASSETS, razed)
+      const solid = /<collision[^>]*>[\s\S]*?<(circle|rect|polygon)/.test(raw)
+      expect(corpseCollision(p), `${p} -> ${razed}`).toBe(solid ? 'blocking' : 'passable')
+    }
+    expect(checked).toBeGreaterThan(10)
   })
 })

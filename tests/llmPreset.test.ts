@@ -114,7 +114,7 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt(current)
     expect(prompt).toContain('mapWidth=140')
     expect(prompt).toContain('boss_dragon')
-    expect(prompt).toContain('a_mixed')
+    expect(prompt).toContain('mine_granite')
   })
 
   it('stays compact enough for a small free model', () => {
@@ -143,12 +143,12 @@ describe('expandShorthands', () => {
   })
 
   it('leaves ordinary lines and other keys with dashes alone', () => {
-    expect(expandShorthands('themes=a,b\nlockFloors=3,5:2')).toEqual({ text: 'themes=a,b\nlockFloors=3,5:2', fullyUpgraded: false })
+    expect(expandShorthands('themes=prison,armory\nlockFloors=3,5:2')).toEqual({ text: 'themes=prison,armory\nlockFloors=3,5:2', fullyUpgraded: false })
   })
 
   it('a 99-floor boss run written with ranges validates', () => {
     const { text } = expandShorthands(
-      'levels=99\nlobbies=0\nboss=0\nlevelOrder=\nthemes=f_frozen\nmonsters0-98=skeleton1,archer1\nbossFloor0-98=1|boss_knight,boss_lich|1.0|1\nlockFloors=0-49:1,50-98:2'
+      'levels=99\nlobbies=0\nboss=0\nlevelOrder=\nthemes=cave_crystal\nmonsters0-98=skeleton_warrior,skeleton_archer\nbossFloor0-98=1|boss_knight,boss_lich|1.0|1\nlockFloors=0-49:1,50-98:2'
     )
     const { params } = fillPerFloorLists(parseParametersTxt(text, defaultParameters()).params)
     expect(params.levelBoss?.filter((b) => b?.enabled)).toHaveLength(99)
@@ -158,11 +158,11 @@ describe('expandShorthands', () => {
 
 describe('fillPerFloorLists', () => {
   it('turns a short 99-floor, no-lobby answer into a valid campaign', () => {
-    const parsed = parseParametersTxt('levels=99\nlobbies=0\nthemes=f_frozen,f_mixed\nmonsters0=bat1\nmonsters1=skeleton1', defaultParameters())
+    const parsed = parseParametersTxt('levels=99\nlobbies=0\nthemes=cave_crystal,cave_dark\nmonsters0=bat\nmonsters1=skeleton_warrior', defaultParameters())
     expect(validateParameters(parsed.params).valid).toBe(false)
     const { params, note } = fillPerFloorLists(parsed.params)
     expect(params.themes).toHaveLength(99)
-    expect(params.themes[2]).toBe('f_frozen')
+    expect(params.themes[2]).toBe('cave_crystal')
     expect(params.levelMonsters).toHaveLength(99)
     expect(note).toContain('99 floors')
     expect(validateParameters(params).errors).toEqual([])

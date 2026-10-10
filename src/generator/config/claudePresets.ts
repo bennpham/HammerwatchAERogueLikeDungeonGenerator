@@ -33,7 +33,7 @@ import type {
   SurvivalWave,
   WaveEntry
 } from './parameters'
-import { oneOfEachUpgrade } from '../levelTemplate/surgery'
+import { oneOfEachUpgrade } from '../lobby/payout'
 import { deepLoot, midLoot, mysteryButton, mysteryKit, shallowLoot } from './presetMystery'
 import type { MysteryPicks } from './presetMystery'
 import type { CampaignSlot } from '../campaign'
@@ -158,11 +158,11 @@ function tierAndDeathWaves(
 function lightArenaWaves(): BossWave[] {
   const drops = stockWavePickups()
   return [
-    scatterWave([], [['bat1', 20], ['tick1', 10]], 3000),
-    scatterWave([], [['skeleton1', 16], ['archer1', 8]], 2500),
-    scatterWave([], [['skeleton2', 12], ['wisp1', 8]], 2000, [], drops.half),
-    scatterWave([], [['lich', 3], ['archer2', 6]], 1500, [], drops.quarter, SHOOTER_ARROW_TRAPS),
-    scatterWave([], [['lich', 2]], 1500, bossDeathBuffs(), drops.death, SHOOTER_ARROW_TRAPS)
+    scatterWave([], [['bat', 20], ['tick', 10]], 3000),
+    scatterWave([], [['skeleton_warrior', 16], ['skeleton_archer', 8]], 2500),
+    scatterWave([], [['skeleton_soldier', 12], ['wisp', 8]], 2000, [], drops.half),
+    scatterWave([], [['skeleton_lich', 3], ['skeleton_ranger', 6]], 1500, [], drops.quarter, SHOOTER_ARROW_TRAPS),
+    scatterWave([], [['skeleton_lich', 2]], 1500, bossDeathBuffs(), drops.death, SHOOTER_ARROW_TRAPS)
   ]
 }
 
@@ -302,11 +302,11 @@ function lunchBreak(): DungeonParameters {
     mapHeight: 42,
     minRoomCount: 6,
     maxRoomCount: 8,
-    themes: ['b_mixed', 'e_mixed', 'g_mixed'],
+    themes: ['armory', 'cave_desert', 'pyramid_inside'],
     levelMonsters: [
-      ['bat1', 'tick1', 'maggot'],
-      ['skeleton1', 'archer1', 'slime'],
-      ['skeleton2', 'archer2', 'wisp1']
+      ['bat', 'tick', 'maggot'],
+      ['skeleton_warrior', 'skeleton_archer', 'slime'],
+      ['skeleton_soldier', 'skeleton_ranger', 'wisp']
     ],
     floorMusic: ['act1', 'act2', 'act3'],
     lobbies: [lobby('BETA-dungeon-prep', { startingGold: 15000 })],
@@ -377,7 +377,7 @@ function noInvulnerability(): BossArenaOptions['invulnerability'] {
 /** A small survival arena, the clock presets' finale. */
 function clockArena(waves: SurvivalWave[]): BossFight {
   return survivalFight(
-    { theme: 'g_mixed', minWidth: 32, maxWidth: 42, minHeight: 32, maxHeight: 42, music: 'boss_final' },
+    { theme: 'pyramid_inside', minWidth: 32, maxWidth: 42, minHeight: 32, maxHeight: 42, music: 'boss_final' },
     {
       seconds: 120,
       // a tick every second, the same clock as the five timed floors:
@@ -403,20 +403,20 @@ function clockArena(waves: SurvivalWave[]): BossFight {
  */
 function beatTheClockArena(): BossFight {
   return clockArena([
-    survivalWaveRow('tick1#2', 12, 0, 800),
+    survivalWaveRow('tick#2', 12, 0, 800),
     survivalWaveRow('mb_tick', 1, 0),
-    survivalWaveRow('skeleton3', 12, 30, 1200),
-    survivalWaveRow('archer2', 6, 30),
-    survivalWaveRow('mb_skeleton', 2, 30, 3000),
-    survivalWaveRow('lich', 6, 60),
+    survivalWaveRow('skeleton_runner', 12, 30, 1200),
+    survivalWaveRow('skeleton_ranger', 6, 30),
+    survivalWaveRow('mb_skeleton_guard#0', 2, 30, 3000),
+    survivalWaveRow('skeleton_lich', 6, 60),
     survivalWaveRow('mb_eye', 1, 60),
-    survivalWaveRow('mb_lich', 1, 90),
-    survivalWaveRow('lich#0', 4, 90),
+    survivalWaveRow('mb_wizard', 1, 90),
+    survivalWaveRow('skeleton_lich#0', 4, 90),
     // filler between the pushes, so the arena never goes quiet — the
     // toughest regulars, since an upgraded party vaporizes the easy ones
-    survivalWaveRow('bat2#2', 16, 15),
-    survivalWaveRow('skeleton3', 12, 45, 2000),
-    survivalWaveRow('archer3', 8, 75, 2000)
+    survivalWaveRow('bat#3', 16, 15),
+    survivalWaveRow('skeleton_runner', 12, 45, 2000),
+    survivalWaveRow('temple_archer', 8, 75, 2000)
   ])
 }
 
@@ -427,17 +427,17 @@ function beatTheClock(): DungeonParameters {
     mapHeight: 48,
     minRoomCount: 8,
     maxRoomCount: 10,
-    themes: ['a_mixed', 'b_mixed', 'c_mixed', 'd_mixed', 'e_mixed'],
+    themes: ['prison', 'armory', 'archives', 'chambers', 'cave_desert'],
     levelMonsters: [
-      ['bat1', 'bat2'],
-      ['tick1', 'tick2'],
-      ['skeleton3', 'bat2'],
-      ['skeleton3', 'tick2'],
-      ['skeleton3', 'bat1', 'tick1']
+      ['bat', 'bat'],
+      ['tick', 'tick_gold'],
+      ['skeleton_runner', 'bat'],
+      ['skeleton_runner', 'tick_gold'],
+      ['skeleton_runner', 'bat', 'tick']
     ],
     floorMusic: ['act1', 'act1', 'act2', 'act2', 'act3'],
     // the last floor is the hunt: kill its boss before the clock does
-    levelBoss: huntFloorBoss(levels, [['skeleton3', 6]], [['skeleton3', 4]], [['skeleton3', 4]]),
+    levelBoss: huntFloorBoss(levels, [['skeleton_runner', 6]], [['skeleton_runner', 4]], [['skeleton_runner', 4]]),
     lobbies: [lobby('BETA-dungeon-prep'), lobby('BETA-boss-prep', { music: 'boss_1' })],
     // L0 -> F0-F4 -> L1 -> AS0: the lobby is the reward for the hunt, and
     // the campaign ends on one more clock instead of a boss
@@ -483,31 +483,31 @@ function bossRushMystery(levels: number): Pick<DungeonParameters, 'mysteryButton
 function bossRush(): DungeonParameters {
   const levels = 4
   return campaign(levels, {
-    themes: ['e_mixed', 'bonus3', 'f_frozen', 'i_mixed'],
+    themes: ['cave_desert', 'bonus3', 'cave_crystal', 'pyramid_fancy'],
     levelMonsters: [
-      ['skeleton1', 'archer1'],
-      ['bonus_archer1', 'bonus_skeleton1'],
-      ['wisp1', 'tick2'],
-      ['guard_desert', 'mummy_desert']
+      ['skeleton_warrior', 'skeleton_archer'],
+      ['bonus_demon', 'bonus_ghost'],
+      ['wisp', 'tick_gold'],
+      ['mummy_guard', 'mummy']
     ],
     levelBoss: [
-      floorBoss({ boss_knight: 1 }, floorTierAndDeathWaves([['skeleton1', 10]], [['skeleton1', 5]])),
-      floorBoss({ boss_lich: 1 }, floorTierAndDeathWaves([['bonus_skeleton1', 10]], [['bonus_skeleton1', 5]])),
-      floorBoss({ boss_krilith: 1 }, floorTierAndDeathWaves([['wisp1', 8]], [['wisp1', 4]])),
-      floorBoss({ boss_anubis: 1 }, floorTierAndDeathWaves([['mummy_desert', 10]], [['mummy_desert', 5]]))
+      floorBoss({ boss_knight: 1 }, floorTierAndDeathWaves([['skeleton_warrior', 10]], [['skeleton_warrior', 5]])),
+      floorBoss({ boss_lich: 1 }, floorTierAndDeathWaves([['bonus_ghost', 10]], [['bonus_ghost', 5]])),
+      floorBoss({ boss_krilith: 1 }, floorTierAndDeathWaves([['wisp', 8]], [['wisp', 4]])),
+      floorBoss({ boss_anubis: 1 }, floorTierAndDeathWaves([['mummy', 10]], [['mummy', 5]]))
     ],
     // one button on every boss floor, so the way out needs the boss dead AND
     // the floor searched — the boss stays the main event
     levelLock: buttonLocks([1, 1, 1, 1]),
     ...bossRushMystery(levels),
-    floorMusic: ['act2', 'bonus_1', 'act3', 'desert_temple'],
+    floorMusic: ['act2', 'bonus', 'act3', 'temple_hub'],
     lobbies: [lobby('BETA-dungeon-prep'), lobby('BETA-boss-prep', { startingGold: 25000, upgrades: oneOfEachUpgrade(), music: 'boss_1' })],
     levelOrder: actOrder(levels),
     boss: {
       enabled: true,
       fights: [
         bossFight({
-          theme: 'g_mixed',
+          theme: 'pyramid_inside',
           bossSelection: 'lineup',
           bossLineup: { boss_dragon: 1, boss_queen: 1 },
           // Set explicitly to match the lineup's own total (2): `boss<i>Count=`
@@ -517,7 +517,7 @@ function bossRush(): DungeonParameters {
           // same "kept on the object, simply unread" losslessness a mode flip
           // already promises.
           bossCount: 2,
-          waves: tierAndDeathWaves([['skeleton2', 20], ['archer2', 10]], [['lich', 4]], SHOOTER_ARROW_TRAPS),
+          waves: tierAndDeathWaves([['skeleton_soldier', 20], ['skeleton_ranger', 10]], [['skeleton_lich', 4]], SHOOTER_ARROW_TRAPS),
           music: 'boss_final'
         })
       ]
@@ -530,8 +530,8 @@ function bossRush(): DungeonParameters {
 function arenaMarathon(): DungeonParameters {
   const order: CampaignSlot[] = [L(0), F(0), B(0), L(1), B(1), B(2), L(2), B(3)]
   return campaign(1, {
-    themes: ['a_mixed'],
-    levelMonsters: [['bat1', 'tick1', 'maggot']],
+    themes: ['prison'],
+    levelMonsters: [['bat', 'tick', 'maggot']],
     floorMusic: ['act1'],
     // lobby index 1 needs its own explicit music — `defaultParameters()`'s
     // own second lobby (the implicit base `parseParametersTxt` starts from)
@@ -556,22 +556,22 @@ function arenaMarathon(): DungeonParameters {
         // Colosseum-sized, so every anchor sits inside aggro range and nothing
         // piles up idle. Intervals divide each phase into whole rounds of 9.
         survivalFight(
-          { theme: 'b_mixed', minWidth: 16, maxWidth: 20, minHeight: 18, maxHeight: 22, music: 'boss_1' },
+          { theme: 'armory', minWidth: 16, maxWidth: 20, minHeight: 18, maxHeight: 22, music: 'boss_1' },
           {
             seconds: 120,
             countdown: 'seconds',
             waves: [
-              phaseRow('bat1', 0, 30, 5000),
-              phaseRow('tick1', 0, 30, 15000),
-              phaseRow('skeleton1', 30, 60, 10000),
-              phaseRow('bat1', 30, 60, 10000),
+              phaseRow('bat', 0, 30, 5000),
+              phaseRow('tick', 0, 30, 15000),
+              phaseRow('skeleton_warrior', 30, 60, 10000),
+              phaseRow('bat', 30, 60, 10000),
               phaseRow('maggot', 60, 90, 10000),
-              phaseRow('archer1', 60, 90, 15000),
+              phaseRow('skeleton_archer', 60, 90, 15000),
               // the closing push: the miniboss arrives alone, never alongside
               // archers (the second playtest broke at mb_tick + elite archers
               // + elite skeletons landing together)
-              phaseRow('skeleton1', 90, 120, 10000),
-              phaseRow('bat2', 90, 120, 7500),
+              phaseRow('skeleton_warrior', 90, 120, 10000),
+              phaseRow('bat', 90, 120, 7500),
               survivalWaveRow('mb_tick', 1, 90)
             ],
             pickups: [survivalPickupRow('powerup_health', 2, 60), survivalPickupRow('mana_2', 2, 60)]
@@ -583,16 +583,16 @@ function arenaMarathon(): DungeonParameters {
         // 2026-10-05). Floor 2-3 strength for a party carrying the 20 000-gold
         // lobby's gear: no liches until the boss is dead.
         bossFight({
-          theme: 'c_mixed',
+          theme: 'archives',
           bossPool: ['boss_knight', 'boss_lich'],
           waves: (() => {
             const drops = stockWavePickups()
             return [
-              scatterWave([], [['skeleton1', 12], ['archer1', 6]], 2000),
-              scatterWave([], [['skeleton1', 12], ['maggot', 8]], 2000),
-              scatterWave([], [['skeleton2', 10], ['archer1', 6]], 2000, [], drops.half),
-              scatterWave([], [['skeleton2', 10], ['bat2', 12]], 2000, [], drops.quarter),
-              scatterWave([], [['lich', 4]], 1500, bossDeathBuffs(), drops.death)
+              scatterWave([], [['skeleton_warrior', 12], ['skeleton_archer', 6]], 2000),
+              scatterWave([], [['skeleton_warrior', 12], ['maggot', 8]], 2000),
+              scatterWave([], [['skeleton_soldier', 10], ['skeleton_archer', 6]], 2000, [], drops.half),
+              scatterWave([], [['skeleton_soldier', 10], ['bat', 12]], 2000, [], drops.quarter),
+              scatterWave([], [['skeleton_lich', 4]], 1500, bossDeathBuffs(), drops.death)
             ]
           })(),
           music: 'boss_1'
@@ -604,25 +604,25 @@ function arenaMarathon(): DungeonParameters {
         // 2026-10-05): no liches now, no bloodlust, one miniboss per half and
         // never alongside archers, arrows only in the last phase.
         survivalFight(
-          { theme: 'd_mixed', minWidth: 16, maxWidth: 24, minHeight: 18, maxHeight: 26, music: 'boss_1' },
+          { theme: 'chambers', minWidth: 16, maxWidth: 24, minHeight: 18, maxHeight: 26, music: 'boss_1' },
           {
             seconds: 180,
             countdown: 'seconds',
             waves: [
-              phaseRow('skeleton1', 0, 30, 10000),
-              phaseRow('archer1', 0, 30, 10000),
-              phaseRow('skeleton2', 30, 60, 10000),
-              phaseRow('bat2', 30, 60, 10000),
+              phaseRow('skeleton_warrior', 0, 30, 10000),
+              phaseRow('skeleton_archer', 0, 30, 10000),
+              phaseRow('skeleton_soldier', 30, 60, 10000),
+              phaseRow('bat', 30, 60, 10000),
               phaseRow('maggot', 60, 90, 10000),
-              phaseRow('wisp1', 60, 90, 10000),
+              phaseRow('wisp', 60, 90, 10000),
               survivalWaveRow('mb_maggot', 1, 60),
-              phaseRow('skeleton2', 90, 120, 10000),
-              phaseRow('archer1', 90, 120, 10000),
-              phaseRow('skeleton1', 120, 150, 10000),
+              phaseRow('skeleton_soldier', 90, 120, 10000),
+              phaseRow('skeleton_archer', 90, 120, 10000),
+              phaseRow('skeleton_warrior', 120, 150, 10000),
               phaseRow('eye', 120, 150, 10000),
               // the last push: the miniboss, then the arrows
-              phaseRow('skeleton2', 150, 180, 10000),
-              phaseRow('bat2', 150, 180, 10000),
+              phaseRow('skeleton_soldier', 150, 180, 10000),
+              phaseRow('bat', 150, 180, 10000),
               survivalWaveRow('mb_tick', 1, 150)
             ],
             pickups: [survivalPickupRow('powerup_health', 1, 60), survivalPickupRow('potion_2', 1, 120)],
@@ -634,10 +634,10 @@ function arenaMarathon(): DungeonParameters {
         ),
         // AB3 — the finale: 3 random bosses from the full roster
         bossFight({
-          theme: 'g_mixed',
+          theme: 'pyramid_inside',
           bossPool: [...BOSS_IDS],
           bossCount: 3,
-          waves: tierAndDeathWaves([['skeleton1', 20]], [['lich', 4]], SHOOTER_ARROW_TRAPS),
+          waves: tierAndDeathWaves([['skeleton_warrior', 20]], [['skeleton_lich', 4]], SHOOTER_ARROW_TRAPS),
           music: 'boss_final'
         })
       ]
@@ -687,13 +687,13 @@ function trapGauntlet(): DungeonParameters {
   const levels = 5
   return campaign(levels, {
     monsterMultiplier: 0.6,
-    themes: ['a_mixed', 'b_mixed', 'c_mixed', 'd_mixed', 'e_mixed'],
+    themes: ['prison', 'armory', 'archives', 'chambers', 'cave_desert'],
     levelMonsters: [
-      ['bat1', 'tick1'],
+      ['bat', 'tick'],
       ['maggot', 'slime'],
-      ['skeleton1', 'archer1'],
-      ['skeleton2', 'archer2'],
-      ['eye', 'wisp1', 'lich']
+      ['skeleton_warrior', 'skeleton_archer'],
+      ['skeleton_soldier', 'skeleton_ranger'],
+      ['eye', 'wisp', 'skeleton_lich']
     ],
     levelTraps: [
       [
@@ -744,20 +744,20 @@ function trapGauntlet(): DungeonParameters {
         bossFight({
           monsterMultiplier: 0.6,
           waves: [
-            scatterWave([], [['skeleton1', 10]], 2500, [], [], [
+            scatterWave([], [['skeleton_warrior', 10]], 2500, [], [], [
               { projectile: 'shooter_arrow', direction: 'up', spread: 0, spawnRateMs: 1000, count: 4 },
               { projectile: 'shooter_arrow', direction: 'down', spread: 0, spawnRateMs: 1000, count: 4 }
             ]),
             emptyWave(),
-            scatterWave([], [['archer1', 8]], 2000, [], [], [
+            scatterWave([], [['skeleton_archer', 8]], 2000, [], [], [
               { projectile: 'shooter_spike', direction: 'left', spread: 0, spawnRateMs: 900, count: 4 },
               { projectile: 'shooter_spike', direction: 'right', spread: 0, spawnRateMs: 900, count: 4 }
             ]),
-            scatterWave([], [['lich', 4]], 1500, [], [], [
+            scatterWave([], [['skeleton_lich', 4]], 1500, [], [], [
               { projectile: 'enemy_axe', direction: 'up', spread: 0.5, spawnRateMs: 800, count: 4 },
               { projectile: 'enemy_axe', direction: 'down', spread: 0.5, spawnRateMs: 800, count: 4 }
             ]),
-            scatterWave([], [['lich', 3]], 1500, bossDeathBuffs(), stockWavePickups().death, [
+            scatterWave([], [['skeleton_lich', 3]], 1500, bossDeathBuffs(), stockWavePickups().death, [
               { projectile: 'enemy_boss_dragon_fireball', direction: 'left', spread: 0.5, spawnRateMs: 900, count: 3 },
               { projectile: 'enemy_boss_anubis_fireball', direction: 'right', spread: 0.5, spawnRateMs: 900, count: 3 }
             ])
@@ -782,7 +782,7 @@ function frozenDescentMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'lev
       loot: [['chest_blue', 1], ['mana_2', 1]]
     }),
     mysteryButton('Frozen dead', 'The frozen dead rise', {
-      monsters: [['krilith_mb_skeleton', 2], ['skeleton2', 6]]
+      monsters: [['krilith_frost_guard', 2], ['skeleton_soldier', 6]]
     })
   ])
   return {
@@ -816,13 +816,13 @@ function frozenDescentMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'lev
 function frozenDescent(): DungeonParameters {
   const levels = 5
   return campaign(levels, {
-    themes: ['f', 'f_fine', 'f_frozen', 'f_mixed', 'f_frozen'],
+    themes: ['cave_crystal', 'cave_crystal', 'cave_crystal', 'cave_crystal', 'cave_crystal'],
     levelMonsters: [
-      ['wisp2', 'tick2'],
-      ['skeleton2', 'wisp1'],
-      ['eye', 'wisp2'],
-      ['lich', 'skeleton2'],
-      ['wisp2', 'tower_static_frost']
+      ['wisp#3', 'tick_gold'],
+      ['skeleton_soldier', 'wisp'],
+      ['eye', 'wisp#3'],
+      ['skeleton_lich', 'skeleton_soldier'],
+      ['wisp#3', 'tower_static_frost']
     ],
     floorMusic: ['act3', 'act3', 'act4', 'act4', 'act4'],
     // F1: a frost aura on the monsters. F2: a breather — the Regeneration
@@ -854,7 +854,7 @@ function frozenDescent(): DungeonParameters {
       defaultDungeonBoss(),
       defaultDungeonBoss(),
       defaultDungeonBoss(),
-      floorBoss({ boss_krilith: 1 }, floorTierAndDeathWaves([['wisp2', 8]], [['wisp2', 4]]))
+      floorBoss({ boss_krilith: 1 }, floorTierAndDeathWaves([['wisp#3', 8]], [['wisp#3', 4]]))
     ],
     // the deeper caves become a scavenger hunt: two buttons from floor 3 on,
     // and on Krilith's floor the wall waits for her too
@@ -866,12 +866,12 @@ function frozenDescent(): DungeonParameters {
       enabled: true,
       fights: [
         bossFight({
-          theme: 'f_frozen',
+          theme: 'cave_crystal',
           bossSelection: 'lineup',
           bossLineup: { boss_krilith: 1 },
           waves: tierAndDeathWaves(
-            [['krilith_mb_skeleton', 6], ['tower_static_frost', 3]],
-            [['krilith_mb_skeleton', 4]]
+            [['krilith_frost_guard', 6], ['tower_static_frost', 3]],
+            [['krilith_frost_guard', 4]]
           ),
           music: 'boss_final'
         })
@@ -886,18 +886,18 @@ function pandemonium(): DungeonParameters {
   const levels = 4
   return campaign(levels, {
     foodMultiplier: 1.6,
-    themes: ['c_mixed', 'd_mixed', 'e_mixed', 'f_mixed'],
+    themes: ['archives', 'chambers', 'cave_desert', 'cave_crystal'],
     levelMonsters: [
-      ['bat1', 'tick1'],
+      ['bat', 'tick'],
       ['maggot', 'slime'],
-      ['eye', 'wisp1'],
-      ['skeleton2', 'archer2']
+      ['eye', 'wisp'],
+      ['skeleton_soldier', 'skeleton_ranger']
     ],
     levelBoss: [2, 2, 3, 3].map((count, i) =>
       floorBossRandom(
         MOBILE_BOSS_IDS,
         count,
-        floorTierAndDeathWaves([['skeleton1', 6 + i * 2]], [['skeleton1', 4]])
+        floorTierAndDeathWaves([['skeleton_warrior', 6 + i * 2]], [['skeleton_warrior', 4]])
       )
     ),
     floorMusic: ['act2', 'act3', 'act3', 'act4'],
@@ -907,10 +907,10 @@ function pandemonium(): DungeonParameters {
       enabled: true,
       fights: [
         bossFight({
-          theme: 'g_mixed',
+          theme: 'pyramid_inside',
           bossPool: [...BOSS_IDS],
           bossCount: 6,
-          waves: tierAndDeathWaves([['skeleton1', 15]], [['lich', 4]], SHOOTER_ARROW_TRAPS),
+          waves: tierAndDeathWaves([['skeleton_warrior', 15]], [['skeleton_lich', 4]], SHOOTER_ARROW_TRAPS),
           music: 'boss_final'
         })
       ]
@@ -923,11 +923,11 @@ function pandemonium(): DungeonParameters {
 /** The classic escape-floor pool: ~42% battlements, repeated from the castle preset. */
 function escapeFloorPool(): string[] {
   return [
-    'tower_empty', 'tower_empty', 'tower_empty', 'tower_empty',
-    'tower_empty', 'tower_empty', 'tower_empty', 'tower_empty',
-    'skeleton3', 'bat2', 'wisp2', 'lich', 'mb_eye',
-    'wisp1', 'tower_static_frost', 'tower_static_frost', 'tower_static_frost',
-    'mb_lich', 'tower_nova'
+    'tower_battlement_empty', 'tower_battlement_empty', 'tower_battlement_empty', 'tower_battlement_empty',
+    'tower_battlement_empty', 'tower_battlement_empty', 'tower_battlement_empty', 'tower_battlement_empty',
+    'skeleton_runner', 'bat', 'wisp#3', 'skeleton_lich', 'mb_eye',
+    'wisp', 'tower_static_frost', 'tower_static_frost', 'tower_static_frost',
+    'mb_wizard', 'tower_nova'
   ]
 }
 
@@ -1019,32 +1019,32 @@ function longHaul(): DungeonParameters {
 
   const params = campaign(levels, {
     themes: [
-      'a_mixed', 'b_mixed', 'c_mixed', // castle act
-      'd_mixed', 'e_mixed', 'f_frozen', // castle/ice act
-      'h', 'i', 'i_mixed', // desert act
-      'bonus2', 'bonus4', 'g_mixed', // bonus act
-      'f_mixed' // escape floor
+      'prison', 'armory', 'archives', // castle act
+      'chambers', 'cave_desert', 'cave_crystal', // castle/ice act
+      'cave_desert', 'pyramid_fancy', 'pyramid_fancy', // desert act
+      'bonus2', 'bonus4', 'pyramid_inside', // bonus act
+      'cave_crystal' // escape floor
     ],
     levelMonsters: [
-      ['bat1', 'tick1'],
+      ['bat', 'tick'],
       ['maggot', 'slime'],
-      ['skeleton1', 'archer1'],
-      ['skeleton2', 'archer2'],
-      ['eye', 'wisp1'],
-      ['wisp2', 'tower_static_frost'],
-      ['guard_desert', 'tick1'],
-      ['mummy_desert', 'mummy_ranged'],
-      ['lich_desert', 'spider'],
-      ['bonus_archer1', 'bonus_skeleton1'],
-      ['wisp2', 'skeleton2'],
-      ['mb_lich', 'mb_doomspawn'],
+      ['skeleton_warrior', 'skeleton_archer'],
+      ['skeleton_soldier', 'skeleton_ranger'],
+      ['eye', 'wisp'],
+      ['wisp#3', 'tower_static_frost'],
+      ['mummy_guard', 'tick'],
+      ['mummy', 'mummy_mage'],
+      ['mummy_lich', 'spider#0'],
+      ['bonus_demon', 'bonus_ghost'],
+      ['wisp#3', 'skeleton_soldier'],
+      ['mb_wizard', 'mb_doomspawner'],
       escapeFloorPool()
     ],
     floorMusic: [
       'act1', 'act1', 'act2',
       'act2', 'act3', 'act3',
-      'desert_cavern', 'desert_temple', 'desert_temple',
-      'bonus_1', 'bonus_2', 'act4',
+      'temple_boss', 'temple_hub', 'temple_hub',
+      'bonus', 'bonus', 'act4',
       'act4'
     ],
     // Sized to 9 (0..8), NOT `levels` (13): `bossFloorN=` is only written for
@@ -1054,9 +1054,9 @@ function longHaul(): DungeonParameters {
     // the comment on `campaign()`.
     levelBoss: (() => {
       const bosses = Array.from({ length: 9 }, () => defaultDungeonBoss())
-      bosses[2] = floorBoss({ boss_knight: 1 }, floorTierAndDeathWaves([['skeleton1', 10]], [['skeleton1', 5]]))
-      bosses[5] = floorBoss({ boss_krilith: 1 }, floorTierAndDeathWaves([['wisp2', 6]], [['wisp2', 4]]))
-      bosses[8] = floorBoss({ boss_anubis: 1 }, floorTierAndDeathWaves([['mummy_desert', 10]], [['mummy_desert', 6]]))
+      bosses[2] = floorBoss({ boss_knight: 1 }, floorTierAndDeathWaves([['skeleton_warrior', 10]], [['skeleton_warrior', 5]]))
+      bosses[5] = floorBoss({ boss_krilith: 1 }, floorTierAndDeathWaves([['wisp#3', 6]], [['wisp#3', 4]]))
+      bosses[8] = floorBoss({ boss_anubis: 1 }, floorTierAndDeathWaves([['mummy', 10]], [['mummy', 6]]))
       return bosses
     })(),
     // lobby index 1 is given music explicitly (not left on the `default`
@@ -1079,9 +1079,9 @@ function longHaul(): DungeonParameters {
       fights: [
         // the mid-campaign arena: a single random boss, lich or knight
         bossFight({
-          theme: 'e_mixed',
+          theme: 'cave_desert',
           bossPool: ['boss_lich', 'boss_knight'],
-          waves: tierAndDeathWaves([['skeleton1', 15], ['archer1', 8]], [['lich', 4]]),
+          waves: tierAndDeathWaves([['skeleton_warrior', 15], ['skeleton_archer', 8]], [['skeleton_lich', 4]]),
           music: 'boss_1'
         }),
         // the finale: the stock castle wave table, unmodified
@@ -1143,17 +1143,17 @@ function doubleOrNothingMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'l
     mysteryButton('Diamond rain', 'Diamonds!', { loot: [['valuable_diamond', 2], ['valuable_diamond_small_red', 2]] }),
     mysteryButton('Extra life', 'An extra life!', { loot: [['powerup_1up', 1]] }),
     // the house collects
-    mysteryButton('Bone pit', 'The pit opens', { monsters: [['mb_skeleton', 2], ['skeleton2', 12], ['archer2', 6]] }),
+    mysteryButton('Bone pit', 'The pit opens', { monsters: [['mb_skeleton_guard#0', 2], ['skeleton_soldier', 12], ['skeleton_ranger', 6]] }),
     mysteryButton('Double trouble', 'Double or nothing... nothing', {
-      monsters: [['mb_lich', 1], ['lich#0', 3], ['special_beheaded_kamikaze', 3]]
+      monsters: [['mb_wizard', 1], ['skeleton_lich#0', 3], ['beheaded_kamikaze', 3]]
     }),
     mysteryButton('Death trap', 'You lose', {
-      monsters: [['special_beheaded_kamikaze', 2]],
+      monsters: [['beheaded_kamikaze', 2]],
       traps: fourWalls('enemy_magicball_death', 500, 0.5),
       trapSeconds: MYSTERY_STARTER_TRAP_SECONDS
     }),
     mysteryButton('Inferno', 'Burn!', {
-      monsters: [['floater_fire', 4]],
+      monsters: [['wisp#3', 4]],
       traps: fourWalls('enemy_boss_dragon_fireball', 800, 0.5),
       trapSeconds: MYSTERY_STARTER_TRAP_SECONDS
     })
@@ -1203,13 +1203,13 @@ function doubleOrNothing(): DungeonParameters {
   return campaign(levels, {
     // the floors themselves are quiet — the plates are the danger
     monsterMultiplier: 0.6,
-    themes: ['b_mixed', 'c_mixed', 'd_mixed', 'e_mixed', 'g_mixed'],
+    themes: ['armory', 'archives', 'chambers', 'cave_desert', 'pyramid_inside'],
     levelMonsters: [
-      ['bat1', 'tick1'],
-      ['skeleton1', 'archer1'],
-      ['eye', 'wisp1'],
-      ['skeleton2', 'archer2'],
-      ['lich', 'wisp2']
+      ['bat', 'tick'],
+      ['skeleton_warrior', 'skeleton_archer'],
+      ['eye', 'wisp'],
+      ['skeleton_soldier', 'skeleton_ranger'],
+      ['skeleton_lich', 'wisp#3']
     ],
     floorMusic: ['act1', 'act2', 'act3', 'act3', 'act4'],
     // the red buttons, never disguised: finding them is always the safe way on
@@ -1278,12 +1278,12 @@ function shellGameBossFight(): BossFight {
     // state (written while someone is being torn apart)
     checkpoints: { respawnPlayers: 'never', saveGame: 'never' },
     waves: [
-      scatterWave([], [['skeleton2', 8]], 2000),
-      scatterWave([], [['archer2', 6], ['mb_skeleton', 1]], 2000, [], [], SHOOTER_ARROW_TRAPS),
-      scatterWave([], [['skeleton3', 6], ['lich', 2]], 2000, [], drops.half, SHOOTER_ARROW_TRAPS),
+      scatterWave([], [['skeleton_soldier', 8]], 2000),
+      scatterWave([], [['skeleton_ranger', 6], ['mb_skeleton_guard#0', 1]], 2000, [], [], SHOOTER_ARROW_TRAPS),
+      scatterWave([], [['skeleton_runner', 6], ['skeleton_lich', 2]], 2000, [], drops.half, SHOOTER_ARROW_TRAPS),
       // 25%: enraged, standing in for the invulnerability this fight skips
-      scatterWave([], [['lich#2', 3], ['mb_eye', 1]], 2000, enrage(), drops.quarter, SHOOTER_ARROW_TRAPS),
-      scatterWave([], [['lich', 3]], 1500, bossDeathBuffs(), drops.death)
+      scatterWave([], [['skeleton_lich#2', 3], ['mb_eye', 1]], 2000, enrage(), drops.quarter, SHOOTER_ARROW_TRAPS),
+      scatterWave([], [['skeleton_lich', 3]], 1500, bossDeathBuffs(), drops.death)
     ],
     music: 'boss_1'
   })
@@ -1292,19 +1292,19 @@ function shellGameBossFight(): BossFight {
 /** The clock arena after the boss — Beat the Clock's, a notch meaner from the first second. */
 function shellGameArena(): BossFight {
   return clockArena([
-    survivalWaveRow('skeleton3', 10, 0, 1200),
-    survivalWaveRow('mb_skeleton', 1, 0),
-    survivalWaveRow('lich', 6, 30),
+    survivalWaveRow('skeleton_runner', 10, 0, 1200),
+    survivalWaveRow('mb_skeleton_guard#0', 1, 0),
+    survivalWaveRow('skeleton_lich', 6, 30),
     survivalWaveRow('mb_eye', 1, 30),
-    survivalWaveRow('archer2', 6, 60),
-    survivalWaveRow('mb_doomspawn', 1, 60),
-    survivalWaveRow('mb_lich', 1, 90),
-    survivalWaveRow('lich#0', 4, 90),
+    survivalWaveRow('skeleton_ranger', 6, 60),
+    survivalWaveRow('mb_doomspawner', 1, 60),
+    survivalWaveRow('mb_wizard', 1, 90),
+    survivalWaveRow('skeleton_lich#0', 4, 90),
     // filler, as in Beat the Clock's, a notch tougher
-    survivalWaveRow('skeleton3', 12, 0, 2000),
-    survivalWaveRow('bat2#2', 16, 20),
-    survivalWaveRow('archer3', 8, 45, 2000),
-    survivalWaveRow('lich#2', 6, 75, 2000)
+    survivalWaveRow('skeleton_runner', 12, 0, 2000),
+    survivalWaveRow('bat#3', 16, 20),
+    survivalWaveRow('temple_archer', 8, 45, 2000),
+    survivalWaveRow('skeleton_lich#2', 6, 75, 2000)
   ])
 }
 
@@ -1316,18 +1316,18 @@ function shellGame(): DungeonParameters {
     minRoomCount: 8,
     maxRoomCount: 10,
     monsterMultiplier: 0.5,
-    themes: ['b_mixed', 'c_mixed', 'd_mixed', 'e_mixed', 'f_mixed'],
+    themes: ['armory', 'archives', 'chambers', 'cave_desert', 'cave_crystal'],
     levelMonsters: [
-      ['bat1'],
-      ['tick1', 'bat1'],
-      ['skeleton1', 'bat2'],
-      ['skeleton3', 'tick2'],
-      ['skeleton3', 'bat2']
+      ['bat'],
+      ['tick', 'bat'],
+      ['skeleton_warrior', 'bat'],
+      ['skeleton_runner', 'tick_gold'],
+      ['skeleton_runner', 'bat']
     ],
     floorMusic: ['act1', 'act2', 'act2', 'act3', 'act4'],
     // the last floor is the hunt, as in Beat the Clock — no lock, its boss is the way out
     levelLock: buttonLocks([1, 2, 2, 3, 0]),
-    levelBoss: huntFloorBoss(levels, [['skeleton3', 6]], [['skeleton3', 4]], [['skeleton3', 4]]),
+    levelBoss: huntFloorBoss(levels, [['skeleton_runner', 6]], [['skeleton_runner', 4]], [['skeleton_runner', 4]]),
     ...shellGameMystery(),
     lobbies: [lobby('BETA-dungeon-prep'), lobby('BETA-boss-prep', { music: 'boss_1' })],
     // the hunt, the lobby, then a boss to finish and a clock to outlast

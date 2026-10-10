@@ -13,6 +13,9 @@ import {
 import { ARENA_MIN_HEIGHT } from '../src/generator/boss/geometry'
 import { Rand } from '../src/generator/core/rand'
 
+/** The two static dragons — the only bosses pinned to the arena's top wall. */
+const TOP_WALL = ['boss_dragon', 'boss_dragon_hwr']
+
 describe('boss defs', () => {
   it('has exactly one entry per BOSS_IDS id, in order', () => {
     expect(BOSS_DEF_LIST.map((d) => d.id)).toEqual([...BOSS_IDS])
@@ -21,63 +24,43 @@ describe('boss defs', () => {
     }
   })
 
-  it('every def has a plausible actor path and a positive footprint', () => {
+  it('every def has an AE actor unit and a positive footprint', () => {
     for (const def of BOSS_DEF_LIST) {
-      expect(def.actorPath).toBe(`actors/${def.id}/${def.id}.xml`)
+      expect(def.actorPath).toMatch(/^actors\/.+\.unit$/)
       expect(def.footprintWidth).toBeGreaterThan(0)
       expect(def.footprintHeight).toBeGreaterThan(0)
+      expect(def.barName).toMatch(/^\.(d\.)?ig\./)
     }
   })
 
-  it('only the dragon is placed in the top wall; everything else is centred', () => {
-    for (const def of BOSS_DEF_LIST) {
-      if (def.id === 'boss_dragon') {
-        expect(def.placement).toBe('topWall')
-      } else {
-        expect(def.placement).toBe('centre')
-      }
-    }
+
+  it('places exactly the two dragons in the top wall; everything else is centred', () => {
+    for (const def of BOSS_DEF_LIST) expect(def.placement).toBe(TOP_WALL.includes(def.id) ? 'topWall' : 'centre')
   })
 
-  it('only the dragon forbids an alcove wall, and it forbids N', () => {
-    for (const def of BOSS_DEF_LIST) {
-      if (def.id === 'boss_dragon') {
-        expect(def.forbiddenAlcoveWalls).toEqual(['N'])
-      } else {
-        expect(def.forbiddenAlcoveWalls).toEqual([])
-      }
-    }
+  it('has only the dragons forbid an alcove wall, and they forbid N', () => {
+    for (const def of BOSS_DEF_LIST) expect(def.forbiddenAlcoveWalls).toEqual(TOP_WALL.includes(def.id) ? ['N'] : [])
   })
 
   it('queen has the largest footprint, and that is what largestBossFootprintArea reports', () => {
     const queen = BOSS_DEFS.boss_queen
     const queenArea = queen.footprintWidth * queen.footprintHeight
     for (const def of BOSS_DEF_LIST) {
-      const area = def.footprintWidth * def.footprintHeight
-      expect(area).toBeLessThanOrEqual(queenArea)
+      expect(def.footprintWidth * def.footprintHeight).toBeLessThanOrEqual(queenArea)
     }
     expect(largestBossFootprintArea()).toBeCloseTo(queenArea, 9)
   })
 })
 
 describe('topWall boss placement', () => {
-  // The bug this helper exists for: the dragon shipped at interior row 0, where
-  // 2.625 tiles of its *static* collider sat inside the north wall band. In
-  // game it was unreachable, unhittable and could not fire — it read as being
-  // off the map to the north. Row 3 — ceil(footprintHeight / 2 -
-  // collisionOffsetY) = ceil(2.125 + 0.5) — is the hand-patched arena the fix
-  // was verified on.
-  it('puts the dragon at interior row 3, not flush against the wall', () => {
-    expect(topWallBossY(BOSS_DEFS.boss_dragon)).toBe(3)
-  })
-
-  it("honours the collider's offset, not just its footprint", () => {
+  // A static collider overlapping the north wall band leaves the boss
+  // unreachable and unable to fire (HW1 playtest, same engine family), so a
+  // top-wall boss sits at the shallowest row its whole collider fits on.
+  it('honours each dragon collider offset, not just its footprint', () => {
     const dragon = BOSS_DEFS.boss_dragon
-    expect(dragon.collisionOffsetY).toBeCloseTo(-0.5, 9)
-    // the footprint alone would ask for 2.125 tiles of clearance; the offset is
-    // what pushes the real requirement to 2.625 and the row to 3
-    expect(dragon.footprintHeight / 2).toBeCloseTo(2.125, 9)
-    expect(dragon.footprintHeight / 2 - (dragon.collisionOffsetY ?? 0)).toBeCloseTo(2.625, 9)
+    // AE <circle offset="0 -32" radius="40">
+    expect(dragon.collisionOffsetY).toBeCloseTo(-2, 9)
+    expect(topWallBossY(dragon)).toBe(Math.ceil(dragon.footprintHeight / 2 + 2))
   })
 
   it('leaves every topWall boss collider entirely on interior floor', () => {
@@ -92,25 +75,19 @@ describe('topWall boss placement', () => {
   })
 
   it('reports a spawn clearance strictly below the collider bottom', () => {
-    const dragon = BOSS_DEFS.boss_dragon
-    const y = topWallBossY(dragon)
-    const colliderBottom = y + (dragon.collisionOffsetY ?? 0) + dragon.footprintHeight / 2
-    expect(topWallBossClearance(dragon, y)).toBeGreaterThan(colliderBottom)
-    expect(topWallBossClearance(dragon, y)).toBe(6)
-  })
-
-  it('the centre-placed bosses carry no collider offset to honour', () => {
-    for (const def of BOSS_DEF_LIST) {
-      if (def.placement === 'topWall') continue
-      expect(def.collisionOffsetY ?? 0).toBe(0)
+    for (const id of TOP_WALL) {
+      const def = BOSS_DEFS[id as keyof typeof BOSS_DEFS]
+      const y = topWallBossY(def)
+      const colliderBottom = y + (def.collisionOffsetY ?? 0) + def.footprintHeight / 2
+      expect(topWallBossClearance(def, y)).toBeGreaterThan(colliderBottom)
     }
   })
 
-  it('is unique for exactly the dragon and the queen', () => {
+  it('is unique for exactly the two dragons and the queen', () => {
     for (const def of BOSS_DEF_LIST) {
       expect(def.unique).toBe((UNIQUE_BOSS_IDS as readonly string[]).includes(def.id))
     }
-    expect([...UNIQUE_BOSS_IDS].sort()).toEqual(['boss_dragon', 'boss_queen'])
+    expect([...UNIQUE_BOSS_IDS].sort()).toEqual(['boss_dragon', 'boss_dragon_hwr', 'boss_queen'])
   })
 })
 

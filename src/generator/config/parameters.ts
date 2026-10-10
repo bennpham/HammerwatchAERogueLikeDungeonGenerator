@@ -2,8 +2,8 @@ import { MONSTER_FAMILIES, MONSTER_TYPES } from '../objects/monsterTypes'
 import { THEME_DEFS } from './themes'
 import { ALL_LOBBY_CATEGORIES } from '../lobby/shops'
 import type { PlayerTweaks } from '../tweak/types'
-import { noUpgrades } from '../levelTemplate/surgery'
-import type { UpgradeCounts } from '../levelTemplate/surgery'
+import { noUpgrades } from '../lobby/payout'
+import type { UpgradeCounts } from '../lobby/payout'
 // the tweak key builder, so the default life removal below cannot drift from
 // the key QuickSetup's checkbox writes. tweak/ imports nothing from config/,
 // so this direction adds no cycle
@@ -88,10 +88,11 @@ export const BUFF_TARGETS: readonly BuffTarget[] = ['players', 'monsters', 'both
  * `1` is the known players-only value. Shipped content only ever uses 1, 2, 3
  * and 15. See DISCOVERY-LOG.md.
  */
+/** AE trigger filter flags per buff target (AreaTrigger.as AreaFilter: 2 player, 4 enemy) */
 export const BUFF_TARGET_TYPES: Record<BuffTarget, number> = {
-  players: 1,
-  monsters: 2,
-  both: 3
+  players: 2,
+  monsters: 4,
+  both: 6
 }
 
 /**
@@ -180,7 +181,7 @@ export function defaultFloorTraps(): FloorTrap[] {
  *
  * `damage` is deliberately signed — a negative value heals the party instead,
  * so the same feature covers "the floor starts hurting" and "the floor starts
- * healing". Only players are affected (RectangleShape `types: 1`).
+ * healing". Only players are affected (AE filter 2).
  */
 export interface FloorTimer {
   /** Off by default; a floor with this false emits no nodes at all. */
@@ -563,32 +564,32 @@ export function mysteryStarterPool(): MysteryButton[] {
     loot('Health upgrade II', 'A great upgrade', [['upgrade_health_2', 1]]),
     loot('Mana upgrade II', 'A great upgrade', [['upgrade_mana_2', 1]]),
 
-    squad('Tick nest', 'The floor is crawling', [['mb_tick', 1], ['tick1#0', 1], ['tick1', 24], ['tick1#2', 12], ['tick1#3', 3]]),
-    squad('Gold beetles', 'Gold beetles!', [['tick2', 4], ['tick2#0', 6]]),
-    squad('Bat swarm', 'Bats!', [['bat1', 40], ['bat2', 30], ['bat2#2', 10]]),
-    squad('Skeleton squad', 'The dead rise', [['mb_skeleton', 2], ['skeleton1#3', 4], ['skeleton1#2', 10], ['skeleton1', 4]]),
-    squad('Archer volley', 'Archers!', [['archer1', 12], ['archer2', 6], ['archer1#2', 3]]),
-    squad('Necromancer', 'Necromancers!', [['lich#3', 4], ['skeleton3', 18]]),
-    squad('Wisps', 'Wisps!', [['wisp1', 8], ['wisp1#2', 6], ['wisp2', 6]]),
-    squad('Flower bed', 'Something blooms', [['tower_flower1_small', 4], ['tower_flower1', 2], ['tower_flower2', 1]]),
-    squad('Nova towers', 'Towers rise', [['tower_nova1', 1], ['tower_nova2', 1]]),
-    squad('Fire and frost tracking', 'Towers rise', [['tower_tracking1', 1], ['tower_tracking2', 1]]),
-    squad('Drain tracking', 'Your mana drains away', [['tower_tracking3', 2]]),
+    squad('Tick nest', 'The floor is crawling', [['mb_tick', 1], ['tick#0', 1], ['tick', 24], ['tick#2', 12], ['tick#3', 3]]),
+    squad('Gold beetles', 'Gold beetles!', [['tick_gold', 4], ['tick_gold#0', 6]]),
+    squad('Bat swarm', 'Bats!', [['bat', 40], ['bat', 30], ['bat#3', 10]]),
+    squad('Skeleton squad', 'The dead rise', [['mb_skeleton_guard#0', 2], ['skeleton_warrior#3', 4], ['skeleton_warrior#2', 10], ['skeleton_warrior', 4]]),
+    squad('Archer volley', 'Archers!', [['skeleton_archer', 12], ['skeleton_ranger', 6], ['skeleton_archer#2', 3]]),
+    squad('Necromancer', 'Necromancers!', [['skeleton_lich#3', 4], ['skeleton_runner', 18]]),
+    squad('Wisps', 'Wisps!', [['wisp', 8], ['wisp#2', 6], ['wisp#3', 6]]),
+    squad('Flower bed', 'Something blooms', [['flower_small', 4], ['flower_eater', 2], ['flower_blood', 1]]),
+    squad('Nova towers', 'Towers rise', [['tower_nova_ice', 1], ['tower_nova_frost', 1]]),
+    squad('Fire and frost tracking', 'Towers rise', [['tower_laser_fire', 1], ['tower_laser_ice', 1]]),
+    squad('Drain tracking', 'Your mana drains away', [['tower_laser_drain', 2]]),
     squad('Maggot brood', 'Maggots!', [['mb_maggot', 1], ['maggot', 12], ['maggot#2', 10], ['maggot#3', 4]]),
     squad('Eye cluster', 'You are being watched', [['mb_eye', 1], ['eye', 8], ['eye#2', 8]]),
     squad('Slime pit', 'Slime!', [['slime', 70], ['slime#0', 1]]),
-    squad('Kamikazes', 'AAAAAAAAAA', [['special_beheaded_kamikaze', 6]]),
+    squad('Kamikazes', 'AAAAAAAAAA', [['beheaded_kamikaze', 6]]),
     squad('Fire pillars', 'Run!', [['pillar_fire', 6]]),
-    squad('Fire floaters', 'Fire!', [['floater_fire', 8]]),
-    squad('Spider nest', 'Spiders!', [['spider', 13]]),
-    squad('Lich council', 'The council convenes', [['mb_lich', 1], ['lich#0', 4], ['lich', 2], ['lich#2', 3]]),
+    squad('Fire floaters', 'Fire!', [['wisp#3', 8]]),
+    squad('Spider nest', 'Spiders!', [['spider#0', 13]]),
+    squad('Lich council', 'The council convenes', [['mb_wizard', 1], ['skeleton_lich#0', 4], ['skeleton_lich', 2], ['skeleton_lich#2', 3]]),
     squad('Mummy tomb', 'The tomb opens', [
       ['mb_mummy', 1],
-      ['mummy_desert', 8],
-      ['mummy_desert#2', 6],
-      ['mummy_desert#3', 3],
-      ['mummy_ranged', 4],
-      ['mummy_ranged#2', 2]
+      ['mummy', 8],
+      ['mummy', 6],
+      ['mummy#3', 3],
+      ['mummy_mage', 4],
+      ['mummy_mage#2', 2]
     ]),
 
     trapRoom('Big fireball cross', 'Traps activated', 'shooter_fireball_2', [1, 1, 1, 1]),
@@ -605,7 +606,7 @@ export function mysteryStarterPool(): MysteryButton[] {
     trapRoom("Anubis' wrath", 'Traps activated', 'enemy_boss_anubis_fireball', [1, 1, 1, 1], 1000, 0.25),
     trapRoom('Frost wall', 'Traps activated', 'enemy_boss_krilith_frostball', [2, 2, 2, 2], 900),
     trapRoom('Confusion', 'Traps activated', 'enemy_boss_krilith_confusion', [2, 2, 2, 2], 900),
-    trapRoom('Poison nova', 'Traps activated', 'boss_maggot_nova', [1, 1, 1, 1], 700)
+    trapRoom('Poison nova', 'Traps activated', 'boss_queen_spit', [1, 1, 1, 1], 700)
   ]
 }
 
@@ -698,6 +699,21 @@ export interface DungeonParameters {
   goldMultiplier: number
   foodMultiplier: number
   shopChance: number
+  /**
+   * Which vendor stands a floor's shop room may roll — any of `combo`,
+   * `offense`, `defense`, `misc` (skill shops) and `power` (potions). Absent
+   * or empty means the four skill vendors HW1's generator rolled between.
+   */
+  shopKinds?: string[]
+  /**
+   * Guarantee the Warlock can buy the gargoyle. In AE the gargoyle is a
+   * purchasable skill in the `def2` shop category (players/warlock/skills/
+   * warlock_gargoyle.sval), not a class unlock as in the original game, so a
+   * run whose shops never roll a defense stand leaves a warlock without it.
+   * When set, the first floor with a shop room always gets a defense stand,
+   * and the first floor always rolls a shop room.
+   */
+  ensureGargoyleShop?: boolean
   vaultChance: number
   lockChance: number
   keyChance: number
@@ -859,8 +875,10 @@ export interface DungeonParameters {
  * the preset rather than off a hardcoded room. See src/generator/lobby/.
  */
 export interface LobbyOptions {
-  /** a `LOBBY_PRESETS` id — which committed room this lobby edits */
+  /** a `LOBBY_PRESETS` id — the generated room (`standin`) or an imported AE lobby */
   preset: string
+  /** theme of the generated room (ignored by an imported lobby); default chambers */
+  theme?: string
   /** multiple of 500 — each 500 is one red diamond on the lobby floor */
   startingGold: number
   /** selected shop columns, e.g. ['misc1', 'misc2', 'off1', 'power'] */
@@ -1453,8 +1471,10 @@ export function waveSpawnMode(wave: BossWave, id: string): BossSpawnMode {
 }
 
 /**
- * The seven end-boss actors, in the order the Boss tab's checkbox grid lists
- * them. The seed picks one per campaign from `boss.arena.bossPool`.
+ * Every Anniversary Edition end boss, in the order the Boss tab's checkbox grid
+ * lists them: the seven Castle Hammerwatch / Temple of the Sun bosses, then the
+ * Shaftlocke Tower bosses AE added (golem, warden, wraith, eye, vampire, the
+ * frost dragon and the seeress). The seed picks from `boss.arena.bossPool`.
  */
 export const BOSS_IDS = [
   'boss_anubis',
@@ -1463,7 +1483,14 @@ export const BOSS_IDS = [
   'boss_krilith',
   'boss_lich',
   'boss_queen',
-  'boss_worm'
+  'boss_worm',
+  'boss_golem',
+  'boss_warden',
+  'boss_wraith',
+  'boss_eye',
+  'boss_vampire',
+  'boss_dragon_hwr',
+  'boss_seeress'
 ] as const
 
 /**
@@ -1476,9 +1503,9 @@ export const BOSS_IDS = [
  * state nothing either way. Reading `static` as "immobile" would wrongly drop
  * the worm and wrongly keep the other two.
  *
- * Out: the dragon (pinned to the top wall, no upward-facing art) and the queen
- * (static collider, no `movement` dict — it attacks in every direction but
- * stays put). Those are the two the issue names.
+ * Out: the two dragons (static colliders, PassiveMovement — pinned to the top
+ * wall) and the queen (static collider, stays put). [VERIFIED] from each
+ * actor's `<collision static>` and movement class (scripts/dev/boss-survey.mjs).
  *
  * It matters because an arena confines a fight and a dungeon floor does not: a
  * boss that cannot close the distance is one the party walks away from, which
@@ -1486,7 +1513,19 @@ export const BOSS_IDS = [
  * derives each def's `mobile` flag from this list; it lives here because that
  * file imports from this one and not the other way round.
  */
-export const MOBILE_BOSS_IDS = ['boss_anubis', 'boss_knight', 'boss_krilith', 'boss_lich', 'boss_worm'] as const
+export const MOBILE_BOSS_IDS = [
+  'boss_anubis',
+  'boss_knight',
+  'boss_krilith',
+  'boss_lich',
+  'boss_worm',
+  'boss_golem',
+  'boss_warden',
+  'boss_wraith',
+  'boss_eye',
+  'boss_vampire',
+  'boss_seeress'
+] as const
 
 /**
  * Most bosses one arena or one dungeon floor may roll at once (issue #64,
@@ -1590,9 +1629,13 @@ export function isMultiBoss(count: number): boolean {
  * before a fight, so the party arrives able to actually spend at it — for the
  * boss-prep room.
  */
-export function defaultLobby(presetId: string): LobbyOptions {
+export function defaultLobby(presetId = 'standin'): LobbyOptions {
+  // The HW1 remake's two placeholder rooms are gone; their ids still name a
+  // lobby in older presets and files and become the generated room, the
+  // boss-prep one keeping its larger purse.
+  const legacy = presetId === 'BETA-boss-prep' || presetId === 'BETA-dungeon-prep'
   return {
-    preset: presetId,
+    preset: legacy ? 'standin' : presetId,
     startingGold: presetId === 'BETA-boss-prep' ? 20000 : 10000,
     shopCategories: [...ALL_LOBBY_CATEGORIES],
     // no free upgrades by default: the vendors are the intended way to get
@@ -1636,7 +1679,7 @@ export function defaultBossOptions(): BossOptions {
 export function defaultBossFight(): BossFight {
   return {
     arena: {
-      theme: 'g_mixed',
+      theme: 'pyramid_inside',
       floorPattern: 'random',
       minWidth: 42,
       maxWidth: 64,
@@ -1930,31 +1973,31 @@ function castleWaves(): BossWave[] {
   return [
     scatterWave(
       [
-        ['bat1', 42],
-        ['bat2', 24],
+        ['bat', 42],
+        ['bat', 24],
         ['maggot', 20],
         ['maggot#2', 12],
         ['maggot#3', 6],
-        ['tick1', 24],
-        ['tick1#2', 16],
-        ['tick1#0', 2],
-        ['tower_flower1_small', 6]
+        ['tick', 24],
+        ['tick#2', 16],
+        ['tick#0', 2],
+        ['flower_small', 6]
       ],
       [],
       4000
     ),
     scatterWave(
       [
-        ['archer1', 14],
-        ['archer2', 7],
-        ['skeleton1', 24],
-        ['skeleton1#2', 28],
+        ['skeleton_archer', 14],
+        ['skeleton_ranger', 7],
+        ['skeleton_warrior', 24],
+        ['skeleton_warrior#2', 28],
         ['slime', 44],
-        ['tower_archer1', 6],
+        ['tower_battlement_archer', 6],
         ['mb_tick', 3],
         ['mb_maggot', 1],
-        ['skeleton1#0', 2],
-        ['archer1#0', 2],
+        ['skeleton_warrior#0', 2],
+        ['skeleton_archer#0', 2],
         ['slime#0', 6],
         // the knight's own guard (issue #64 part 2) — bodyguards.
         ['knight_guard', 4]
@@ -1966,14 +2009,14 @@ function castleWaves(): BossWave[] {
       [
         ['eye', 44],
         ['eye#2', 30],
-        ['wisp1', 12],
-        ['wisp1#2', 4],
-        ['wisp2', 8],
-        ['lich#3', 8],
-        ['tower_flower1', 3],
-        ['tower_flower2', 2],
-        ['tower_flower3', 1],
-        ['mb_skeleton', 4],
+        ['wisp', 12],
+        ['wisp#2', 4],
+        ['wisp#3', 8],
+        ['skeleton_lich#3', 8],
+        ['flower_eater', 3],
+        ['flower_blood', 2],
+        ['flower_bloodrose', 1],
+        ['mb_skeleton_guard#0', 4],
         ['mb_eye', 1],
         // bodyguards
         ['lich_guard_lich', 4]
@@ -1985,20 +2028,20 @@ function castleWaves(): BossWave[] {
     ),
     scatterWave(
       [
-        ['lich', 4],
-        ['lich#0', 4],
-        ['lich#2', 6],
+        ['skeleton_lich', 4],
+        ['skeleton_lich#0', 4],
+        ['skeleton_lich#2', 6],
         ['mb_eye', 2],
-        ['mb_lich', 1],
-        ['tower_archer3', 5],
+        ['mb_wizard', 1],
+        ['tower_battlement_archer_elite', 5],
         ['eye#0', 5],
-        ['archer2#0', 4],
-        ['skeleton2#0', 4],
+        ['skeleton_ranger#0', 4],
+        ['skeleton_soldier#0', 4],
         // bodyguards
         ['lich_guard_lich', 2],
         ['lich_mirror', 2]
       ],
-      [['tower_nova1', 3]],
+      [['tower_nova_ice', 3]],
       1000,
       [],
       drops.quarter,
@@ -2009,15 +2052,15 @@ function castleWaves(): BossWave[] {
     // arrives bloodlusted — see bossDeathBuffs().
     scatterWave(
       [
-        ['lich#2', 6],
-        ['lich', 2],
-        ['lich#0', 2],
-        ['mb_lich', 1],
-        ['mb_doomspawn', 2],
+        ['skeleton_lich#2', 6],
+        ['skeleton_lich', 2],
+        ['skeleton_lich#0', 2],
+        ['mb_wizard', 1],
+        ['mb_doomspawner', 2],
         // the Lich's necromancer guard, sent off with everything else — bodyguards.
         ['lich_guard_lich', 1]
       ],
-      [['tower_nova2', 2]],
+      [['tower_nova_frost', 2]],
       1000,
       bossDeathBuffs(),
       drops.death,
@@ -2049,9 +2092,10 @@ export function defaultParameters(): DungeonParameters {
     mapHeight: 60,
     edgePadding: 2,
     roomPadding: 2,
-    // ..._mixed a-g are the campaign proper; the eighth is the escape floor
-    // played AFTER the boss (see levelOrder below), back on f - mixed
-    themes: ['a_mixed', 'b_mixed', 'c_mixed', 'd_mixed', 'e_mixed', 'f_mixed', 'g_mixed', 'f_mixed'],
+    // The Castle Hammerwatch zones in order for floors 1-7; the eighth is the
+    // escape floor played AFTER the boss (see levelOrder below), in
+    // Shaftlocke's chambers.
+    themes: ['prison', 'prison', 'armory', 'armory', 'archives', 'archives', 'chambers', 'chambers2'],
     levelBuffs: Array.from({ length: 8 }, () => defaultFloorBuffs()),
     // Every floor but the escape floor stays unarmed; the escape floor (the
     // last one, played after the boss) gets a fireball spewer on all four
@@ -2085,13 +2129,13 @@ export function defaultParameters(): DungeonParameters {
     // Exported and applied verbatim from that pass, except the escape floor's
     // tower_static_frost count — see the comment there.
     levelMonsters: [
-      ['bat1', 'tick1', 'maggot', 'tower_flower1_small', 'tower_flower1'],
-      ['maggot', 'slime', 'skeleton1', 'archer1'],
-      ['eye', 'wisp1', 'lich#3', 'wisp2', 'tower_nova'],
-      ['skeleton2', 'archer2', 'archer3', 'lich', 'wisp2', 'wisp1'],
-      ['mb_tick', 'mb_maggot', 'bat2', 'tick2', 'maggot', 'tower_flower'],
-      ['mb_skeleton', 'mb_eye', 'archer2', 'skeleton2', 'tower_nova'],
-      ['mb_lich', 'mb_doomspawn', 'lich', 'wisp2', 'tower_nova2'],
+      ['bat', 'tick', 'maggot', 'flower_small', 'flower_eater'],
+      ['maggot', 'slime', 'skeleton_warrior', 'skeleton_archer'],
+      ['eye', 'wisp', 'skeleton_lich#3', 'wisp#3', 'tower_nova'],
+      ['skeleton_soldier', 'skeleton_ranger', 'temple_archer', 'skeleton_lich', 'wisp#3', 'wisp'],
+      ['mb_tick', 'mb_maggot', 'bat', 'tick_gold', 'maggot', 'flower'],
+      ['mb_skeleton_guard#0', 'mb_eye', 'skeleton_ranger', 'skeleton_soldier', 'tower_nova'],
+      ['mb_wizard', 'mb_doomspawner', 'skeleton_lich', 'wisp#3', 'tower_nova_frost'],
       // The escape floor. Repetition is the only weighting the pool has
       // (chooseMonsterForLevel picks uniformly), so the battlements are
       // repeated until they hold ~4 lairs in 9 — the share measured at 36
@@ -2105,26 +2149,26 @@ export function defaultParameters(): DungeonParameters {
       // tests/presets.test.ts) — 3 copies clears it at 8/19 ≈ 0.421 while
       // keeping every other count from the export untouched.
       [
-        'tower_empty',
-        'tower_empty',
-        'tower_empty',
-        'tower_empty',
-        'tower_empty',
-        'tower_empty',
-        'tower_empty',
-        'tower_empty',
+        'tower_battlement_empty',
+        'tower_battlement_empty',
+        'tower_battlement_empty',
+        'tower_battlement_empty',
+        'tower_battlement_empty',
+        'tower_battlement_empty',
+        'tower_battlement_empty',
+        'tower_battlement_empty',
         // the fast harassers and ranged pressure that punish standing still
-        'skeleton3',
-        'bat2',
-        'wisp2',
-        'lich',
+        'skeleton_runner',
+        'bat',
+        'wisp#3',
+        'skeleton_lich',
         'mb_eye',
         // the castle's turret line and a mini-boss lich on top of them
-        'wisp1',
+        'wisp',
         'tower_static_frost',
         'tower_static_frost',
         'tower_static_frost',
-        'mb_lich',
+        'mb_wizard',
         'tower_nova'
       ]
     ],
@@ -2140,25 +2184,16 @@ export function defaultParameters(): DungeonParameters {
       // no seed until someone opts in.
       ...Object.fromEntries(MONSTER_FAMILIES.map((f) => [f.id, f.defaultMax])),
       // A horde is trunc(fRand(cap/5, cap)) per lair, so this is what makes the
-      // escape floor a maze of 450-HP battlements rather than a handful of
-      // them. Campaign-wide, but tower_empty is pooled on no other floor of any
-      // preset, so nothing else sees it. The roster's own defaultMax stays 24.
-      tower_empty: 150,
-      // The rest of this block: the same post-#58 playtest pass as
-      // levelMonsters above. lich/tick2/wisp2/skeleton2 are identical across
-      // all three exports, so they land here rather than as three separate
-      // per-preset overrides — desert and bonus both inherit them for free by
-      // spreading this object. tower_static_frost and tower_flower1 differ
-      // PER preset (desert wants 99/6, bonus wants 100/0): this is castle's
-      // own value, and desert/bonus each carry an explicit override for
-      // theirs (presets.ts) — the same "campaign default sits here, roster
-      // default stays put" split tower_empty above already uses.
-      lich: 20,
-      tick2: 25,
-      wisp2: 25,
-      skeleton2: 100,
-      tower_static_frost: 102,
-      tower_flower1: 4
+      // escape floor a maze of battlements rather than a handful of them.
+      // Campaign-wide, but tower_battlement_empty is pooled on no other floor,
+      // so nothing else sees it. The roster's own defaultMax stays 24.
+      tower_battlement_empty: 150,
+      // The rest of this block: the playtest caps carried over from the HW1
+      // remake's castle preset, under their AE ids.
+      skeleton_lich: 20,
+      tick_gold: 25,
+      skeleton_soldier: 100,
+      tower_static_frost: 102
     },
     // Extra lives are repeatable, so a party can farm them by leaving a level
     // and coming back — off by default since that trivialises the campaign.

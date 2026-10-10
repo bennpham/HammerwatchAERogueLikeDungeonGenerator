@@ -1,3 +1,4 @@
+import { translateLegacyParametersText } from '../catalog/substitutions'
 import {
   BOSS_CHECKPOINT_PRESETS,
   BOSS_COVER_PATTERNS,
@@ -39,8 +40,8 @@ import {
   bossSelection,
   arenaUsesBodyguards
 } from './parameters'
-import { UPGRADE_KINDS, noUpgrades } from '../levelTemplate/surgery'
-import type { UpgradeCounts } from '../levelTemplate/surgery'
+import { UPGRADE_KINDS, noUpgrades } from '../lobby/payout'
+import type { UpgradeCounts } from '../lobby/payout'
 import type {
   BossArenaOptions,
   BossCheckpointPreset,
@@ -1375,7 +1376,8 @@ export function parseParametersTxt(content: string, base?: DungeonParameters): P
     keychance: (v) => (params.keyChance = v)
   }
 
-  for (const rawLine of content.split('\n')) {
+  // an HW1-remake file imports as its AE equivalent (catalog/substitutions.ts)
+  for (const rawLine of translateLegacyParametersText(content).split('\n')) {
     const line = rawLine.trim()
     if (line === '' || line.startsWith('#')) continue
     const parts = line.split('=')

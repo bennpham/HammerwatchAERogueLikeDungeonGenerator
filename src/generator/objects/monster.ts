@@ -1,4 +1,3 @@
-import { XMLDictionary, XMLFloat, XMLInt, XMLObject, XMLString } from '../xml'
 import {
   familyMembers,
   floorPoolTier,
@@ -29,7 +28,7 @@ export type HordeSource =
   | { kind: 'family'; family: MonsterFamilyDef; members: MonsterTypeDef[] }
 
 /** An actor placed on the level (ported from the modified Monster.java). */
-export class Monster extends XMLObject {
+export class Monster {
   id: number
 
   constructor(
@@ -39,7 +38,6 @@ export class Monster extends XMLObject {
     public type: MonsterTypeDef,
     public tier: number
   ) {
-    super()
     this.id = ctx.idCounter++
   }
 
@@ -123,12 +121,9 @@ export class Monster extends XMLObject {
     return m
   }
 
-  getXML(): string {
-    const dict = new XMLDictionary('')
-    dict.addData(new XMLInt('id', this.id))
-    dict.addData(new XMLString('type', this.type.tiers[this.tier]))
-    dict.addData(new XMLFloat('x', this.x))
-    dict.addData(new XMLFloat('y', this.y))
-    return dict.getXML()
+
+  /** The AE actor unit this monster places. */
+  get path(): string {
+    return this.type.tiers[this.tier]
   }
 }

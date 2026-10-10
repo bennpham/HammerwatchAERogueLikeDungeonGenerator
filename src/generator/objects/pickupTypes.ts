@@ -49,7 +49,7 @@ export type PickupLane = 'health' | 'mana' | 'potion' | 'upgrade'
 export interface PickupDef {
   /** Stable id, the asset's filename without its extension. */
   id: string
-  /** What NodeSpawnObject.actorPath carries, e.g. 'items/health_4.xml'. */
+  /** What NodeSpawnObject.actorPath carries, e.g. 'items/pickups/health_3.unit'. */
   path: string
   /** Human label for the dropdown. */
   label: string
@@ -69,7 +69,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   // living with the potions: it is a flat 250 HP heal, not a timed powerup.
   {
     id: 'health_1',
-    path: 'items/health_1.xml',
+    path: 'items/pickups/health_1.unit',
     label: 'Health (Small)',
     group: 'Health',
     lane: 'health',
@@ -77,7 +77,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'health_2',
-    path: 'items/health_2.xml',
+    path: 'items/pickups/health_2.unit',
     label: 'Health (Medium)',
     group: 'Health',
     lane: 'health',
@@ -85,7 +85,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'health_3',
-    path: 'items/health_3.xml',
+    path: 'items/pickups/health_4.unit',
     label: 'Health (Large)',
     group: 'Health',
     lane: 'health',
@@ -93,7 +93,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'health_4',
-    path: 'items/health_4.xml',
+    path: 'items/pickups/health_3.unit',
     label: 'Health (XLarge)',
     group: 'Health',
     lane: 'health',
@@ -101,7 +101,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'powerup_health',
-    path: 'items/powerup_health.xml',
+    path: 'items/pickups/special_serious_health.unit',
     label: 'Health (Huge)',
     group: 'Health',
     lane: 'health',
@@ -110,7 +110,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   // --- Mana ----------------------------------------------------------------
   {
     id: 'mana_1',
-    path: 'items/mana_1.xml',
+    path: 'items/pickups/mana_1.unit',
     label: 'Mana (Small)',
     group: 'Mana',
     lane: 'mana',
@@ -118,7 +118,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'mana_2',
-    path: 'items/mana_2.xml',
+    path: 'items/pickups/mana_2.unit',
     label: 'Mana (Large)',
     group: 'Mana',
     lane: 'mana',
@@ -127,7 +127,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   // --- Potions -------------------------------------------------------------
   {
     id: 'potion_1',
-    path: 'items/powerup_potion1.xml',
+    path: 'items/pickups/powerup_potion_1_invul.unit',
     label: 'Potion — invincibility',
     group: 'Potions',
     lane: 'potion',
@@ -135,7 +135,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'potion_2',
-    path: 'items/powerup_potion2.xml',
+    path: 'items/pickups/powerup_potion_2_rejuv.unit',
     label: 'Potion — rejuvenation',
     group: 'Potions',
     lane: 'potion',
@@ -143,7 +143,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'potion_3',
-    path: 'items/powerup_potion3.xml',
+    path: 'items/pickups/powerup_potion_3_dmg.unit',
     label: 'Potion — damage',
     group: 'Potions',
     lane: 'potion',
@@ -152,7 +152,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   // --- Upgrades I ----------------------------------------------------------
   {
     id: 'upgrade_damage',
-    path: 'items/upgrade_damage.xml',
+    path: 'items/pickups/upgrade_damage.unit',
     label: 'Damage upgrade I',
     group: 'Upgrades I',
     lane: 'upgrade',
@@ -160,7 +160,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'upgrade_defense',
-    path: 'items/upgrade_defense.xml',
+    path: 'items/pickups/upgrade_defense.unit',
     label: 'Defense upgrade I',
     group: 'Upgrades I',
     lane: 'upgrade',
@@ -168,7 +168,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'upgrade_health',
-    path: 'items/upgrade_health.xml',
+    path: 'items/pickups/upgrade_health.unit',
     label: 'Health upgrade I',
     group: 'Upgrades I',
     lane: 'upgrade',
@@ -176,7 +176,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'upgrade_mana',
-    path: 'items/upgrade_mana.xml',
+    path: 'items/pickups/upgrade_mana.unit',
     label: 'Mana upgrade I',
     group: 'Upgrades I',
     lane: 'upgrade',
@@ -185,7 +185,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   // --- Upgrades II ---------------------------------------------------------
   {
     id: 'upgrade_damage_2',
-    path: 'items/upgrade_damage_2.xml',
+    path: 'items/pickups/upgrade_damage_2.unit',
     label: 'Damage upgrade II',
     group: 'Upgrades II',
     lane: 'upgrade',
@@ -193,7 +193,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'upgrade_defense_2',
-    path: 'items/upgrade_defense_2.xml',
+    path: 'items/pickups/upgrade_defense_2.unit',
     label: 'Defense upgrade II',
     group: 'Upgrades II',
     lane: 'upgrade',
@@ -201,7 +201,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'upgrade_health_2',
-    path: 'items/upgrade_health_2.xml',
+    path: 'items/pickups/upgrade_health_2.unit',
     label: 'Health upgrade II',
     group: 'Upgrades II',
     lane: 'upgrade',
@@ -209,7 +209,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'upgrade_mana_2',
-    path: 'items/upgrade_mana_2.xml',
+    path: 'items/pickups/upgrade_mana_2.unit',
     label: 'Mana upgrade II',
     group: 'Upgrades II',
     lane: 'upgrade',
@@ -222,7 +222,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   // bottom row by the door is the consumables row, and lives belong in it.
   {
     id: 'powerup_1up',
-    path: 'items/powerup_1up.xml',
+    path: 'items/pickups/powerup_extra_life_1.unit',
     label: 'Extra life (1up)',
     group: 'Lives',
     lane: 'potion',
@@ -230,7 +230,7 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
   },
   {
     id: 'powerup_7up',
-    path: 'items/powerup_7up.xml',
+    path: 'items/pickups/powerup_extra_life_7.unit',
     label: 'Extra lives (7up)',
     group: 'Lives',
     lane: 'potion',

@@ -1,7 +1,5 @@
-import { getTheme } from '../config/themes'
 import type { Level } from './level'
 import type { GenerationContext } from '../core/context'
-import type { DoodadTypeName } from '../objects/doodad'
 
 /**
  * Can the party reach the orb without opening the gate that guards it?
@@ -25,55 +23,7 @@ import type { DoodadTypeName } from '../objects/doodad'
  * fails re-rolls like any other invalid one.
  */
 
-/** Which tile boundary a wall piece closes on a `directionalFences` theme. */
-type Fence =
-  /** the whole tile is impassable */
-  | 'tile'
-  /** the boundary between this tile and its left / right / upper neighbour */
-  | 'left'
-  | 'right'
-  | 'up'
-  /** it has a collider, but not one that stops anybody */
-  | 'none'
-
-/**
- * Theme h's band, by the `DoodadType` the emitter used, from the collision
- * polygons in `<install>/editor/assetsExtract/doodads/theme_h/`.
- *
- * Tiles are the wrong model for a fence theme and that is the whole point: its
- * pieces close one *edge* each, so the player legitimately stands inside a wall
- * tile. A tile-based fill cannot see a barrier that fences the wrong side of the
- * right tile, which is exactly what the LEFT-corridor seal used to do.
- *
- * `CornerRD` / `CornerLD` closing nothing is not an omission — `h_crn_r_dn` is
- * `(0,3)(-5,0)(1,-5)(2,0)`, a ~7x8px nub in one corner of its tile, and that
- * hole is the one the walk-around went through.
- *
- * Anything absent here counts as `none`, which makes the model *more* permissive
- * and so can only ever cost an extra re-roll — never let a leaking floor ship.
- */
-const FENCE: Partial<Record<DoodadTypeName, Fence>> = {
-  Vertical: 'right', //     h_v_8_l,       x 10..18 of its own tile
-  TLeft: 'right', //        h_v_8_l
-  TRight: 'left', //        h_v_8_r,       x -2..6
-  Horizontal: 'up', //      h_h_8_dn,      y -2..6
-  TDown: 'up', //           h_h_8_dn
-  VCapDown: 'up', //        h_h_8_dn
-  TUp: 'tile', //           h_h_8_up,      x 0..16, y 13..32 at yOffset -1
-  VCapUp: 'tile', //        h_h_8_up
-  CrossWall: 'tile', //     h_h_8_up — the one piece that seals a whole tile
-  CornerRU: 'left', //      h_crn_r_up,    x -2..6, y 16..32 at yOffset -1
-  CornerLU: 'right', //     h_crn_l_up,    x 10..18, y 16..32 at yOffset -1
-  CornerRD: 'none', //      h_crn_r_dn — a nub in the tile's top-left corner
-  CornerLD: 'none', //      h_crn_l_dn — a nub in the tile's top-right corner
-  HCapLeft: 'tile', //      h_h_cap_up_l,  x 6..16, y 6..32 at yOffset -1
-  HCapRight: 'tile', //     h_h_cap_up_r,  x 0..14, y 4..32 at yOffset -1
-  // h_pyramid_exit declares no polygon at all, which is why the theme carries a
-  // `stairBacking` piece to close the band behind it — that piece blocks, this
-  // one does not.
-  ExitUp: 'none',
-  ExitDn: 'none'
-}
+type Fence = 'tile' | 'left' | 'right' | 'up' | 'none'
 
 /** 0 left, 1 right, 2 up, 3 down. */
 const STEPS: ReadonlyArray<readonly [number, number]> = [
@@ -142,50 +92,22 @@ class Passability {
 }
 
 /**
- * The floor's movement graph, with the gate treated as intact.
- *
- * A solid-tile theme reads straight off the tile grid, and deliberately without
- * `OVERHANG_ROWS`: over-stating where the player can walk is the safe direction
- * here, because it can only ever find *more* ways around a gate than exist. A
- * fence theme is read off its wall doodads instead, since there a wall tile is
- * somewhere the player stands.
+ * The floor's movement graph with the gate treated as intact: solid tiles off
+ * the grid (AE walls are whole-cell colliders on their footprint, so the grid
+ * is the truth), plus every seal wall piece, which stands on corridor floor.
+ * Buttons are plates the party stands on and never count.
  */
 function passabilityOf(level: Level, ctx: GenerationContext): Passability {
   const { width, height } = level
   const pass = new Passability(width, height)
-  const fenced = getTheme(level.theme)?.directionalFences === true
-
-  if (fenced) {
-    for (const d of ctx.doodads) {
-      pass.apply(d.x, d.y, FENCE[d.type] ?? 'none')
-    }
-  } else {
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        if (level.tileArray[x + y * width].wall) pass.setSolid(x, y)
-      }
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (level.tileArray[x + y * width].wall && !level.tileArray[x + y * width].reserved) pass.setSolid(x, y)
     }
   }
-
-  // The gate itself. Its pieces stand on corridor floor, so on a solid theme
-  // they are the one thing the tile grid does not already carry; on a fence
-  // theme they were applied above with every other doodad, and blocking their
-  // tile outright here would make the barrier stronger than the art really is.
-  //
-  // `need-sync` marks a doodad whose runtime changes replicate, which is not the
-  // same as "blocks the player" — the button carries it too, for its *state*.
-  // It is a plate the party stands on, not a barrier, so counting it here
-  // would invent an obstacle, and an invented obstacle shrinks the reachable
-  // set: this check would start passing floors it should reject. Both plates
-  // are excluded — the lock's `BossDoorButton` and the mystery buttons'
-  // `TriggerButton` (issue #67), which today are placed after this check runs
-  // but must never become obstacles should that order change.
-  if (!fenced) {
-    for (const d of ctx.doodads) {
-      if (d.needSync && d.type !== 'BossDoorButton' && d.type !== 'TriggerButton') pass.setSolid(d.x, d.y)
-    }
+  for (const d of ctx.doodads) {
+    if (d.blocking) pass.setSolid(Math.trunc(d.x), Math.trunc(d.y))
   }
-
   return pass
 }
 
@@ -223,29 +145,16 @@ function standing(pass: Passability, x: number, y: number): number | null {
 }
 
 /**
- * Close every locked door on the floor.
- *
- * The other half of the same promise: the chance-gated locks bar their room with
- * a door rather than a destructible wall, off the same `passages[0]` and so with
- * the same blind spot. A door is a solid one-tile-wide collider standing on
- * corridor floor; how far it reaches *up* differs by variant, and that is the
- * whole of the difference between the two door assets:
- *
- *   `door_a_*_h_v2`  y -16..0 px  -> its own row and the one above
- *   `door_a_*_v`     y -32..+8 px -> its own row and the two above
- *
- * Blocking every door, not just the orb's, is deliberate: any route to the orb
- * that crosses *any* door is a gated route, which is what is being asked.
+ * Close every locked door on the floor — any route to the orb that crosses
+ * ANY door is a gated route, which is what is being asked.
  */
 function closeDoors(pass: Passability, ctx: GenerationContext): boolean {
   let any = false
   for (const item of ctx.items) {
     if (item.type !== 'Door') continue
     any = true
-    // DOORS is three horizontal variants then three vertical ones
-    const rows = item.index >= 3 ? 3 : 2
-    const x = Math.trunc(item.x)
-    for (let up = 0; up < rows; up++) pass.setSolid(x, item.y - up)
+    // an AE door piece is anchored one row below the one cell it blocks
+    pass.setSolid(Math.trunc(item.x), item.y - 1)
   }
   return any
 }
@@ -254,8 +163,7 @@ function closeDoors(pass: Passability, ctx: GenerationContext): boolean {
  * True when the floor's gate holds — the orb cannot be reached without opening
  * it — or when there is nothing to check.
  *
- * Must run after `buildTileArray` and `buildWalls`: the fence model reads the
- * wall doodads, which do not exist until the pattern matcher has placed them.
+ * Must run after `buildTileArray`.
  */
 export function sealHolds(level: Level, ctx: GenerationContext): boolean {
   // Only when the floor claims the orb is gated. `lockFinalRoom: false` leaves it
@@ -272,9 +180,8 @@ export function sealHolds(level: Level, ctx: GenerationContext): boolean {
   const pass = passabilityOf(level, ctx)
   closeDoors(pass, ctx)
 
-  // the same row `prefabTarget` uses for a stair prefab: the marker row, the
-  // first one the player can actually stand on
-  const from = standing(pass, entrance.x + 3, entrance.y + 4)
+  // the same cell `prefabTarget` uses: the floor in front of the stairs
+  const from = standing(pass, entrance.x + 3, entrance.y + 2)
   const to = standing(pass, goal.x, goal.y)
   if (from === null || to === null) return true // nothing to walk between
 

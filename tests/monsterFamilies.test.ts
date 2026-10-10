@@ -20,12 +20,13 @@ import {
 import { validateParameters } from '../src/generator/config/validation'
 import type { DungeonParameters, DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
+import { readLevel } from '../src/generator/ae/levelReader'
 
 /** One floor pooling exactly `pool`, with `max` applied to every key in it. */
 function floorWith(pool: string[], seed: number, max = 40): DungeonResult {
   const params = plainParameters()
   params.levels = 1
-  params.themes = ['a']
+  params.themes = ['prison']
   params.levelMonsters = [pool]
   const monsterMax = { ...params.monsterMax }
   for (const key of pool) monsterMax[key] = max
@@ -35,11 +36,10 @@ function floorWith(pool: string[], seed: number, max = 40): DungeonResult {
   return result as DungeonResult
 }
 
-const levelXML = (r: DungeonResult): string =>
-  r.files.find((f) => f.path === 'levels/level0.xml')!.content
+const levelXML = (r: DungeonResult): string => r.files.find((f) => f.path.endsWith('/floor0.lvl'))!.content
 
-function actorCount(xml: string, path: string): number {
-  return xml.split(`<string name="type">${path}</string>`).length - 1
+function actorCount(lvl: string, path: string): number {
+  return readLevel(lvl).level.units.filter((u) => u.path === path).length
 }
 
 /** The single actor a single-tier member spawns. */
@@ -66,10 +66,10 @@ describe('the family registry', () => {
   it('leaves tower_empty, tower_static_frost and the deprecated phantom out', () => {
     const claimed = MONSTER_FAMILIES.flatMap((f) => f.members)
     // Both are lone barriers rather than one of a set — see MONSTER_NOTES.
-    expect(claimed).not.toContain('tower_empty')
+    expect(claimed).not.toContain('tower_battlement_empty')
     expect(claimed).not.toContain('tower_static_frost')
     // tower_archer2 points at the same actor tower_empty owns.
-    expect(claimed).not.toContain('tower_archer2')
+    expect(claimed).not.toContain('tower_battlement_empty')
   })
 
   it('never collides with a type on id or config key', () => {
@@ -85,18 +85,18 @@ describe('the family registry', () => {
   })
 
   it('maps a member back to its family', () => {
-    expect(familyOfMember('tower_banner2')?.id).toBe('tower_banner')
-    expect(familyOfMember('tower_empty')).toBeUndefined()
-    expect(isKnownFamilyId('tower_banner')).toBe(true)
-    expect(isKnownFamilyId('tower_banner1')).toBe(false)
+    expect(familyOfMember('banner_drain')?.id).toBe('banner')
+    expect(familyOfMember('tower_battlement_empty')).toBeUndefined()
+    expect(isKnownFamilyId('banner')).toBe(true)
+    expect(isKnownFamilyId('banner_bloodlust')).toBe(false)
     expect(monsterFamilyById('nope')).toBeUndefined()
   })
 })
 
 describe('a family rolls between whole types', () => {
   it('spawns a mix rather than one member', () => {
-    const family = monsterFamilyById('tower_banner')!
-    const xml = levelXML(floorWith(['tower_banner'], 4242))
+    const family = monsterFamilyById('banner')!
+    const xml = levelXML(floorWith(['banner'], 4242))
     const present = family.members.filter((id) => actorCount(xml, actorOf(id)) > 0)
     expect(present.length, 'a family lair should be mixed').toBeGreaterThan(1)
   })
@@ -107,7 +107,7 @@ describe('a family rolls between whole types', () => {
     // every time. This is the regression guard for that.
     let first = 0
     for (let seed = 1; seed <= 6; seed++) {
-      first += actorCount(levelXML(floorWith(['tower_archer'], seed)), actorOf('tower_archer1'))
+      first += actorCount(levelXML(floorWith(['tower_battlement'], seed)), actorOf('tower_battlement_archer'))
     }
     expect(first, 'tower_archer1 must be reachable').toBeGreaterThan(0)
   })
@@ -132,10 +132,10 @@ describe('a family rolls between whole types', () => {
   })
 
   it('reads its own cap, not its members\'', () => {
-    const lean = levelXML(floorWith(['tower_banner'], 909, 8))
-    const fat = levelXML(floorWith(['tower_banner'], 909, 200))
+    const lean = levelXML(floorWith(['banner'], 909, 8))
+    const fat = levelXML(floorWith(['banner'], 909, 200))
     const total = (xml: string) =>
-      monsterFamilyById('tower_banner')!.members.reduce(
+      monsterFamilyById('banner')!.members.reduce(
         (n, id) => n + actorCount(xml, actorOf(id)),
         0
       )
@@ -148,41 +148,41 @@ describe('a family rolls between whole types', () => {
     // spawns through the family.
     const params = plainParameters()
     params.levels = 1
-    params.themes = ['a']
-    params.levelMonsters = [['tower_flower']]
-    params.monsterMax = { ...params.monsterMax, tower_flower: 40, tower_flower1: 0 }
+    params.themes = ['prison']
+    params.levelMonsters = [['flower']]
+    params.monsterMax = { ...params.monsterMax, flower: 40, flower_eater: 0 }
     const result = generateDungeon(params, 77)
     expect(result.ok).toBe(true)
     const xml = levelXML(result as DungeonResult)
-    expect(actorCount(xml, actorOf('tower_flower1'))).toBeGreaterThan(0)
+    expect(actorCount(xml, actorOf('flower_eater'))).toBeGreaterThan(0)
   })
 
   it('leaves members working as ordinary pool keys', () => {
-    const xml = levelXML(floorWith(['tower_banner2'], 4242))
-    expect(actorCount(xml, actorOf('tower_banner2'))).toBeGreaterThan(0)
-    expect(actorCount(xml, actorOf('tower_banner1'))).toBe(0)
-    expect(actorCount(xml, actorOf('tower_banner3'))).toBe(0)
+    const xml = levelXML(floorWith(['banner_drain'], 4242))
+    expect(actorCount(xml, actorOf('banner_drain'))).toBeGreaterThan(0)
+    expect(actorCount(xml, actorOf('banner_bloodlust'))).toBe(0)
+    expect(actorCount(xml, actorOf('banner_healing'))).toBe(0)
   })
 })
 
 describe('family pool keys', () => {
   it('accepts a bare family id and rejects a tier on it', () => {
-    expect(isKnownFloorPoolKey('tower_banner')).toBe(true)
+    expect(isKnownFloorPoolKey('banner')).toBe(true)
     // A family has no tiers to index; its members have their own ids.
-    expect(isKnownFloorPoolKey('tower_banner#0')).toBe(false)
-    expect(isKnownFloorPoolKey('tower_banner#1')).toBe(false)
+    expect(isKnownFloorPoolKey('banner#0')).toBe(false)
+    expect(isKnownFloorPoolKey('banner#1')).toBe(false)
   })
 
   it('buckets a family with its members, and nothing else', () => {
     const towers = floorPoolEntriesInGroup('Towers')
-    const family = towers.find((e) => e.key === 'tower_banner')
+    const family = towers.find((e) => e.key === 'banner')
     expect(family?.role).toBe('family')
-    expect(floorPoolBucketId(family!)).toBe('tower_banner')
-    for (const id of ['tower_banner1', 'tower_banner2', 'tower_banner3']) {
-      expect(floorPoolBucketId(towers.find((e) => e.key === id)!)).toBe('tower_banner')
+    expect(floorPoolBucketId(family!)).toBe('banner')
+    for (const id of ['banner_bloodlust', 'banner_drain', 'banner_healing']) {
+      expect(floorPoolBucketId(towers.find((e) => e.key === id)!)).toBe('banner')
     }
     // A standalone tower keeps its own bucket.
-    expect(floorPoolBucketId(towers.find((e) => e.key === 'tower_empty')!)).toBe('tower_empty')
+    expect(floorPoolBucketId(towers.find((e) => e.key === 'tower_battlement_empty')!)).toBe('tower_battlement_empty')
   })
 
   it('offers every family exactly once, in its own group', () => {
@@ -217,35 +217,35 @@ describe('validation of family keys', () => {
     validateParameters(withPool(pool)).errors.filter((e) => e.field === 'levelMonsters')
 
   it('accepts a family id', () => {
-    expect(errorsFor(['tower_banner'])).toHaveLength(0)
+    expect(errorsFor(['banner'])).toHaveLength(0)
   })
 
   it('rejects a tier on a family and points at the members instead', () => {
-    const errors = errorsFor(['tower_banner#1'])
+    const errors = errorsFor(['banner#1'])
     expect(errors).toHaveLength(1)
     expect(errors[0].message).toContain('family')
-    expect(errors[0].message).toContain('tower_banner1')
+    expect(errors[0].message).toContain('banner_bloodlust')
     // not the tier-range message a real type would get
     expect(errors[0].message).not.toContain('has tiers 0-')
   })
 
   it('warns on a family capped at 0 by its OWN cap', () => {
-    const params = withPool(['tower_banner'])
-    params.monsterMax = { ...params.monsterMax, tower_banner: 0 }
+    const params = withPool(['banner'])
+    params.monsterMax = { ...params.monsterMax, banner: 0 }
     const warning = validateParameters(params).warnings.find(
-      (w) => w.field === 'levelMonsters' && w.message.includes('tower_banner')
+      (w) => w.field === 'levelMonsters' && w.message.includes('banner')
     )
     expect(warning).toBeDefined()
 
     // and does NOT warn just because a member ships at 0 — force it
     // explicitly, rather than relying on whatever the shipped default
     // happens to give tower_flower1 today.
-    const flower = withPool(['tower_flower'])
-    flower.monsterMax = { ...flower.monsterMax, tower_flower1: 0 }
-    expect(flower.monsterMax.tower_flower).toBeGreaterThan(0)
+    const flower = withPool(['flower'])
+    flower.monsterMax = { ...flower.monsterMax, flower_eater: 0 }
+    expect(flower.monsterMax.flower).toBeGreaterThan(0)
     expect(
       validateParameters(flower).warnings.filter(
-        (w) => w.field === 'levelMonsters' && w.message.includes('tower_flower')
+        (w) => w.field === 'levelMonsters' && w.message.includes('flower')
       )
     ).toHaveLength(0)
   })
@@ -268,7 +268,7 @@ describe('families are opt-in', () => {
       expect(params.monsterMax[family.id]).toBe(family.defaultMax)
     }
     const text = serializeParametersTxt(params)
-    expect(text).toContain('maxTowers_Banner=4')
+    expect(text).toContain('max_banner=4')
     const parsed = parseParametersTxt(text)
     expect(parsed.unknownKeys).toEqual([])
     expect(parsed.params.monsterMax).toEqual(params.monsterMax)
@@ -277,12 +277,12 @@ describe('families are opt-in', () => {
   it('carry a family pool entry and its weight through parameters.txt', () => {
     const params = plainParameters()
     params.levelMonsters = params.levelMonsters.map((p, i) =>
-      i === 0 ? ['tower_banner', 'tower_banner', 'bat1'] : p
+      i === 0 ? ['banner', 'banner', 'bat'] : p
     )
     const text = serializeParametersTxt(params)
-    expect(text).toContain('monsters0=tower_banner,tower_banner,bat1')
+    expect(text).toContain('monsters0=banner,banner,bat')
     const parsed = parseParametersTxt(text)
     expect(parsed.unknownKeys).toEqual([])
-    expect(parsed.params.levelMonsters[0]).toEqual(['tower_banner', 'tower_banner', 'bat1'])
+    expect(parsed.params.levelMonsters[0]).toEqual(['banner', 'banner', 'bat'])
   })
 })

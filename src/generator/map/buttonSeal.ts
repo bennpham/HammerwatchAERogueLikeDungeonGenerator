@@ -1,4 +1,4 @@
-import { Doodad, doodadOffset } from '../objects/doodad'
+import { Doodad } from '../objects/doodad'
 import type { DoodadTypeName } from '../objects/doodad'
 import {
   CHANGE_VAR_SUB,
@@ -13,18 +13,15 @@ import {
   NodeVariable
 } from '../objects/nodes'
 import type { ScriptNode } from '../objects/scriptNode'
-import { overhangRows } from './reachability'
-import { getTheme } from '../config/themes'
 import type { Room } from './room'
 import type { Level } from './level'
 import type { GenerationContext } from '../core/context'
 
 /**
- * The cue the button plays. A `sound/<bank>.xml:<cue>` pair, and the same one
- * the game's own hatch buttons use. [EMITTED] — taken from a hand-edited
- * level6 that loaded and played it.
+ * The cue the button plays — the AE FMOD event hw2ae paired with HW1's
+ * `sound/misc.xml:button_hatch`. [UNVERIFIED] in a generated level.
  */
-export const SEAL_SOUND = 'sound/misc.xml:button_hatch'
+export const SEAL_SOUND = 'event:/SFX/Objects/Buttons/button_generic'
 
 /**
  * The state the button is switched to when it fires.
@@ -43,7 +40,7 @@ const SEAL_BUTTON_STATE = 'activate'
  * than imported: `mystery/rig.ts` already imports `SEAL_SOUND` from this file,
  * and importing back would make the two files circular.
  */
-const DISGUISE_BUTTON_STATE = 'pressed'
+const DISGUISE_BUTTON_STATE = 'on'
 
 /** How long the "it opened" banner stays up, in ms. */
 const SEAL_ANNOUNCE_MS = 2500
@@ -312,9 +309,11 @@ function drawSealWall(room: Room, ctx: GenerationContext): Doodad[] {
       // than the overshoot the barrier lands inside the room it is supposed to
       // gate — seven tiles of wall across a fifteen-tile room, walked around at
       // either end. [VERIFIED] 2026-08-24 in game, theme h.
-      const lineY =
-        entrance.dir.name === 'UP' ? entrance.y : entrance.y + 1 + overhangRows(room.theme)
-      for (let xOffset = -1; xOffset <= p.width; xOffset++) {
+      // AE walls are whole-cell colliders with no overhang, so the seal stands
+      // on the corridor's own mouth row, across the corridor columns only (the
+      // cells either side already carry the room's wall line).
+      const lineY = entrance.y
+      for (let xOffset = 0; xOffset < p.width; xOffset++) {
         seals.push(Doodad.create(ctx, entrance.x + xOffset, lineY, 'Horizontal', room.theme))
       }
       break
@@ -342,16 +341,15 @@ function drawSealWall(room: Room, ctx: GenerationContext): Doodad[] {
       // there (h_crn_r_dn) is a 7x8px nub, not a full edge. [VERIFIED]
       // 2026-08-24 in game, theme h. Solid-tile themes seal from either column,
       // so they keep the doorway column and their art stays put.
-      const fenced = getTheme(room.theme)?.directionalFences === true
-      const lineX = entrance.dir.name === 'LEFT' && fenced ? entrance.x - 1 : entrance.x
-      for (let yOffset = -1; yOffset <= p.width + 2; yOffset++) {
+      const lineX = entrance.x
+      for (let yOffset = 0; yOffset < p.width + 2; yOffset++) {
         seals.push(Doodad.create(ctx, lineX, entrance.y + yOffset, 'Vertical', room.theme))
       }
       break
     }
   }
 
-  for (const s of seals) s.needSync = true
+  for (const s of seals) s.blocking = true
 
   return seals
 }
@@ -394,7 +392,6 @@ function buildButtonRig(
   // collision element at all — so anything treating `need-sync` as "blocks the
   // player" has to exclude it (see map/sealCheck.ts).
   const plate = Doodad.create(ctx, button.x, button.y, doodadType, room.theme)
-  plate.needSync = true
 
   // A button the party cannot walk to is as fatal as an unreachable key, and
   // the flood fill cannot see the wall (it is doodads, not tiles) — so say so
@@ -414,9 +411,9 @@ function buildButtonRig(
   // at the raw tile and the box landed diagonally off the button. The
   // hand-edited level6 that swapped in boss_door_button kept the same
   // relationship (doodad `43 28`, shape `43.5 28.5`).
-  const art = doodadOffset(doodadType, room.theme)
-  const nodeX = button.x + art.x + 0.5
-  const nodeY = button.y + art.y + 0.5
+  // the sensor is centred on the button's cell whichever art anchors it
+  const nodeX = Math.trunc(button.x) + 0.5
+  const nodeY = Math.trunc(button.y) + 0.5
 
   const shape = new NodeRectangleShape(ctx, nodeX, nodeY)
   const trigger = new NodeAreaTrigger(ctx, nodeX, nodeY)

@@ -14,6 +14,7 @@ import {
 import { validateParameters } from '../src/generator/config/validation'
 import type { DungeonParameters, DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
+import { readLevel } from '../src/generator/ae/levelReader'
 
 /**
  * One floor whose pool is exactly `pool`. The cap is keyed by TYPE id, which is
@@ -23,7 +24,7 @@ import { plainParameters } from './params'
 function floorWith(pool: string[], seed: number, max = 60): DungeonResult {
   const params = plainParameters()
   params.levels = 1
-  params.themes = ['a']
+  params.themes = ['prison']
   params.levelMonsters = [pool]
   const monsterMax = { ...params.monsterMax }
   for (const key of pool) monsterMax[parseMonsterKey(key).id] = max
@@ -33,15 +34,20 @@ function floorWith(pool: string[], seed: number, max = 60): DungeonResult {
   return result as DungeonResult
 }
 
-const levelXML = (r: DungeonResult): string =>
-  r.files.find((f) => f.path === 'levels/level0.xml')!.content
+/** The emitted floor0.lvl text. */
+const levelXML = (r: DungeonResult): string => r.files.find((f) => f.path.endsWith('/floor0.lvl'))!.content
 
-/** How many actors of `path` the level places. */
-function actorCount(xml: string, path: string): number {
-  return xml.split(`<string name="type">${path}</string>`).length - 1
+/** How many units of `path` the level places. */
+function actorCount(lvl: string, path: string): number {
+  return readLevel(lvl).level.units.filter((u) => u.path === path).length
 }
 
-const SKELETON1 = ['actors/spawners/skeleton_1.xml', 'actors/skeleton_1_small.xml', 'actors/skeleton_1.xml', 'actors/skeleton_1_elite.xml']
+/** Units as path@position, with one path renamed — for comparing two floors that differ only in which actor spawned. */
+function placements(lvl: string, rename: string, as: string): string[] {
+  return readLevel(lvl).level.units.map((u) => `${u.path === rename ? as : u.path}@${u.x},${u.y}`).sort()
+}
+
+const SKELETON1 = monsterTypeById('skeleton_warrior').tiers
 
 describe('the tier roll actually rolls (issue #58)', () => {
   // THE REGRESSION. Every type shipped upgradeChance 1.0 and fRand(0, 1)
@@ -49,7 +55,7 @@ describe('the tier roll actually rolls (issue #58)', () => {
   // stop at the top tier: picking skeleton1 gave an army of skeleton_1_elite
   // and `skeleton_1_small` was unreachable. This fails on the pre-#58 roster.
   it('spreads a bare id across its tiers instead of pinning the top one', () => {
-    const xml = levelXML(floorWith(['skeleton1'], 4242))
+    const xml = levelXML(floorWith(['skeleton_warrior'], 4242))
     const small = actorCount(xml, SKELETON1[1])
     const plain = actorCount(xml, SKELETON1[2])
     const elite = actorCount(xml, SKELETON1[3])
@@ -65,7 +71,7 @@ describe('the tier roll actually rolls (issue #58)', () => {
     let small = 0
     let elite = 0
     for (let seed = 1; seed <= 12; seed++) {
-      const xml = levelXML(floorWith(['skeleton1'], seed))
+      const xml = levelXML(floorWith(['skeleton_warrior'], seed))
       small += actorCount(xml, SKELETON1[1])
       elite += actorCount(xml, SKELETON1[3])
     }
@@ -81,24 +87,24 @@ describe('the tier roll actually rolls (issue #58)', () => {
     // The loop evaluates fRand BEFORE testing `tier < tiers.length - 1`, so a
     // short type burns exactly one draw whatever its chance is. Restoring the
     // chances therefore cannot have moved these.
-    for (const id of ['spider', 'archer3', 'tower_empty']) {
+    for (const id of ['scorpion', 'temple_archer', 'tower_battlement_empty']) {
       const type = MONSTER_TYPES.find((t) => t.id === id)!
       expect(type.tiers).toHaveLength(1)
       const xml = levelXML(floorWith([id], 4242))
       expect(xml).toContain(type.tiers[0])
-      expect(xml).not.toContain('>undefined<')
+      expect(xml).not.toContain('undefined')
     }
   })
 })
 
 describe('pinning one actor', () => {
   it('spawns only the pinned tier', () => {
-    const small = levelXML(floorWith(['skeleton1#1'], 4242))
+    const small = levelXML(floorWith(['skeleton_warrior#1'], 4242))
     expect(actorCount(small, SKELETON1[1])).toBeGreaterThan(0)
     expect(actorCount(small, SKELETON1[2])).toBe(0)
     expect(actorCount(small, SKELETON1[3])).toBe(0)
 
-    const elite = levelXML(floorWith(['skeleton1#3'], 4242))
+    const elite = levelXML(floorWith(['skeleton_warrior#3'], 4242))
     expect(actorCount(elite, SKELETON1[3])).toBeGreaterThan(0)
     expect(actorCount(elite, SKELETON1[1])).toBe(0)
     expect(actorCount(elite, SKELETON1[2])).toBe(0)
@@ -108,36 +114,36 @@ describe('pinning one actor', () => {
     // The load-bearing property: a pin is a statement about what spawns, not a
     // roll. If it ever consumed a draw, swapping #1 for #3 would move the whole
     // floor — so compare the parts a monster's identity must not touch.
-    const a = levelXML(floorWith(['skeleton1#1'], 909))
-    const b = levelXML(floorWith(['skeleton1#3'], 909))
+    const a = levelXML(floorWith(['skeleton_warrior#1'], 909))
+    const b = levelXML(floorWith(['skeleton_warrior#3'], 909))
 
-    const tilemap = (xml: string) => xml.slice(0, xml.indexOf('<array name="doodads"'))
+    const tilemap = (lvl: string) => lvl.slice(0, lvl.indexOf('<dict name="units">'))
     expect(tilemap(a)).toBe(tilemap(b))
     expect(actorCount(a, SKELETON1[1])).toBe(actorCount(b, SKELETON1[3]))
-    // and the whole file differs only where the actor path does
-    expect(a.split(SKELETON1[1]).join('X')).toBe(b.split(SKELETON1[3]).join('X'))
+    // and every unit lands in the same place, only the actor differing
+    expect(placements(a, SKELETON1[1], 'X')).toEqual(placements(b, SKELETON1[3], 'X'))
   })
 
   it('still places the type\'s tier-0 spawners, which belong to the type not the pin', () => {
-    const xml = levelXML(floorWith(['skeleton1#3'], 4242, 200))
+    const xml = levelXML(floorWith(['skeleton_warrior#3'], 4242, 200))
     expect(actorCount(xml, SKELETON1[0])).toBeGreaterThan(0)
   })
 
   it('reads its cap from the type, so one monsterMax covers every tier', () => {
-    const lean = levelXML(floorWith(['skeleton1#1'], 909, 20))
-    const fat = levelXML(floorWith(['skeleton1#1'], 909, 200))
+    const lean = levelXML(floorWith(['skeleton_warrior#1'], 909, 20))
+    const fat = levelXML(floorWith(['skeleton_warrior#1'], 909, 200))
     expect(actorCount(fat, SKELETON1[1])).toBeGreaterThan(actorCount(lean, SKELETON1[1]))
   })
 })
 
 describe('floor pool keys', () => {
   it('accepts a bare id and any in-range tier, including the arena\'s default tier', () => {
-    expect(isKnownFloorPoolKey('skeleton1')).toBe(true)
+    expect(isKnownFloorPoolKey('skeleton_warrior')).toBe(true)
     for (let tier = 0; tier < 4; tier++) {
-      expect(isKnownFloorPoolKey(`skeleton1#${tier}`), `tier ${tier}`).toBe(true)
+      expect(isKnownFloorPoolKey(`skeleton_warrior#${tier}`), `tier ${tier}`).toBe(true)
     }
-    expect(isKnownFloorPoolKey('skeleton1#4')).toBe(false)
-    expect(isKnownFloorPoolKey('skeleton1#x')).toBe(false)
+    expect(isKnownFloorPoolKey('skeleton_warrior#4')).toBe(false)
+    expect(isKnownFloorPoolKey('skeleton_warrior#x')).toBe(false)
     expect(isKnownFloorPoolKey('nosuchmonster')).toBe(false)
   })
 
@@ -146,36 +152,36 @@ describe('floor pool keys', () => {
     // spelling of that one actor must stay rejected there — two keys for one
     // actor would give it two max counts. On a floor the bare id means "roll",
     // so both are legal. Different grammars on purpose.
-    expect(isKnownMonsterKey('skeleton1#1')).toBe(false)
-    expect(isKnownFloorPoolKey('skeleton1#1')).toBe(true)
+    expect(isKnownMonsterKey('skeleton_warrior#1')).toBe(false)
+    expect(isKnownFloorPoolKey('skeleton_warrior#1')).toBe(true)
   })
 
   it('reads a pinned tier and treats everything else as a roll', () => {
-    expect(floorPoolTier('skeleton1')).toBeUndefined()
-    expect(floorPoolTier('skeleton1#0')).toBe(0)
-    expect(floorPoolTier('skeleton1#3')).toBe(3)
+    expect(floorPoolTier('skeleton_warrior')).toBeUndefined()
+    expect(floorPoolTier('skeleton_warrior#0')).toBe(0)
+    expect(floorPoolTier('skeleton_warrior#3')).toBe(3)
     // total on bad input — validation rejects these, the generator never throws
-    expect(floorPoolTier('skeleton1#9')).toBeUndefined()
-    expect(floorPoolTier('skeleton1#x')).toBeUndefined()
+    expect(floorPoolTier('skeleton_warrior#9')).toBeUndefined()
+    expect(floorPoolTier('skeleton_warrior#x')).toBeUndefined()
   })
 
   it('offers a rolled entry plus one per tier, and nothing duplicated', () => {
-    const entries = floorPoolEntries(monsterTypeById('skeleton1'))
+    const entries = floorPoolEntries(monsterTypeById('skeleton_warrior'))
     expect(entries.map((e) => e.key)).toEqual([
-      'skeleton1',
-      'skeleton1#0',
-      'skeleton1#1',
-      'skeleton1#2',
-      'skeleton1#3'
+      'skeleton_warrior',
+      'skeleton_warrior#0',
+      'skeleton_warrior#1',
+      'skeleton_warrior#2',
+      'skeleton_warrior#3'
     ])
     expect(entries[0].tier).toBeUndefined()
     expect(entries[0].role).toBe('rolled')
     expect(entries[1].role).toBe('spawner')
 
-    // A single-tier type gets ONLY the rolled entry: `spider#0` is legal but
+    // A single-tier type gets ONLY the rolled entry: `scorpion#0` is legal but
     // names the same actor, and two checkboxes for one monster is the confusion
     // the canonical key rule exists to prevent.
-    expect(floorPoolEntries(monsterTypeById('spider')).map((e) => e.key)).toEqual(['spider'])
+    expect(floorPoolEntries(monsterTypeById('scorpion')).map((e) => e.key)).toEqual(['scorpion'])
 
     // every key a picker can offer must be a legal pool key
     for (const type of MONSTER_TYPES) {
@@ -196,18 +202,18 @@ describe('validation of floor pools', () => {
     validateParameters(withPool(pool)).errors.filter((e) => e.field === 'levelMonsters')
 
   it('accepts a pinned tier', () => {
-    expect(errorsFor(['skeleton1#1'])).toHaveLength(0)
+    expect(errorsFor(['skeleton_warrior#1'])).toHaveLength(0)
   })
 
   it('rejects an out-of-range tier and says what the range is', () => {
-    const errors = errorsFor(['skeleton1#9'])
+    const errors = errorsFor(['skeleton_warrior#9'])
     expect(errors).toHaveLength(1)
     expect(errors[0].message).toContain('tier 9')
     expect(errors[0].message).toContain('tiers 0-3')
   })
 
   it('rejects a non-numeric tier without calling the monster unknown', () => {
-    const errors = errorsFor(['skeleton1#x'])
+    const errors = errorsFor(['skeleton_warrior#x'])
     expect(errors).toHaveLength(1)
     expect(errors[0].message).toContain('non-numeric')
     expect(errors[0].message).not.toContain('unknown monster')
@@ -222,12 +228,12 @@ describe('validation of floor pools', () => {
     // ship at 0 by default — tower_flower1 no longer does (the castle preset
     // now arms it), and this test's point is the warning mechanism, not any
     // particular type's shipped cap.
-    const params = withPool(['tower_flower1'])
-    params.monsterMax = { ...params.monsterMax, tower_flower1: 0 }
+    const params = withPool(['flower_eater'])
+    params.monsterMax = { ...params.monsterMax, flower_eater: 0 }
     const result = validateParameters(params)
     expect(result.errors.filter((e) => e.field === 'levelMonsters')).toHaveLength(0)
     const warning = result.warnings.find(
-      (w) => w.field === 'levelMonsters' && w.message.includes('tower_flower1')
+      (w) => w.field === 'levelMonsters' && w.message.includes('flower_eater')
     )
     expect(warning).toBeDefined()
     expect(warning!.message).toContain('spawn nothing')
@@ -238,22 +244,22 @@ describe('parameters.txt round-trip', () => {
   it('carries variant keys and their weights through unchanged', () => {
     const params = plainParameters()
     params.levelMonsters = params.levelMonsters.map((p, i) =>
-      i === 0 ? ['skeleton1#1', 'skeleton1#1', 'bat1'] : p
+      i === 0 ? ['skeleton_warrior#1', 'skeleton_warrior#1', 'bat'] : p
     )
     const text = serializeParametersTxt(params)
-    expect(text).toContain('monsters0=skeleton1#1,skeleton1#1,bat1')
+    expect(text).toContain('monsters0=skeleton_warrior#1,skeleton_warrior#1,bat')
 
     const parsed = parseParametersTxt(text)
     expect(parsed.unknownKeys).toHaveLength(0)
-    expect(parsed.params.levelMonsters[0]).toEqual(['skeleton1#1', 'skeleton1#1', 'bat1'])
+    expect(parsed.params.levelMonsters[0]).toEqual(['skeleton_warrior#1', 'skeleton_warrior#1', 'bat'])
   })
 
   it('weights a pinned entry by repetition, like the original tool did', () => {
     // Weight is how many slots an entry takes, because a lair picks with
     // iRand(0, pool.length). Three copies of one key means three slots.
-    const one = levelXML(floorWith(['skeleton1#1', 'bat1'], 77, 40))
+    const one = levelXML(floorWith(['skeleton_warrior#1', 'bat'], 77, 40))
     const three = levelXML(
-      floorWith(['skeleton1#1', 'skeleton1#1', 'skeleton1#1', 'bat1'], 77, 40)
+      floorWith(['skeleton_warrior#1', 'skeleton_warrior#1', 'skeleton_warrior#1', 'bat'], 77, 40)
     )
     expect(actorCount(three, SKELETON1[1])).toBeGreaterThan(actorCount(one, SKELETON1[1]))
   })

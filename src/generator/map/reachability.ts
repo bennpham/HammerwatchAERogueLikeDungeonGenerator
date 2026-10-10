@@ -1,4 +1,3 @@
-import { getTheme } from '../config/themes'
 import type { Level } from './level'
 import type { GenerationContext } from '../core/context'
 import type { ObjectSet } from '../objects/objectSet'
@@ -19,7 +18,7 @@ import type { ObjectSet } from '../objects/objectSet'
  * in game: the corridor's only shared row with the room it reaches sat inside
  * the overhang of the wall above it.
  */
-export const OVERHANG_ROWS = 2
+export const OVERHANG_ROWS = 0
 
 /**
  * How many rows *this theme's* wall art buries beneath itself.
@@ -37,8 +36,8 @@ export const OVERHANG_ROWS = 2
  * floor that would have been fine. Making it theme-aware would change which
  * floors get re-rolled, and with them every flat-theme seed's layout.
  */
-export function overhangRows(theme: string): number {
-  return getTheme(theme)?.flatWalls === true ? 0 : OVERHANG_ROWS
+export function overhangRows(_theme: string): number {
+  return OVERHANG_ROWS
 }
 
 /**
@@ -56,7 +55,8 @@ export function blockedGrid(level: Level): Uint8Array {
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      let dead = level.tileArray[x + y * width].wall
+      const t = level.tileArray[x + y * width]
+      let dead = t.wall && !t.reserved
       for (let d = 1; d <= OVERHANG_ROWS && !dead; d++) {
         const above = y - d
         if (above >= 0 && level.tileArray[x + above * width].wall) dead = true
@@ -142,7 +142,7 @@ function prefabTarget(s: ObjectSet): { x: number; y: number } {
     // first row the player can stand on, and where the exit trigger lives.
     case 'ExitUp':
     case 'ExitDn':
-      return { x: s.x + 3, y: s.y + 4 }
+      return { x: s.x + 3, y: s.y + 2 }
     // the orb and the portal that replaces it are placed on their own tile
     default:
       return { x: s.x, y: s.y }

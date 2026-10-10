@@ -1,368 +1,136 @@
 /**
- * The game's buff assets — everything the game ships under `assets/buffs/`.
+ * Buffs a `DangerArea` can apply — Anniversary Edition's named buffs in
+ * `actors/buffs.sval`, referenced as `actors/buffs.sval:<name>` from the
+ * area's `Buff` parameter. [VERIFIED] the reference form against stock
+ * DangerAreas (`actors/buffs.sval:vampire-rage`).
  *
- * A buff is a standalone XML asset the engine applies to an entity: a duration
- * plus some combination of `speed-mul`, `dmg-mul`, `stun`, a `damage` block and
- * a `mana-drain` block. Nothing in this repo emits a buff file; we only
- * reference the ones the game already ships, by path, from a DangerArea node's
- * `buff` parameter (objects/nodes.ts).
+ * Numbers in the descriptions were read off buffs.sval with
+ * `scripts/dev/buff-survey.ts` (2026-10-09): duration in ms, speed and damage
+ * multipliers, tick frequency for damage-over-time.
  *
- * `description` is written from each asset's own numbers and is what the form's
- * tooltips show, so a dungeon master picking "banner_drain" can see it drains
- * mana without opening the game's files. Durations are the asset's `duration`
- * in milliseconds; a buff field reapplies its buff every BUFF_REFRESH_MS, so on
- * a floor or in the arena the duration only governs how long the effect lingers
- * after the target walks out of the field.
- *
- * The list is the full 41-file folder as shipped, deliberately including the
- * odd ones — `test.xml` is the only asset in the game that heals, and the
- * negative-`speed-mul` ones reverse movement rather than merely slowing it.
+ * Ids are kept from the HW1 remake where AE has the same buff; a retired HW1
+ * buff keeps its id and stands in with the closest AE one (`substitutes`), so
+ * saved floors keep loading.
  */
 
 export interface BuffDef {
-  /** Stable id, the asset's filename without its extension. */
+  /** Stable id used in parameters. */
   id: string
-  /** What NodeDangerArea.buff carries, e.g. 'buffs/frost.xml'. */
+  /** What NodeDangerArea.buff carries: `actors/buffs.sval:<name>`. */
   path: string
-  /** Human label for the dropdown. */
   label: string
-  /** Dropdown <optgroup> this buff sits in. */
   group: string
-  /** Tooltip text — what the buff actually does, from the asset's numbers. */
   description: string
+  /** the HW1 buff this stands in for */
+  substitutes?: string
 }
 
 /**
- * Buffs whose net effect is to make the target STRONGER. Aimed at monsters
- * these make a floor harder; aimed at players they make it easier, which is
- * what validation's mismatched-target warning is about.
+ * Buffs that make the target STRONGER — aimed at monsters they make a floor
+ * harder; aimed at players, easier. Validation warns on a mismatched target.
  */
-export const BUFF_HELPFUL_IDS: readonly string[] = ['bloodlust', 'banner_bloodlust', 'test']
-
-/** Every buff the game ships, in dropdown order (grouped). */
-export const BUFF_DEFS: readonly BuffDef[] = [
-  // --- Offensive -----------------------------------------------------------
-  {
-    id: 'bloodlust',
-    path: 'buffs/bloodlust.xml',
-    label: 'Bloodlust',
-    group: 'Offensive',
-    description: 'Bloodlust - +50% damage and +50% move speed, lasting 2s.'
-  },
-  {
-    id: 'banner_bloodlust',
-    path: 'buffs/banner_bloodlust.xml',
-    label: 'Bloodlust banner',
-    group: 'Offensive',
-    description:
-      'Bloodlust banner - +50% damage and +50% move speed, but only 0.15s, so it lasts exactly as long as the target stands in the field.'
-  },
-  // --- Restorative ---------------------------------------------------------
-  {
-    id: 'test',
-    path: 'buffs/test.xml',
-    label: 'Regeneration',
-    group: 'Restorative',
-    description:
-      'Regeneration - restores 10 health and 10 mana per second and halves move speed, lasting 10s. The only healing buff the game ships.'
-  },
-  // --- Slow & control ------------------------------------------------------
-  {
-    id: 'frost',
-    path: 'buffs/frost.xml',
-    label: 'Frost',
-    group: 'Slow & control',
-    description: 'Frost - move speed halved, lasting 5s.'
-  },
-  {
-    id: 'cripple',
-    path: 'buffs/cripple.xml',
-    label: 'Cripple',
-    group: 'Slow & control',
-    description: 'Cripple - damage halved and move speed -25%, lasting 2s.'
-  },
-  {
-    id: 'priest_cripple_1',
-    path: 'buffs/priest_cripple_1.xml',
-    label: 'Cripple aura I',
-    group: 'Slow & control',
-    description: 'Priest cripple aura I - damage halved and move speed -30%, lasting 1s.'
-  },
-  {
-    id: 'priest_cripple_2',
-    path: 'buffs/priest_cripple_2.xml',
-    label: 'Cripple aura II',
-    group: 'Slow & control',
-    description: 'Priest cripple aura II - damage halved and move speed -50%, lasting 1s.'
-  },
-  {
-    id: 'priest_cripple_3',
-    path: 'buffs/priest_cripple_3.xml',
-    label: 'Cripple aura III',
-    group: 'Slow & control',
-    description: 'Priest cripple aura III - damage halved and move speed -70%, lasting 1s.'
-  },
-  {
-    id: 'spider_1',
-    path: 'buffs/spider_1.xml',
-    label: 'Spider web',
-    group: 'Slow & control',
-    description: 'Spider web - move speed halved, lasting 2.5s.'
-  },
-  {
-    id: 'enemy_spider_1',
-    path: 'buffs/enemy_spider_1.xml',
-    label: 'Spider web (reversed)',
-    group: 'Slow & control',
-    description:
-      'Spider web, reversed - a negative speed multiplier, so the target walks backwards for 1.5s rather than merely slowing.'
-  },
-  {
-    id: 'enemy_tower_icebeam',
-    path: 'buffs/enemy_tower_icebeam.xml',
-    label: 'Ice beam chill',
-    group: 'Slow & control',
-    description: 'Ice beam chill - move speed -60%, lasting 5s.'
-  },
-  {
-    id: 'thief_smoke',
-    path: 'buffs/thief_smoke.xml',
-    label: 'Smoke bomb (stun)',
-    group: 'Slow & control',
-    description: 'Smoke bomb - stunned and unable to move for 5s. The longest stun the game ships.'
-  },
-  {
-    id: 'thief_stun_1',
-    path: 'buffs/thief_stun_1.xml',
-    label: 'Stun I',
-    group: 'Slow & control',
-    description: 'Stun I - stunned and unable to move for 1s.'
-  },
-  {
-    id: 'thief_stun_2',
-    path: 'buffs/thief_stun_2.xml',
-    label: 'Stun II',
-    group: 'Slow & control',
-    description: 'Stun II - stunned and unable to move for 1.5s.'
-  },
-  {
-    id: 'thief_stun_3',
-    path: 'buffs/thief_stun_3.xml',
-    label: 'Stun III',
-    group: 'Slow & control',
-    description: 'Stun III - stunned and unable to move for 2s.'
-  },
-  // --- Damage over time ----------------------------------------------------
-  {
-    id: 'slime_poison',
-    path: 'buffs/slime_poison.xml',
-    label: 'Slime poison',
-    group: 'Damage over time',
-    description:
-      'Slime poison - 6 damage every 1.5s (cannot kill), move speed -34% and damage -25%, lasting 4.5s.'
-  },
-  {
-    id: 'maggot_poison',
-    path: 'buffs/maggot_poison.xml',
-    label: 'Maggot poison',
-    group: 'Damage over time',
-    description:
-      'Maggot poison - 1 damage every 1.5s (cannot kill), move speed -34% and damage -25%, lasting 4.5s.'
-  },
-  {
-    id: 'boss_maggot_poison',
-    path: 'buffs/boss_maggot_poison.xml',
-    label: 'Maggot poison (boss)',
-    group: 'Damage over time',
-    description:
-      'Boss maggot poison - 3 damage every second (cannot kill), move speed -34% and damage -25%, lasting 5s.'
-  },
-  {
-    id: 'enemy_mummy_ranged_1',
-    path: 'buffs/enemy_mummy_ranged_1.xml',
-    label: 'Mummy rot',
-    group: 'Damage over time',
-    description:
-      'Mummy rot - 4 damage every second (cannot kill), move speed -34% and damage -25%, lasting 5s.'
-  },
-  {
-    id: 'wisp_1_burn',
-    path: 'buffs/wisp_1_burn.xml',
-    label: 'Wisp burn',
-    group: 'Damage over time',
-    description: 'Wisp burn - 6 damage every second, lasting 5s. Can kill.'
-  },
-  {
-    id: 'shooter_fireball_burn',
-    path: 'buffs/shooter_fireball_burn.xml',
-    label: 'Fireball burn',
-    group: 'Damage over time',
-    description: 'Fireball burn - 6 damage every second, lasting 5s. Can kill.'
-  },
-  {
-    id: 'shooter_fireball_2',
-    path: 'buffs/shooter_fireball_2.xml',
-    label: 'Greater fireball burn',
-    group: 'Damage over time',
-    description: 'Greater fireball burn - 20 damage every second, lasting 5s. Can kill.'
-  },
-  {
-    id: 'lich_1_mb_burn',
-    path: 'buffs/lich_1_mb_burn.xml',
-    label: 'Lich burn',
-    group: 'Damage over time',
-    description: 'Lich burn - 10 damage every second, lasting 5s. Can kill.'
-  },
-  {
-    id: 'enemy_tower_firebeam',
-    path: 'buffs/enemy_tower_firebeam.xml',
-    label: 'Fire beam burn',
-    group: 'Damage over time',
-    description: 'Fire beam burn - 6 damage every second, lasting 5s. Can kill.'
-  },
-  {
-    id: 'enemy_pillar_fire',
-    path: 'buffs/enemy_pillar_fire.xml',
-    label: 'Fire pillar',
-    group: 'Damage over time',
-    description:
-      'Fire pillar - 20 damage every second, lasting 10s. The heaviest damage-over-time the game ships.'
-  },
-  {
-    id: 'enemy_pillar_fire_self',
-    path: 'buffs/enemy_pillar_fire_self.xml',
-    label: 'Fire pillar (cosmetic)',
-    group: 'Damage over time',
-    description:
-      'Fire pillar, cosmetic only - 50s of flame particles and light, with no damage and no stat change.'
-  },
-  {
-    id: 'bomb_lich_desert_2',
-    path: 'buffs/bomb_lich_desert_2.xml',
-    label: 'Lich bomb burn',
-    group: 'Damage over time',
-    description: 'Lich bomb burn - 6 damage every second, lasting 5s. Can kill.'
-  },
-  // --- Mana drain ----------------------------------------------------------
-  {
-    id: 'banner_drain',
-    path: 'buffs/banner_drain.xml',
-    label: 'Mana drain banner',
-    group: 'Mana drain',
-    description:
-      'Mana drain banner - drains 3 mana every 0.1s. Lasts 0.15s, so it drains only while the target stands in the field.'
-  },
-  {
-    id: 'bomb_drain',
-    path: 'buffs/bomb_drain.xml',
-    label: 'Mana drain bomb',
-    group: 'Mana drain',
-    description: 'Mana drain bomb - drains 5 mana every 0.1s, lasting 2s.'
-  },
-  {
-    id: 'enemy_tower_drainbeam',
-    path: 'buffs/enemy_tower_drainbeam.xml',
-    label: 'Drain beam',
-    group: 'Mana drain',
-    description:
-      'Drain beam - drains 10 mana every 0.1s, lasting 2s. Empties a full mana bar in seconds.'
-  },
-  // --- Boss & elite --------------------------------------------------------
-  {
-    id: 'enemy_boss_krilith_v1',
-    path: 'buffs/enemy_boss_krilith_v1.xml',
-    label: 'Krilith chill I',
-    group: 'Boss & elite',
-    description: 'Krilith chill I - move speed -10%, lasting 3s.'
-  },
-  {
-    id: 'enemy_boss_krilith_v2',
-    path: 'buffs/enemy_boss_krilith_v2.xml',
-    label: 'Krilith chill II',
-    group: 'Boss & elite',
-    description: 'Krilith chill II - move speed -25%, lasting 1.5s.'
-  },
-  {
-    id: 'enemy_boss_krilith_wave',
-    path: 'buffs/enemy_boss_krilith_wave.xml',
-    label: 'Krilith ice wave',
-    group: 'Boss & elite',
-    description: 'Krilith ice wave - move speed -80%, lasting 2s. Very nearly a stun.'
-  },
-  {
-    id: 'bomb_boss_krilith',
-    path: 'buffs/bomb_boss_krilith.xml',
-    label: 'Krilith bomb chill',
-    group: 'Boss & elite',
-    description: 'Krilith bomb chill - move speed -20%, lasting 3s.'
-  },
-  {
-    id: 'enemy_lich_desert_2',
-    path: 'buffs/enemy_lich_desert_2.xml',
-    label: 'Lich reversal',
-    group: 'Boss & elite',
-    description:
-      'Lich reversal - a negative speed multiplier, so the target walks backwards for 3s rather than merely slowing.'
-  },
-  {
-    id: 'bomb_lich_desert_1',
-    path: 'buffs/bomb_lich_desert_1.xml',
-    label: 'Lich bomb chill',
-    group: 'Boss & elite',
-    description: 'Lich bomb chill - move speed -20%, lasting 3s.'
-  },
-  // --- Traps ---------------------------------------------------------------
-  {
-    id: 'trap_frost',
-    path: 'buffs/trap_frost.xml',
-    label: 'Frost trap',
-    group: 'Traps',
-    description:
-      'Frost trap - move speed -90%, but only 0.5s, so it bites only while the target stands in the field.'
-  },
-  {
-    id: 'trap_quicksand',
-    path: 'buffs/trap_quicksand.xml',
-    label: 'Quicksand',
-    group: 'Traps',
-    description:
-      'Quicksand - move speed -75%, but only 0.4s, so it bites only while the target stands in the field.'
-  },
-  {
-    id: 'trap_flies',
-    path: 'buffs/trap_flies.xml',
-    label: 'Flies',
-    group: 'Traps',
-    description: 'Flies - 5 damage every 0.5s, lasting 5s. Can kill.'
-  },
-  {
-    id: 'trap_firespray',
-    path: 'buffs/trap_firespray.xml',
-    label: 'Fire spray',
-    group: 'Traps',
-    description: 'Fire spray - 10 damage every second, lasting 5s. Can kill.'
-  },
-  {
-    id: 'trap_floor_fire_burn',
-    path: 'buffs/trap_floor_fire_burn.xml',
-    label: 'Floor fire burn',
-    group: 'Traps',
-    description: 'Floor fire burn - 10 damage every second, lasting 5s. Can kill.'
-  }
+export const BUFF_HELPFUL_IDS: readonly string[] = [
+  'bloodlust',
+  'banner_bloodlust',
+  'bloodlust_shaman',
+  'banner_healing',
+  'test',
+  'protection',
+  'anti_protection_2'
 ]
 
-/**
- * The <optgroup> order, derived from BUFF_DEFS so a new buff cannot land in a
- * group the dropdown does not render. First-seen order, like MONSTER_GROUPS.
- */
+function b(id: string, name: string, label: string, group: string, description: string, substitutes?: string): BuffDef {
+  const def: BuffDef = { id, path: `actors/buffs.sval:${name}`, label, group, description }
+  if (substitutes !== undefined) def.substitutes = substitutes
+  return def
+}
+
+const OFFENSIVE = 'Offensive'
+const RESTORATIVE = 'Restorative'
+const SLOW = 'Slow & freeze'
+const DOT = 'Damage over time'
+const CONTROL = 'Control'
+
+/** Every buff, in dropdown order (grouped). */
+export const BUFF_DEFS: readonly BuffDef[] = [
+  // --- Offensive ---------------------------------------------------------------
+  b('bloodlust', 'bloodlust', 'Bloodlust', OFFENSIVE, '+50% damage and +50% speed for 2s.'),
+  b('banner_bloodlust', 'banner_bloodlust', 'Bloodlust banner', OFFENSIVE, '+50% damage and +50% speed for 0.5s — lasts as long as the target stands in the field.'),
+  b('bloodlust_shaman', 'bloodlust-shaman', 'Shaman bloodlust', OFFENSIVE, '+50% damage and +50% speed for 5s.'),
+  b('anti_protection_2', 'anti-protection-2', 'Double damage', OFFENSIVE, 'x2 damage dealt for 2s.'),
+  b('protection', 'protection', 'Protection', OFFENSIVE, '40% less damage taken, double armor and resistance, 0.5s.'),
+  b('anti_protection', 'anti-protection', 'Vulnerable', OFFENSIVE, 'x2 damage taken for 2s.'),
+
+  // --- Restorative -------------------------------------------------------------
+  b('banner_healing', 'banner_healing', 'Healing banner', RESTORATIVE, 'Heals every second for 1.5s.'),
+  b('test', 'banner_healing', 'Healing', RESTORATIVE, 'Heals every second — the healing banner.', 'HW1 buffs/test.xml (the only HW1 buff that healed)'),
+
+  // --- Slow & freeze -----------------------------------------------------------
+  b('frost', 'frost', 'Frost', SLOW, 'Half speed for 5s.'),
+  b('trap_frost', 'trap_frost', 'Frost trap', SLOW, '90% slower for 5s.'),
+  b('freezing', 'freezing', 'Freezing', SLOW, '34% slower for 2.5s.'),
+  b('freezing_strong', 'freezing_strong', 'Deep freeze', SLOW, 'Half speed for 2.5s.'),
+  b('enemy_tower_icebeam', 'enemy_tower_icebeam', 'Ice beam chill', SLOW, '60% slower for 5s.'),
+  b('enemy_boss_krilith_v2', 'enemy_boss_krilith_v2', "Krilith's chill", SLOW, '25% slower for 1.5s.'),
+  b('enemy_boss_krilith_v1', 'enemy_boss_krilith_v2', "Krilith's chill", SLOW, '25% slower for 1.5s.', 'HW1 enemy_boss_krilith_v1'),
+  b('enemy_boss_krilith_wave', 'enemy_boss_krilith_wave', 'Krilith wave', SLOW, '80% slower for 2s.'),
+  b('bomb_boss_krilith', 'bomb_boss_krilith', 'Krilith bomb', SLOW, '20% slower for 3s.'),
+  b('bomb_lich_desert_1', 'bomb_lich_desert_1', 'Ice lich bomb', SLOW, '20% slower for 3s.'),
+  b('spider_1', 'spider_1', 'Spider bite', SLOW, 'Half speed for 2.5s.'),
+  b('trap_quicksand', 'quicksand', 'Quicksand', SLOW, '40% slower while standing in it.', 'HW1 trap_quicksand'),
+  b('trapper_net', 'trapper_net', 'Trapper net', SLOW, 'Half speed for 2.5s.'),
+  b('cripple', 'trapper_net', 'Cripple', SLOW, 'Half speed for 2.5s — the trapper net.', 'HW1 cripple'),
+  b('priest_cripple_1', 'freezing', 'Cripple (light)', SLOW, '34% slower for 2.5s.', 'HW1 priest_cripple_1'),
+  b('priest_cripple_2', 'frost', 'Cripple (medium)', SLOW, 'Half speed for 5s.', 'HW1 priest_cripple_2'),
+  b('priest_cripple_3', 'trap_frost', 'Cripple (heavy)', SLOW, '90% slower for 5s.', 'HW1 priest_cripple_3'),
+
+  // --- Damage over time ----------------------------------------------------------
+  b('burning', 'burning', 'Burning', DOT, 'Fire damage every second for 5s.'),
+  b('burning_strong', 'burning_strong', 'Burning (strong)', DOT, 'Heavy fire damage every second for 5s.'),
+  b('shooter_fireball_burn', 'burning', 'Burning', DOT, 'Fire damage every second for 5s.', 'HW1 shooter_fireball_burn'),
+  b('shooter_fireball_2', 'burning_strong', 'Burning (strong)', DOT, 'Heavy fire damage every second for 5s.', 'HW1 shooter_fireball_2 burn'),
+  b('wisp_1_burn', 'burning', 'Burning', DOT, 'Fire damage every second for 5s.', 'HW1 wisp_1_burn'),
+  b('lich_1_mb_burn', 'lich_1_mb_burn', 'Wizard burn', DOT, 'Fire damage every second for 5s.'),
+  b('enemy_tower_firebeam', 'enemy_tower_firebeam', 'Fire beam burn', DOT, 'Fire damage every second for 5s.'),
+  b('enemy_pillar_fire', 'enemy_pillar_fire', 'Fire pillar', DOT, 'Fire damage every second for 10s.'),
+  b('enemy_pillar_fire_self', 'enemy_pillar_fire', 'Fire pillar', DOT, 'Fire damage every second for 10s.', 'HW1 enemy_pillar_fire_self'),
+  b('trap_firespray', 'trap_firespray', 'Fire spray', DOT, 'Fire damage every second for 5s.'),
+  b('trap_floor_fire_burn', 'trap_floor_fire_burn', 'Floor fire', DOT, 'Fire damage every second for 5s.'),
+  b('poison', 'poison', 'Poison', DOT, 'Poison damage every second and 30% slower, 4s.'),
+  b('poison_strong', 'poison_strong', 'Poison (strong)', DOT, 'Heavy poison every second and 30% slower, 4s.'),
+  b('slime_poison', 'slime_poison', 'Slime poison', DOT, 'Poison every 1.5s, 34% slower, 25% less damage dealt, 4.5s.'),
+  b('maggot_poison', 'maggot_poison', 'Maggot poison', DOT, 'Poison every 1.5s, 34% slower, 25% less damage dealt, 4.5s.'),
+  b('boss_maggot_poison', 'boss_maggot_poison', 'Queen poison', DOT, 'Poison every second, 34% slower, 25% less damage dealt, 5s.'),
+  b('enemy_mummy_ranged_1', 'enemy_mummy_ranged_1', 'Mummy curse', DOT, 'Damage every second, 34% slower, 25% less damage dealt, 5s.'),
+  b('enemy_spider_1', 'enemy_spider_1', 'Spider venom', DOT, 'Reversed movement for 1.5s.'),
+  b('trap_flies', 'trap_flies', 'Flies', DOT, 'Damage every 0.5s for 2.5s.'),
+  b('bomb_lich_desert_2', 'bomb_lich_desert_2', 'Fire lich bomb', DOT, 'Damage every second for 5s.'),
+  b('banner_drain', 'banner_drain', 'Drain banner', DOT, 'Drains every 0.5s while in the field.'),
+  b('bomb_drain', 'bomb_drain', 'Drain bomb', DOT, 'Drains every 0.1s for 2s.'),
+  b('enemy_tower_drainbeam', 'enemy_tower_drainbeam', 'Drain beam', DOT, 'Drains every 0.1s for 2s.'),
+  b('trap_drain', 'trap_drain', 'Drain trap', DOT, 'Drains every 0.1s for 5s.'),
+
+  // --- Control -------------------------------------------------------------------
+  b('enemy_lich_desert_2', 'enemy_lich_desert_2', 'Daze', CONTROL, 'Reversed movement for 3s — the worst of the lich debuffs.'),
+  b('confusion', 'confusion', 'Confusion', CONTROL, 'Inverted controls for 2.5s.'),
+  b('trap_confusion', 'trap_confusion', 'Confusion trap', CONTROL, 'Inverted controls for 1s.'),
+  b('darkness', 'darkness', 'Darkness', CONTROL, 'Blinds for 2.5s.'),
+  b('netted', 'netted', 'Netted', CONTROL, 'Rooted for 1s.'),
+  b('spider_web', 'spider-web', 'Spider web', CONTROL, 'Rooted while in the web.'),
+  b('thief_smoke', 'darkness', 'Smoke', CONTROL, 'Blinds for 2.5s.', 'HW1 thief_smoke'),
+  b('thief_stun_1', 'netted_ballista', 'Stun (short)', CONTROL, 'Rooted for 0.6s.', 'HW1 thief_stun_1'),
+  b('thief_stun_2', 'netted', 'Stun', CONTROL, 'Rooted for 1s.', 'HW1 thief_stun_2'),
+  b('thief_stun_3', 'trap_confusion', 'Stun (confusing)', CONTROL, 'Inverted controls for 1s.', 'HW1 thief_stun_3')
+]
+
+/** The dropdown groups, in first-seen order. */
 export const BUFF_GROUPS: readonly string[] = BUFF_DEFS.reduce<string[]>((groups, def) => {
   if (!groups.includes(def.group)) groups.push(def.group)
   return groups
 }, [])
 
-const BUFF_BY_ID = new Map(BUFF_DEFS.map((def) => [def.id, def]))
+const BY_ID = new Map(BUFF_DEFS.map((d) => [d.id, d]))
 
-/** Looks a buff up by id. Undefined for an unknown id — validation is the gate. */
 export function buffById(id: string): BuffDef | undefined {
-  return BUFF_BY_ID.get(id)
+  return BY_ID.get(id)
 }

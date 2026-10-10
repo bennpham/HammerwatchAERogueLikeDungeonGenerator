@@ -40,7 +40,7 @@ export function MonsterMaxTable({ params, onChange }: MonsterMaxTableProps) {
         )
         if (members.length === 0 && families.length === 0) return null
         return (
-          <details key={group} className="max-group" open={group === 'Classic'}>
+          <details key={group} className="max-group" open={group === 'Undead'}>
             <summary>{group}</summary>
             <div className="max-grid">
               {families.map((f) => (

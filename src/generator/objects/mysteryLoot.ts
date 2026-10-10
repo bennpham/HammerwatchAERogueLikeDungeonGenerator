@@ -32,7 +32,7 @@ export type LootDef = Omit<PickupDef, 'lane'>
 
 const CHESTS: readonly LootDef[] = (['wood', 'blue', 'red', 'green'] as const).map((colour) => ({
   id: `chest_${colour}`,
-  path: `items/chest_${colour}.xml`,
+  path: `items/misc/chest_${colour}.unit`,
   label: `Chest (${colour[0].toUpperCase()}${colour.slice(1)})`,
   group: 'Chests',
   description: `A ${colour} treasure chest — the same asset the dungeon floors scatter as a powerup.`
@@ -63,10 +63,27 @@ const DIAMONDS: ReadonlyArray<readonly [string, string, number]> = [
   ['valuable_diamond_red', 'Red diamond', 500]
 ]
 
+/** HW1 valuable id -> the AE money unit (hw2ae's pairing, matched on gold value). */
+const MONEY_UNIT: Record<string, string> = {
+  valuable_1: 'coin_copper_small',
+  valuable_2: 'coin_copper_medium',
+  valuable_3: 'coin_copper_large',
+  valuable_4: 'coin_silver_small',
+  valuable_5: 'coin_silver_medium',
+  valuable_6: 'coin_silver_large',
+  valuable_7: 'coin_gold_small',
+  valuable_8: 'coin_gold_medium',
+  valuable_9: 'coin_gold_large',
+  valuable_diamond_small: 'diamond_small',
+  valuable_diamond_small_red: 'diamond_small_red',
+  valuable_diamond: 'diamond',
+  valuable_diamond_red: 'diamond_red'
+}
+
 const money = (group: string, rows: ReadonlyArray<readonly [string, string, number]>): LootDef[] =>
   rows.map(([id, name, gold]) => ({
     id,
-    path: `items/${id}.xml`,
+    path: `items/pickups/money/${MONEY_UNIT[id]}.unit`,
     label: `${name} (${gold} gold)`,
     group,
     description: `${name} — worth ${gold} gold when picked up.`

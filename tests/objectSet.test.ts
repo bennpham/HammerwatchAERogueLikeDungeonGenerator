@@ -3,96 +3,83 @@ import { GenerationContext } from '../src/generator/core/context'
 import { defaultParameters } from '../src/generator/config/parameters'
 import { ObjectSet } from '../src/generator/objects/objectSet'
 import type { SetTypeName } from '../src/generator/objects/objectSet'
+import type { ScriptNode } from '../src/generator/objects/scriptNode'
 import { bossArenaId, lobbyId } from '../src/generator/campaign'
 
 function newContext(): GenerationContext {
-  return new GenerationContext(defaultParameters(), 5)
+  const ctx = new GenerationContext(defaultParameters(), 5)
+  ctx.scenarioId = 'dungeon_5'
+  return ctx
 }
+
+const paramOf = (n: ScriptNode, name: string) => n.params().find((p) => p.name === name)
+const exits = (nodes: readonly ScriptNode[]) => nodes.filter((n) => n.cls === 'LevelExit')
+const exitStartIds = (nodes: readonly ScriptNode[]) =>
+  exits(nodes).map((n) => {
+    const p = paramOf(n, 'StartID')
+    return p?.kind === 'string' ? p.value : undefined
+  })
 
 /**
  * BossPortal and LobbyPortal each replace Orb at the same coordinates —
  * BossPortal on a floor leading into a fight, LobbyPortal on one leading into
- * a lobby. Room transforms run before wall rasterization and ctx.idCounter is
- * one monotonic counter per level, so both portals must match Orb's id/RNG
- * contract exactly: any drift here shifts every wall doodad id placed after
- * it on that floor.
+ * a lobby. None of the three may draw a layout or cosmetic value, or swapping
+ * one for another would move everything generated after it.
  */
-describe('ObjectSet — Orb vs BossPortal vs LobbyPortal parity', () => {
-  const PORTAL_TYPES: readonly SetTypeName[] = ['BossPortal', 'LobbyPortal']
+describe('ObjectSet — Orb, BossPortal and LobbyPortal', () => {
+  const ALL: readonly SetTypeName[] = ['Orb', 'BossPortal', 'LobbyPortal']
 
-  it('all three register exactly 3 ctx ids from an equal starting idCounter', () => {
-    const ctxOrb = newContext()
-    ctxOrb.idCounter = 10
-    ObjectSet.create(ctxOrb, 0, 0, 'Orb', 'a')
-    expect(ctxOrb.idCounter).toBe(13)
-
-    for (const type of PORTAL_TYPES) {
-      const ctx = newContext()
-      ctx.idCounter = 10
-      ObjectSet.create(ctx, 0, 0, type, 'a')
-      expect(ctx.idCounter, type).toBe(13)
-    }
-  })
-
-  for (const type of PORTAL_TYPES) {
-    it(`${type} draws nothing from ctx.rand`, () => {
+  for (const type of ALL) {
+    it(`${type} draws nothing from ctx.rand or ctx.cosmeticRand`, () => {
       const params = defaultParameters()
       const untouched = new GenerationContext(params, 5)
-      const withPortal = new GenerationContext(params, 5)
+      const withSet = new GenerationContext(params, 5)
+      withSet.scenarioId = 'dungeon_5'
 
-      ObjectSet.create(withPortal, 0, 0, type, 'a')
+      ObjectSet.create(withSet, 0, 0, type, 'prison')
 
-      const untouchedValues = Array.from({ length: 20 }, () => untouched.rand.iRand(0, 1_000_000))
-      const afterValues = Array.from({ length: 20 }, () => withPortal.rand.iRand(0, 1_000_000))
-      expect(afterValues).toEqual(untouchedValues)
-    })
-
-    it(`${type} draws nothing from ctx.cosmeticRand`, () => {
-      const params = defaultParameters()
-      const untouched = new GenerationContext(params, 5)
-      const withPortal = new GenerationContext(params, 5)
-
-      ObjectSet.create(withPortal, 0, 0, type, 'a')
-
-      const untouchedValues = Array.from({ length: 20 }, () => untouched.cosmeticRand.iRand(0, 1_000_000))
-      const afterValues = Array.from({ length: 20 }, () => withPortal.cosmeticRand.iRand(0, 1_000_000))
-      expect(afterValues).toEqual(untouchedValues)
+      const draw = (c: GenerationContext) => [
+        ...Array.from({ length: 20 }, () => c.rand.iRand(0, 1_000_000)),
+        ...Array.from({ length: 20 }, () => c.cosmeticRand.iRand(0, 1_000_000))
+      ]
+      expect(draw(withSet)).toEqual(draw(untouched))
     })
   }
 
-  it("BossPortal targets the first fight's arena directly, not a numeric next floor", () => {
-    const ctx = newContext()
-    const set = ObjectSet.create(ctx, 0, 0, 'BossPortal', 'a')
-    const xml = set.scriptNodes.map((n) => n.getXML()).join('')
-    expect(xml).toContain(`<string name="level">${bossArenaId(0)}</string>`)
+  it("BossPortal leads to the first fight's arena by default, through a press-F exit", () => {
+    const set = ObjectSet.create(newContext(), 0, 0, 'BossPortal', 'prison')
+    expect(exitStartIds(set.scriptNodes)).toEqual([bossArenaId(0)])
+    const level = paramOf(exits(set.scriptNodes)[0], 'Level')
+    expect(level?.kind === 'string' && level.value).toBe(`levels/dungeon_5/${bossArenaId(0)}.lvl`)
+    expect(set.scriptNodes.map((n) => n.cls)).toEqual(expect.arrayContaining(['UseTrigger', 'AllPlayersArea', 'SetRespawnPoint']))
   })
 
-  it('LobbyPortal targets the first lobby by default', () => {
-    const ctx = newContext()
-    const set = ObjectSet.create(ctx, 0, 0, 'LobbyPortal', 'a')
-    const xml = set.scriptNodes.map((n) => n.getXML()).join('')
-    expect(xml).toContain(`<string name="level">${lobbyId(0)}</string>`)
+  it('LobbyPortal leads to the first lobby by default', () => {
+    const set = ObjectSet.create(newContext(), 0, 0, 'LobbyPortal', 'prison')
+    expect(exitStartIds(set.scriptNodes)).toEqual([lobbyId(0)])
   })
 
   // The same rig ends a non-final arena (BossPortal) or a dungeon floor
   // (either), where it points at whatever the campaign order puts next.
-  // Either way this is the mechanism a multi-fight, multi-lobby campaign
-  // chains on.
   it('takes an explicit target when one is given', () => {
-    const boss = ObjectSet.create(newContext(), 0, 0, 'BossPortal', 'a', bossArenaId(3))
-    expect(boss.scriptNodes.map((n) => n.getXML()).join('')).toContain('<string name="level">boss3</string>')
-
-    const lobby = ObjectSet.create(newContext(), 0, 0, 'LobbyPortal', 'a', lobbyId(2))
-    expect(lobby.scriptNodes.map((n) => n.getXML()).join('')).toContain('<string name="level">lobby2</string>')
+    const boss = ObjectSet.create(newContext(), 0, 0, 'BossPortal', 'prison', bossArenaId(3))
+    expect(exitStartIds(boss.scriptNodes)).toEqual(['boss3'])
+    const lobby = ObjectSet.create(newContext(), 0, 0, 'LobbyPortal', 'prison', lobbyId(2))
+    expect(exitStartIds(lobby.scriptNodes)).toEqual(['lobby2'])
   })
 
-  it('lays the red portal doodad for BossPortal and the blue one for LobbyPortal', () => {
-    const boss = ObjectSet.create(newContext(), 0, 0, 'BossPortal', 'a')
-    expect(boss.doodads.map((d) => d.getXML()).join('')).toContain('doodads/generic/exit_teleport_boss.xml')
+  it('lays the red teleporter for BossPortal and the round one for LobbyPortal', () => {
+    const boss = ObjectSet.create(newContext(), 0, 0, 'BossPortal', 'prison')
+    expect(boss.doodads.map((d) => d.path)).toContain('doodads/generic/teleport_red.unit')
+    const lobby = ObjectSet.create(newContext(), 0, 0, 'LobbyPortal', 'prison')
+    expect(lobby.doodads.map((d) => d.path)).toContain('doodads/generic/teleport_round.unit')
+    expect(lobby.doodads.map((d) => d.path)).not.toContain('doodads/generic/teleport_red.unit')
+  })
 
-    const lobby = ObjectSet.create(newContext(), 0, 0, 'LobbyPortal', 'a')
-    const lobbyDoodadXML = lobby.doodads.map((d) => d.getXML()).join('')
-    expect(lobbyDoodadXML).toContain('doodads/generic/exit_teleport.xml')
-    expect(lobbyDoodadXML).not.toContain('doodads/generic/exit_teleport_boss.xml')
+  it('ends the game on the orb: pickup -> victory banner -> ShowGameOver', () => {
+    const set = ObjectSet.create(newContext(), 0, 0, 'Orb', 'prison')
+    expect(exits(set.scriptNodes)).toEqual([])
+    const classes = set.scriptNodes.map((n) => n.cls)
+    expect(classes).toEqual(expect.arrayContaining(['UnitPickedUpTrigger', 'ShowGameOver']))
   })
 })

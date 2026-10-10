@@ -81,8 +81,8 @@ import { projectileById } from '../objects/projectileTypes'
 import { LOBBY_DIAMOND_VALUE } from '../lobby/build'
 import { LOBBY_PRESETS } from '../lobby/presets'
 import { ALL_LOBBY_CATEGORIES, isLobbyCategory, lobbyCategoryCounts, vendorOfCategory } from '../lobby/shops'
-import { DIAMOND_VALUE, MAX_DIAMOND_COUNT, UPGRADE_KINDS } from '../levelTemplate/surgery'
-import type { UpgradeCounts } from '../levelTemplate/surgery'
+import { DIAMOND_VALUE, MAX_DIAMOND_COUNT, UPGRADE_KINDS } from '../lobby/payout'
+import type { UpgradeCounts } from '../lobby/payout'
 import { ARENA_LAYOUT_SLOTS, ARENA_MIN_HEIGHT, ARENA_MIN_WIDTH, freeFloorArea } from '../boss/geometry'
 import { wallCapacity } from '../boss/traps'
 import { floorTrapCapacity } from '../traps/floor'
@@ -699,6 +699,8 @@ function bossLayoutFitsEveryCombo(minWidth: number, minHeight: number, pool: rea
     }
     for (const def of defs) {
       if (def.unique && combo.includes(def)) continue
+      // pickBosses never rolls a second top-wall boss, so skip those combos
+      if (def.placement === 'topWall' && combo.some((d) => d.placement === 'topWall')) continue
       combo.push(def)
       recurse()
       combo.pop()

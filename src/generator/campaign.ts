@@ -1,36 +1,24 @@
 /**
- * The campaign's level ids — the strings that appear as `<level id="...">` in
- * levels.xml and as the `level` parameter of every `LevelExitArea` node.
- *
- * These live here rather than next to the code that emits them because both
- * ends of every link need them: `index.ts` names the files, `objectSet.ts`
- * points the final floor's portal at the next fight's arena, and
- * `lobby/build.ts` points a lobby at whatever slot follows it. A single
- * source stops the two ends drifting.
- *
- * Dungeon floors keep the original's bare numeric ids `0..N-1`, so nothing that
- * reads a floor id has to change; the boss and lobby levels are always suffixed
- * strings, which is what keeps them from ever colliding with a floor.
+ * The campaign's level stems. In Anniversary Edition a stem is three things at
+ * once: the level's file name (`levels/<scenario>/<stem>.lvl`, built by
+ * `GenerationContext.levelPath`), the StartID its arrival `LevelStart` answers
+ * to, and what the previous level's `LevelExit` and `SetRespawnPoint` name. A
+ * single source keeps both ends of every link in step.
  */
+
+/** Dungeon floor `i` (0-based). */
+export function floorId(i: number): string {
+  return `floor${i}`
+}
 
 /** The arena of boss fight `i`. */
 export function bossArenaId(i: number): string {
   return `boss${i}`
 }
 
-/** Where the arena of boss fight `i` is written. */
-export function bossArenaPath(i: number): string {
-  return `levels/${bossArenaId(i)}.xml`
-}
-
 /** Lobby `i` — one of an arbitrary number of shop rooms the campaign can carry. */
 export function lobbyId(i: number): string {
   return `lobby${i}`
-}
-
-/** Where lobby `i` is written. */
-export function lobbyPath(i: number): string {
-  return `levels/${lobbyId(i)}.xml`
 }
 
 /**
@@ -200,12 +188,10 @@ function slotKey(slot: CampaignSlot): string {
 }
 
 /**
- * The level id a slot is ENTERED through — a floor's own numeric id, a boss
- * fight's arena (the prep room is gone; a lobby that wants to shop before a
- * fight is its own preceding slot now), or a lobby's own id.
+ * The stem a slot is ENTERED through: `floor3`, `boss0`, `lobby1`.
  */
 export function slotEntryId(slot: CampaignSlot): string {
-  if (slot.kind === 'floor') return String(slot.index)
+  if (slot.kind === 'floor') return floorId(slot.index)
   if (slot.kind === 'boss') return bossArenaId(slot.index)
   return lobbyId(slot.index)
 }

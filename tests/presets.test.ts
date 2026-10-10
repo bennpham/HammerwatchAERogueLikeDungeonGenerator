@@ -33,6 +33,13 @@ import {
   resolveActorPath
 } from '../src/generator/objects/monsterTypes'
 import { corpseCollision } from '../src/generator/objects/actorCollision'
+import { levelsOf, lvlText, scriptsOf, stemsOf, strParam } from './ae'
+import type { AeLevel } from '../src/generator/ae/model'
+
+/** Whether a level ends the scenario. */
+const endsGame = (l: AeLevel) => scriptsOf(l, 'ShowGameOver').length > 0
+/** The StartIDs a level's exits lead to. */
+const exitsTo = (l: AeLevel) => scriptsOf(l, 'LevelExit').map((s) => strParam(s, 'StartID'))
 import {
   isScatterMode,
   survivalPickups,
@@ -155,12 +162,12 @@ describe('campaign presets', () => {
 
         it(`${preset.id}: fills it with breakable battlements, pooled nowhere else`, () => {
           const pool = params.levelMonsters[last]
-          const share = pool.filter((id) => id === 'tower_empty').length / pool.length
+          const share = pool.filter((id) => id === 'tower_battlement_empty').length / pool.length
           expect(share).toBeGreaterThan(0.4)
           expect(share).toBeLessThan(0.5)
-          expect(params.monsterMax.tower_empty).toBe(150)
+          expect(params.monsterMax.tower_battlement_empty).toBe(150)
           for (const earlier of params.levelMonsters.slice(0, last)) {
-            expect(earlier).not.toContain('tower_empty')
+            expect(earlier).not.toContain('tower_battlement_empty')
           }
         })
 
@@ -169,20 +176,18 @@ describe('campaign presets', () => {
           expect(result.ok, result.ok ? '' : result.errors.join(' ')).toBe(true)
           if (!result.ok) return
 
-          const escape = result.files.find((f) => f.path === `levels/level${last}.xml`)!.content
-          const arena = result.files.find((f) => f.path === 'levels/boss0.xml')!.content
-          expect(escape).toContain('>GameEnd<')
-          expect(arena).not.toContain('>GameEnd<')
-          expect(arena).toContain(`<string name="level">${last}</string>`)
-          expect(escape).toContain('>DangerArea<')
+          const levels = levelsOf(result)
+          const escape = levels.get(`floor${last}`)!
+          const arena = levels.get('boss0')!
+          expect(endsGame(escape)).toBe(true)
+          expect(endsGame(arena)).toBe(false)
+          expect(exitsTo(arena)).toContain(`floor${last}`)
+          expect(scriptsOf(escape, 'DangerArea').length).toBeGreaterThan(0)
           for (let i = 0; i < last; i++) {
-            expect(result.files.find((f) => f.path === `levels/level${i}.xml`)!.content).not.toContain(
-              '>DangerArea<'
-            )
+            expect(scriptsOf(levels.get(`floor${i}`)!, 'DangerArea'), `floor${i}`).toEqual([])
           }
-          const levelsXml = result.files.find((f) => f.path === 'levels.xml')!.content
-          const ids = [...levelsXml.matchAll(/<level id="([^"]+)"/g)].map((m) => m[1])
-          expect(ids.slice(-3)).toEqual(['lobby1', 'boss0', String(last)])
+          // the last three slots chain lobby1 -> boss0 -> the escape floor
+          expect(exitsTo(levels.get('lobby1')!)).toContain('boss0')
         })
       }
     })
@@ -292,7 +297,7 @@ describe('campaign presets', () => {
       const b = preset.build()
       expect(a).toEqual(b)
       expect(a).not.toBe(b)
-      a.levelMonsters[0].push('bat1')
+      a.levelMonsters[0].push('bat')
       a.monsterMax.bat1 = 1
       if (a.lobbies.length > 0) a.lobbies[0].shopCategories.push('power')
       expect(preset.build()).toEqual(b)
@@ -346,9 +351,8 @@ describe('campaign presets', () => {
         // preset like Arena Marathon has more than one, so the historical
         // "+1" only held because every preset shipped exactly one fight.
         expect(result.levels).toHaveLength(params.levels + bossFights(params.boss).length)
-        for (let i = 0; i < params.levels; i++) {
-          expect(result.files.map((f) => f.path)).toContain(`levels/level${i}.xml`)
-        }
+        const stems = stemsOf(result)
+        for (let i = 0; i < params.levels; i++) expect(stems).toContain(`floor${i}`)
       })
 
       it('is deterministic — the same seed twice is byte-identical', () => {
@@ -368,12 +372,11 @@ describe('campaign presets', () => {
         const b = generateDungeon(params, 4242)
         expect(a.ok && b.ok).toBe(true)
         if (!a.ok || !b.ok) return
-        const tilemap = (xml: string) => xml.slice(0, xml.indexOf('<dictionary name="doodads">'))
+        const before = levelsOf(a)
+        const after = levelsOf(b)
         for (let i = 0; i < params.levels; i++) {
-          const path = `levels/level${i}.xml`
-          const before = a.files.find((f) => f.path === path)!.content
-          const after = b.files.find((f) => f.path === path)!.content
-          expect(tilemap(after), path).toBe(tilemap(before))
+          const stem = `floor${i}`
+          expect(after.get(stem)!.tileCells, stem).toEqual(before.get(stem)!.tileCells)
         }
       })
 
@@ -570,9 +573,9 @@ describe('campaign presets', () => {
       expect(result.ok, result.ok ? '' : result.errors.join(' ')).toBe(true)
       if (!result.ok) return
       for (let level = 0; level < locked; level++) {
-        const xml = result.files.find((f) => f.path === `levels/level${level}.xml`)!.content
-        expect(xml, `floor ${level + 1}`).not.toContain('boss_door_button.xml')
-        expect(xml, `floor ${level + 1}`).toContain('trigger_button_floor.xml')
+        const text = lvlText(result, `floor${level}`)
+        expect(text, `floor ${level + 1}`).not.toContain('doodads/doors/boss_door_button.unit')
+        expect(text, `floor ${level + 1}`).toContain('doodads/generic/button_round.unit')
       }
     })
 
@@ -587,11 +590,11 @@ describe('campaign presets', () => {
       const result = generateDungeon(params, 4242)
       expect(result.ok, result.ok ? '' : result.errors.join(' ')).toBe(true)
       if (!result.ok) return
-      const escape = result.files.find((f) => f.path === 'levels/level12.xml')!.content
-      expect(escape).toContain('>GameEnd<')
-      const finalArena = result.files.find((f) => f.path === 'levels/boss1.xml')!.content
-      expect(finalArena).not.toContain('>GameEnd<')
-      expect(finalArena).toContain('<string name="level">12</string>')
+      const levels = levelsOf(result)
+      expect(endsGame(levels.get('floor12')!)).toBe(true)
+      const finalArena = levels.get('boss1')!
+      expect(endsGame(finalArena)).toBe(false)
+      expect(exitsTo(finalArena)).toContain('floor12')
     })
   })
 
@@ -653,11 +656,11 @@ describe('campaign presets', () => {
 
     it("matches the Java file's campaign shape", () => {
       expect(params.levels).toBe(8)
-      expect(params.themes).toEqual(['a', 'a', 'b', 'b', 'c', 'c', 'd', 'd'])
+      expect(params.themes).toEqual(['prison', 'prison', 'armory', 'armory', 'archives', 'archives', 'chambers', 'chambers'])
       expect([params.minRoomSize, params.maxRoomSize, params.minRoomCount, params.maxRoomCount]).toEqual([6, 20, 12, 15])
       expect([params.mapWidth, params.mapHeight]).toEqual([80, 60])
       expect([params.goldMultiplier, params.foodMultiplier, params.vaultChance]).toEqual([1.1, 1.2, 0.3])
-      expect(params.monsterMax.lich).toBe(20)
+      expect(params.monsterMax.skeleton_lich).toBe(20)
     })
 
     it('carries no lobby, boss, per-floor layer or player tweak', () => {
@@ -678,10 +681,8 @@ describe('campaign presets', () => {
       const result = generateDungeon(params, 4242)
       expect(result.ok, result.ok ? '' : result.errors.join(' ')).toBe(true)
       if (!result.ok) return
-      const levelFiles = result.files.map((f) => f.path).filter((p) => p.startsWith('levels/'))
-      expect(levelFiles).toEqual(Array.from({ length: 8 }, (_, i) => `levels/level${i}.xml`))
-      expect(result.files.some((f) => f.path.startsWith('tweak/'))).toBe(false)
-      expect(result.files.find((f) => f.path === 'levels/level7.xml')!.content).toContain('>GameEnd<')
+      expect(stemsOf(result)).toEqual(Array.from({ length: 8 }, (_, i) => `floor${i}`))
+      expect(endsGame(levelsOf(result).get('floor7')!)).toBe(true)
     })
   })
 })

@@ -41,8 +41,8 @@ describe('campaign level ids', () => {
     }
   })
 
-  it('enters a floor by its own id, a fight by its arena, and a lobby by its own id', () => {
-    expect(slotEntryId({ kind: 'floor', index: 3 })).toBe('3')
+  it('enters a floor, a fight and a lobby by their level stems', () => {
+    expect(slotEntryId({ kind: 'floor', index: 3 })).toBe('floor3')
     expect(slotEntryId({ kind: 'boss', index: 1 })).toBe('boss1')
     expect(slotEntryId({ kind: 'lobby', index: 2 })).toBe('lobby2')
   })
@@ -169,7 +169,7 @@ describe('gatewayAfter', () => {
   const order = slots('1,B1,2')
 
   it('sends a floor followed by another floor down the stairs', () => {
-    expect(gatewayAfter(slots('1,2'), 0)).toEqual({ kind: 'exit', target: '1' })
+    expect(gatewayAfter(slots('1,2'), 0)).toEqual({ kind: 'exit', target: 'floor1' })
   })
 
   it('sends a slot followed by a fight through the red portal, straight into that fight\'s arena', () => {
@@ -184,7 +184,7 @@ describe('gatewayAfter', () => {
   })
 
   it('sends an arena followed by a floor down that floor\'s stairs', () => {
-    expect(gatewayAfter(order, 1)).toEqual({ kind: 'exit', target: '1' })
+    expect(gatewayAfter(order, 1)).toEqual({ kind: 'exit', target: 'floor1' })
   })
 
   it('gives the last slot the orb, whatever kind it is', () => {
@@ -195,7 +195,7 @@ describe('gatewayAfter', () => {
   // All four Gateway kinds, named explicitly — the exhaustive case the three
   // shape-specific tests above only sample.
   it('returns each of the four gateway kinds for the slot that earns it', () => {
-    expect(gatewayAfter(slots('1,2'), 0)).toEqual({ kind: 'exit', target: '1' })
+    expect(gatewayAfter(slots('1,2'), 0)).toEqual({ kind: 'exit', target: 'floor1' })
     expect(gatewayAfter(slots('1,B1'), 0)).toEqual({ kind: 'portal', target: 'boss0' })
     expect(gatewayAfter(slots('1,L1'), 0)).toEqual({ kind: 'lobbyPortal', target: 'lobby0' })
     expect(gatewayAfter(slots('1'), 0)).toEqual({ kind: 'orb' })

@@ -25,22 +25,22 @@ describe('monster variant keys', () => {
     }
   })
 
-  it('resolves the spawner and elite variants the arena used to be unable to reach', () => {
-    expect(resolveActorPath('bat1')).toBe('actors/bat_1.xml')
-    expect(resolveActorPath('bat1#0')).toBe('actors/spawners/bats.xml')
-    expect(resolveActorPath('bat1#2')).toBe('actors/bat_2.xml')
-    expect(resolveActorPath('archer1#2')).toBe('actors/archer_1_elite.xml')
-    expect(resolveActorPath('skeleton1#0')).toBe('actors/spawners/skeleton_1.xml')
-    expect(resolveActorPath('skeleton1#3')).toBe('actors/skeleton_1_elite.xml')
-    expect(resolveActorPath('lich#3')).toBe('actors/lich_3.xml')
-    expect(resolveActorPath('slime#0')).toBe('actors/slime_1_host.xml')
+  it('resolves spawner and elite variants to their AE units', () => {
+    expect(resolveActorPath('bat')).toBe('actors/beasts/bats/bat_black.unit')
+    expect(resolveActorPath('bat#0')).toBe('actors/spawners/hammerwatch/spawner_bats.unit')
+    expect(resolveActorPath('bat#2')).toBe('actors/beasts/bats/bat_fast.unit')
+    expect(resolveActorPath('skeleton_archer#2')).toBe('actors/undead/skeletons/hammerwatch/skeleton_archer_elite.unit')
+    expect(resolveActorPath('skeleton_warrior#0')).toBe('actors/spawners/hammerwatch/spawner_skeleton_warrior.unit')
+    expect(resolveActorPath('skeleton_warrior#3')).toBe('actors/undead/skeletons/hammerwatch/skeleton_warrior_elite.unit')
+    expect(resolveActorPath('skeleton_lich#3')).toBe('actors/undead/skeletons/hammerwatch/skeleton_necromancer.unit')
+    expect(resolveActorPath('slime#0')).toBe('actors/aberrations/slimes/slime_blob.unit')
   })
 
   it('leaves single-tier types alone — they have exactly one variant, the bare id', () => {
-    const skeleton3 = monsterTypeById('skeleton3')
-    expect(monsterVariants(skeleton3).map((v) => v.key)).toEqual(['skeleton3'])
-    expect(resolveActorPath('skeleton3')).toBe('actors/skeleton_3.xml')
-    expect(resolveActorPath('tower_nova1')).toBe('actors/tower_nova_1.xml')
+    const runner = monsterTypeById('skeleton_runner')
+    expect(monsterVariants(runner).map((v) => v.key)).toEqual(['skeleton_runner'])
+    expect(resolveActorPath('skeleton_runner')).toBe('actors/undead/skeletons/hammerwatch/skeleton_runner.unit')
+    expect(resolveActorPath('tower_nova_ice')).toBe('actors/towers/tower_nova_ice.unit')
   })
 
   it('gives every actor path in the roster exactly one canonical key', () => {
@@ -72,41 +72,41 @@ describe('monster variant keys', () => {
 
 describe('parseMonsterKey', () => {
   it('splits a bare id and a variant key', () => {
-    expect(parseMonsterKey('bat1')).toEqual({ id: 'bat1' })
-    expect(parseMonsterKey('bat1#0')).toEqual({ id: 'bat1', tier: 0 })
-    expect(parseMonsterKey('bat1#12')).toEqual({ id: 'bat1', tier: 12 })
+    expect(parseMonsterKey('bat')).toEqual({ id: 'bat' })
+    expect(parseMonsterKey('bat#0')).toEqual({ id: 'bat', tier: 0 })
+    expect(parseMonsterKey('bat#12')).toEqual({ id: 'bat', tier: 12 })
   })
 
   it('reports a malformed suffix as NaN instead of throwing', () => {
-    expect(parseMonsterKey('bat1#')).toEqual({ id: 'bat1', tier: NaN })
-    expect(parseMonsterKey('bat1#x')).toEqual({ id: 'bat1', tier: NaN })
-    expect(parseMonsterKey('bat1#-1')).toEqual({ id: 'bat1', tier: NaN })
-    expect(parseMonsterKey('bat1#1.5')).toEqual({ id: 'bat1', tier: NaN })
+    expect(parseMonsterKey('bat#')).toEqual({ id: 'bat', tier: NaN })
+    expect(parseMonsterKey('bat#x')).toEqual({ id: 'bat', tier: NaN })
+    expect(parseMonsterKey('bat#-1')).toEqual({ id: 'bat', tier: NaN })
+    expect(parseMonsterKey('bat#1.5')).toEqual({ id: 'bat', tier: NaN })
   })
 })
 
 describe('isKnownMonsterKey', () => {
   it('accepts bare ids, including deprecated ones a saved pool may still hold', () => {
-    expect(isKnownMonsterKey('bat1')).toBe(true)
-    expect(isKnownMonsterKey('tower_archer2')).toBe(true)
+    expect(isKnownMonsterKey('bat')).toBe(true)
+    expect(isKnownMonsterKey('tower_battlement_empty')).toBe(true)
   })
 
   it('accepts in-range non-default variants', () => {
-    expect(isKnownMonsterKey('bat1#0')).toBe(true)
-    expect(isKnownMonsterKey('bat1#2')).toBe(true)
+    expect(isKnownMonsterKey('bat#0')).toBe(true)
+    expect(isKnownMonsterKey('bat#2')).toBe(true)
   })
 
   it('rejects a non-canonical spelling of the default tier', () => {
-    // bat1#1 and bat1 are the same actor; allowing both would let one actor
+    // bat#1 and bat are the same actor; allowing both would let one actor
     // occupy two pool slots with two different max counts.
-    expect(isKnownMonsterKey('bat1#1')).toBe(false)
-    expect(isKnownMonsterKey('skeleton3#0')).toBe(false)
+    expect(isKnownMonsterKey('bat#1')).toBe(false)
+    expect(isKnownMonsterKey('skeleton_runner#0')).toBe(false)
   })
 
   it('rejects out-of-range, malformed and unknown keys', () => {
-    expect(isKnownMonsterKey('bat1#99')).toBe(false)
-    expect(isKnownMonsterKey('bat1#x')).toBe(false)
-    expect(isKnownMonsterKey('bat1#')).toBe(false)
+    expect(isKnownMonsterKey('bat#99')).toBe(false)
+    expect(isKnownMonsterKey('bat#x')).toBe(false)
+    expect(isKnownMonsterKey('bat#')).toBe(false)
     expect(isKnownMonsterKey('bogus')).toBe(false)
     expect(isKnownMonsterKey('bogus#0')).toBe(false)
   })
@@ -114,12 +114,13 @@ describe('isKnownMonsterKey', () => {
 
 describe('resolveActorPath is total', () => {
   it('falls back rather than crashing on bad input (invariant 4)', () => {
-    // unknown id -> monsterTypeById's existing bat1 fallback
-    expect(resolveActorPath('bogus')).toBe('actors/bat_1.xml')
+    // unknown id -> monsterTypeById's fallback, the first roster entry
+    const fallback = MONSTER_TYPES[0].tiers[1]
+    expect(resolveActorPath('bogus')).toBe(fallback)
+    expect(resolveActorPath('')).toBe(fallback)
     // out-of-range / malformed variant -> that type's default tier
-    expect(resolveActorPath('bat1#99')).toBe('actors/bat_1.xml')
-    expect(resolveActorPath('bat1#x')).toBe('actors/bat_1.xml')
-    expect(resolveActorPath('')).toBe('actors/bat_1.xml')
+    expect(resolveActorPath('bat#99')).toBe('actors/beasts/bats/bat_black.unit')
+    expect(resolveActorPath('bat#x')).toBe('actors/beasts/bats/bat_black.unit')
   })
 })
 
@@ -143,26 +144,12 @@ describe('variant grouping for the picker', () => {
     }
   })
 
-  it('gives the Spawners group the 14 spawner props the dungeon already places', () => {
-    expect(monsterVariantsInGroup('Spawners').map((v) => v.actorPath)).toEqual([
-      'actors/spawners/archer_1.xml',
-      'actors/spawners/archer_2.xml',
-      'actors/spawners/bats.xml',
-      'actors/spawners/bats.xml',
-      'actors/spawners/bonus/skeleton_1.xml',
-      'actors/spawners/eye_1.xml',
-      'actors/spawners/maggot_1.xml',
-      'actors/spawners/doomspawn_1.xml',
-      'actors/spawners/mummy_1.xml',
-      'actors/spawners/mummy_ranged_1.xml',
-      'actors/spawners/skeleton_1.xml',
-      'actors/spawners/skeleton_2.xml',
-      // The one spawner outside actors/spawners/ — a static hive, sorted here
-      // by its variant key (slime#0), not by its path.
-      'actors/slime_1_host.xml',
-      'actors/spawners/tick_1.xml',
-      'actors/spawners/wisp_1.xml'
-    ])
+  it('puts only stock AE spawners and slime blobs in the Spawners group', () => {
+    const paths = monsterVariantsInGroup('Spawners').map((v) => v.actorPath)
+    expect(paths.length).toBeGreaterThanOrEqual(20)
+    for (const p of paths) expect(p).toMatch(/^actors\/(spawners\/(hammerwatch|shaftlocke|suntemple)\/|aberrations\/slimes\/(blood\/)?slime_blob)/)
+    // all three campaigns contribute spawners
+    for (const c of ['hammerwatch', 'shaftlocke', 'suntemple']) expect(paths.some((p) => p.includes(`/spawners/${c}/`)), c).toBe(true)
   })
 
   it('splits the slime host off from the slime it spawns', () => {
@@ -172,7 +159,7 @@ describe('variant grouping for the picker', () => {
     expect(variantGroup(host)).toBe('Spawners')
     // The bare id is still the walker, so no saved pool changes meaning.
     expect(spawn.key).toBe('slime')
-    expect(spawn.actorPath).toBe('actors/slime_1_spawn.xml')
-    expect(variantGroup(spawn)).toBe('Classic')
+    expect(spawn.actorPath).toBe('actors/aberrations/slimes/slime_small.unit')
+    expect(variantGroup(spawn)).toBe('Aberrations')
   })
 })
