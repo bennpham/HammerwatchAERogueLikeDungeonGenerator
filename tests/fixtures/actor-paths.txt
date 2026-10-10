@@ -1,0 +1,120 @@
+# Known-good actor XML paths — every path that exists under
+# <Hammerwatch>/editor/assetsExtract/ in the stock install.
+#
+# This is the allow-list `tests/monsters.test.ts` checks every entry of
+# MONSTER_TYPES[].tiers against. It exists because nothing else in the suite
+# could tell a real actor from a typo: the roster shipped
+# `actors/tower_battlement_archer_2.xml` for months, a file the game never had,
+# and enabling that type wrote an unresolvable path into a level.
+#
+# The generator must stay pure (no fs), so this cannot be checked against a live
+# install at test time — it is a hand-maintained snapshot.
+#
+# Snapshot taken 2026-07-30 against the actor folder, covering the paths the
+# roster references. To extend it when wiring a new actor, from a real install:
+#
+#   cd "<HW>/editor/assetsExtract"
+#   find actors -name '*.xml' | tr '\\' '/' | sort
+#
+# and paste in the line for the actor you are adding. Adding a path here without
+# seeing it in that output defeats the entire point of the file.
+#
+# Blank lines and #-comments are ignored. One path per line, sorted.
+actors/archer_1.xml
+actors/archer_1_elite.xml
+actors/archer_2.xml
+actors/archer_3.xml
+actors/bat_1.xml
+actors/bat_2.xml
+actors/bat_3.xml
+actors/bonus/archer_1.xml
+actors/bonus/skeleton_1.xml
+# added 2026-09-23: the 7 boss-folder bodyguards + 5 arena-twin actors
+# (issue #64 part 2 audit, see the modding skill's DISCOVERY-LOG).
+actors/boss_anubis/mummy_ranged_2_noloot.xml
+actors/boss_knight/archer_1.xml
+actors/boss_knight/knight_guard.xml
+actors/boss_knight/knight_guard_lich_1.xml
+actors/boss_knight/knight_guard_lich_2.xml
+actors/boss_knight/knight_guard_lich_3.xml
+actors/boss_knight/skeleton_1.xml
+actors/boss_knight/skeleton_1_small.xml
+actors/boss_krilith/skeleton_1_mb.xml
+actors/boss_lich/boss_lich_mirror.xml
+actors/boss_lich/lich_guard_lich.xml
+actors/boss_lich/lich_guard_skeleton.xml
+actors/eye_1.xml
+actors/eye_1_mb.xml
+actors/eye_1_small.xml
+actors/floater_fire.xml
+actors/guard_desert_1.xml
+actors/lich_1.xml
+actors/lich_1_elite.xml
+actors/lich_1_mb.xml
+actors/lich_2.xml
+actors/lich_3.xml
+actors/lich_desert_1.xml
+actors/lich_desert_2.xml
+actors/lich_desert_3.xml
+actors/maggot_1.xml
+actors/maggot_1_elite.xml
+actors/maggot_1_mb.xml
+actors/maggot_1_small.xml
+actors/mummy_1.xml
+actors/mummy_1_elite.xml
+actors/mummy_1_mb.xml
+actors/mummy_1_small.xml
+actors/mummy_ranged_1.xml
+actors/mummy_ranged_2.xml
+actors/npc_guard_desert_1.xml
+actors/pillar_fire.xml
+actors/skeleton_1.xml
+actors/skeleton_1_elite.xml
+actors/skeleton_1_mb.xml
+actors/skeleton_1_small.xml
+actors/skeleton_2.xml
+actors/skeleton_2_elite.xml
+actors/skeleton_2_small.xml
+actors/skeleton_3.xml
+actors/slime_1_host.xml
+actors/slime_1_spawn.xml
+actors/spawners/archer_1.xml
+actors/spawners/archer_2.xml
+actors/spawners/bats.xml
+actors/spawners/bonus/skeleton_1.xml
+actors/spawners/doomspawn_1.xml
+actors/spawners/eye_1.xml
+actors/spawners/maggot_1.xml
+actors/spawners/mummy_1.xml
+actors/spawners/mummy_ranged_1.xml
+actors/spawners/skeleton_1.xml
+actors/spawners/skeleton_2.xml
+actors/spawners/tick_1.xml
+actors/spawners/wisp_1.xml
+actors/special_beheaded_kamikaze.xml
+actors/spider_1.xml
+actors/tick_1.xml
+actors/tick_1_elite.xml
+actors/tick_1_mb.xml
+actors/tick_1_small.xml
+actors/tick_2.xml
+actors/tick_2_small.xml
+actors/tower_banner_1.xml
+actors/tower_banner_2.xml
+actors/tower_banner_3.xml
+actors/tower_battlement_archer_1.xml
+actors/tower_battlement_archer_3.xml
+actors/tower_battlement_empty.xml
+actors/tower_flower_1.xml
+actors/tower_flower_1_small.xml
+actors/tower_flower_2.xml
+actors/tower_flower_3.xml
+actors/tower_nova_1.xml
+actors/tower_nova_2.xml
+actors/tower_static_frost.xml
+actors/tower_tracking_1.xml
+actors/tower_tracking_2.xml
+actors/tower_tracking_3.xml
+actors/wisp_1.xml
+actors/wisp_1_small.xml
+actors/wisp_2.xml
