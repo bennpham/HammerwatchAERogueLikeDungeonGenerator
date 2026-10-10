@@ -30,6 +30,10 @@ import { buildWavePickupRig } from '../src/generator/boss/wavePickups'
 import { TIER_EVENT_NAMES } from '../src/generator/boss/waves'
 import { NodeRectangleShape } from '../src/generator/objects/nodes'
 import type { ScriptNode } from '../src/generator/objects/scriptNode'
+import { NodeGlobalEventTrigger } from '../src/generator/objects/nodes'
+import { pickupById } from '../src/generator/objects/pickupTypes'
+import { AE_UNIT_SET } from '../src/generator/catalog/assets'
+import { levelsOf } from './ae'
 import { generateDungeon } from '../src/generator'
 import type { DungeonResult } from '../src/generator'
 
@@ -74,23 +78,31 @@ function openFloor(): Uint8Array {
 
 const tileOf = (s: { x: number; y: number }) => `${s.x},${s.y}`
 
-function nodesOfType(ctx: GenerationContext, type: string): ScriptNode[] {
-  return ctx.scriptNodes.filter((n) => n.type === type)
+function nodesOfType(ctx: GenerationContext, cls: string): ScriptNode[] {
+  return ctx.scriptNodes.filter((n) => n.cls === cls)
 }
 
-/** Every id in every `connections` array actually exists among ctx.scriptNodes. */
+/** The tier triggers (health / death triggers in AE). */
+function tierTriggers(ctx: GenerationContext): ScriptNode[] {
+  return ctx.scriptNodes.filter((n) => n instanceof NodeGlobalEventTrigger)
+}
+
+/** Every connection actually points at one of ctx.scriptNodes. */
 function connectionsResolve(ctx: GenerationContext): boolean {
-  const ids = new Set(ctx.scriptNodes.map((n) => n.id))
-  return ctx.scriptNodes.every((n) => n.connections.every((c) => ids.has(c.id)))
+  const nodes = new Set(ctx.scriptNodes)
+  return ctx.scriptNodes.every((n) => n.connections.every((c) => nodes.has(c.node)))
 }
 
-/** The engine event a GlobalEventTrigger fires on. */
+/** The tier event a trigger stands for ("Boss 50%"...). */
 function eventOf(node: ScriptNode): string {
-  return (node as unknown as { eventName: string }).eventName
+  return (node as NodeGlobalEventTrigger).eventName
 }
+
+/** An item's AE unit path, from the pickup registry. */
+const itemPath = (id: string) => pickupById(id)!.path
 
 function spawns(ctx: GenerationContext) {
-  return nodesOfType(ctx, 'SpawnObject') as unknown as {
+  return nodesOfType(ctx, 'SpawnUnit') as unknown as {
     id: number
     x: number
     y: number
@@ -102,7 +114,8 @@ function spawns(ctx: GenerationContext) {
 /** The SpawnObjects hanging directly off `trigger`. */
 function spawnsFrom(trigger: ScriptNode) {
   return trigger.connections
-    .filter((n) => n.type === 'SpawnObject')
+    .map((c) => c.node)
+    .filter((n) => n.cls === 'SpawnUnit')
     .map((n) => n as unknown as { x: number; y: number; actorPath: string; triggerTimes: number })
 }
 
@@ -113,23 +126,23 @@ describe('boss wave pickups — none means none', () => {
     const beforeId = ctx.idCounter
 
     // only the entrance shape buildRig itself made
-    expect(nodesOfType(ctx, 'SpawnObject')).toHaveLength(0)
+    expect(nodesOfType(ctx, 'SpawnUnit')).toHaveLength(0)
     expect(nodesOfType(ctx, 'AreaTrigger')).toHaveLength(0)
-    expect(nodesOfType(ctx, 'GlobalEventTrigger')).toHaveLength(0)
+    expect(tierTriggers(ctx)).toHaveLength(0)
     expect(ctx.idCounter).toBe(beforeId)
   })
 
   it('emits nothing when every tier names an unknown item', () => {
     const ctx = freshCtx()
     buildRig(ctx, [wave(['no_such_item', 3]), wave(['also_not_real', 1])])
-    expect(nodesOfType(ctx, 'SpawnObject')).toHaveLength(0)
-    expect(nodesOfType(ctx, 'GlobalEventTrigger')).toHaveLength(0)
+    expect(nodesOfType(ctx, 'SpawnUnit')).toHaveLength(0)
+    expect(tierTriggers(ctx)).toHaveLength(0)
   })
 
   it('emits nothing for a row asking for no copies', () => {
     const ctx = freshCtx()
     buildRig(ctx, [wave(['health_4', 0])])
-    expect(nodesOfType(ctx, 'SpawnObject')).toHaveLength(0)
+    expect(nodesOfType(ctx, 'SpawnUnit')).toHaveLength(0)
     expect(nodesOfType(ctx, 'AreaTrigger')).toHaveLength(0)
   })
 
@@ -166,7 +179,7 @@ describe('boss wave pickups — a count is copies', () => {
       // incoming trigger and a tier trigger fires once, so folding the count in
       // would drop one item and bank three.
       expect(s.triggerTimes).toBe(1)
-      expect(s.actorPath).toBe('items/health_4.xml')
+      expect(s.actorPath).toBe(itemPath('health_4'))
     }
   })
 
@@ -177,9 +190,9 @@ describe('boss wave pickups — a count is copies', () => {
     const all = spawns(ctx)
     expect(all).toHaveLength(3)
     expect(all.map((s) => s.actorPath)).toEqual([
-      'items/health_4.xml',
-      'items/mana_2.xml',
-      'items/mana_2.xml'
+      itemPath('health_4'),
+      itemPath('mana_2'),
+      itemPath('mana_2')
     ])
     // The health copy takes the health lane's first slot; the two mana copies
     // take the mana lane's first two. Separate cursors, so the health row does
@@ -206,10 +219,10 @@ describe('boss wave pickups — a count is copies', () => {
     buildRig(ctx, [wave(['health_4', 1], ['mana_2', 1], ['potion_2', 1], ['upgrade_damage', 1])])
 
     const byPath = new Map(spawns(ctx).map((s) => [s.actorPath, tileOf(s)]))
-    expect(byPath.get('items/health_4.xml')).toBe(tileOf(PAD.health[0]))
-    expect(byPath.get('items/mana_2.xml')).toBe(tileOf(PAD.mana[0]))
-    expect(byPath.get('items/powerup_potion2.xml')).toBe(tileOf(PAD.potion[0]))
-    expect(byPath.get('items/upgrade_damage.xml')).toBe(tileOf(PAD.upgrade[0]))
+    expect(byPath.get(itemPath('health_4'))).toBe(tileOf(PAD.health[0]))
+    expect(byPath.get(itemPath('mana_2'))).toBe(tileOf(PAD.mana[0]))
+    expect(byPath.get(itemPath('potion_2'))).toBe(tileOf(PAD.potion[0]))
+    expect(byPath.get(itemPath('upgrade_damage'))).toBe(tileOf(PAD.upgrade[0]))
   })
 
   it('lays the eight upgrades out as the two-wide block of the reference layout', () => {
@@ -232,8 +245,8 @@ describe('boss wave pickups — a count is copies', () => {
 
     const all = spawns(ctx)
     expect(all.map((s) => s.actorPath)).toEqual([
-      'items/powerup_1up.xml',
-      'items/powerup_7up.xml'
+      itemPath('powerup_1up'),
+      itemPath('powerup_7up')
     ])
     expect(all.map(tileOf)).toEqual([tileOf(PAD.potion[0]), tileOf(PAD.potion[1])])
   })
@@ -332,8 +345,7 @@ describe('boss wave pickups — a count is copies', () => {
       const ctx = freshCtx()
       buildRig(ctx, [wave([def.id, 1])])
       expect(spawns(ctx)[0].actorPath, def.id).toBe(def.path)
-      expect(def.path.startsWith('items/'), def.id).toBe(true)
-      expect(def.path.endsWith('.xml'), def.id).toBe(true)
+      expect(AE_UNIT_SET.has(def.path), `${def.id} -> ${def.path}`).toBe(true)
     }
   })
 })
@@ -345,18 +357,18 @@ describe('boss wave pickups — wiring', () => {
 
     const triggers = nodesOfType(ctx, 'AreaTrigger')
     expect(triggers).toHaveLength(1)
-    expect((triggers[0] as unknown as { shapeId: number }).shapeId).toBe(shape.id)
+    expect((triggers[0] as unknown as { areas: Array<{ id: number }> }).areas.map((a) => a.id)).toEqual([shape.id])
     // bounded: the entrance trigger re-fires every time a player walks back over
     // it, so without trigger-times the 100% drop would be an item fountain
     expect(spawnsFrom(triggers[0]).map((s) => s.triggerTimes)).toEqual([1, 1])
-    expect(nodesOfType(ctx, 'GlobalEventTrigger')).toHaveLength(0)
+    expect(tierTriggers(ctx)).toHaveLength(0)
   })
 
   it('hangs each later tier off a GlobalEventTrigger naming its own threshold', () => {
     const ctx = freshCtx()
     buildRig(ctx, [wave(), wave(['health_4', 1]), wave(['mana_2', 1]), wave(['potion_2', 1]), wave(['health_1', 1])])
 
-    const triggers = nodesOfType(ctx, 'GlobalEventTrigger')
+    const triggers = tierTriggers(ctx)
     expect(triggers.map(eventOf)).toEqual([...TIER_EVENT_NAMES])
     // no AreaTrigger at all — the 100% tier carries nothing
     expect(nodesOfType(ctx, 'AreaTrigger')).toHaveLength(0)
@@ -372,7 +384,7 @@ describe('boss wave pickups — wiring', () => {
     const ctx = freshCtx()
     buildRig(ctx, [wave(), wave(), wave(['health_4', 1])])
 
-    const triggers = nodesOfType(ctx, 'GlobalEventTrigger')
+    const triggers = tierTriggers(ctx)
     expect(triggers).toHaveLength(1)
     expect(eventOf(triggers[0])).toBe('Boss 50%')
   })
@@ -392,8 +404,8 @@ describe('boss wave pickups — wiring', () => {
 
     expect(connectionsResolve(ctx)).toBe(true)
     for (const node of ctx.scriptNodes) {
-      if (node.type === 'AreaTrigger' || node.type === 'GlobalEventTrigger') {
-        expect(node.connections.length, `${node.type} ${node.id}`).toBeGreaterThan(0)
+      if (node.cls === 'AreaTrigger' || node instanceof NodeGlobalEventTrigger) {
+        expect(node.connections.length, `${node.cls} ${node.id}`).toBeGreaterThan(0)
       }
     }
   })
@@ -410,11 +422,11 @@ describe('boss wave pickups — determinism and invariant 6', () => {
     expect([after.rand.nextInt(1e9), after.cosmeticRand.nextInt(1e9), after.bossRand.nextInt(1e9)]).toEqual(before)
   })
 
-  it('is byte-identical for the same seed and the same drop table', () => {
+  it('is identical for the same seed and the same drop table', () => {
     const params = defaultParameters()
     const a = buildBossArena(freshCtx(777), params.boss.fights[0].arena, 0)
     const b = buildBossArena(freshCtx(777), params.boss.fights[0].arena, 0)
-    expect(a.xml).toBe(b.xml)
+    expect(a.level).toEqual(b.level)
   })
 
   it('moves no dungeon floor when the drop table changes', () => {
@@ -431,18 +443,15 @@ describe('boss wave pickups — determinism and invariant 6', () => {
       const off = generateDungeon(without, seed) as DungeonResult
       expect('files' in on, `seed ${seed}`).toBe(true)
 
+      const onLevels = levelsOf(on)
+      const offLevels = levelsOf(off)
       for (let i = 0; i < withDrops.levels; i++) {
-        const path = `levels/level${i}.xml`
-        expect(on.files.find((f) => f.path === path)!.content, `seed ${seed} floor ${i}`).toBe(
-          off.files.find((f) => f.path === path)!.content
-        )
+        expect(onLevels.get(`floor${i}`), `seed ${seed} floor ${i}`).toEqual(offLevels.get(`floor${i}`))
       }
 
       // only the arena moves, and it must actually move — otherwise this test
       // would pass on a rig that emits nothing
-      expect(on.files.find((f) => f.path === 'levels/boss0.xml')!.content, `seed ${seed} arena`).not.toBe(
-        off.files.find((f) => f.path === 'levels/boss0.xml')!.content
-      )
+      expect(onLevels.get('boss0'), `seed ${seed} arena`).not.toEqual(offLevels.get('boss0'))
     }
   })
 })
