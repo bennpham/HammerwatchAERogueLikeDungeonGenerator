@@ -12,14 +12,15 @@ import { GenerationContext } from '../src/generator/core/context'
 import { plainParameters } from './params'
 import type { BossArenaOptions, DungeonBoss } from '../src/generator/config/parameters'
 import { buildBossArena } from '../src/generator/boss/arena'
-import { BOSS_DEF_LIST, expandLineup } from '../src/generator/boss/bosses'
+import { BOSS_DEFS, BOSS_DEF_LIST, expandLineup } from '../src/generator/boss/bosses'
 import type { BossDef } from '../src/generator/boss/bosses'
 import { ARENA_LAYOUT_SLOTS, arenaBossLayout } from '../src/generator/boss/geometry'
 import { anchors } from '../src/generator/boss/anchors'
 import { generateDungeon } from '../src/generator'
 import type { DungeonParameters, DungeonResult } from '../src/generator'
-import { badIntArray, nodesOfType } from './xmlHelpers'
 import { OPENED_TEXT_MULTI } from '../src/generator/dungeonBoss/opener'
+import type { AeLevel, AeScript } from '../src/generator/ae/model'
+import { idsParam, intParam, levelsOf, scriptById, scriptsOf, textsOf } from './ae'
 
 function freshCtx(seed: number): GenerationContext {
   return new GenerationContext(plainParameters(), seed)
@@ -45,70 +46,60 @@ function multiArena(count: number, overrides: Partial<BossArenaOptions> = {}): B
   })
 }
 
-function intArr(body: string, name: string): number[] {
-  const m = new RegExp(`<int-arr name="${name}">([^<]*)</int-arr>`).exec(body)
-  return m === null ? [] : m[1].split(' ').map(Number)
-}
-
-/** The ids a `<dictionary name="{dict}">`'s `static` array holds inside `body`. */
-function staticIn(body: string, dict: string): number[] {
-  const m = new RegExp(`<dictionary name="${dict}">\\s*(?:<int-arr name="static">([^<]*)</int-arr>)?`).exec(body)
-  return m?.[1] === undefined ? [] : m[1].split(' ').map(Number)
+/** How many of the level's units are `id`'s own boss actor (not a bodyguard from the same folder). */
+function bossActors(level: AeLevel, id: string): number {
+  return level.units.filter((u) => u.path === BOSS_DEFS[id as keyof typeof BOSS_DEFS].actorPath).length
 }
 
 /**
  * Asserts the "all bosses died" rig matches the user's playtested
- * `level0_fixed.xml` (2026-09-23 DISCOVERY-LOG): one Variable holding the boss
- * count; per boss, an `ObjectEventTrigger(Destroyed, trigger-times 1)` whose
- * connections are its own ChangeVariable (subtract 1) THEN its own
- * CheckVariable (== 0); every CheckVariable with the same `on-true` list.
- * Returns the death triggers and that shared `on-true` list.
+ * `level0_fixed.xml` (2026-09-23 DISCOVERY-LOG), in AE terms: one Variable
+ * holding the boss count; per boss, a one-shot `UnitDestroyedTrigger` whose
+ * connections are its own ChangeVariables (subtract 1) THEN its own
+ * CheckVariables (== 0); every CheckVariables with the same `OnTrue` list.
+ * Returns the death triggers and that shared `OnTrue` list.
  */
-function allBossesDiedRig(xml: string): { deathTriggers: { id: number; body: string }[]; onTrue: number[] } {
-  // The orb/portal prefab's own trigger uses ObjectEventTrigger too, so filter
-  // to the ones firing "Destroyed" with trigger-times 1 — this rig's signature.
-  const deathTriggers = nodesOfType(xml, 'ObjectEventTrigger').filter(
-    (t) => /<int name="trigger-times">1<\/int>/.test(t.body) && t.body.includes('Destroyed')
-  )
-  const variables = nodesOfType(xml, 'Variable')
-  const changes = nodesOfType(xml, 'ChangeVariable')
-  const checks = nodesOfType(xml, 'CheckVariable')
-  const n = deathTriggers.length
-
-  expect(variables).toHaveLength(1)
-  expect(variables[0].body).toContain(`<int name="parameters">${n}</int>`)
-  expect(changes).toHaveLength(n)
-  expect(checks).toHaveLength(n)
-
-  const varId = variables[0].id
-  for (const c of changes) {
-    expect(staticIn(c.body, 'vars')).toEqual([varId])
-    expect(c.body).toContain('<int name="mod">2</int>')
-    expect(c.body).toContain('<int name="value">1</int>')
-  }
-  const onTrue = staticIn(checks[0].body, 'on-true')
-  expect(onTrue.length).toBeGreaterThan(0)
-  for (const c of checks) {
-    expect(staticIn(c.body, 'vars')).toEqual([varId])
-    expect(c.body).toContain('<int name="cmp-func">0</int>')
-    expect(c.body).toContain('<int name="cmp-val">0</int>')
-    expect(staticIn(c.body, 'on-true')).toEqual(onTrue)
-    // A CheckVariable fires through on-true only.
-    expect(c.body).not.toContain('name="connections"')
-  }
-
+function allBossesDiedRig(level: AeLevel): { deathTriggers: AeScript[]; onTrue: number[] } {
+  const changes = scriptsOf(level, 'ChangeVariables')
+  const checks = scriptsOf(level, 'CheckVariables')
   const changeIds = new Set(changes.map((c) => c.id))
-  const checkIds = new Set(checks.map((c) => c.id))
-  const used = new Set<number>()
-  for (const t of deathTriggers) {
-    const [change, check] = intArr(t.body, 'connections')
-    expect(changeIds.has(change)).toBe(true)
-    expect(checkIds.has(check)).toBe(true)
-    used.add(change).add(check)
-  }
-  // Each boss has its own pair — none shared.
-  expect(used.size).toBe(2 * n)
+  // the rig's signature: a one-shot death trigger whose first link is a ChangeVariables
+  const deathTriggers = scriptsOf(level, 'UnitDestroyedTrigger').filter(
+    (t) => t.triggerTimes === 1 && changeIds.has(t.connections[0]?.[0])
+  )
+  const n = deathTriggers.length
+  const mine = (ids: number[]) => ids.map((id) => scriptById(level, id)!)
 
+  const ownChanges = mine(deathTriggers.map((t) => t.connections[0][0]))
+  const ownChecks = mine(deathTriggers.map((t) => t.connections[1][0]))
+  const varIds = new Set(ownChanges.flatMap((c) => idsParam(c, 'Variables')))
+  expect(varIds.size).toBe(1)
+  const [varId] = varIds
+  const variable = scriptById(level, varId)!
+  expect(variable.cls).toBe('Variable')
+  expect(intParam(variable, 'Value')).toBe(n)
+
+  for (const c of ownChanges) {
+    expect(c.cls).toBe('ChangeVariables')
+    expect(intParam(c, 'Function')).toBe(3) // AE ChangeFunc.Subtract
+    expect(intParam(c, 'Value')).toBe(1)
+  }
+  const onTrue = idsParam(ownChecks[0], 'OnTrue')
+  expect(onTrue.length).toBeGreaterThan(0)
+  for (const c of ownChecks) {
+    expect(c.cls).toBe('CheckVariables')
+    expect(idsParam(c, 'Variable')).toEqual([varId])
+    // AE CompareFunc.Equal is the default, so it is left out
+    expect(intParam(c, 'Function') ?? 1).toBe(1)
+    expect(intParam(c, 'Value')).toBe(0)
+    expect(idsParam(c, 'OnTrue')).toEqual(onTrue)
+    // A CheckVariables fires through OnTrue only.
+    expect(c.connections).toEqual([])
+  }
+  expect(checks.length).toBeGreaterThanOrEqual(n)
+
+  // Each boss has its own pair — none shared.
+  expect(new Set([...ownChanges, ...ownChecks].map((c) => c.id)).size).toBe(2 * n)
   return { deathTriggers, onTrue }
 }
 
@@ -122,51 +113,39 @@ describe('multi-boss arena (issue #64 part 1)', () => {
   it('places exactly bossCount boss actors', () => {
     const arena = multiArena(3)
     const ctx = freshCtx(1)
-    const { xml } = buildBossArena(ctx, arena, 0)
-    // Every boss's own actor is `actors/<id>/<id>.xml` exactly — matching the
-    // whole `actors/<id>/` folder would also catch a bodyguard sharing that
-    // boss's folder (issue #64 part 2's stock death-tier bodyguards, e.g.
-    // knight_guard under actors/boss_knight/), so match the boss's own
-    // file, not the folder.
-    const actorHits = MULTI_POOL.reduce((n, id) => n + (xml.match(new RegExp(`actors/${id}/${id}\\.xml`, 'g'))?.length ?? 0), 0)
-    expect(actorHits).toBe(3)
+    const { level } = buildBossArena(ctx, arena, 0)
+    // Count each boss's own actor unit — a bodyguard shares its boss's folder
+    // (issue #64 part 2), so match the exact unit, not the folder.
+    expect(MULTI_POOL.reduce((n, id) => n + bossActors(level, id), 0)).toBe(3)
   })
 
-  it('emits no Boss 75/50/25% GlobalEventTrigger and no ToggleImmortality/Checkpoint node', () => {
+  it('emits no health tier trigger, no ToggleImmortality and no save point', () => {
     const arena = multiArena(3)
-    const ctx = freshCtx(2)
-    const { xml } = buildBossArena(ctx, arena, 0)
-
-    const globalTriggers = nodesOfType(xml, 'GlobalEventTrigger')
-    for (const t of globalTriggers) {
-      expect(t.body).not.toMatch(/Boss 75%|Boss 50%|Boss 25%/)
-      // 'Boss Died' is legitimately absent too — multi-boss re-keys the death
-      // tier to the shared Counter instead of a GlobalEventTrigger.
-      expect(t.body).not.toContain('Boss Died')
-    }
-    expect(nodesOfType(xml, 'ToggleImmortality')).toHaveLength(0)
-    expect(nodesOfType(xml, 'Checkpoint')).toHaveLength(0)
+    const { level } = buildBossArena(freshCtx(2), arena, 0)
+    // the 75/50/25% tiers are ActorHealthTriggers in AE; a multi-boss fight
+    // has no single boss to watch, so it carries none
+    expect(scriptsOf(level, 'ActorHealthTrigger')).toHaveLength(0)
+    expect(scriptsOf(level, 'ToggleImmortality')).toHaveLength(0)
+    expect(scriptsOf(level, 'SuperCheckPoint')).toHaveLength(0)
   })
 
-  it('wires the playtested Variable / ChangeVariable / CheckVariable rig, one per boss, with no empty int arrays', () => {
+  it('wires the playtested Variable / ChangeVariables / CheckVariables rig, one per boss', () => {
     const arena = multiArena(4)
     const ctx = freshCtx(3)
-    const { xml } = buildBossArena(ctx, arena, 0)
+    const { level } = buildBossArena(ctx, arena, 0)
 
-    const rig = allBossesDiedRig(xml)
+    const rig = allBossesDiedRig(level)
     expect(rig.deathTriggers).toHaveLength(4)
-    expect(nodesOfType(xml, 'Counter')).toHaveLength(0)
-    expect(badIntArray(xml)).toBeNull()
+    expect(scriptsOf(level, 'Counter')).toHaveLength(0)
   })
 
-  it('every CheckVariable fires the seal-destroying DestroyObject from on-true', () => {
+  it('every CheckVariables fires the seal-destroying DestroyUnits from OnTrue', () => {
     const arena = multiArena(2)
     const ctx = freshCtx(4)
-    const { xml } = buildBossArena(ctx, arena, 0)
+    const { level } = buildBossArena(ctx, arena, 0)
 
-    const { onTrue } = allBossesDiedRig(xml)
-    const destroyObjects = nodesOfType(xml, 'DestroyObject')
-    expect(destroyObjects.some((d) => onTrue.includes(d.id))).toBe(true)
+    const { onTrue } = allBossesDiedRig(level)
+    expect(scriptsOf(level, 'DestroyUnits').some((d) => onTrue.includes(d.id))).toBe(true)
   })
 
   it('layout has no boss/boss, boss/anchor or boss/entrance overlap for every pool combination', () => {
@@ -214,26 +193,25 @@ describe('multi-boss arena (issue #64 part 1)', () => {
     }
   })
 
-  it('is deterministic: same seed and params produce identical XML', () => {
+  it('is deterministic: same seed and params produce an identical level', () => {
     const arena = multiArena(3)
-    const xmlA = buildBossArena(freshCtx(99), arena, 0).xml
-    const xmlB = buildBossArena(freshCtx(99), arena, 0).xml
-    expect(xmlA).toBe(xmlB)
+    expect(buildBossArena(freshCtx(99), arena, 0).level).toEqual(buildBossArena(freshCtx(99), arena, 0).level)
   })
 
   it('count = 1 through the multi-boss code path matches the historical single-boss shape', () => {
     // bossCount = 1 must take the SAME branch as an arena that never set
     // bossCount at all — asserted structurally: exactly one boss actor, and
-    // the ordinary single-boss GlobalEventTrigger("Boss Died") is present
+    // the ordinary single-boss death trigger on the boss itself is present
     // (not the all-bosses-died Variable rig).
     const arena = multiArena(1)
     const ctx = freshCtx(5)
-    const { xml } = buildBossArena(ctx, arena, 0)
-    for (const type of ['Variable', 'ChangeVariable', 'CheckVariable']) {
-      expect(nodesOfType(xml, type)).toHaveLength(0)
+    const { level } = buildBossArena(ctx, arena, 0)
+    for (const cls of ['Variable', 'ChangeVariables', 'CheckVariables']) {
+      expect(scriptsOf(level, cls)).toHaveLength(0)
     }
-    const globalTriggers = nodesOfType(xml, 'GlobalEventTrigger')
-    expect(globalTriggers.some((t) => t.body.includes('Boss Died'))).toBe(true)
+    const bossIds = new Set(level.units.filter((u) => MULTI_POOL.some((id) => u.path === BOSS_DEFS[id as keyof typeof BOSS_DEFS].actorPath)).map((u) => u.id))
+    expect(bossIds.size).toBe(1)
+    expect(scriptsOf(level, 'UnitDestroyedTrigger').some((t) => idsParam(t, 'Units').some((id) => bossIds.has(id)))).toBe(true)
   })
 })
 
@@ -262,13 +240,8 @@ describe('multi-boss dungeon floor (issue #64 part 1)', () => {
   it('places N boss actors, all reachable, and the floor still generates', () => {
     const params = multiFloorParams(3)
     const result = generateOk(params, 12345)
-    const level0 = result.files.find((f) => f.path === 'levels/level0.xml')
-    expect(level0).toBeDefined()
-    const actorHits = ['boss_knight', 'boss_lich', 'boss_anubis'].reduce(
-      (n, id) => n + (level0!.content.match(new RegExp(`actors/${id}/`, 'g'))?.length ?? 0),
-      0
-    )
-    expect(actorHits).toBe(3)
+    const level0 = levelsOf(result).get('floor0')!
+    expect(['boss_knight', 'boss_lich', 'boss_anubis'].reduce((n, id) => n + bossActors(level0, id), 0)).toBe(3)
   })
 
   it('is deterministic across two runs with the same seed', () => {
@@ -278,24 +251,25 @@ describe('multi-boss dungeon floor (issue #64 part 1)', () => {
     expect(a.files).toEqual(b.files)
   })
 
-  it('wires the seal opener off the all-bosses-died check, not a Boss Died trigger, and no invuln/checkpoint nodes', () => {
+  it('wires the seal opener off the all-bosses-died check, not a single death trigger, and no invuln/checkpoint scripts', () => {
     const params = multiFloorParams(2)
     const result = generateOk(params, 777)
-    const level0 = result.files.find((f) => f.path === 'levels/level0.xml')!.content
+    const level0 = levelsOf(result).get('floor0')!
     // The shape the user's playtested `level0_fixed.xml` uses: every boss's
-    // CheckVariable destroys the seal and announces the opening.
+    // CheckVariables destroys the seal and announces the opening.
     const { deathTriggers, onTrue } = allBossesDiedRig(level0)
     expect(deathTriggers).toHaveLength(2)
-    const destroy = nodesOfType(level0, 'DestroyObject')
-    expect(destroy.some((d) => onTrue.includes(d.id))).toBe(true)
-    const announce = nodesOfType(level0, 'AnnounceText').find((a) => a.body.includes(OPENED_TEXT_MULTI))
-    expect(announce).toBeDefined()
+    expect(scriptsOf(level0, 'DestroyUnits').some((d) => onTrue.includes(d.id))).toBe(true)
+    expect(textsOf(level0)).toContain(OPENED_TEXT_MULTI)
+    const announce = scriptsOf(level0, 'AnnounceText').find((a) => a.params.some((pr) => pr.value === OPENED_TEXT_MULTI))
     expect(onTrue).toContain(announce!.id)
-    expect(badIntArray(level0)).toBeNull()
-    expect(nodesOfType(level0, 'ToggleImmortality')).toHaveLength(0)
-    expect(nodesOfType(level0, 'Checkpoint')).toHaveLength(0)
-    const globalTriggers = nodesOfType(level0, 'GlobalEventTrigger')
-    expect(globalTriggers.some((t) => t.body.includes('Boss Died'))).toBe(false)
+    expect(scriptsOf(level0, 'ToggleImmortality')).toHaveLength(0)
+    expect(scriptsOf(level0, 'SuperCheckPoint')).toHaveLength(0)
+    // and no single-boss death trigger outside the rig
+    const rigIds = new Set(deathTriggers.map((t) => t.id))
+    const bossUnits = new Set(level0.units.filter((u) => u.path.startsWith('actors/bosses/')).map((u) => u.id))
+    const stray = scriptsOf(level0, 'UnitDestroyedTrigger').filter((t) => !rigIds.has(t.id) && idsParam(t, 'Units').some((id) => bossUnits.has(id)))
+    expect(stray).toHaveLength(0)
   })
 })
 
@@ -308,13 +282,9 @@ describe('boss selection mode: exact lineups (issue #64 follow-up)', () => {
       bossSelection: 'lineup',
       bossLineup: { boss_knight: 3, boss_lich: 1 }
     })
-    const { xml } = buildBossArena(freshCtx(10), arena, 0)
-    // Match the boss's own actor file, not the whole folder — a bodyguard
-    // (issue #64 part 2) shares the same `actors/boss_<x>/` folder as its boss.
-    const knightHits = xml.match(/actors\/boss_knight\/boss_knight\.xml/g)?.length ?? 0
-    const lichHits = xml.match(/actors\/boss_lich\/boss_lich\.xml/g)?.length ?? 0
-    expect(knightHits).toBe(3)
-    expect(lichHits).toBe(1)
+    const { level } = buildBossArena(freshCtx(10), arena, 0)
+    expect(bossActors(level, 'boss_knight')).toBe(3)
+    expect(bossActors(level, 'boss_lich')).toBe(1)
   })
 
   it('draws zero ctx.bossRand values for the pick — arena geometry is identical for two different lineups of the same size', () => {
@@ -333,11 +303,9 @@ describe('boss selection mode: exact lineups (issue #64 follow-up)', () => {
     expect(a.preview.walls).toBe(b.preview.walls)
   })
 
-  it('is deterministic: same seed and lineup produce identical XML', () => {
+  it('is deterministic: same seed and lineup produce an identical level', () => {
     const arena = multiArena(0, { bossSelection: 'lineup', bossLineup: { boss_knight: 2, boss_lich: 2 } })
-    const xmlA = buildBossArena(freshCtx(11), arena, 0).xml
-    const xmlB = buildBossArena(freshCtx(11), arena, 0).xml
-    expect(xmlA).toBe(xmlB)
+    expect(buildBossArena(freshCtx(11), arena, 0).level).toEqual(buildBossArena(freshCtx(11), arena, 0).level)
   })
 
   it('floor lineup places exactly the lineup', () => {
@@ -359,11 +327,9 @@ describe('boss selection mode: exact lineups (issue #64 follow-up)', () => {
     params.maxRoomCount = 16
 
     const result = generateOk(params, 24680)
-    const level0 = result.files.find((f) => f.path === 'levels/level0.xml')!.content
-    const knightHits = level0.match(/actors\/boss_knight\//g)?.length ?? 0
-    const lichHits = level0.match(/actors\/boss_lich\//g)?.length ?? 0
-    expect(knightHits).toBe(2)
-    expect(lichHits).toBe(1)
+    const level0 = levelsOf(result).get('floor0')!
+    expect(bossActors(level0, 'boss_knight')).toBe(2)
+    expect(bossActors(level0, 'boss_lich')).toBe(1)
   })
 })
 
@@ -389,18 +355,21 @@ describe('bosses beyond the fixed layout slots stack instead of being rejected (
     }
 
     // More placements than there are distinct slots means at least two share
-    // a tile — the deliberate stacking this follow-up added.
-    const distinctPositions = new Set(placements!.map((p) => `${p.x},${p.y}`))
+    // a slot — the deliberate stacking this follow-up added. A slot is a
+    // direction from the primary boss: each boss keeps its own footprint's
+    // gap from the primary, so two stacked bosses of different sizes sit at
+    // slightly different points of the same slot.
+    const [first] = placements!
+    const slotOf = (p: { x: number; y: number }) =>
+      p === first ? 'C' : `${Math.sign(Math.round(p.x - first.x))},${Math.sign(Math.round(p.y - first.y))}`
+    const distinctPositions = new Set(placements!.map(slotOf))
     expect(distinctPositions.size).toBeLessThan(placements!.length)
     expect(distinctPositions.size).toBeLessThanOrEqual(ARENA_LAYOUT_SLOTS)
   })
 
   it('a 20-boss random arena generates and places exactly 20 actors', () => {
     const arena = multiArena(20, { minWidth: 50, maxWidth: 50, minHeight: 50, maxHeight: 50 })
-    const { xml } = buildBossArena(freshCtx(13), arena, 0)
-    // Match the boss's own actor file, not the whole folder — see the same
-    // note on 'places exactly bossCount boss actors' above.
-    const actorHits = MULTI_POOL.reduce((n, id) => n + (xml.match(new RegExp(`actors/${id}/${id}\\.xml`, 'g'))?.length ?? 0), 0)
-    expect(actorHits).toBe(20)
+    const { level } = buildBossArena(freshCtx(13), arena, 0)
+    expect(MULTI_POOL.reduce((n, id) => n + bossActors(level, id), 0)).toBe(20)
   })
 })

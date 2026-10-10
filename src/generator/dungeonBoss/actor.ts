@@ -43,7 +43,7 @@ export function placeFloorBoss(
     ctx,
     spot.x,
     spot.y,
-    { id: def.id, configKey: '', tiers: [def.actorPath], upgradeChance: 0, defaultMax: 0, group: 'Bosses' },
+    { id: def.id, configKey: '', tiers: [def.actorPath], upgradeChance: 0, defaultMax: 0, group: 'Mini-bosses' },
     0
   )
 }
@@ -88,7 +88,7 @@ export function placeFloorBosses(
         ctx,
         spots[i].x,
         spots[i].y,
-        { id: def.id, configKey: '', tiers: [def.actorPath], upgradeChance: 0, defaultMax: 0, group: 'Bosses' },
+        { id: def.id, configKey: '', tiers: [def.actorPath], upgradeChance: 0, defaultMax: 0, group: 'Mini-bosses' },
         0
       )
     })
@@ -110,7 +110,7 @@ export function placeFloorBosses(
       ctx,
       spots[i].x,
       spots[i].y,
-      { id: def.id, configKey: '', tiers: [def.actorPath], upgradeChance: 0, defaultMax: 0, group: 'Bosses' },
+      { id: def.id, configKey: '', tiers: [def.actorPath], upgradeChance: 0, defaultMax: 0, group: 'Mini-bosses' },
       0
     )
   })

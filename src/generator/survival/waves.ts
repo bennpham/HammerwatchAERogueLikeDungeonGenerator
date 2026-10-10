@@ -8,10 +8,10 @@
  * of it, when the row starts, and how fast it trickles.
  *
  *   GlobalEventTrigger("LevelLoaded")
- *        ├─ delay atSeconds*1000 ─> ToggleElement{state: 0}
+ *        ├─ delay atSeconds*1000 ─> ToggleScripts{enable}
  *        │                               └─ arms TimerTrigger(intervalMs)
  *        │                                       └─ SpawnObject × 9 anchors
- *        └─ delay   seconds*1000 ─> ToggleElement{state: 1}   (endless rows only)
+ *        └─ delay   seconds*1000 ─> ToggleScripts{disable}   (endless rows only)
  *                                        └─ stops that same timer
  *
  * That inner half — timer, toggle, and the count split round-robin over the
@@ -44,7 +44,7 @@
  * arena behind the party as they walk out — at a 500 ms interval across nine
  * anchors that is ~18 actors a second, for as long as anyone lingers, which is
  * the 2026-08-27 flood that made the arena unplayable, just spread over time.
- * So an endless row gets a `ToggleElement{state: 1}` on the same clock tick
+ * So an endless row gets a `ToggleScripts{disable}` on the same clock tick
  * that opens the alcove. Finite rows need nothing: they self-limit through
  * `trigger-times`.
  *
@@ -109,7 +109,7 @@ export function buildSurvivalWaveRig(
 
     row += 1
     const arm = new NodeToggleElement(ctx, x, row)
-    arm.state = 0 // 0 enables the target element — see nodes.ts
+    arm.action = 'enable'
     arm.connectToElement(timer)
     // A row at 0 seconds still passes a real delay: connectTo only switches
     // into true-millisecond mode once one is given, and a row that armed on the
@@ -132,7 +132,7 @@ export function buildSurvivalWaveRig(
       // Same tick as the alcove opener, so if the door opened, this fired.
       row += 1
       const stop = new NodeToggleElement(ctx, x, row)
-      stop.state = 1 // 1 disables the target element
+      stop.action = 'disable'
       stop.connectToElement(timer)
       clock.connectTo(stop, seconds * 1000)
     }

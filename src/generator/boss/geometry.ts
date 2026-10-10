@@ -231,11 +231,14 @@ export function arenaBossLayout(
         case 'E':
           x = midX + gapX
           break
+        // N/S space the COLLIDER, not the anchor: an AE boss with a
+        // collisionOffsetY (boss_eye) would otherwise sit its body back
+        // inside the gap.
         case 'S':
-          y = midY + gapY
+          y = midY + gapY - (other.collisionOffsetY ?? 0)
           break
         case 'N':
-          y = midY - gapY
+          y = midY - gapY - (other.collisionOffsetY ?? 0)
           break
       }
       const placement = { def: other, x, y }

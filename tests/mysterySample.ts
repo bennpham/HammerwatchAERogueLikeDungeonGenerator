@@ -20,7 +20,7 @@ export function samplePool(): MysteryButton[] {
       traps: []
     },
     { name: 'Nothing', text: 'Nothing happened', loot: [], monsters: [], traps: [] },
-    { name: 'Ambush', text: 'Monsters appear', loot: [], monsters: [{ monster: 'mb_skeleton', count: 4 }], traps: [] },
+    { name: 'Ambush', text: 'Monsters appear', loot: [], monsters: [{ monster: 'mb_skeleton_guard#0', count: 4 }], traps: [] },
     {
       name: 'Trap room',
       text: 'Traps activated',

@@ -7,11 +7,10 @@
  *     indices all emit byte-identical output and touch no stream;
  *   - the sixth stream keeps them additive: arming a floor moves no other
  *     floor, and on the armed floor only appends ids;
- *   - the rig's shape, transcribed from the owner's hand-built
- *     `test_mystery_button_simple.xml`: a need-sync `trigger_button_floor`, a
- *     one-shot AreaTrigger, `pressed`, the announcement only when there is text,
- *     one SpawnObject per copy, disabled spewers switched on by the press and
- *     optionally off again after a delay;
+ *   - the rig's shape: a stock `button_round` plate, a one-shot AreaTrigger
+ *     on a sensor over it, `SetUnitScene on`, the announcement only when there
+ *     is text, one SpawnUnit per copy, disabled spewers switched on by the
+ *     press and optionally off again after a delay;
  *   - placement: plate rooms, spacing, clear of the floor's own items, every
  *     spawn inside the plate's room.
  */
@@ -40,12 +39,15 @@ import { sealHolds } from '../src/generator/map/sealCheck'
 import { MYSTERY_LOOT_DEFS, MYSTERY_LOOT_GROUPS, mysteryLootById } from '../src/generator/objects/mysteryLoot'
 import { isKnownMonsterKey } from '../src/generator/objects/monsterTypes'
 import { projectileById } from '../src/generator/objects/projectileTypes'
-import { allIds, badIntArray, nodesOfType } from './xmlHelpers'
+import { resolveActorPath } from '../src/generator/objects/monsterTypes'
+import { AE_UNIT_SET } from '../src/generator/catalog/assets'
+import type { AeLevel } from '../src/generator/ae/model'
+import { changedScripts, idsParam, intParam, levelsOf, lvlText, placements, scriptsOf, strParam, textsOf } from './ae'
 import { plainParameters } from './params'
 import { samplePool } from './mysterySample'
 
 const SEED = 4242
-const PLATE = 'doodads/special/trigger_button_floor.xml'
+const PLATE = 'doodads/generic/button_round.unit'
 
 function generateOk(params: DungeonParameters, seed: number): DungeonResult {
   const result = generateDungeon(params, seed)
@@ -77,20 +79,14 @@ function armed(index: number, count: number, pool: number[], buttons: MysteryBut
   return params
 }
 
-function levelXml(result: DungeonResult, index: number): string {
-  const file = result.files.find((f) => f.path === `levels/level${index}.xml`)
-  expect(file, `levels/level${index}.xml missing`).toBeDefined()
-  return (file as { content: string }).content
+function floor(result: DungeonResult, index: number): AeLevel {
+  const l = levelsOf(result).get(`floor${index}`)
+  expect(l, `floor${index} missing`).toBeDefined()
+  return l!
 }
 
-function strings(body: string, name: string): string[] {
-  return [...body.matchAll(new RegExp(`<string name="${name}">([^<]*)</string>`, 'g'))].map((m) => m[1])
-}
-
-function intArr(body: string, name: string): number[] {
-  const m = new RegExp(`<int-arr name="${name}">([^<]*)</int-arr>`).exec(body)
-  return m === null ? [] : m[1].split(' ').map(Number)
-}
+/** The plate units of a floor. */
+const plateUnits = (level: AeLevel) => level.units.filter((u) => u.path === PLATE)
 
 /** One accepted floor in isolation, built the way the floor loop builds it. */
 function buildFloor(params: DungeonParameters, seed: number, levelIndex = 0, locked = false): { ctx: GenerationContext; level: Level } {
@@ -111,8 +107,11 @@ function buildFloor(params: DungeonParameters, seed: number, levelIndex = 0, loc
   return { ctx, level: level as Level }
 }
 
-function plates(ctx: GenerationContext): Doodad[] {
-  return ctx.doodads.filter((d) => d.type === 'TriggerButton')
+/** The plates placed so far, as the tiles they stand on (the unit itself is centred). */
+function plates(ctx: GenerationContext): Array<{ x: number; y: number }> {
+  return ctx.doodads
+    .filter((d) => d.type === 'TriggerButton')
+    .map((d) => ({ x: Math.trunc(d.x), y: Math.trunc(d.y) }))
 }
 
 describe('mystery buttons — off means off', () => {
@@ -178,20 +177,24 @@ describe('mystery buttons — the sixth stream keeps them additive', () => {
     }
   })
 
-  it('arming one floor leaves every other floor byte-identical and only appends on its own', () => {
+  it('arming one floor leaves every other floor identical and only adds on its own', () => {
     const off = generateOk(bareParams(), SEED)
     const on = generateOk(armed(1, 6, [0, 1, 2, 3]), SEED)
 
-    expect(levelXml(on, 0)).toBe(levelXml(off, 0))
-    expect(levelXml(on, 2)).toBe(levelXml(off, 2))
+    expect(floor(on, 0)).toEqual(floor(off, 0))
+    expect(floor(on, 2)).toEqual(floor(off, 2))
     expect(on.levels).toEqual(off.levels)
 
-    const before = allIds(levelXml(off, 1))
-    const after = allIds(levelXml(on, 1))
-    const max = Math.max(...before)
-    for (const id of before) expect(after).toContain(id)
-    for (const id of after.filter((id) => !before.includes(id))) expect(id).toBeGreaterThan(max)
-    expect(badIntArray(levelXml(on, 1))).toBeNull()
+    const before = floor(off, 1)
+    const after = floor(on, 1)
+    expect(after.tileCells).toEqual(before.tileCells)
+    expect(changedScripts(before, after)).toEqual([])
+    const kept = placements(after)
+    for (const p of placements(before)) {
+      const at = kept.indexOf(p)
+      expect(at, p).toBeGreaterThanOrEqual(0)
+      kept.splice(at, 1)
+    }
   })
 
   it('is deterministic', () => {
@@ -201,32 +204,34 @@ describe('mystery buttons — the sixth stream keeps them additive', () => {
 })
 
 describe('mystery buttons — the rig', () => {
-  it('places each plate as a need-sync trigger_button_floor pressed by a one-shot trigger', () => {
-    const xml = levelXml(generateOk(armed(0, 6, [0, 1, 2, 3]), SEED), 0)
-    const plateNodes = nodesOfType(xml, PLATE)
-    expect(plateNodes).toHaveLength(6)
-    for (const p of plateNodes) expect(p.body).toContain('<bool name="need-sync">True</bool>')
+  it('places each plate as a stock button pressed by a one-shot trigger', () => {
+    const level = floor(generateOk(armed(0, 6, [0, 1, 2, 3]), SEED), 0)
+    const plates = plateUnits(level)
+    expect(plates).toHaveLength(6)
 
-    const presses = nodesOfType(xml, 'ChangeDoodadState').filter((n) => plateNodes.some((p) => intArr(n.body, 'static')[0] === p.id))
+    const presses = scriptsOf(level, 'SetUnitScene').filter((n) => plates.some((p) => idsParam(n, 'Units')[0] === p.id))
     expect(presses).toHaveLength(6)
-    for (const press of presses) expect(strings(press.body, 'state')).toEqual(['pressed'])
+    for (const press of presses) expect(strParam(press, 'State')).toBe('on')
 
     // every press hangs off a one-shot AreaTrigger
-    const triggers = nodesOfType(xml, 'AreaTrigger').filter((t) => presses.some((p) => intArr(t.body, 'connections').includes(p.id)))
+    const triggers = scriptsOf(level, 'AreaTrigger').filter((t) => presses.some((p) => t.connections.some(([id]) => id === p.id)))
     expect(triggers).toHaveLength(6)
-    for (const t of triggers) expect(t.body).toContain('<int name="trigger-times">1</int>')
+    for (const t of triggers) expect(t.triggerTimes).toBe(1)
   })
 
   it('a dud with no text is the click and nothing else', () => {
     const dud: MysteryButton = { loot: [], monsters: [], traps: [] }
     const { ctx, level } = buildFloor(armed(0, 3, [0], [dud]), SEED)
     const before = ctx.scriptNodes.length
+    const sensorsBefore = ctx.sensors.length
     buildMysteryButtonRig(ctx, armed(0, 3, [0], [dud]), level, 0)
     const added = ctx.scriptNodes.slice(before)
     expect(plates(ctx)).toHaveLength(3)
-    expect(added.map((n) => n.type).sort()).toEqual(
-      ['AreaTrigger', 'ChangeDoodadState', 'PlaySound', 'RectangleShape'].flatMap((t) => [t, t, t]).sort()
+    expect(added.map((n) => n.cls).sort()).toEqual(
+      ['AreaTrigger', 'PlaySound', 'SetUnitScene'].flatMap((t) => [t, t, t]).sort()
     )
+    // the plate's area is a sensor unit in AE, one per plate
+    expect(ctx.sensors.length - sensorsBefore).toBe(3)
   })
 
   it('spawns every loot and monster copy inside the plate room, monsters clear of the plate', () => {
@@ -235,9 +240,9 @@ describe('mystery buttons — the rig', () => {
     const before = ctx.scriptNodes.length
     buildMysteryButtonRig(ctx, params, level, 0)
     const spawns = ctx.scriptNodes.slice(before).filter((n): n is NodeSpawnObject => n instanceof NodeSpawnObject)
-    const chests = spawns.filter((s) => s.actorPath === 'items/chest_red.xml')
-    const upgrades = spawns.filter((s) => s.actorPath === 'items/upgrade_damage_2.xml')
-    const skeletons = spawns.filter((s) => s.actorPath === 'actors/skeleton_1_mb.xml')
+    const chests = spawns.filter((s) => s.actorPath === mysteryLootById('chest_red')!.path)
+    const upgrades = spawns.filter((s) => s.actorPath === mysteryLootById('upgrade_damage_2')!.path)
+    const skeletons = spawns.filter((s) => s.actorPath === resolveActorPath('mb_skeleton_guard#0'))
     expect(chests.length / 3).toBe(upgrades.length / 2)
     expect(chests.length / 3 + skeletons.length / 4).toBe(plates(ctx).length)
 
@@ -256,39 +261,42 @@ describe('mystery buttons — the rig', () => {
   })
 
   it('traps ship disabled, are switched on by the press, and never share a tile', () => {
-    const xml = levelXml(generateOk(armed(0, 8, [3]), SEED), 0)
-    const spewers = nodesOfType(xml, 'ProjectileSpewer')
+    const level = floor(generateOk(armed(0, 8, [3]), SEED), 0)
+    const spewers = scriptsOf(level, 'ProjectileSpewer')
     expect(spewers.length).toBeGreaterThan(0)
-    for (const s of spewers) expect(s.body).toContain('<bool name="enabled">False</bool>')
+    for (const s of spewers) expect(s.enabled).toBe(false)
 
-    const toggles = nodesOfType(xml, 'ToggleElement').filter((t) => spewers.some((s) => intArr(t.body, 'static')[0] === s.id))
+    const toggles = scriptsOf(level, 'ToggleScripts').filter((t) => spewers.some((s) => idsParam(t, 'Scripts')[0] === s.id))
     expect(toggles).toHaveLength(spewers.length)
-    for (const t of toggles) expect(t.body).toContain('<int name="state">0</int>')
+    // AE ToggleScripts: State 1 enables
+    for (const t of toggles) expect(intParam(t, 'State')).toBe(1)
 
-    const tiles = spewers.map((s) => /<float name="x">([^<]+)<\/float>\s*<float name="y">([^<]+)<\/float>/.exec(s.body)?.slice(1).join(','))
+    const tiles = spewers.map((s) => `${s.x},${s.y}`)
     expect(new Set(tiles).size).toBe(tiles.length)
 
-    // no switch-off: the triggers keep the legacy `delays` line
-    expect(xml).not.toContain('connection-delays')
+    // no switch-off: nothing fires on a delay
+    for (const t of scriptsOf(level, 'AreaTrigger')) for (const [, delay] of t.connections) expect(delay).toBe(0)
   })
 
   it('trapSeconds adds a delayed switch-off per spewer', () => {
     const buttons = samplePool()
     buttons[3].trapSeconds = 5
-    const xml = levelXml(generateOk(armed(0, 4, [3], buttons), SEED), 0)
-    const spewers = nodesOfType(xml, 'ProjectileSpewer')
-    const toggles = nodesOfType(xml, 'ToggleElement').filter((t) => spewers.some((s) => intArr(t.body, 'static')[0] === s.id))
-    expect(toggles.filter((t) => t.body.includes('<int name="state">1</int>'))).toHaveLength(spewers.length)
-    const delayed = nodesOfType(xml, 'AreaTrigger').filter((t) => t.body.includes('connection-delays'))
+    const level = floor(generateOk(armed(0, 4, [3], buttons), SEED), 0)
+    const spewers = scriptsOf(level, 'ProjectileSpewer')
+    const toggles = scriptsOf(level, 'ToggleScripts').filter((t) => spewers.some((s) => idsParam(t, 'Scripts')[0] === s.id))
+    // AE ToggleScripts: State 2 disables
+    expect(toggles.filter((t) => intParam(t, 'State') === 2)).toHaveLength(spewers.length)
+    const delayed = scriptsOf(level, 'AreaTrigger').filter((t) => t.connections.some(([, d]) => d > 0))
     expect(delayed.length).toBeGreaterThan(0)
-    for (const t of delayed) expect(intArr(t.body, 'connection-delays')).toContain(5000)
+    for (const t of delayed) expect(t.connections.map(([, d]) => d)).toContain(5000)
   })
 
   it('only ever becomes a button the floor picked', () => {
-    const xml = levelXml(generateOk(armed(0, 12, [0, 0]), SEED), 0)
-    expect(nodesOfType(xml, 'ProjectileSpewer')).toHaveLength(0)
-    expect(xml).not.toContain('actors/skeleton_1_mb.xml')
-    expect(strings(xml, 'text').filter((t) => t === 'You got treasure').length).toBe(nodesOfType(xml, PLATE).length)
+    const result = generateOk(armed(0, 12, [0, 0]), SEED)
+    const level = floor(result, 0)
+    expect(scriptsOf(level, 'ProjectileSpewer')).toHaveLength(0)
+    expect(lvlText(result, 'floor0')).not.toContain(resolveActorPath('mb_skeleton_guard#0'))
+    expect(textsOf(level).filter((t) => t === 'You got treasure').length).toBe(plateUnits(level).length)
   })
 })
 
@@ -336,21 +344,21 @@ describe('mystery buttons — placement', () => {
     expect(validateParameters(params).errors).toEqual([])
     for (const seed of [1, SEED]) {
       const result = generateOk(params, seed)
-      for (let i = 0; i < 3; i++) expect(nodesOfType(levelXml(result, i), PLATE).length).toBeGreaterThan(0)
+      for (let i = 0; i < 3; i++) expect(plateUnits(floor(result, i)).length).toBeGreaterThan(0)
     }
   })
 
   it('the seal check never reads a mystery plate as an obstacle', () => {
-    // A locked floor whose seal is removed is open; putting a need-sync mystery
-    // plate on every removed seal tile must leave it open.
+    // A locked floor whose seal is removed is open; putting a mystery plate on
+    // every removed seal tile must leave it open.
     let checked = 0
     for (let seed = 1; seed <= 40 && checked < 3; seed++) {
       const { ctx, level } = buildFloor(bareParams(), seed, 0, true)
       if (!sealHolds(level, ctx)) continue
-      const seals = ctx.doodads.filter((d) => d.needSync && d.type !== 'BossDoorButton')
+      const seals = ctx.doodads.filter((d) => d.blocking)
       ctx.doodads = ctx.doodads.filter((d) => !seals.includes(d))
       if (sealHolds(level, ctx)) continue // a fence theme: the seal was not the only thing
-      for (const s of seals) Doodad.create(ctx, s.x, s.y, 'TriggerButton', level.theme).needSync = true
+      for (const s of seals) Doodad.create(ctx, Math.trunc(s.x), Math.trunc(s.y), 'TriggerButton', level.theme)
       expect(sealHolds(level, ctx)).toBe(false)
       checked++
     }
@@ -413,7 +421,8 @@ describe('mystery buttons — parameters.txt', () => {
     )
     expect(parsed.params.mysteryButtons).toHaveLength(2)
     expect(parsed.params.mysteryButtons![0].loot).toEqual([{ item: 'chest_red', count: 2 }])
-    expect(parsed.params.mysteryButtons![0].monsters).toEqual([{ monster: 'mb_skeleton', count: 3 }])
+    // an HW1 id is translated on load, not reported
+    expect(parsed.params.mysteryButtons![0].monsters).toEqual([{ monster: 'mb_skeleton_guard#0', count: 3 }])
     expect(parsed.params.levelMystery).toEqual([{ count: 4, pool: [0, 1] }, { count: 0, pool: [] }, { count: 0, pool: [] }])
     expect(parsed.unknownKeys).toEqual(
       expect.arrayContaining([
@@ -433,7 +442,8 @@ describe('mystery buttons — the loot registry', () => {
     const paths = MYSTERY_LOOT_DEFS.map((d) => d.path)
     expect(new Set(paths).size).toBe(paths.length)
     const money = MYSTERY_LOOT_DEFS.filter((d) => d.id.startsWith('valuable_'))
-    for (const d of money) expect(d.path).toBe(`items/${d.id}.xml`)
+    for (const d of money) expect(d.path).toMatch(/^items\/pickups\/money\/[a-z_]+\.unit$/)
+    for (const d of MYSTERY_LOOT_DEFS) expect(AE_UNIT_SET.has(d.path), d.path).toBe(true)
     expect(money.map((d) => d.id)).toEqual([
       ...Array.from({ length: 9 }, (_, i) => `valuable_${i + 1}`),
       'valuable_diamond_small',

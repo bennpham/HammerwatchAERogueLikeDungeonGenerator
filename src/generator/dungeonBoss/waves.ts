@@ -5,13 +5,13 @@
  * That swap is the whole module. In the arena rig the anchor list is only ever
  * read as (a) a list of positions to construct `SpawnObject` nodes at and
  * (b) a round-robin divisor; nothing else in the chain knows what an arena is.
- * So the trigger, the interval grouping, the `state: 0` toggle polarity, the
+ * So the trigger, the interval grouping, the enabling toggle, the
  * `-1` endless branch, `splitRoundRobin` and `scaledMax` all carry over
  * untouched, and only the points differ:
  *
  *   tier 0        GlobalEventTrigger("LevelLoaded")
  *   tier N        GlobalEventTrigger(TIER_EVENT_NAMES[N - 1])
- *        └─ ToggleElement{state: 0} ─> arms TimerTrigger(intervalMs)
+ *        └─ ToggleScripts{enable} ─> arms TimerTrigger(intervalMs)
  *                                          └─ SpawnObject × spawn points
  *
  * Tier 0 is the one place the two genuinely differ. An arena fires it from an
@@ -117,7 +117,7 @@ export function buildFloorBossWaveRig(
 
       row += 1
       const toggle = new NodeToggleElement(ctx, x, row)
-      toggle.state = 0 // 0 enables the target element — see nodes.ts
+      toggle.action = 'enable'
       toggle.connectToElement(timer)
       triggerNode.connectTo(toggle)
 

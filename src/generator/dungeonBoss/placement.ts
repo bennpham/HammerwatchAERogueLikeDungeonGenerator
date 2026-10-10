@@ -9,7 +9,7 @@
  * out inside `slotClear`'s inner loop — this is that test, applied over a
  * rectangle instead of along a line:
  *
- *   - not `tile.wall` (rasterized solid) and not `tile.wallSet` (a prefab
+ *   - not `tile.wall` (rasterized solid) and not `tile.reserved` (a prefab
  *     claimed it and brought its own walls);
  *   - `regionMap[idx] === roomIndex`, so a corridor's overlapping tail does not
  *     count as room floor — `Room.contains` is INCLUSIVE at both ends, and a
@@ -92,7 +92,7 @@ function interiorClear(
 
   const idx = x + y * level.width
   const tile = level.tileArray[idx]
-  if (tile === undefined || tile.wall || tile.wallSet) return false
+  if (tile === undefined || tile.wall || tile.reserved) return false
   if (level.regionMap[idx] !== roomIndex) return false
 
   for (const set of ctx.objectSets) {

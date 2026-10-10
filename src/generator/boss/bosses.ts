@@ -63,116 +63,50 @@ export interface BossDef {
    * it is a design call about how many of a kind belongs in one fight.
    */
   unique: boolean
+  /**
+   * The boss bar title (`CreateBossBar.Name`) — the actor's own
+   * `beastiary-name` key, so the bar reads exactly as in the stock campaign.
+   */
+  barName: string
 }
 
-/** `BossDef.unique` — see that field's comment. */
-export const UNIQUE_BOSS_IDS: readonly BossId[] = ['boss_dragon', 'boss_queen']
+/**
+ * Bosses a campaign may only roll ONE of: the two dragons (static, welded to
+ * the top wall) and the queen (static, by far the largest footprint).
+ */
+export const UNIQUE_BOSS_IDS: readonly BossId[] = ['boss_dragon', 'boss_dragon_hwr', 'boss_queen']
 
 /**
- * The seven end-boss actors and their real footprints.
+ * Every AE end boss and its real footprint, measured from the actor's own
+ * `<collision>` circle (scripts/dev/boss-survey.mjs, 2026-10-09) at 16 px per
+ * tile: footprint = 2r / 16, collisionOffsetY = offset.y / 16.
  *
- * Footprints are measured from each actor's own `<collision>` shape in
- * `editor/assetsExtract/actors/boss_<name>/boss_<name>.xml` on a real
- * Hammerwatch install (verified 2026-08-08, `DISCOVERY-LOG.md`), converted
- * from pixels to tiles at the game's fixed 16px/tile scale:
- *
- * - anubis, krilith carry no `<collision>` child at all — the actor falls
- *   back to the radius on the `<actor collision="N">` attribute itself
- *   (anubis 7px, krilith 3.5px), so footprint = that radius doubled / 16.
- * - dragon, knight, lich, worm each have `<collision><circle radius="R" .../>`
- *   — footprint = 2R / 16 (a circle, so width == height).
- * - queen has two `<polygon>` children with no single circle; footprint is the
- *   axis-aligned bounding box of every `<point>` in both polygons, in tiles:
- *   x spans -43..38 (81px = 5.0625 tiles), y spans -33..50 (83px = 5.1875
- *   tiles). This is the largest footprint of the seven and is what
- *   `geometry.ts`'s `BOSS_FOOTPRINT_AREA` reserves against.
- *
- * `boss_dragon` has no upward-facing art (its 9-slot aim arc and every walk
- * frame face down/down-diagonal) and `<collision static="true">` — it cannot
- * move, so it goes against the top wall. `boss_queen` is also `static="true"`
- * with no `movement` dict at all, but its skill list attacks in every
- * direction, so centre is correct for it same as the movers.
- *
- * A wall-placed boss also needs its collision `offset`, not just its footprint.
- * The dragon's is `<circle offset="0 -8" radius="34" />`: the collider centre
- * sits half a tile ABOVE the actor position and reaches 2.125 tiles out, so an
- * actor flush against the top wall carries 2.625 tiles of *static* collider
- * into the wall band. [VERIFIED] in game (DISCOVERY-LOG.md, 2026-08-16): at
- * interior row 0 the dragon was unreachable, unhittable and could not fire —
- * it read as being off the map to the north. `topWallBossY` below derives the
- * shallowest row whose collider clears the band; for the dragon that is row 3,
- * which is the hand-patched arena the fix was confirmed on.
+ * The two dragons are `static` with PassiveMovement and no upward-facing art,
+ * so they go against the top wall; the queen is static too but attacks in
+ * every direction, so she stands in the centre. The worm and the wraith are
+ * `TransferDamageActor`s, which take damage themselves and only forward it
+ * when a transfer target is set — alone, they fight like any other boss.
  */
 const BOSS_DEFS_LIST: Omit<BossDef, 'mobile' | 'unique'>[] = [
-  {
-    id: 'boss_anubis',
-    actorPath: 'actors/boss_anubis/boss_anubis.xml',
-    // no <collision> child; falls back to the actor-tag radius, 7px -> 0.875 tile diameter
-    footprintWidth: (2 * 7) / 16,
-    footprintHeight: (2 * 7) / 16,
-    placement: 'centre',
-    forbiddenAlcoveWalls: []
-  },
-  {
-    id: 'boss_dragon',
-    actorPath: 'actors/boss_dragon/boss_dragon.xml',
-    // <collision static="true"><circle offset="0 -8" radius="34" /></collision>
-    footprintWidth: (2 * 34) / 16,
-    footprintHeight: (2 * 34) / 16,
-    // the collider sits half a tile ABOVE the actor position — the other half
-    // of the geometry that decides where the top wall can hold it. See
-    // `topWallBossY`.
-    collisionOffsetY: -8 / 16,
-    placement: 'topWall',
-    // no upward-facing art + immobile: must never guard the alcove it can't defend from
-    forbiddenAlcoveWalls: ['N']
-  },
-  {
-    id: 'boss_knight',
-    actorPath: 'actors/boss_knight/boss_knight.xml',
-    // <collision static="false"><circle radius="10" .../></collision>
-    footprintWidth: (2 * 10) / 16,
-    footprintHeight: (2 * 10) / 16,
-    placement: 'centre',
-    forbiddenAlcoveWalls: []
-  },
-  {
-    id: 'boss_krilith',
-    actorPath: 'actors/boss_krilith/boss_krilith.xml',
-    // no <collision> child; falls back to the actor-tag radius, 3.5px -> 0.4375 tile diameter
-    footprintWidth: (2 * 3.5) / 16,
-    footprintHeight: (2 * 3.5) / 16,
-    placement: 'centre',
-    forbiddenAlcoveWalls: []
-  },
-  {
-    id: 'boss_lich',
-    actorPath: 'actors/boss_lich/boss_lich.xml',
-    // <collision static="false"><circle radius="8" .../></collision>
-    footprintWidth: (2 * 8) / 16,
-    footprintHeight: (2 * 8) / 16,
-    placement: 'centre',
-    forbiddenAlcoveWalls: []
-  },
-  {
-    id: 'boss_queen',
-    actorPath: 'actors/boss_queen/boss_queen.xml',
-    // <collision static="true"> two <polygon> children, no movement dict;
-    // bounding box of every <point>: x -43..38 (81px), y -33..50 (83px)
-    footprintWidth: 81 / 16,
-    footprintHeight: 83 / 16,
-    placement: 'centre',
-    forbiddenAlcoveWalls: []
-  },
-  {
-    id: 'boss_worm',
-    actorPath: 'actors/boss_worm/boss_worm.xml',
-    // <collision static="true"><circle radius="19" .../></collision> (burrows, but immobile in the collision sense)
-    footprintWidth: (2 * 19) / 16,
-    footprintHeight: (2 * 19) / 16,
-    placement: 'centre',
-    forbiddenAlcoveWalls: []
-  }
+  { id: 'boss_anubis', actorPath: 'actors/bosses/boss_anubis/boss_anubis.unit', footprintWidth: 20 / 16, footprintHeight: 20 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.d.ig.boss_3' },
+  // <circle offset="0 -32" radius="40"> static
+  { id: 'boss_dragon', actorPath: 'actors/bosses/boss_dragon/boss_dragon.unit', footprintWidth: 80 / 16, footprintHeight: 80 / 16, collisionOffsetY: -32 / 16, placement: 'topWall', forbiddenAlcoveWalls: ['N'], barName: '.ig.boss4' },
+  { id: 'boss_knight', actorPath: 'actors/bosses/boss_knight/boss_knight.unit', footprintWidth: 16 / 16, footprintHeight: 16 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.boss2' },
+  { id: 'boss_krilith', actorPath: 'actors/bosses/boss_krilith/boss_krilith.unit', footprintWidth: 16 / 16, footprintHeight: 16 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.d.ig.boss_2' },
+  { id: 'boss_lich', actorPath: 'actors/bosses/boss_lich/boss_lich.unit', footprintWidth: 24 / 16, footprintHeight: 24 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.boss3' },
+  // <circle offset="-15 9" radius="58"> static — the largest by far
+  { id: 'boss_queen', actorPath: 'actors/bosses/boss_queen/boss_queen.unit', footprintWidth: 116 / 16, footprintHeight: 116 / 16, collisionOffsetY: 9 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.boss1' },
+  { id: 'boss_worm', actorPath: 'actors/bosses/boss_worm/boss_worm.unit', footprintWidth: 36 / 16, footprintHeight: 36 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.d.ig.boss_1' },
+  { id: 'boss_golem', actorPath: 'actors/bosses/boss_golem/golem_rock.unit', footprintWidth: 30 / 16, footprintHeight: 30 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss1' },
+  { id: 'boss_warden', actorPath: 'actors/bosses/boss_warden/warden.unit', footprintWidth: 52 / 16, footprintHeight: 52 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss2' },
+  { id: 'boss_wraith', actorPath: 'actors/bosses/boss_wraith/wraith_mage.unit', footprintWidth: 36 / 16, footprintHeight: 36 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss3' },
+  // <circle offset="0 -12" radius="24">
+  { id: 'boss_eye', actorPath: 'actors/bosses/boss_eye/eye.unit', footprintWidth: 48 / 16, footprintHeight: 48 / 16, collisionOffsetY: -12 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss4' },
+  { id: 'boss_vampire', actorPath: 'actors/bosses/boss_vampire/vampire.unit', footprintWidth: 20 / 16, footprintHeight: 20 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss5' },
+  // <circle offset="0 -10" radius="35"> static, Shaftlocke's frost dragon
+  { id: 'boss_dragon_hwr', actorPath: 'actors/bosses/boss_dragon_hwr/dragon.unit', footprintWidth: 70 / 16, footprintHeight: 70 / 16, collisionOffsetY: -10 / 16, placement: 'topWall', forbiddenAlcoveWalls: ['N'], barName: '.ig.hwr.boss6' },
+  // the seeress is the giant bat Shaftlocke fights as a boss
+  { id: 'boss_seeress', actorPath: 'actors/beasts/bats/bat_mb_boss.unit', footprintWidth: 16 / 16, footprintHeight: 16 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss_seeress' }
 ]
 
 /** One entry per `BOSS_IDS` id, in that order — enforced by a test. */
@@ -194,7 +128,7 @@ export const BOSS_DEFS: Readonly<Record<BossId, BossDef>> = Object.fromEntries(
 /** `BOSS_DEFS` as a `BOSS_IDS`-ordered array, for callers that want to iterate. */
 export const BOSS_DEF_LIST: readonly BossDef[] = BOSS_IDS.map((id) => BOSS_DEFS[id])
 
-/** The largest of the seven footprints (queen) — geometry.ts reserves against this. */
+/** The largest boss footprint (queen) — geometry.ts reserves against this. */
 export function largestBossFootprintArea(): number {
   return Math.max(...BOSS_DEF_LIST.map((d) => d.footprintWidth * d.footprintHeight))
 }
@@ -235,9 +169,10 @@ export function isMobileBoss(id: string): boolean {
  * Picks `count` bosses from `pool` (a subset of `BOSS_IDS`), one
  * `iRand(0, candidates.length)` draw per pick — issue #64 part 1.
  *
- * Dragon and queen are unique: once picked, that id is removed from the
- * candidate list so it can never be rolled a second time in the same fight or
- * floor. Every other boss stays in the pool and may repeat.
+ * The dragons and the queen are unique: once picked, that id is removed from
+ * the candidate list so it can never be rolled a second time in the same fight
+ * or floor. The arena has one top-wall slot, so picking either dragon also
+ * removes the other. Every other boss stays in the pool and may repeat.
  *
  * `count = 1` draws exactly the single `iRand(0, pool.length)` this port has
  * always drawn for one boss — same call site inputs, same math — so a
@@ -262,6 +197,9 @@ export function pickBosses(rand: Rand, pool: readonly string[], count: number): 
     const id = candidates[index]
     picked.push(id)
     if (BOSS_DEFS[id].unique) candidates.splice(index, 1)
+    if (BOSS_DEFS[id].placement === 'topWall') {
+      for (let j = candidates.length - 1; j >= 0; j--) if (BOSS_DEFS[candidates[j]].placement === 'topWall') candidates.splice(j, 1)
+    }
   }
   return picked
 }

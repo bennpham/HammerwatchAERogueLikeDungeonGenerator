@@ -22,9 +22,9 @@ import { musicSound } from './tracks'
  * they carry no gameplay meaning — so the origin is fine.
  */
 export function buildMusicRig(ctx: GenerationContext, trackId: string | undefined, x = 0, y = 0): void {
-  const sound = musicSound(trackId)
-  if (sound === null) return
+  const mode = musicSound(trackId)
+  if (mode === null) return
 
   const trigger = new NodeGlobalEventTrigger(ctx, x, y, LEVEL_LOADED_EVENT)
-  trigger.connectTo(new NodePlayMusic(ctx, x, y, sound))
+  trigger.connectTo(new NodePlayMusic(ctx, x, y, mode))
 }

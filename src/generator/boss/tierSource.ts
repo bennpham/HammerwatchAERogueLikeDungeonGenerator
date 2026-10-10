@@ -109,7 +109,6 @@ export function buildAllBossesDied(ctx: GenerationContext, actors: ReadonlyArray
   const onTrue: ScriptNode[] = []
   const checks = actors.map((actor, i) => {
     const trigger = new NodeObjectEventTrigger(ctx, x, y + 1 + i)
-    trigger.event = 'Destroyed'
     trigger.connectObject(actor)
     trigger.triggerTimes = 1
     const change = new NodeChangeVariable(ctx, x + 1, y + 1 + i, remaining, CHANGE_VAR_SUB, 1)

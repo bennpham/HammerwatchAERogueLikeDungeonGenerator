@@ -18,8 +18,8 @@
  *   - the rig: an enhanced button's trigger gains the payload's nodes while
  *     keeping its ChangeVariable/CheckVariable lock wiring; an unenhanced
  *     button (beyond `count`) gains nothing;
- *   - the disguise swaps only the doodad path and the ChangeDoodadState
- *     target state — nothing else in the floor's XML moves.
+ *   - the disguise swaps only the plate unit (and its anchor) and the
+ *     SetUnitScene state — nothing else in the floor moves.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -41,7 +41,8 @@ import { GenerationContext } from '../src/generator/core/context'
 import { Level } from '../src/generator/map/level'
 import { LOCK_PAYLOAD_ANNOUNCE_TYPE, buildMysteryButtonRig } from '../src/generator/mystery/rig'
 import type { NodeAnnounceText } from '../src/generator/objects/nodes'
-import { allIds, nodesOfType } from './xmlHelpers'
+import type { AeLevel } from '../src/generator/ae/model'
+import { changedScriptsBeyondAppends, levelsOf, placements, scriptsOf, textsOf } from './ae'
 import { plainParameters } from './params'
 import { samplePool } from './mysterySample'
 
@@ -53,10 +54,10 @@ function generateOk(params: DungeonParameters, seed: number): DungeonResult {
   return result as DungeonResult
 }
 
-function levelXml(result: DungeonResult, index: number): string {
-  const file = result.files.find((f) => f.path === `levels/level${index}.xml`)
-  expect(file, `levels/level${index}.xml missing`).toBeDefined()
-  return (file as { content: string }).content
+function floor(result: DungeonResult, index: number): AeLevel {
+  const l = levelsOf(result).get(`floor${index}`)
+  expect(l, `floor${index} missing`).toBeDefined()
+  return l!
 }
 
 /** Plain floors, boss off, lock array present-but-empty — a neutral base to lock and arm. */
@@ -206,19 +207,23 @@ describe('enhanced lock buttons — draw order', () => {
     const onResult = generateOk(on, SEED)
 
     // Floor 0, before the locked floor: untouched.
-    expect(levelXml(onResult, 0)).toBe(levelXml(off, 0))
+    expect(floor(onResult, 0)).toEqual(floor(off, 0))
     // Floor 3, after everything and unconfigured itself: untouched.
-    expect(levelXml(onResult, 3)).toBe(levelXml(off, 3))
+    expect(floor(onResult, 3)).toEqual(floor(off, 3))
     // Floor 2's mystery plates come after floor 1 in the floor loop, so
     // arming floor 1's enhancement moves floor 2's own mysteryRand draws.
-    expect(levelXml(onResult, 2)).not.toBe(levelXml(off, 2))
+    expect(floor(onResult, 2)).not.toEqual(floor(off, 2))
 
-    // Floor 1 itself only gained ids — its own lock buttons kept their tiles.
-    const before = allIds(levelXml(off, 1))
-    const after = allIds(levelXml(onResult, 1))
-    const max = Math.max(...before)
-    for (const id of before) expect(after).toContain(id)
-    for (const id of after.filter((id) => !before.includes(id))) expect(id).toBeGreaterThan(max)
+    // Floor 1 itself only gained things — its own lock buttons kept their tiles.
+    const before = floor(off, 1)
+    const after = floor(onResult, 1)
+    expect(changedScriptsBeyondAppends(before, after)).toEqual([])
+    const kept = placements(after)
+    for (const pl of placements(before)) {
+      const at = kept.indexOf(pl)
+      expect(at, pl).toBeGreaterThanOrEqual(0)
+      kept.splice(at, 1)
+    }
   })
 
   it('is deterministic', () => {
@@ -235,10 +240,9 @@ describe('enhanced lock buttons — draw order', () => {
     params.mysteryButtons = samplePool()
     enhance(params, 1, { count: MAX_LOCK_BUTTONS - 1, pool: [0] })
     expect(validateParameters(params).warnings.map((w) => w.field)).toContain('levelLockMystery.1.count')
-    const xml = levelXml(generateOk(params, SEED), 1)
     // Both buttons enhanced: two "You got treasure" announces (button 0 is
     // the sample pool's Treasure entry).
-    expect([...xml.matchAll(/You got treasure/g)]).toHaveLength(2)
+    expect(textsOf(floor(generateOk(params, SEED), 1)).filter((t) => t === 'You got treasure')).toHaveLength(2)
   })
 })
 
@@ -252,25 +256,26 @@ describe('enhanced lock buttons — the rig', () => {
     const { ctx, level } = buildFloor(params, SEED, 1)
     expect(level.lockButtons).toHaveLength(2)
     const [enhancedButton, otherButton] = level.lockButtons
-    const beforeTypes = { a: [...enhancedButton.trigger.connections].map((n) => n.type), b: [...otherButton.trigger.connections].map((n) => n.type) }
+    const classes = (t: typeof enhancedButton.trigger) => t.connections.map((c) => c.node.cls)
+    const beforeTypes = { a: classes(enhancedButton.trigger), b: classes(otherButton.trigger) }
     // Before the rig runs, both buttons already carry the lock's own wiring:
-    // PlaySound, the press, and the countdown's ChangeVariable/CheckVariables.
-    expect(beforeTypes.a).toEqual(expect.arrayContaining(['PlaySound', 'ChangeDoodadState', 'ChangeVariable', 'CheckVariable']))
+    // PlaySound, the press, and the countdown's ChangeVariables/CheckVariables.
+    expect(beforeTypes.a).toEqual(expect.arrayContaining(['PlaySound', 'SetUnitScene', 'ChangeVariables', 'CheckVariables']))
     expect(beforeTypes.b).toEqual(beforeTypes.a)
 
     buildMysteryButtonRig(ctx, params, level, 1)
 
-    const afterA = enhancedButton.trigger.connections.map((n) => n.type)
-    const afterB = otherButton.trigger.connections.map((n) => n.type)
+    const afterA = classes(enhancedButton.trigger)
+    const afterB = classes(otherButton.trigger)
 
     // The enhanced button kept every original connection, in order, and
     // gained the payload's nodes after them.
     expect(afterA.slice(0, beforeTypes.a.length)).toEqual(beforeTypes.a)
     expect(afterA.filter((t) => t === 'AnnounceText')).toHaveLength(1)
-    expect(afterA.filter((t) => t === 'SpawnObject')).toHaveLength(5) // 3 chests + 2 upgrades
+    expect(afterA.filter((t) => t === 'SpawnUnit')).toHaveLength(5) // 3 chests + 2 upgrades
 
     // Its text is a Pickup line on the plate, local to whoever pressed it.
-    const announce = enhancedButton.trigger.connections.find((n) => n.type === 'AnnounceText') as NodeAnnounceText
+    const announce = enhancedButton.trigger.connections.find((c) => c.node.cls === 'AnnounceText')!.node as NodeAnnounceText
     expect(announce.textType).toBe(LOCK_PAYLOAD_ANNOUNCE_TYPE)
     expect(LOCK_PAYLOAD_ANNOUNCE_TYPE).toBe(3)
     expect([announce.x, announce.y]).toEqual([enhancedButton.trigger.x, enhancedButton.trigger.y])
@@ -290,10 +295,10 @@ describe('enhanced lock buttons — the rig', () => {
       params.mysteryButtons = samplePool()
       enhance(params, 1, { count: 1, pool: [3] }) // sample pool 3: Trap room
 
-      const xml = levelXml(generateOk(params, seed), 1)
+      const level = floor(generateOk(params, seed), 1)
       // Single-button lock: the press still opens the wall directly.
-      expect(xml).toContain('The way to the final room has opened!')
-      if (nodesOfType(xml, 'ProjectileSpewer').length > 0) checked = true
+      expect(textsOf(level)).toContain('The way to the final room has opened!')
+      if (scriptsOf(level, 'ProjectileSpewer').length > 0) checked = true
     }
     expect(checked).toBe(true)
   })
@@ -332,21 +337,37 @@ describe('enhanced lock buttons — disguise', () => {
     enhance(disguised, 1, { count: 0, pool: [], disguise: true })
     const on = generateOk(disguised, SEED)
 
-    const offXml = levelXml(off, 1)
-    const onXml = levelXml(on, 1)
+    const offLevel = floor(off, 1)
+    const onLevel = floor(on, 1)
+    const BOSS_PLATE = 'doodads/doors/boss_door_button.unit'
+    const ROUND_PLATE = 'doodads/generic/button_round.unit'
+    const has = (l: AeLevel, path: string) => l.units.some((u) => u.path === path)
 
-    expect(offXml).toContain('doodads/special/boss_door_button.xml')
-    expect(offXml).not.toContain('doodads/special/trigger_button_floor.xml')
-    expect(onXml).toContain('doodads/special/trigger_button_floor.xml')
-    expect(onXml).not.toContain('doodads/special/boss_door_button.xml')
+    expect(has(offLevel, BOSS_PLATE)).toBe(true)
+    expect(has(offLevel, ROUND_PLATE)).toBe(false)
+    expect(has(onLevel, ROUND_PLATE)).toBe(true)
+    expect(has(onLevel, BOSS_PLATE)).toBe(false)
 
-    expect(allIds(onXml)).toEqual(allIds(offXml))
-
-    const normalize = (xml: string) =>
-      xml
-        .replace(/doodads\/special\/(boss_door_button|trigger_button_floor)\.xml/g, 'doodads/special/PLATE.xml')
-        .replace(/<string name="state">(activate|pressed)<\/string>/g, '<string name="state">STATE</string>')
-    expect(normalize(onXml)).toBe(normalize(offXml))
+    // the same ids, the same tiles, the same scripts — only the plate's art,
+    // its anchor (button_round is centred, boss_door_button top-left) and the
+    // scene it is driven to differ
+    const normalize = (l: AeLevel) =>
+      JSON.stringify({
+        tiles: l.tileCells,
+        // AE groups units by path, so a renamed plate moves in the list: sort by id
+        units: l.units
+          .map((u) =>
+            u.path === BOSS_PLATE || u.path === ROUND_PLATE
+              ? // button_round is anchored on its centre, 8 px in from boss_door_button's corner
+                { id: u.id, path: 'PLATE', x: (u.x - (u.path === ROUND_PLATE ? 8 : 0)).toFixed(2), y: (u.y - (u.path === ROUND_PLATE ? 8 : 0)).toFixed(2) }
+              : u
+          )
+          .sort((a, b) => a.id - b.id),
+        scripts: l.scripts.map((sc) =>
+          sc.cls === 'SetUnitScene' ? { ...sc, params: sc.params.map((pr) => (pr.name === 'State' ? { ...pr, value: 'STATE' } : pr)) } : sc
+        )
+      })
+    expect(normalize(onLevel)).toBe(normalize(offLevel))
   })
 })
 

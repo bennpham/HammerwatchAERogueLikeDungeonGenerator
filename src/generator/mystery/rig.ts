@@ -53,7 +53,7 @@ import type { Level } from '../map/level'
 import type { ScriptNode } from '../objects/scriptNode'
 import type { DungeonParameters, MysteryButton, TrapDirection } from '../config/parameters'
 import { floorMystery, floorLockMystery } from '../config/parameters'
-import { Doodad, doodadOffset } from '../objects/doodad'
+import { Doodad } from '../objects/doodad'
 import {
   NodeAnnounceText,
   NodeAreaTrigger,
@@ -84,7 +84,7 @@ import { MYSTERY_BUTTON_SPACING, mysteryButtonSlots, spawnTiles } from './placem
  * sample level uses `pressed` for exactly this reason. [VERIFIED] in game,
  * owner playtest 2026-09-26: the plate stays down.
  */
-export const MYSTERY_BUTTON_STATE = 'pressed'
+export const MYSTERY_BUTTON_STATE = 'on'
 
 /** How long the announcement stays up, as in the owner's sample. */
 export const MYSTERY_ANNOUNCE_MS = 2500
@@ -187,7 +187,7 @@ function emitPayload(
         row.spawnRateMs
       )
       const on = new NodeToggleElement(ctx, spewer.x, spewer.y)
-      on.state = 0 // 0 enables — the inverted polarity every ToggleElement uses
+      on.action = 'enable'
       on.connectToElement(spewer)
       trigger.connectTo(on)
       spewers.push(spewer)
@@ -202,7 +202,7 @@ function emitPayload(
   if (seconds > 0) {
     for (const spewer of spewers) {
       const off = new NodeToggleElement(ctx, spewer.x, spewer.y)
-      off.state = 1
+      off.action = 'disable'
       off.connectToElement(spewer)
       trigger.connectTo(off, seconds * 1000)
     }
@@ -268,7 +268,7 @@ export function buildMysteryButtonRig(
     let pool = wallPools.get(key)
     if (pool === undefined) {
       const mounted = ctx.scriptNodes
-        .filter((n) => n.type === 'ProjectileSpewer')
+        .filter((n) => n.cls === 'ProjectileSpewer')
         .map((n) => ({ x: n.x - TILE_CENTRE, y: n.y - TILE_CENTRE }))
       pool = roomWallSlots(level, ctx, level.rooms[roomIndex], roomIndex, direction).filter(
         (s) => !mounted.some((m) => Math.abs(m.x - s.x) + Math.abs(m.y - s.y) < TRAP_MIN_SPACING)
@@ -283,14 +283,10 @@ export function buildMysteryButtonRig(
   // plate's own doodad/shape/trigger/sound/press.
   for (const { tile, def } of plates) {
     const plate = Doodad.create(ctx, tile.x, tile.y, 'TriggerButton', level.theme)
-    // A script changes its state, so it must replicate — see map/buttonSeal.ts.
-    plate.needSync = true
 
-    // The shape is centred, the doodad is anchored at its art offset — the
-    // same half-tile relationship map/buttonSeal.ts documents and verified.
-    const art = doodadOffset('TriggerButton', level.theme)
-    const nodeX = tile.x + art.x + 0.5
-    const nodeY = tile.y + art.y + 0.5
+    // the sensor is centred on the plate's cell (button_round is centred too)
+    const nodeX = Math.trunc(tile.x) + 0.5
+    const nodeY = Math.trunc(tile.y) + 0.5
 
     const shape = new NodeRectangleShape(ctx, nodeX, nodeY)
     const trigger = new NodeAreaTrigger(ctx, nodeX, nodeY)

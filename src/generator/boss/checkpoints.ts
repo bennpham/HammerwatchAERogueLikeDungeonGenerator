@@ -44,7 +44,7 @@
 import type { GenerationContext } from '../core/context'
 import type { BossArenaOptions } from '../config/parameters'
 import { BOSS_CHECKPOINT_EVENTS, BOSS_CHECKPOINT_PRESETS } from '../config/parameters'
-import { NodeCheckpoint, NodeGlobalEventTrigger } from '../objects/nodes'
+import { NodeCheckpoint, NodeSetRespawnPoint, NodeGlobalEventTrigger } from '../objects/nodes'
 import { ScriptNode } from '../objects/scriptNode'
 
 /**
@@ -78,13 +78,15 @@ export function buildCheckpointRig(
 
     if (wantsSave) {
       row += 1
-      const checkpoint = new NodeCheckpoint(ctx, respawnAt?.x ?? col, respawnAt?.y ?? row, true)
+      const checkpoint = new NodeCheckpoint(ctx, respawnAt?.x ?? col, respawnAt?.y ?? row, `${ctx.currentStem}_${event.replace(/\W+/g, '_').replace(/_$/, '').toLowerCase()}`)
       trigger.connectTo(checkpoint)
     }
 
     if (wantsRespawn) {
       row += 1
-      const respawn = new ScriptNode(ctx, respawnAt?.x ?? col, respawnAt?.y ?? row, 'RespawnPlayers')
+      // AE has no RespawnPlayers: the closest it offers is moving the respawn
+      // point here, so players who die come back in this level (via AE lives)
+      const respawn = new NodeSetRespawnPoint(ctx, respawnAt?.x ?? col, respawnAt?.y ?? row, ctx.currentStem)
       trigger.connectTo(respawn)
     }
 

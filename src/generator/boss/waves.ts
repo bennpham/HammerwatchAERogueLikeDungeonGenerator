@@ -6,7 +6,7 @@
  *
  * Shape, repeated once per tier (100% / 75% / 50% / 25% / boss death):
  *
- *   trigger ─> ToggleElement{state: 0} ─> TimerTrigger(enabled=False)
+ *   trigger ─> ToggleScripts{enable} ─> TimerTrigger(enabled=False)
  *                                              │
  *                                              v
  *                                   SpawnObject × (monster, anchor)
@@ -46,7 +46,7 @@
  * arena never recovered (playtest 2026-08-27). Such a monster gets `batchSize`
  * points, its count split round-robin over them, and one shared timer per tier:
  *
- *   trigger ─> ToggleElement{state: 0} ─> TimerTrigger(batchIntervalMs)
+ *   trigger ─> ToggleScripts{enable} ─> TimerTrigger(batchIntervalMs)
  *                                              │
  *                                              v
  *                                   SpawnObject{trigger-times: share} × points
@@ -269,7 +269,7 @@ export function buildWaveRig(
 
       y += 1
       const toggle = new NodeToggleElement(ctx, entranceShape.x, y)
-      toggle.state = 0 // 0 enables the target element — see nodes.ts
+      toggle.action = 'enable'
       toggle.connectToElement(timer)
       triggerNode.connectTo(toggle)
 
@@ -330,7 +330,7 @@ export function buildWaveRig(
 
       y += 1
       const batchToggle = new NodeToggleElement(ctx, entranceShape.x, y)
-      batchToggle.state = 0 // 0 enables the target element — see nodes.ts
+      batchToggle.action = 'enable'
       batchToggle.connectToElement(batchTimer)
       triggerNode.connectTo(batchToggle)
 

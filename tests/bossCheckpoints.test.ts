@@ -3,13 +3,19 @@ import { GenerationContext } from '../src/generator/core/context'
 import { BOSS_CHECKPOINT_EVENTS, defaultParameters } from '../src/generator/config/parameters'
 import type { BossArenaOptions } from '../src/generator/config/parameters'
 import { buildCheckpointRig } from '../src/generator/boss/checkpoints'
-import type { NodeCheckpoint } from '../src/generator/objects/nodes'
+import type { NodeCheckpoint, NodeGlobalEventTrigger } from '../src/generator/objects/nodes'
 import type { ScriptNode } from '../src/generator/objects/scriptNode'
 
 type Checkpoints = BossArenaOptions['checkpoints']
 
+/** The milestone triggers: the three health tiers, then the death. */
+const MILESTONE_CLASSES = ['ActorHealthTrigger', 'UnitDestroyedTrigger']
+
 function freshCtx(seed = 12345): GenerationContext {
-  return new GenerationContext(defaultParameters(), seed)
+  const ctx = new GenerationContext(defaultParameters(), seed)
+  ctx.currentStem = 'boss0'
+  ctx.bossActors = [{ id: 4242 }]
+  return ctx
 }
 
 function checkpoints(overrides: Partial<Checkpoints> = {}): Checkpoints {
@@ -20,62 +26,72 @@ function build(ctx: GenerationContext, options: Checkpoints): void {
   buildCheckpointRig(ctx, options, 10, 20)
 }
 
-function nodesOfType(ctx: GenerationContext, type: string): ScriptNode[] {
-  return ctx.scriptNodes.filter((n) => n.type === type)
+function nodesOfType(ctx: GenerationContext, cls: string): ScriptNode[] {
+  return ctx.scriptNodes.filter((n) => n.cls === cls)
 }
 
+function milestones(ctx: GenerationContext): NodeGlobalEventTrigger[] {
+  return ctx.scriptNodes.filter((n) => MILESTONE_CLASSES.includes(n.cls)) as NodeGlobalEventTrigger[]
+}
+
+const firedClasses = (n: ScriptNode) => n.connections.map((c) => c.node.cls)
+
 describe('boss checkpoints — rig shape', () => {
-  it('builds one GlobalEventTrigger per milestone in the respawn preset', () => {
+  it('builds one milestone trigger per event in the respawn preset, on the boss', () => {
     const ctx = freshCtx()
     build(ctx, checkpoints({ respawnPlayers: '75-50-25-dead', saveGame: 'never' }))
-    const triggers = nodesOfType(ctx, 'GlobalEventTrigger')
-    expect(triggers).toHaveLength(4)
-    expect(triggers.map((t) => (t as { eventName: string } & ScriptNode).eventName)).toEqual([
-      ...BOSS_CHECKPOINT_EVENTS
-    ])
-    // respawn only — no Checkpoint node at all
-    expect(nodesOfType(ctx, 'Checkpoint')).toHaveLength(0)
-    expect(nodesOfType(ctx, 'RespawnPlayers')).toHaveLength(4)
+    const triggers = milestones(ctx)
+    expect(triggers.map((t) => t.eventName)).toEqual([...BOSS_CHECKPOINT_EVENTS])
+    for (const t of triggers) expect(t.params().find((p) => p.name === 'Units')?.value).toEqual([4242])
+    // respawn only — no save point at all. AE has no RespawnPlayers, so a
+    // respawn milestone moves the respawn point into this arena instead.
+    expect(nodesOfType(ctx, 'SuperCheckPoint')).toHaveLength(0)
+    expect(nodesOfType(ctx, 'SetRespawnPoint')).toHaveLength(4)
+    expect(nodesOfType(ctx, 'RespawnPlayers')).toHaveLength(0)
   })
 
   it('respects the "50% only" preset', () => {
     const ctx = freshCtx()
     build(ctx, checkpoints({ respawnPlayers: 'never', saveGame: '50' }))
-    const triggers = nodesOfType(ctx, 'GlobalEventTrigger')
-    expect(triggers.map((t) => (t as { eventName: string } & ScriptNode).eventName)).toEqual(['Boss 50%'])
+    expect(milestones(ctx).map((t) => t.eventName)).toEqual(['Boss 50%'])
   })
 
-  it('the two presets are independently scheduled', () => {
+  it('schedules the two presets independently', () => {
     const ctx = freshCtx()
     build(ctx, checkpoints({ respawnPlayers: '75-50-25-dead', saveGame: '50' }))
-    // four milestones total (union of both presets)
-    const triggers = nodesOfType(ctx, 'GlobalEventTrigger') as ({ eventName: string } & ScriptNode)[]
+    const triggers = milestones(ctx)
     expect(triggers.map((t) => t.eventName)).toEqual([...BOSS_CHECKPOINT_EVENTS])
-    // only Boss 50% carries a Checkpoint
-    expect(nodesOfType(ctx, 'Checkpoint')).toHaveLength(1)
-    const fiftyTrigger = triggers.find((t) => t.eventName === 'Boss 50%')!
-    expect(fiftyTrigger.connections.map((n) => n.type).sort()).toEqual(['Checkpoint', 'RespawnPlayers'])
-    // every other milestone gets a RespawnPlayers only
+    expect(nodesOfType(ctx, 'SuperCheckPoint')).toHaveLength(1)
+    const fifty = triggers.find((t) => t.eventName === 'Boss 50%')!
+    expect(firedClasses(fifty).sort()).toEqual(['SetRespawnPoint', 'SuperCheckPoint'])
     for (const t of triggers.filter((t) => t.eventName !== 'Boss 50%')) {
-      expect(t.connections.map((n) => n.type)).toEqual(['RespawnPlayers'])
+      expect(firedClasses(t)).toEqual(['SetRespawnPoint'])
     }
   })
 
-  it('a milestone picked by both presets shares ONE trigger, not two', () => {
+  it('shares ONE trigger for a milestone both presets pick', () => {
     const ctx = freshCtx()
     build(ctx, checkpoints({ respawnPlayers: '50', saveGame: '50' }))
-    expect(nodesOfType(ctx, 'GlobalEventTrigger')).toHaveLength(1)
-    const [trigger] = nodesOfType(ctx, 'GlobalEventTrigger')
-    expect(trigger.connections.map((n) => n.type)).toEqual(['Checkpoint', 'RespawnPlayers'])
+    const triggers = milestones(ctx)
+    expect(triggers).toHaveLength(1)
+    expect(firedClasses(triggers[0])).toEqual(['SuperCheckPoint', 'SetRespawnPoint'])
   })
 
-  it('the Checkpoint node always carries saveGame true', () => {
+  it('names each save point after its level and milestone, and respawns into this level', () => {
     const ctx = freshCtx()
-    build(ctx, checkpoints({ respawnPlayers: 'never', saveGame: '75-50-25' }))
-    const cps = nodesOfType(ctx, 'Checkpoint') as (NodeCheckpoint & ScriptNode)[]
-    expect(cps).toHaveLength(3)
-    for (const cp of cps) expect(cp.saveGame).toBe(true)
-    expect(cps[0].getXML()).toContain('<bool name="parameters">True</bool>')
+    build(ctx, checkpoints({ respawnPlayers: '75-50-25-dead', saveGame: '75-50-25' }))
+    const names = (nodesOfType(ctx, 'SuperCheckPoint') as NodeCheckpoint[]).map((c) => c.name)
+    expect(names).toEqual(['boss0_boss_75', 'boss0_boss_50', 'boss0_boss_25'])
+    expect(new Set(names).size).toBe(names.length)
+    for (const r of nodesOfType(ctx, 'SetRespawnPoint')) {
+      expect(r.params()).toEqual(expect.arrayContaining([expect.objectContaining({ value: 'boss0' })]))
+    }
+  })
+
+  it('fires each milestone once', () => {
+    const ctx = freshCtx()
+    build(ctx, checkpoints({ respawnPlayers: '75-50-25-dead', saveGame: '75-50-25' }))
+    for (const t of milestones(ctx)) expect(t.triggerTimes).toBe(1)
   })
 })
 

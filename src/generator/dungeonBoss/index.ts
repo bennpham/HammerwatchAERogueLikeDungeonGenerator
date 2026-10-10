@@ -112,7 +112,7 @@ export function buildFloorBossRig(
 
     // `scriptNodes` is cleared per level, so this is this floor's own start.
     // A floor always has one; without it there is nowhere safe to respawn.
-    const start = ctx.scriptNodes.find((n) => n.type === 'LevelStart')
+    const start = ctx.scriptNodes.find((n) => n.cls === 'LevelStart')
     if (start !== undefined) {
       buildCheckpointRig(ctx, boss.checkpoints, markerX, markerY, { x: start.x, y: start.y })
     }

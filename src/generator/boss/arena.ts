@@ -46,25 +46,26 @@
  */
 
 import { Tile } from '../map/tile'
-import { searchPatterns } from '../map/wallPattern'
 import { Doodad } from '../objects/doodad'
 import type { DoodadTypeName } from '../objects/doodad'
 import { Item, ItemType } from '../objects/item'
 import { Monster } from '../objects/monster'
-import { ObjectSet } from '../objects/objectSet'
+import { ObjectSet, addArrival } from '../objects/objectSet'
 import {
-  NodeAreaTrigger,
+  NodeCreateBossBar,
   NodeDestroyObject,
   NodeGlobalEventTrigger,
-  NodeLevelStart,
-  NodeRectangleShape,
-  NodeToggleElement
+  NodeRectangleShape
 } from '../objects/nodes'
-import { ScriptNode } from '../objects/scriptNode'
-import { getTheme, THEME_DEFS } from '../config/themes'
+import { getTheme, themeEnvironment, THEME_DEFS } from '../config/themes'
 import type { ThemeDef } from '../config/themes'
-import { XMLArray, XMLDictionary, XMLInt, XMLIntArray, XMLString } from '../xml'
-import { dataAFromDataT, mixedDatasets, overlayDataset } from '../map/tilemapOverlay'
+import { AeLevel } from '../ae/model'
+import { TileLayers } from '../ae/tiles'
+import { emitObjects, emitWalls } from '../ae/emit'
+import { isLineCell } from '../map/aeWalls'
+import type { WallGrid } from '../map/aeWalls'
+import { tilesetSize } from '../catalog/assets'
+import { LEVEL_LOADED_EVENT } from '../core/events'
 import { patternVariant, pickArenaPattern } from './arenaPattern'
 import type { ArenaPattern } from './arenaPattern'
 import type { GenerationContext } from '../core/context'
@@ -92,13 +93,6 @@ import { buildAllBossesDied, multiBossTierSource, singleBossTierSource } from '.
 import type { TierSource } from './tierSource'
 
 /**
- * Side of the square the arrival-respawn trigger watches, centred on the
- * LevelStart. Wider than the dungeon floors' 1x1 rig so a living player who
- * materializes slightly off the exact start tile still crosses it.
- */
-const RESPAWN_AREA_SIZE = 3
-
-/**
  * Placement attempts per food pickup before giving up on that one slot —
  * same shape and cap as cover.ts's own PLACEMENT_ATTEMPTS, bounded per
  * invariant #3 (never a `while (true)`). A slot that fails this many random
@@ -109,13 +103,14 @@ const FOOD_PLACEMENT_ATTEMPTS = 40
 /** Half-extent of a food pickup's own footprint, for the shared isFree() rejection filter. */
 const FOOD_FOOTPRINT = { width: 1, height: 1 }
 
-const TILEMAP_SIZE = 20
+/** The black mask tileset — see Level.toAeLevel. */
+const BLACK_TILESET = 'tilesets/__black.tileset'
 
 /** Floored rows/cols inside the alcove pocket, behind the mouth. */
 const ALCOVE_POCKET = 5
 
 export interface BossArenaResult {
-  xml: string
+  level: AeLevel
   preview: LevelPreview
 }
 
@@ -171,7 +166,8 @@ export function buildBossArena(
   survival?: SurvivalOptions
 ): BossArenaResult {
   ctx.clearLevel()
-  ctx.idCounter = 0
+  ctx.idCounter = 1
+  ctx.currentTheme = arena.theme
 
   // Passing `survival` IS the mode switch: a survival arena has no boss actor,
   // so none of the boss-only draws, rigs or events below happen and the
@@ -246,7 +242,9 @@ export function buildBossArena(
   // tiles thick. One tile is a geometry its art simply cannot seal, and there
   // is no whole-tile piece in the folder to swap in, so the band is thickened
   // instead ([VERIFIED] in game: the one-tile band leaked on every attempt).
-  const BAND = themeDef.directionalFences === true ? 2 : 1
+  // AE wall pieces are whole-cell colliders on their footprint (no edge
+  // fences, no overhang), so one band seals every theme.
+  const BAND = 1
 
   // --- alcove geometry: a 3-tile mouth, a 5x5 pocket behind it, and the orb
   // dead centre. All in local (interior-relative, possibly negative) tiles.
@@ -283,19 +281,19 @@ export function buildBossArena(
     for (let dx = -2; dx <= 2; dx++) {
       for (let row = BAND + 1; row <= BAND + ALCOVE_POCKET; row++) alcoveFloor.push({ x: midX + dx, y: -row })
     }
-    orbLocal = { x: midX, y: -(BAND + 1) }
+    orbLocal = { x: midX, y: -(BAND + 3) }
   } else if (alcoveWall === 'E') {
     for (let d = 0; d < BAND; d++) for (let dy = -1; dy <= 1; dy++) mouth.push({ x: width + d, y: midY + dy })
     for (let dy = -2; dy <= 2; dy++) {
       for (let col = BAND; col < BAND + ALCOVE_POCKET; col++) alcoveFloor.push({ x: width + col, y: midY + dy })
     }
-    orbLocal = { x: width + BAND + 2, y: midY + 2 }
+    orbLocal = { x: width + BAND + 2, y: midY }
   } else {
     for (let d = 1; d <= BAND; d++) for (let dy = -1; dy <= 1; dy++) mouth.push({ x: -d, y: midY + dy })
     for (let dy = -2; dy <= 2; dy++) {
       for (let col = BAND + 1; col <= BAND + ALCOVE_POCKET; col++) alcoveFloor.push({ x: -col, y: midY + dy })
     }
-    orbLocal = { x: -(BAND + 3), y: midY + 2 }
+    orbLocal = { x: -(BAND + 3), y: midY }
   }
 
   // --- rasterize: one grid covering the interior, its wall band on every side,
@@ -324,26 +322,8 @@ export function buildBossArena(
   // destroyed — a wall tile there opens onto the water layer instead
   for (const c of mouth) setFloor(c.x, c.y)
 
-  // --- wall doodads: the exact pattern matcher the dungeon uses, scanned over
-  // the whole grid.
-  //
-  // No Cover (`doodads/special/color_theme_*_16.xml`) is emitted at all. It
-  // only fires on the interior of a 2x2-or-thicker wall mass, and the arena's
-  // band is one tile — so it appeared only in the few thick spots around the
-  // alcove, reading as random floating squares. Blanketing just the alcove was
-  // considered and rejected: with the rest of the wall bare, the blanket is
-  // itself a signpost for where the alcove is, so it hides nothing. The water
-  // base layer means there is no void left to paint over either. ---
-  for (let gy = 0; gy < gridHeight; gy++) {
-    for (let gx = 0; gx < gridWidth; gx++) {
-      const idx = gx + gy * gridWidth
-      if (!tileArray[idx].wall) continue // every pattern requires a wall centre; skip the lookup on floor
-
-      const local = toLocal(gx, gy)
-      const wallType = searchPatterns(gx, gy, tileArray, gridWidth, true)
-      if (wallType !== null) Doodad.create(ctx, local.x, local.y, wallType, arena.theme)
-    }
-  }
+  // Walls are not doodads here either: Level-style, they are computed from
+  // the finished grid when the level is emitted (`emitWalls`).
 
   // --- the seals, placed explicitly rather than scavenged from the scan
   // above. The mouth is floor now (so the opened doorway has ground), and the
@@ -363,35 +343,9 @@ export function buildBossArena(
   })
   const wallSeals = innerMouth.map((m) => {
     const d = Doodad.create(ctx, m.x, m.y, sealPiece, arena.theme)
-    d.needSync = true
+    d.blocking = true
     return d
   })
-
-  // On a fence theme the run has to CONTINUE past both ends of the mouth.
-  //
-  // Its pieces seal by forming an unbroken line of edge fences, and the band
-  // tiles immediately before and after the mouth are a turn in the wall, so
-  // searchPatterns gives them whatever suits that shape — in the reported
-  // campaign a 1%-coverage v1 corner on one side and no doodad at all on the
-  // other. Either is a doorway. Laying the mouth's own piece on both flanks
-  // closes the line ([VERIFIED] in game: the user hand-added exactly this
-  // fourth piece and the alcove stopped leaking).
-  //
-  // Deliberately NOT need-sync and NOT in DestroyObject: these are ordinary
-  // wall, so the opened doorway stays the three tiles already playtested and
-  // the flanks remain sealed afterwards. The fence pieces are single-tile
-  // sprites with no overhang, so they cannot obscure the opening.
-  if (themeDef.directionalFences === true) {
-    const along = alcoveWall === 'N' ? 'x' : 'y'
-    const values = innerMouth.map((m) => m[along])
-    const before = Math.min(...values) - 1
-    const after = Math.max(...values) + 1
-    const anchor = innerMouth[0]
-    for (const v of [before, after]) {
-      const pos = along === 'x' ? { x: v, y: anchor.y } : { x: anchor.x, y: v }
-      Doodad.create(ctx, pos.x, pos.y, sealPiece, arena.theme)
-    }
-  }
 
   // Everything the "Boss Died" chain destroys to open the alcove: just the
   // structural seals across the mouth. This set and the doodads carrying
@@ -451,10 +405,18 @@ export function buildBossArena(
       ctx,
       p.x,
       p.y,
-      { id: p.def.id, configKey: '', tiers: [p.def.actorPath], upgradeChance: 0, defaultMax: 0, group: 'Bosses' },
+      { id: p.def.id, configKey: '', tiers: [p.def.actorPath], upgradeChance: 0, defaultMax: 0, group: 'Mini-bosses' },
       0
     )
   )
+  // AE has no engine-wide boss events: every tier rig's "Boss N%" / "Boss
+  // Died" trigger is built over these actors (see NodeGlobalEventTrigger).
+  ctx.bossActors = bossActors
+  // a health bar per boss, titled as in the stock campaigns, raised on load
+  if (bossActors.length > 0) {
+    const loaded = new NodeGlobalEventTrigger(ctx, midX, height + 1, LEVEL_LOADED_EVENT)
+    bossPlacements.forEach((p, i) => loaded.connectTo(new NodeCreateBossBar(ctx, midX + i, height + 2, [bossActors[i]], p.def.barName)))
+  }
   // Single-boss shorthand kept for the invulnerability/checkpoint rigs, which
   // only ever run for exactly one boss (see below).
   const bossActor = bossActors[0]
@@ -484,29 +446,15 @@ export function buildBossArena(
 
   // --- entrance rig: LevelStart for the teleport-in, plus the shape
   // buildWaveRig's tier-0 AreaTrigger attaches to. ---
-  new NodeLevelStart(ctx, midX, height - 1)
+  addArrival(ctx, midX, height - 1)
 
   const entranceShape = new NodeRectangleShape(ctx, entranceRect.x + entranceRect.width / 2, entranceRect.y + entranceRect.height / 2)
   entranceShape.width = ENTRANCE_WIDTH
   entranceShape.height = ENTRANCE_DEPTH
 
-  // --- arrival respawn: the same one-shot rig every dungeon floor's ExitUp
-  // prefab carries, minus its AnnounceText. The ToggleElement's element is the
-  // trigger's own id, so it fires once on arrival and never again — dying
-  // mid-fight is still permanent. Its shape is its own, deliberately not
-  // entranceShape: that one is sized for the wave rig's tier-0 trigger. Draws
-  // no random values, so ctx.bossRand is untouched. ---
-  const respawnShape = new NodeRectangleShape(ctx, midX, height - 1)
-  respawnShape.width = RESPAWN_AREA_SIZE
-  respawnShape.height = RESPAWN_AREA_SIZE
-
-  const respawnTrigger = new NodeAreaTrigger(ctx, midX, height - 1)
-  respawnTrigger.connectToShape(respawnShape)
-  respawnTrigger.connectTo(new ScriptNode(ctx, midX, height - 1, 'RespawnPlayers'))
-
-  const disableRespawn = new NodeToggleElement(ctx, midX, height - 1)
-  disableRespawn.connectToElement(respawnTrigger)
-  respawnTrigger.connectTo(disableRespawn)
+  // No arrival-revive rig: AE has no RespawnPlayers. Dead players come back
+  // through AE's lives at the respawn point the previous level's exit set
+  // (SetRespawnPoint to this arena's stem).
 
   // --- scattered spawn points: the last ctx.bossRand draws of the arena, and
   // none at all while every monster is on the default `anchors` mode. The rig
@@ -720,7 +668,7 @@ export function buildBossArena(
   buildMusicRig(ctx, arena.music, entranceShape.x, entranceShape.y)
 
   return {
-    xml: getArenaXML(ctx, tileArray, gridWidth, gridHeight, themeDef, originX, originY, width, height, pattern),
+    level: buildArenaLevel(ctx, tileArray, gridWidth, gridHeight, themeDef, originX, originY, width, height, pattern, levelNumber),
     preview: buildArenaPreview(ctx, tileArray, gridWidth, gridHeight, originX, originY, width, height, arena.theme, levelNumber)
   }
 }
@@ -788,92 +736,16 @@ function boundingBox(points: ReadonlyArray<{ x: number; y: number }>): Rect {
   return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 }
 }
 
-/** Floor tile variants for one 20x20 tilemap block — see Level.getTiles. */
-function getTiles(ctx: GenerationContext, tileArray: Tile[], gridWidth: number, gridHeight: number, x: number, y: number, tileVariants: number): number[] {
-  const tiles = new Array<number>(TILEMAP_SIZE * TILEMAP_SIZE)
-  for (let i = 0; i < TILEMAP_SIZE * TILEMAP_SIZE; i++) {
-    const tileX = x - 10 + (i % TILEMAP_SIZE)
-    const tileY = y - 10 + Math.trunc(i / TILEMAP_SIZE)
-    const tileIndex = tileX + tileY * gridWidth
-    if (tileIndex >= 0 && tileIndex < gridWidth * gridHeight && tileX >= 0 && tileX < gridWidth && tileY >= 0 && tileY < gridHeight && !tileArray[tileIndex].wall) {
-      // Same seeded-cosmetic idea as Level.getTiles, but drawn from ctx.bossRand
-      // — the arena must never touch ctx.cosmeticRand (see the file header).
-      tiles[i] = Math.trunc(ctx.bossRand.nextFloat() * tileVariants) + 1
-    } else {
-      tiles[i] = 0
-    }
-  }
-  return tiles
-}
-
 /**
- * The pattern's palette slot for every cell of one 20x20 block — same index
- * math and same `-10` offset as `getTiles`, so cell `i` here is cell `i` there.
- * Draws no random numbers.
- *
- * The alcove pocket, its mouth and the entrance all sit outside the fight
- * rectangle in local coordinates, and are pinned to slot 0 (the plain base) so
- * they still read as somewhere other than the floor the fight happens on.
+ * The arena as an Anniversary Edition level — the same recipe as
+ * `Level.toAeLevel`: the theme's bottom floor grown under the wall line, the
+ * other floor layers on walkable floor, a mixed theme's palette laid out by
+ * the arena pattern (the alcove, mouth and entrance outside the fight
+ * rectangle stay plain), the black mask, every placed object, then the wall
+ * pieces from the grid. Grid cells map to local tiles by subtracting the
+ * origin, which is how the alcove ends up at negative coordinates.
  */
-function getPatternVariants(
-  pattern: ArenaPattern,
-  x: number,
-  y: number,
-  originX: number,
-  originY: number,
-  fightWidth: number,
-  fightHeight: number
-): number[] {
-  const variants = new Array<number>(TILEMAP_SIZE * TILEMAP_SIZE)
-  for (let i = 0; i < TILEMAP_SIZE * TILEMAP_SIZE; i++) {
-    // grid -> local, the inverse of the arena's own toGrid
-    const localX = x - 10 + (i % TILEMAP_SIZE) - originX
-    const localY = y - 10 + Math.trunc(i / TILEMAP_SIZE) - originY
-    if (localX < 0 || localY < 0 || localX >= fightWidth || localY >= fightHeight) {
-      variants[i] = 0
-    } else {
-      variants[i] = patternVariant(pattern, localX, localY, fightWidth, fightHeight)
-    }
-  }
-  return variants
-}
-
-function defaultIntArray(name: string): XMLIntArray {
-  return new XMLIntArray(name, new Array<number>(TILEMAP_SIZE * TILEMAP_SIZE).fill(255))
-}
-
-/**
- * `tilemaps/water.xml` — a single animated `data-t` value 1 — is the lowest
- * tileset level in the game (level 1; the next lowest classic tileset is 10).
- * Stacked as a second dataset under every theme dataset, it is the base
- * layer the theme's own floor/wall tiles sit on top of; without it, the void
- * beyond the arena's own tile grid reads as flat, textureless block.
- * `data-t` is filled with 1 everywhere in this dataset — it is a background,
- * not a floor mask — so `data-a` is 255 everywhere too (never the 0/255 split
- * `dataAFromDataT` does for the theme dataset above it).
- */
-function waterDataset(): XMLDictionary {
-  const dict = new XMLDictionary('')
-  dict.addData(new XMLString('tileset', 'tilemaps/water.xml'))
-  dict.addData(new XMLIntArray('data-t', new Array<number>(TILEMAP_SIZE * TILEMAP_SIZE).fill(1)))
-  dict.addData(defaultIntArray('data-r'))
-  dict.addData(defaultIntArray('data-g'))
-  dict.addData(defaultIntArray('data-b'))
-  dict.addData(defaultIntArray('data-a'))
-  return dict
-}
-
-/**
- * Extra tile blocks emitted on every side beyond the arena's own grid, so the
- * water base layer reads as extending past the arena rather than stopping
- * dead at its edge. These blocks carry no theme floor (out of `tileArray`
- * bounds, so `getTiles` returns all-0 for them, same as any other void tile)
- * — only the water dataset gives them content.
- */
-const BLOCK_MARGIN = 1
-
-/** Serialize the arena to the same section order Level.getXML() emits. */
-function getArenaXML(
+function buildArenaLevel(
   ctx: GenerationContext,
   tileArray: Tile[],
   gridWidth: number,
@@ -883,131 +755,41 @@ function getArenaXML(
   originY: number,
   fightWidth: number,
   fightHeight: number,
-  pattern: ArenaPattern | null
-): string {
-  const tiledataArray = new XMLArray('tiledata')
-  const xTiles = Math.ceil(gridWidth / TILEMAP_SIZE)
-  const yTiles = Math.ceil(gridHeight / TILEMAP_SIZE)
+  pattern: ArenaPattern | null,
+  levelNumber: number
+): AeLevel {
+  const level = new AeLevel(themeEnvironment(themeDef, levelNumber))
+  const solidAt = (gx: number, gy: number) => gx < 0 || gy < 0 || gx >= gridWidth || gy >= gridHeight || tileArray[gx + gy * gridWidth].wall
+  const grid: WallGrid = { width: gridWidth, height: gridHeight, solid: solidAt, reserved: () => false }
 
-  for (let x = -BLOCK_MARGIN; x < xTiles + 1 + BLOCK_MARGIN; x++) {
-    for (let y = -BLOCK_MARGIN; y < yTiles + 1 + BLOCK_MARGIN; y++) {
-      // Sample shifted by the origin, NOT the declared block position: the
-      // engine snaps a block's declared x/y to the 20-grid, so an offset put
-      // there is silently discarded. See the comment on the block below.
-      const dataT = getTiles(
-        ctx,
-        tileArray,
-        gridWidth,
-        gridHeight,
-        x * TILEMAP_SIZE + originX,
-        y * TILEMAP_SIZE + originY,
-        themeDef.tiles
+  const floor: Array<[number, number]> = []
+  for (let gy = 0; gy < gridHeight; gy++) {
+    for (let gx = 0; gx < gridWidth; gx++) if (!solidAt(gx, gy)) floor.push([gx - originX, gy - originY])
+  }
+  const layers = new TileLayers(tilesetSize)
+  layers.paint16(themeDef.floor[0], floor, [1, 1, 1, 1])
+  for (const ts of themeDef.floor.slice(1)) layers.paint16(ts, floor)
+  if (pattern !== null && themeDef.mixed !== undefined) {
+    const mixed = themeDef.mixed
+    for (let slot = 1; slot <= mixed.length; slot++) {
+      const cells = floor.filter(
+        ([x, y]) => x >= 0 && y >= 0 && x < fightWidth && y < fightHeight && patternVariant(pattern, x, y, fightWidth, fightHeight) === slot
       )
-
-      const tileSet = new XMLDictionary('')
-      tileSet.addData(new XMLString('tileset', themeDef.tilemap))
-      tileSet.addData(new XMLIntArray('data-t', dataT))
-      tileSet.addData(defaultIntArray('data-r'))
-      tileSet.addData(defaultIntArray('data-g'))
-      tileSet.addData(defaultIntArray('data-b'))
-      tileSet.addData(dataAFromDataT(dataT))
-
-      // Water first, theme second — matches the shipped stacking order (see
-      // bossprep/template.ts and campaign2/levels/level_cave_1.xml).
-      const dataSets = new XMLArray('datasets')
-      dataSets.addData(waterDataset())
-      dataSets.addData(tileSet)
-
-      // A paired arena theme (`c - tiles`) adds its alternate tileset on top,
-      // making the stack water -> theme -> overlay. Drawn from ctx.bossRand like
-      // everything else in this file; a plain theme draws nothing and gets null.
-      const overlay = overlayDataset(themeDef, dataT, ctx.bossRand)
-      if (overlay !== null) dataSets.addData(overlay)
-
-      // A mixed arena theme instead adds one masked dataset per palette slot the
-      // pattern put in this block.
-      if (pattern !== null) {
-        const cellVariant = getPatternVariants(
-          pattern,
-          x * TILEMAP_SIZE + originX,
-          y * TILEMAP_SIZE + originY,
-          originX,
-          originY,
-          fightWidth,
-          fightHeight
-        )
-        for (const d of mixedDatasets(themeDef, dataT, cellVariant, ctx.bossRand)) {
-          dataSets.addData(d)
-        }
-      }
-
-      const tileBlock = new XMLDictionary('')
-      // Always a multiple of TILEMAP_SIZE. Every authored and shipped level in
-      // the game does this — level0, the editor-saved prep room, the lobby —
-      // and the engine snaps the declared position to that grid regardless, so
-      // subtracting the origin here (which this file did for two rounds) is
-      // discarded and the floor renders `origin` tiles away from its walls.
-      // Proven by hand-patching a generated boss.xml to 20-aligned origins:
-      // "the walls now sit on the theme instead of the water".
-      tileBlock.addData(new XMLInt('x', x * TILEMAP_SIZE))
-      tileBlock.addData(new XMLInt('y', y * TILEMAP_SIZE))
-      tileBlock.addData(dataSets)
-
-      tiledataArray.addData(tileBlock)
+      if (cells.length > 0) layers.paint16(mixed[slot - 1], cells)
     }
   }
+  const mask: Array<[number, number]> = []
+  for (let gy = -2; gy < gridHeight + 2; gy++) {
+    for (let gx = -2; gx < gridWidth + 2; gx++) {
+      if (solidAt(gx, gy) && !isLineCell(grid, gx, gy)) mask.push([gx - originX, gy - originY])
+    }
+  }
+  layers.paint16(BLACK_TILESET, mask)
+  level.tileCells = layers.cells()
 
-  const tilemapDict = new XMLDictionary('tilemap')
-  tilemapDict.addData(tiledataArray)
-
-  const doodadsArray = new XMLArray('doodads')
-  for (const d of ctx.doodads) doodadsArray.addData(d)
-  const doodadsDict = new XMLDictionary('doodads')
-  doodadsDict.addData(doodadsArray)
-
-  const actorsArray = new XMLArray('actors')
-  for (const m of ctx.monsters) actorsArray.addData(m)
-  const actorsDict = new XMLDictionary('actors')
-  actorsDict.addData(actorsArray)
-
-  const nodesArray = new XMLArray('nodes')
-  for (const n of ctx.scriptNodes) nodesArray.addData(n)
-  const scriptingDict = new XMLDictionary('scripting')
-  scriptingDict.addData(nodesArray)
-
-  const itemsArray = new XMLArray('items')
-  for (const i of ctx.items) itemsArray.addData(i)
-  const itemsDict = new XMLDictionary('items')
-  itemsDict.addData(itemsArray)
-
-  const lightingArray = new XMLArray('lights')
-
-  const ambientDict = new XMLDictionary('ambient-color')
-  ambientDict.addData(new XMLInt('r', 255))
-  ambientDict.addData(new XMLInt('g', 255))
-  ambientDict.addData(new XMLInt('b', 255))
-  ambientDict.addData(new XMLInt('a', 255))
-
-  const shadowDict = new XMLDictionary('shadow-color')
-  shadowDict.addData(new XMLInt('r', 128))
-  shadowDict.addData(new XMLInt('g', 128))
-  shadowDict.addData(new XMLInt('b', 128))
-  shadowDict.addData(new XMLInt('a', 128))
-
-  const lightingDict = new XMLDictionary('lighting')
-  lightingDict.addData(lightingArray)
-  lightingDict.addData(ambientDict)
-  lightingDict.addData(shadowDict)
-
-  const masterDict = new XMLDictionary('')
-  masterDict.addData(tilemapDict)
-  masterDict.addData(doodadsDict)
-  masterDict.addData(actorsDict)
-  masterDict.addData(scriptingDict)
-  masterDict.addData(itemsDict)
-  masterDict.addData(lightingDict)
-
-  return masterDict.getXML()
+  emitObjects(level, ctx)
+  emitWalls(level, ctx, grid, themeDef, originX, originY)
+  return level
 }
 
 /**

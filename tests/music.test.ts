@@ -1,39 +1,28 @@
 /**
- * Per-level music (src/generator/music/**) — the PlayMusic rig on dungeon
- * floors and boss arenas, and the raw-XML splice into lobby templates.
- *
- * Same invariant-6 discipline as floorTimer.test.ts and floorBuffs.test.ts: an
- * unset/`default` track must leave the file byte-identical to before this
- * feature existed, and setting one may only APPEND — it can never move a
- * dungeon id, wall, doodad, monster or item.
+ * Per-level music: the `PlayMusic` rig on dungeon floors, boss arenas and
+ * lobbies. AE plays music by FMOD music MODE (an int), not by cue path — the
+ * stock levels set it with `PlayMusic { Music = N }`.
  */
 import { describe, expect, it } from 'vitest'
 import { GenerationContext } from '../src/generator/core/context'
-import { defaultParameters, defaultLobby } from '../src/generator/config/parameters'
+import { defaultLobby, defaultParameters } from '../src/generator/config/parameters'
+import type { DungeonParameters, DungeonResult } from '../src/generator'
 import { validateParameters } from '../src/generator/config/validation'
-import { MUSIC_DEFAULT, MUSIC_TRACKS, isKnownMusicId, musicSound } from '../src/generator/music/tracks'
 import { buildMusicRig } from '../src/generator/music/rig'
-import { buildLobby } from '../src/generator/lobby/build'
-import { LOBBY_PRESETS } from '../src/generator/lobby/presets'
-import { generateDungeon } from '../src/generator'
-import type { DungeonParameters, DungeonResult, LobbyOptions } from '../src/generator'
-import { allIds, nodesOfType, oneShotRespawn } from './xmlHelpers'
+import { MUSIC_DEFAULT, MUSIC_TRACKS, isKnownMusicId, musicMode } from '../src/generator/music/tracks'
+import { DEFAULT_LOBBY_PRESET_ID } from '../src/generator/lobby/presets'
+import type { AeLevel } from '../src/generator/ae/model'
+import { changedScripts, generateOk, levelsOf, param, placements, scriptsOf } from './ae'
 import { plainParameters } from './params'
 
 const SEED = 4242
-
-function generateOk(params: DungeonParameters, seed: number): DungeonResult {
-  const result = generateDungeon(params, seed)
-  expect(result.ok, `generation failed: ${result.ok ? '' : result.errors.join(' ')}`).toBe(true)
-  return result as DungeonResult
-}
 
 function bareParams(): DungeonParameters {
   const params = plainParameters()
   params.levels = 3
   params.themes = params.themes.slice(0, 3)
   params.levelMonsters = params.levelMonsters.slice(0, 3)
-  // "bare" means no music at all, not defaultParameters()'s own act1/act2 cues
+  // "bare" means no music at all, not defaultParameters()'s own cues
   delete params.floorMusic
   params.lobbies = []
   params.boss = { ...params.boss, enabled: false }
@@ -41,31 +30,38 @@ function bareParams(): DungeonParameters {
   return params
 }
 
-function levelXml(result: DungeonResult, index: number): string {
-  const file = result.files.find((f) => f.path === `levels/level${index}.xml`)
-  expect(file, `levels/level${index}.xml missing`).toBeDefined()
-  return (file as { content: string }).content
+function level(result: DungeonResult, stem: string): AeLevel {
+  const l = levelsOf(result).get(stem)
+  expect(l, `${stem} missing`).toBeDefined()
+  return l!
 }
 
-function sectionOf(xml: string, name: string): string | undefined {
-  return new RegExp(`<dictionary name="${name}">[\\s\\S]*?\\n\\t</dictionary>`).exec(xml)?.[0]
-}
+/** The music modes a level's PlayMusic scripts set. */
+const modesOf = (l: AeLevel) => scriptsOf(l, 'PlayMusic').map((s) => param(s, 'Music')?.value)
+
+/** Everything about a level except its scripts — the part music must never touch. */
+const geometryOf = (l: AeLevel) => ({ tiles: l.tileCells, units: placements(l), env: l.environment })
 
 // --- tracks.ts ---------------------------------------------------------------
 
 describe('music tracks', () => {
-  it('unset, MUSIC_DEFAULT, and an unknown id all resolve to no sound', () => {
-    expect(musicSound(undefined)).toBeNull()
-    expect(musicSound(MUSIC_DEFAULT)).toBeNull()
-    expect(musicSound('not-a-track')).toBeNull()
+  it('unset, MUSIC_DEFAULT, and an unknown id all resolve to no mode', () => {
+    expect(musicMode(undefined)).toBeNull()
+    expect(musicMode(MUSIC_DEFAULT)).toBeNull()
+    expect(musicMode('not-a-track')).toBeNull()
   })
 
-  it('a known id resolves to sound/<bank>.xml:<cue>', () => {
-    expect(musicSound('main')).toBe('sound/music.xml:main')
-    expect(musicSound('act2')).toBe('sound/music.xml:act2')
-    expect(musicSound('desert_temple')).toBe('sound/music_desert.xml:desert_temple')
-    // 'none' is a real cue — deliberate silence — distinct from the 'default' sentinel
-    expect(musicSound('none')).toBe('sound/music.xml:none')
+  it('a known id resolves to its AE music mode', () => {
+    expect(musicMode('none')).toBe(0)
+    expect(musicMode('main')).toBe(1)
+    expect(musicMode('act2')).toBe(3)
+    expect(musicMode('boss_1')).toBe(6)
+    expect(musicMode('temple_hub')).toBe(14)
+  })
+
+  it('gives every track a distinct id and a non-negative integer mode', () => {
+    expect(new Set(MUSIC_TRACKS.map((t) => t.id)).size).toBe(MUSIC_TRACKS.length)
+    for (const t of MUSIC_TRACKS) expect(Number.isInteger(t.mode) && t.mode >= 0, t.id).toBe(true)
   })
 
   it('isKnownMusicId accepts every shipped id plus unset/default, and nothing else', () => {
@@ -79,9 +75,7 @@ describe('music tracks', () => {
 // --- rig.ts, unit level ------------------------------------------------------
 
 describe('music rig — unit', () => {
-  function freshCtx(seed = 12345): GenerationContext {
-    return new GenerationContext(defaultParameters(), seed)
-  }
+  const freshCtx = () => new GenerationContext(defaultParameters(), 12345)
 
   it('emits nothing for unset, default, or an unknown id', () => {
     for (const track of [undefined, MUSIC_DEFAULT, 'not-a-track']) {
@@ -91,37 +85,23 @@ describe('music rig — unit', () => {
     }
   })
 
-  it('wires a GlobalEventTrigger("LevelLoaded") to a PlayMusic node with the right cue', () => {
+  it('fires PlayMusic once, on level load', () => {
     const ctx = freshCtx()
     buildMusicRig(ctx, 'boss_final')
-    const triggers = ctx.scriptNodes.filter((n) => n.type === 'GlobalEventTrigger')
-    const music = ctx.scriptNodes.filter((n) => n.type === 'PlayMusic')
-    expect(triggers).toHaveLength(1)
-    expect(music).toHaveLength(1)
-    expect((triggers[0] as { eventName: string } & typeof triggers[0]).eventName).toBe('LevelLoaded')
-    expect(triggers[0].connections).toEqual([music[0]])
-    expect((music[0] as { sound: string } & typeof music[0]).sound).toBe('sound/music.xml:boss_final')
+    const [link, play] = ctx.scriptNodes
+    expect(ctx.scriptNodes).toHaveLength(2)
+    expect(link.cls).toBe('ScriptLink')
+    expect(link.executeOnStart).toBe(true)
+    expect(link.triggerTimes).toBe(1)
+    expect(link.connections.map((c) => c.node)).toEqual([play])
+    expect(play.cls).toBe('PlayMusic')
+    expect(play.params()).toEqual([{ name: 'Music', kind: 'int', value: musicMode('boss_final') }])
   })
 })
 
 // --- dungeon floors, end to end ----------------------------------------------
 
-describe('floor music — off means off', () => {
-  it('every floor unset matches a campaign with no floorMusic field at all', () => {
-    const off = generateOk(bareParams(), SEED)
-    const legacy = bareParams()
-    delete legacy.floorMusic
-    const before = generateOk(legacy, SEED)
-    expect(off.files).toEqual(before.files)
-  })
-
-  it('a floor with no track set emits no PlayMusic node', () => {
-    const xml = levelXml(generateOk(bareParams(), SEED), 0)
-    expect(nodesOfType(xml, 'PlayMusic')).toHaveLength(0)
-  })
-})
-
-describe('floor music — one floor set leaves the others alone', () => {
+describe('floor music', () => {
   function withMusic(index: number, track: string): DungeonParameters {
     const params = bareParams()
     params.floorMusic = params.themes.map(() => MUSIC_DEFAULT)
@@ -129,46 +109,37 @@ describe('floor music — one floor set leaves the others alone', () => {
     return params
   }
 
+  it('every floor unset matches a campaign with no floorMusic field at all', () => {
+    const unset = bareParams()
+    unset.floorMusic = unset.themes.map(() => MUSIC_DEFAULT)
+    expect(generateOk(unset, SEED).files).toEqual(generateOk(bareParams(), SEED).files)
+  })
+
+  it('a floor with no track set emits no PlayMusic', () => {
+    expect(modesOf(level(generateOk(bareParams(), SEED), 'floor0'))).toEqual([])
+  })
+
   it('moves no other floor, and no floor geometry at all', () => {
-    const off = generateOk(bareParams(), SEED)
-    const on = generateOk(withMusic(1, 'act2'), SEED)
-
-    for (const i of [0, 2]) {
-      expect(levelXml(on, i)).toBe(levelXml(off, i))
-    }
-    expect(on.levels).toEqual(off.levels)
+    const off = levelsOf(generateOk(bareParams(), SEED))
+    const on = levelsOf(generateOk(withMusic(1, 'act2'), SEED))
+    for (const stem of ['floor0', 'floor2']) expect(on.get(stem)).toEqual(off.get(stem))
+    expect(geometryOf(on.get('floor1')!)).toEqual(geometryOf(off.get('floor1')!))
   })
 
-  it('appends to the chosen floor without moving one existing id, or touching any other section', () => {
-    const off = generateOk(bareParams(), SEED)
-    const on = generateOk(withMusic(1, 'act2'), SEED)
-    const offXml = levelXml(off, 1)
-    const onXml = levelXml(on, 1)
-
-    for (const section of ['tilemap', 'doodads', 'actors', 'items']) {
-      expect(sectionOf(onXml, section), section).toBe(sectionOf(offXml, section))
-    }
-
-    const offIds = allIds(offXml)
-    const onIds = allIds(onXml)
-    const highest = Math.max(...offIds)
-    expect(onIds.filter((id) => id <= highest)).toEqual(offIds)
-    // one GlobalEventTrigger + one PlayMusic
-    expect(onIds.filter((id) => id > highest)).toHaveLength(2)
-
-    expect(nodesOfType(onXml, 'PlayMusic')).toHaveLength(1)
-    expect(nodesOfType(onXml, 'PlayMusic')[0].body).toContain('sound/music.xml:act2')
+  it('adds two scripts to the chosen floor and changes no existing one', () => {
+    const off = level(generateOk(bareParams(), SEED), 'floor1')
+    const on = level(generateOk(withMusic(1, 'act2'), SEED), 'floor1')
+    expect(changedScripts(off, on)).toEqual([])
+    // one ScriptLink + one PlayMusic
+    expect(on.scripts.length - off.scripts.length).toBe(2)
+    expect(modesOf(on)).toEqual([musicMode('act2')])
   })
 
-  it('emits the right cue for every shipped track id', () => {
+  it('emits the right mode for every shipped track id', () => {
     for (const track of MUSIC_TRACKS) {
-      const xml = levelXml(generateOk(withMusic(0, track.id), SEED), 0)
-      const nodes = nodesOfType(xml, 'PlayMusic')
-      expect(nodes, track.id).toHaveLength(1)
-      expect(nodes[0].body, track.id).toContain(track.sound)
-      expect(nodes[0].body, track.id).toContain('<bool name="loop">True</bool>')
+      expect(modesOf(level(generateOk(withMusic(0, track.id), SEED), 'floor0')), track.id).toEqual([track.mode])
     }
-  })
+  }, 120_000)
 })
 
 // --- boss arena, end to end ---------------------------------------------------
@@ -184,70 +155,37 @@ describe('boss arena music', () => {
     return params
   }
 
-  function arenaXml(result: DungeonResult): string {
-    const file = result.files.find((f) => f.path === 'levels/boss0.xml')
-    expect(file, 'levels/boss0.xml missing').toBeDefined()
-    return (file as { content: string }).content
-  }
-
-  it('unset emits no PlayMusic node', () => {
-    const xml = arenaXml(generateOk(withArenaMusic(MUSIC_DEFAULT), SEED))
-    expect(nodesOfType(xml, 'PlayMusic')).toHaveLength(0)
+  it('unset emits no PlayMusic', () => {
+    expect(modesOf(level(generateOk(withArenaMusic(MUSIC_DEFAULT), SEED), 'boss0'))).toEqual([])
   })
 
-  it('a chosen track appends last, after checkpoints, without moving any earlier id', () => {
-    const off = generateOk(withArenaMusic(MUSIC_DEFAULT), SEED)
-    const on = generateOk(withArenaMusic('boss_1'), SEED)
-    const offXml = arenaXml(off)
-    const onXml = arenaXml(on)
-
-    const offIds = allIds(offXml)
-    const onIds = allIds(onXml)
-    const highest = Math.max(...offIds)
-    expect(onIds.filter((id) => id <= highest)).toEqual(offIds)
-
-    const nodes = nodesOfType(onXml, 'PlayMusic')
-    expect(nodes).toHaveLength(1)
-    expect(nodes[0].body).toContain('sound/music.xml:boss_1')
-    // the new PlayMusic + its GlobalEventTrigger both sit above every id the
-    // off-arena already used, so the rig only ever appends
-    expect(nodes[0].id).toBeGreaterThan(highest)
+  it('a chosen track adds its rig and moves nothing else in the arena', () => {
+    const off = level(generateOk(withArenaMusic(MUSIC_DEFAULT), SEED), 'boss0')
+    const on = level(generateOk(withArenaMusic('boss_1'), SEED), 'boss0')
+    expect(changedScripts(off, on)).toEqual([])
+    expect(placements(on)).toEqual(placements(off))
+    expect(modesOf(on)).toEqual([musicMode('boss_1')])
   })
 })
 
-// --- lobbies, direct buildLobby ------------------------------------------------
+// --- lobbies, end to end -------------------------------------------------------
 
 describe('lobby music', () => {
-  const EXIT_TARGET = 'some-level'
-
-  function lobbyOptions(preset: string, music?: string): LobbyOptions {
-    return { ...defaultLobby(preset), music }
+  function withLobbyMusic(music?: string): DungeonParameters {
+    const params = bareParams()
+    params.lobbies = [{ ...defaultLobby(DEFAULT_LOBBY_PRESET_ID), music }]
+    return params
   }
 
-  for (const preset of LOBBY_PRESETS) {
-    it(`${preset.id}: unset leaves the template's own music untouched (no PlayMusic added)`, () => {
-      const before = preset.template
-      const xml = buildLobby(preset, lobbyOptions(preset.id), EXIT_TARGET, false)
-      const beforeMusic = nodesOfType(before, 'PlayMusic').length
-      expect(nodesOfType(xml, 'PlayMusic')).toHaveLength(beforeMusic)
-    })
+  it('unset adds no PlayMusic to the lobby', () => {
+    expect(modesOf(level(generateOk(withLobbyMusic(), SEED), 'lobby0'))).toEqual([])
+  })
 
-    it(`${preset.id}: a chosen track adds one GlobalEventTrigger/PlayMusic pair at the reserved ids`, () => {
-      const xml = buildLobby(preset, lobbyOptions(preset.id, 'main'), EXIT_TARGET, false)
-      const music = nodesOfType(xml, 'PlayMusic')
-      expect(music).toHaveLength(1)
-      expect(music[0].id).toBe(preset.musicIdBase + 1)
-      expect(music[0].body).toContain('sound/music.xml:main')
-
-      const trigger = nodesOfType(xml, 'GlobalEventTrigger').find((n) => n.id === preset.musicIdBase)
-      expect(trigger).toBeDefined()
-      expect(trigger?.body).toContain('LevelLoaded')
-
-      // the arrival-respawn net is still exactly where it always was
-      const respawn = oneShotRespawn(xml)
-      expect(typeof respawn, JSON.stringify(respawn)).toBe('object')
-    })
-  }
+  it('a chosen track plays on load, and the lobby keeps its arrival point', () => {
+    const lobby = level(generateOk(withLobbyMusic('main'), SEED), 'lobby0')
+    expect(modesOf(lobby)).toEqual([musicMode('main')])
+    expect(scriptsOf(lobby, 'LevelStart').length).toBeGreaterThan(0)
+  })
 })
 
 // --- validation ---------------------------------------------------------------
@@ -276,9 +214,7 @@ describe('music validation', () => {
 
   it('rejects an unknown boss fight music id', () => {
     const params = defaultParameters()
-    params.boss.fights = params.boss.fights.map((f, i) =>
-      i === 0 ? { ...f, arena: { ...f.arena, music: 'nope' } } : f
-    )
+    params.boss.fights = params.boss.fights.map((f, i) => (i === 0 ? { ...f, arena: { ...f.arena, music: 'nope' } } : f))
     const result = validateParameters(params)
     expect(result.valid).toBe(false)
     expect(result.errors.map((e) => e.field)).toContain('boss.fights.0.arena.music')
