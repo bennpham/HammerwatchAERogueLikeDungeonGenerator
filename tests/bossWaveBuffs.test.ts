@@ -30,6 +30,8 @@ import { buildBossArena } from '../src/generator/boss/arena'
 import { buildWaveBuffRig } from '../src/generator/boss/waveBuffs'
 import { TIER_EVENT_NAMES } from '../src/generator/boss/waves'
 import type { ScriptNode } from '../src/generator/objects/scriptNode'
+import { NodeDangerArea, NodeGlobalEventTrigger, NodeToggleElement } from '../src/generator/objects/nodes'
+import { buffById } from '../src/generator/objects/buffTypes'
 
 const ARENA_W = 30
 const ARENA_H = 40
@@ -61,39 +63,52 @@ function buildRig(ctx: GenerationContext, waves: BossWave[]) {
   buildWaveBuffRig(ctx, waves, ARENA_W, ARENA_H, 15, 38)
 }
 
-function nodesOfType(ctx: GenerationContext, type: string): ScriptNode[] {
-  return ctx.scriptNodes.filter((n) => n.type === type)
+/** The tier triggers (health / death triggers in AE). */
+function tierTriggers(ctx: GenerationContext): ScriptNode[] {
+  return ctx.scriptNodes.filter((n) => n instanceof NodeGlobalEventTrigger)
 }
 
-/** Every id in every `connections` array actually exists among ctx.scriptNodes. */
+function nodesOfType(ctx: GenerationContext, cls: string): ScriptNode[] {
+  return ctx.scriptNodes.filter((n) => n.cls === cls)
+}
+
+/** Every connection actually points at one of ctx.scriptNodes. */
 function connectionsResolve(ctx: GenerationContext): boolean {
-  const ids = new Set(ctx.scriptNodes.map((n) => n.id))
-  return ctx.scriptNodes.every((n) => n.connections.every((c) => ids.has(c.id)))
+  const nodes = new Set(ctx.scriptNodes)
+  return ctx.scriptNodes.every((n) => n.connections.every((c) => nodes.has(c.node)))
 }
 
-/** The engine event a GlobalEventTrigger fires on. */
+/** The tier event a trigger stands for ("Boss 50%"...). */
 function eventOf(node: ScriptNode): string {
-  return (node as unknown as { eventName: string }).eventName
+  return (node as NodeGlobalEventTrigger).eventName
 }
 
-/** The ToggleElements reachable from `trigger`, as {state, element} pairs. */
-function togglesFrom(trigger: ScriptNode): { state: number; element: number }[] {
+/** The ToggleScripts fired from `trigger`, as {state, element} pairs. */
+function togglesFrom(trigger: ScriptNode): { state: string; element: number }[] {
   return trigger.connections
-    .filter((n) => n.type === 'ToggleElement')
-    .map((n) => n as unknown as { state: number; element: number })
-    .map(({ state, element }) => ({ state, element }))
+    .map((c) => c.node)
+    .filter((n): n is NodeToggleElement => n instanceof NodeToggleElement)
+    .flatMap((t) => t.elements.map((e) => ({ state: t.action, element: e.id })))
 }
 
+/** The DangerArea fields, with the sensor each covers. */
 function fields(ctx: GenerationContext) {
-  return nodesOfType(ctx, 'DangerArea') as unknown as {
-    id: number
-    enabled: boolean
-    damage: number
-    freqMs: number
-    buff: string
-    shapeId: number
-  }[]
+  return (nodesOfType(ctx, 'DangerArea') as NodeDangerArea[]).map((a) => ({
+    id: a.id,
+    enabled: a.enabled,
+    damage: a.damage,
+    freqMs: a.freqMs,
+    buff: a.buff,
+    shapeId: a.areas[0]?.id
+  }))
 }
+
+/** The covering sensors, with their AE filter flags. */
+function shapesOf(ctx: GenerationContext): { id: number; types: number | undefined }[] {
+  return ctx.sensors.map((sh) => ({ id: sh.id, types: sh.types }))
+}
+
+const buffPath = (id: string) => buffById(id)!.path
 
 describe('boss wave buffs — none means none', () => {
   it('emits nothing at all when no tier carries a buff', () => {
@@ -113,7 +128,7 @@ describe('boss wave buffs — none means none', () => {
     expect(ctx.idCounter).toBe(beforeId)
   })
 
-  it('leaves a whole generated arena byte-identical with no tier buffed', () => {
+  it('leaves a whole generated arena identical with no tier buffed', () => {
     const params = defaultParameters()
     const plain = buildBossArena(freshCtx(4242), params.boss.fights[0].arena, 0)
 
@@ -124,7 +139,7 @@ describe('boss wave buffs — none means none', () => {
     }
     const explicit = buildBossArena(freshCtx(4242), cleared, 0)
 
-    expect(explicit.xml).toBe(plain.xml)
+    expect(explicit.level).toEqual(plain.level)
   })
 })
 
@@ -138,11 +153,11 @@ describe('boss wave buffs — the field rig', () => {
     expect(areas[0].enabled).toBe(true)
     expect(areas[0].damage).toBe(0)
     expect(areas[0].freqMs).toBe(BUFF_REFRESH_MS)
-    expect(areas[0].buff).toBe('buffs/bloodlust.xml')
+    expect(areas[0].buff).toBe(buffPath('bloodlust'))
 
     // the opening state needs nothing to switch it on
-    expect(nodesOfType(ctx, 'GlobalEventTrigger')).toHaveLength(0)
-    expect(nodesOfType(ctx, 'ToggleElement')).toHaveLength(0)
+    expect(tierTriggers(ctx)).toHaveLength(0)
+    expect(nodesOfType(ctx, 'ToggleScripts')).toHaveLength(0)
   })
 
   it('gives a later tier a disabled field switched on by its own threshold', () => {
@@ -153,7 +168,7 @@ describe('boss wave buffs — the field rig', () => {
     expect(areas).toHaveLength(1)
     expect(areas[0].enabled).toBe(false)
 
-    const triggers = nodesOfType(ctx, 'GlobalEventTrigger')
+    const triggers = tierTriggers(ctx)
     expect(triggers).toHaveLength(1)
     // the tier array is offset by one: tier 2 fires on TIER_EVENT_NAMES[1]
     expect(eventOf(triggers[0])).toBe(TIER_EVENT_NAMES[1])
@@ -161,7 +176,7 @@ describe('boss wave buffs — the field rig', () => {
 
     const toggles = togglesFrom(triggers[0])
     // nothing earlier carries a buff, so there is nothing to switch off
-    expect(toggles).toEqual([{ state: 0, element: areas[0].id }])
+    expect(toggles).toEqual([{ state: 'enable', element: areas[0].id }])
   })
 
   it('switches the previous tier off as it switches its own on', () => {
@@ -172,12 +187,12 @@ describe('boss wave buffs — the field rig', () => {
     expect(areas).toHaveLength(2)
     const [first, second] = areas
 
-    const triggers = nodesOfType(ctx, 'GlobalEventTrigger')
+    const triggers = tierTriggers(ctx)
     expect(triggers).toHaveLength(1)
 
     const toggles = togglesFrom(triggers[0])
-    expect(toggles).toContainEqual({ state: 1, element: first.id }) // 1 disables
-    expect(toggles).toContainEqual({ state: 0, element: second.id }) // 0 enables
+    expect(toggles).toContainEqual({ state: 'disable', element: first.id })
+    expect(toggles).toContainEqual({ state: 'enable', element: second.id })
     expect(toggles).toHaveLength(2)
   })
 
@@ -203,13 +218,13 @@ describe('boss wave buffs — the field rig', () => {
       const areas = fields(ctx)
       expect(areas, preset.id).toHaveLength(1)
       expect(areas[0].enabled).toBe(false)
-      expect(areas[0].buff).toBe('buffs/bloodlust.xml')
+      expect(areas[0].buff).toBe(buffPath('bloodlust'))
       expect(areas[0].damage).toBe(0)
 
-      const triggers = nodesOfType(ctx, 'GlobalEventTrigger')
+      const triggers = tierTriggers(ctx)
       expect(triggers).toHaveLength(1)
       expect(eventOf(triggers[0])).toBe(TIER_EVENT_NAMES[TIER_EVENT_NAMES.length - 1])
-      expect(togglesFrom(triggers[0])).toEqual([{ state: 0, element: areas[0].id }])
+      expect(togglesFrom(triggers[0])).toEqual([{ state: 'enable', element: areas[0].id }])
       expect(connectionsResolve(ctx)).toBe(true)
     }
   })
@@ -226,9 +241,9 @@ describe('boss wave buffs — the field rig', () => {
     expect(areas).toHaveLength(2)
     for (const area of areas) {
       expect(area.enabled).toBe(false)
-      expect(area.buff).toBe('buffs/bloodlust.xml')
+      expect(area.buff).toBe(buffPath('bloodlust'))
     }
-    expect(nodesOfType(ctx, 'GlobalEventTrigger')).toHaveLength(2)
+    expect(tierTriggers(ctx)).toHaveLength(2)
     expect(connectionsResolve(ctx)).toBe(true)
   })
 
@@ -242,11 +257,11 @@ describe('boss wave buffs — the field rig', () => {
     expect(areas).toHaveLength(2)
     const [tier0, tier3] = areas
 
-    const triggers = nodesOfType(ctx, 'GlobalEventTrigger')
+    const triggers = tierTriggers(ctx)
     expect(triggers).toHaveLength(1)
     const toggles = togglesFrom(triggers[0])
-    expect(toggles).toContainEqual({ state: 1, element: tier0.id })
-    expect(toggles).toContainEqual({ state: 0, element: tier3.id })
+    expect(toggles).toContainEqual({ state: 'disable', element: tier0.id })
+    expect(toggles).toContainEqual({ state: 'enable', element: tier3.id })
   })
 
   it('gives each tier its own shape, with the target it asked for', () => {
@@ -254,7 +269,7 @@ describe('boss wave buffs — the field rig', () => {
     buildRig(ctx, [wave('bloodlust', 'monsters'), wave('frost', 'players'), wave('cripple', 'both'), wave(), wave()])
 
     const areas = fields(ctx)
-    const shapes = nodesOfType(ctx, 'RectangleShape') as unknown as { id: number; types: number }[]
+    const shapes = shapesOf(ctx)
     expect(areas).toHaveLength(3)
     expect(shapes).toHaveLength(3)
 
@@ -267,7 +282,7 @@ describe('boss wave buffs — the field rig', () => {
   it('defaults an unstated target to players', () => {
     const ctx = freshCtx()
     buildRig(ctx, [wave('frost'), wave(), wave(), wave(), wave()])
-    const shapes = nodesOfType(ctx, 'RectangleShape') as unknown as { types: number }[]
+    const shapes = shapesOf(ctx)
     expect(shapes[0].types).toBe(BUFF_TARGET_TYPES.players)
   })
 
@@ -275,11 +290,11 @@ describe('boss wave buffs — the field rig', () => {
     const ctx = freshCtx()
     buildRig(ctx, [wave(), wave(), wave(), wave(), wave('test', 'players')])
 
-    const triggers = nodesOfType(ctx, 'GlobalEventTrigger')
+    const triggers = tierTriggers(ctx)
     expect(triggers).toHaveLength(1)
     expect(eventOf(triggers[0])).toBe(TIER_EVENT_NAMES[3])
     expect(TIER_EVENT_NAMES[3]).toBe('Boss Died')
-    expect(fields(ctx)[0].buff).toBe('buffs/test.xml')
+    expect(fields(ctx)[0].buff).toBe(buffPath('test'))
   })
 
   it('resolves every connection to a real node', () => {
@@ -295,8 +310,8 @@ describe('boss wave buffs — the field rig', () => {
     const areas = fields(ctx)
     expect(areas).toHaveLength(2)
     // tier 2 switches off tier 0, because tier 1 never produced a field
-    const toggles = togglesFrom(nodesOfType(ctx, 'GlobalEventTrigger')[0])
-    expect(toggles).toContainEqual({ state: 1, element: areas[0].id })
+    const toggles = togglesFrom(tierTriggers(ctx)[0])
+    expect(toggles).toContainEqual({ state: 'disable', element: areas[0].id })
   })
 })
 
@@ -306,10 +321,10 @@ describe('boss wave buffs — several buffs on one tier', () => {
     buildRig(ctx, [waveWith(['bloodlust', 'monsters'], ['frost', 'players']), wave(), wave(), wave(), wave()])
 
     const areas = fields(ctx)
-    const shapes = nodesOfType(ctx, 'RectangleShape') as unknown as { id: number; types: number }[]
+    const shapes = shapesOf(ctx)
     expect(areas).toHaveLength(2)
     expect(shapes).toHaveLength(2)
-    expect(areas.map((a) => a.buff)).toEqual(['buffs/bloodlust.xml', 'buffs/frost.xml'])
+    expect(areas.map((a) => a.buff)).toEqual([buffPath('bloodlust'), buffPath('frost')])
     // tier 0 arrives live, whichever of its fields you look at
     expect(areas.every((a) => a.enabled)).toBe(true)
 
@@ -332,15 +347,15 @@ describe('boss wave buffs — several buffs on one tier', () => {
     expect(areas).toHaveLength(4)
     const [first, second, third, fourth] = areas
 
-    const triggers = nodesOfType(ctx, 'GlobalEventTrigger')
+    const triggers = tierTriggers(ctx)
     expect(triggers).toHaveLength(1)
 
     const toggles = togglesFrom(triggers[0])
     expect(toggles).toHaveLength(4)
-    expect(toggles).toContainEqual({ state: 1, element: first.id })
-    expect(toggles).toContainEqual({ state: 1, element: second.id })
-    expect(toggles).toContainEqual({ state: 0, element: third.id })
-    expect(toggles).toContainEqual({ state: 0, element: fourth.id })
+    expect(toggles).toContainEqual({ state: 'disable', element: first.id })
+    expect(toggles).toContainEqual({ state: 'disable', element: second.id })
+    expect(toggles).toContainEqual({ state: 'enable', element: third.id })
+    expect(toggles).toContainEqual({ state: 'enable', element: fourth.id })
     expect(connectionsResolve(ctx)).toBe(true)
   })
 
@@ -351,7 +366,8 @@ describe('boss wave buffs — several buffs on one tier', () => {
     const legacy = freshCtx()
     buildRig(legacy, [wave('bloodlust', 'monsters'), wave(), wave('frost', 'players'), wave(), wave()])
 
-    expect(listed.scriptNodes.map((n) => n.getXML())).toEqual(legacy.scriptNodes.map((n) => n.getXML()))
+    const shape = (c: GenerationContext) => c.scriptNodes.map((n) => ({ id: n.id, cls: n.cls, params: n.params(), to: n.connections.map((k) => [k.node.id, k.delayMs]) }))
+    expect(shape(listed)).toEqual(shape(legacy))
     expect(listed.idCounter).toBe(legacy.idCounter)
   })
 })
