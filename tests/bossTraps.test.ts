@@ -3,11 +3,10 @@
  * (src/generator/boss/traps.ts).
  *
  * Four things are being proved. First the emission shape: a count is SPEWERS,
- * so N means N ProjectileSpewer nodes, each with the engine's direction integer
+ * so N means N ProjectileSpewer scripts, each with AE's direction in degrees
  * and the row's spread and rate. Second the wiring: tier 0 arrives live with no
- * trigger, every later tier ships disabled behind a GlobalEventTrigger that
- * switches its own set on (`state: 0`) and the previous carrying tier's off
- * (`state: 1`). Third the placement: on the innermost floor tile of the wall it
+ * trigger, every later tier ships disabled behind its tier trigger, which
+ * switches its own set on and the previous carrying tier's off. Third the placement: on the innermost floor tile of the wall it
  * fires away from, clear of the corners, the entrance, the alcove mouth and each
  * other. Fourth, invariant 6 and invariant 2: no tier carrying a trap emits
  * nothing at all AND draws nothing, and because the rig runs last, switching it
@@ -17,6 +16,7 @@
  * bare context and read `ctx.scriptNodes` — rather than parsing XML, because
  * what matters here is which node points at which and where each one sits.
  */
+// The arena comparisons at the end read the emitted AeLevel instead.
 
 import { describe, expect, it } from 'vitest'
 import { GenerationContext } from '../src/generator/core/context'
@@ -30,6 +30,11 @@ import { TRAP_MIN_SPACING, TRAP_WALL_MARGIN, buildTrapRig, wallCapacity } from '
 import type { TrapArena } from '../src/generator/boss/traps'
 import { TIER_EVENT_NAMES } from '../src/generator/boss/waves'
 import type { ScriptNode } from '../src/generator/objects/scriptNode'
+import { NodeGlobalEventTrigger } from '../src/generator/objects/nodes'
+import type { NodeToggleElement } from '../src/generator/objects/nodes'
+import { SPEWER_DIRECTION } from '../src/generator/traps/slots'
+import { AE_UNIT_SET } from '../src/generator/catalog/assets'
+import { placements } from './ae'
 
 const ARENA_W = 30
 const ARENA_H = 40
@@ -71,8 +76,8 @@ function trap(
 
 const emptyTiers = () => [wave(), wave(), wave(), wave(), wave()]
 
-function nodesOfType(ctx: GenerationContext, type: string): ScriptNode[] {
-  return ctx.scriptNodes.filter((n) => n.type === type)
+function nodesOfType(ctx: GenerationContext, cls: string): ScriptNode[] {
+  return ctx.scriptNodes.filter((n) => n.cls === cls)
 }
 
 interface SpewerView {
@@ -82,34 +87,38 @@ interface SpewerView {
   enabled: boolean
   triggerTimes: number
   projectilePath: string
-  direction: number
+  directionDeg: number
   spread: number
-  spawnRateMs: number
+  frequencyMs: number
 }
 
 function spewers(ctx: GenerationContext): SpewerView[] {
   return nodesOfType(ctx, 'ProjectileSpewer') as unknown as SpewerView[]
 }
 
-/** The engine event a GlobalEventTrigger fires on. */
+/** The tier event a trigger stands for ("Boss 50%"...). */
 function eventOf(node: ScriptNode): string {
-  return (node as unknown as { eventName: string }).eventName
+  return (node as NodeGlobalEventTrigger).eventName
 }
 
-function stateOf(node: ScriptNode): number {
-  return (node as unknown as { state: number }).state
+/** What a connection does: the ToggleScripts' action. */
+function actionOf(node: ScriptNode): string {
+  return (node as NodeToggleElement).action
 }
 
-/** Every id in every `connections` array actually exists among ctx.scriptNodes. */
+/** Every connection actually points at one of ctx.scriptNodes. */
 function connectionsResolve(ctx: GenerationContext): boolean {
-  const ids = new Set(ctx.scriptNodes.map((n) => n.id))
-  return ctx.scriptNodes.every((n) => n.connections.every((c) => ids.has(c.id)))
+  const nodes = new Set(ctx.scriptNodes)
+  return ctx.scriptNodes.every((n) => n.connections.every((c) => nodes.has(c.node)))
 }
 
 /** The tier triggers, in tier order. */
 function triggers(ctx: GenerationContext): ScriptNode[] {
-  return nodesOfType(ctx, 'GlobalEventTrigger')
+  return ctx.scriptNodes.filter((n) => n instanceof NodeGlobalEventTrigger)
 }
+
+/** The scripts a node fires. */
+const fired = (n: ScriptNode): ScriptNode[] => n.connections.map((c) => c.node)
 
 describe('boss traps — none means none', () => {
   it('emits nothing at all when no tier runs a trap', () => {
@@ -118,8 +127,8 @@ describe('boss traps — none means none', () => {
     buildTrapRig(ctx, emptyTiers(), arenaOf())
 
     expect(spewers(ctx)).toHaveLength(0)
-    expect(nodesOfType(ctx, 'GlobalEventTrigger')).toHaveLength(0)
-    expect(nodesOfType(ctx, 'ToggleElement')).toHaveLength(0)
+    expect(triggers(ctx)).toHaveLength(0)
+    expect(nodesOfType(ctx, 'ToggleScripts')).toHaveLength(0)
     expect(ctx.idCounter).toBe(beforeId)
   })
 
@@ -144,7 +153,7 @@ describe('boss traps — none means none', () => {
     expect(ctx.scriptNodes).toHaveLength(0)
   })
 
-  it('leaves a whole generated arena byte-identical with no tier trapping', () => {
+  it('leaves a whole generated arena identical with no tier trapping', () => {
     const params = defaultParameters()
     const base = params.boss.fights[0].arena
     const cleared = {
@@ -162,7 +171,7 @@ describe('boss traps — none means none', () => {
       ...base,
       waves: base.waves.map((w) => ({ ...w, traps: [] as BossTrap[] }))
     }
-    expect(buildBossArena(freshCtx(4242), explicit, 0).xml).toBe(absent.xml)
+    expect(buildBossArena(freshCtx(4242), explicit, 0).level).toEqual(absent.level)
 
     // the stock arena runs a shooter_arrow rig on its last two tiers (070
     // parameter set) and none on the other three
@@ -184,20 +193,21 @@ describe('boss traps — emission shape', () => {
     const placed = spewers(ctx)
     expect(placed).toHaveLength(3)
     for (const s of placed) {
-      expect(s.projectilePath).toBe('projectiles/enemy_axe.xml')
+      expect(s.projectilePath).toBe(projectileById('enemy_axe')!.path)
       expect(s.spread).toBe(0.5)
-      expect(s.spawnRateMs).toBe(100)
+      expect(s.frequencyMs).toBe(100)
       expect(s.triggerTimes).toBe(-1)
     }
   })
 
-  it('maps each direction to the engine integer verified from the shipped campaign', () => {
-    // 0 up, 1 down, 2 left, 3 right — campaign/levels/level_10.xml ids 2579-2582.
-    const expected: Record<BossTrapDirection, number> = { up: 0, down: 1, left: 2, right: 3 }
+  it('maps each direction to AE degrees (0 east, 90 south, 180 west, 270 north)', () => {
+    // castle_hammerwatch level_10.lvl's flame turrets fire west at Direction 180
+    const expected: Record<BossTrapDirection, number> = { up: 270, down: 90, left: 180, right: 0 }
+    expect(SPEWER_DIRECTION).toEqual(expected)
     for (const direction of BOSS_TRAP_DIRECTIONS) {
       const ctx = freshCtx()
       buildTrapRig(ctx, [wave(trap(direction))], arenaOf())
-      expect(spewers(ctx)[0].direction).toBe(expected[direction])
+      expect(spewers(ctx)[0].directionDeg).toBe(expected[direction])
     }
   })
 
@@ -211,8 +221,8 @@ describe('boss traps — emission shape', () => {
 
     const placed = spewers(ctx)
     expect(placed).toHaveLength(5)
-    expect(placed.filter((s) => s.projectilePath.endsWith('enemy_axe.xml'))).toHaveLength(3)
-    expect(placed.filter((s) => s.projectilePath.endsWith('enemy_boss_anubis_fireball.xml'))).toHaveLength(2)
+    expect(placed.filter((s) => s.projectilePath === projectileById('enemy_axe')!.path)).toHaveLength(3)
+    expect(placed.filter((s) => s.projectilePath === projectileById('enemy_boss_anubis_fireball')!.path)).toHaveLength(2)
     // all on the south wall, none stacked
     expect(placed.every((s) => s.y === ARENA_H - 1 + 0.5)).toBe(true)
     expect(new Set(placed.map((s) => s.x)).size).toBe(5)
@@ -251,9 +261,9 @@ describe('boss traps — tiers replace one another', () => {
     expect(eventOf(trig[0])).toBe(TIER_EVENT_NAMES[1])
 
     // it switches its own two on and nothing off — no earlier tier carries any
-    const toggles = trig[0].connections
+    const toggles = fired(trig[0])
     expect(toggles).toHaveLength(2)
-    expect(toggles.every((t) => t.type === 'ToggleElement' && stateOf(t) === 0)).toBe(true)
+    expect(toggles.every((t) => t.cls === 'ToggleScripts' && actionOf(t) === 'enable')).toBe(true)
   })
 
   it('switches the previous carrying tier off as it switches its own on', () => {
@@ -262,10 +272,10 @@ describe('boss traps — tiers replace one another', () => {
 
     const trig = triggers(ctx)
     expect(trig).toHaveLength(1)
-    const toggles = trig[0].connections
+    const toggles = fired(trig[0])
     // two off (the opening tier's) then three on (its own)
-    expect(toggles.filter((t) => stateOf(t) === 1)).toHaveLength(2)
-    expect(toggles.filter((t) => stateOf(t) === 0)).toHaveLength(3)
+    expect(toggles.filter((t) => actionOf(t) === 'disable')).toHaveLength(2)
+    expect(toggles.filter((t) => actionOf(t) === 'enable')).toHaveLength(3)
   })
 
   it('names the nearest EARLIER carrying tier, not tier - 1', () => {
@@ -278,12 +288,12 @@ describe('boss traps — tiers replace one another', () => {
     expect(trig).toHaveLength(1)
     expect(eventOf(trig[0])).toBe(TIER_EVENT_NAMES[2])
 
-    const off = trig[0].connections.filter((t) => stateOf(t) === 1)
+    const off = fired(trig[0]).filter((t) => actionOf(t) === 'disable')
     expect(off).toHaveLength(2)
     // and they point at the two opening spewers
     const opening = spewers(ctx).filter((s) => s.enabled).map((s) => s.id)
     expect(opening).toHaveLength(2)
-    const targets = off.map((t) => (t as unknown as { element: number }).element)
+    const targets = off.flatMap((t) => (t as NodeToggleElement).elements.map((e) => e.id))
     expect(new Set(targets)).toEqual(new Set(opening))
   })
 
@@ -313,7 +323,8 @@ describe('boss traps — placement', () => {
    * The row a north-wall trap stands on for a themeless test arena: not 0, but
    * clear of the two rows the lettered themes' wall art buries.
    */
-  const NORTH_ROW = 2
+  // AE walls are drawn up from their own cell and bury no floor row
+  const NORTH_ROW = 0
 
   /** The wall a direction's spewers must stand on. */
   function onCorrectWall(s: SpewerView, direction: BossTrapDirection): boolean {
@@ -334,17 +345,13 @@ describe('boss traps — placement', () => {
     }
   })
 
-  it('drops the north wall clear of its overhang, but only on a theme that has one', () => {
-    // A lettered theme buries the two floor rows under any wall mass.
-    const lettered = freshCtx(4)
-    buildTrapRig(lettered, [wave(trap('down', 3))], arenaOf({ theme: 'a' }))
-    for (const s of spewers(lettered)) expect(tileY(s)).toBe(2)
-
-    // Theme h anchors its art on its own tile and buries nothing, so row 0 is
-    // the innermost tile there in fact as well as in name.
-    const flat = freshCtx(4)
-    buildTrapRig(flat, [wave(trap('down', 3))], arenaOf({ theme: 'h' }))
-    for (const s of spewers(flat)) expect(tileY(s)).toBe(0)
+  it('mounts north-wall traps on row 0 on every AE theme — no wall art buries a row', () => {
+    for (const theme of ['prison', 'cave_desert', 'bonus1', undefined]) {
+      const ctx = freshCtx(4)
+      buildTrapRig(ctx, [wave(trap('down', 3))], arenaOf(theme === undefined ? {} : { theme }))
+      expect(spewers(ctx).length).toBeGreaterThan(0)
+      for (const s of spewers(ctx)) expect(tileY(s), String(theme)).toBe(0)
+    }
   })
 
   it('stands each spewer on the innermost floor tile of the wall it fires away from', () => {
@@ -448,7 +455,7 @@ describe('boss traps — placement', () => {
     buildTrapRig(ctx, [wave(trap('up', 6))], arenaOf({ walkable }))
     expect(spewers(ctx)).toHaveLength(0)
     // and nothing was drawn for the spewers that could not be placed
-    expect(ctx.scriptNodes.filter((n) => n.type === 'ProjectileSpewer')).toHaveLength(0)
+    expect(nodesOfType(ctx, 'ProjectileSpewer')).toHaveLength(0)
   })
 
   it('never places more on a wall than wallCapacity promises', () => {
@@ -465,7 +472,7 @@ describe('boss traps — determinism', () => {
     const build = () => {
       const ctx = freshCtx(31337)
       buildTrapRig(ctx, [wave(trap('up', 4), trap('left', 3))], arenaOf())
-      return spewers(ctx).map((s) => `${s.x},${s.y},${s.direction}`)
+      return spewers(ctx).map((s) => `${s.x},${s.y},${s.directionDeg}`)
     }
     expect(build()).toEqual(build())
   })
@@ -485,10 +492,8 @@ describe('boss traps — determinism', () => {
 
   it('draws after every layout draw, so traps cannot move the arena layout', () => {
     // Cover pillars, the boss actor, the food and the orb are all decided before
-    // the trap draws, so those sections must be byte-identical whether or not
-    // traps are on. The tilemap is NOT: getArenaXML rolls its floor-tile
-    // variants after this rig, so those shift. That is cosmetic and documented
-    // in traps.ts — what must never move is the layout, which this asserts.
+    // the trap draws, so every unit must sit where it did whether or not traps
+    // are on — what must never move is the layout, which this asserts.
     const params = defaultParameters()
     const base = params.boss.fights[0].arena
     const without = {
@@ -507,30 +512,23 @@ describe('boss traps — determinism', () => {
     const plain = buildBossArena(freshCtx(555), without, 0)
     const trapped = buildBossArena(freshCtx(555), withTraps, 0)
 
-    // Doodads (the cover pillars and the alcove seals) and actors (the boss),
-    // which sit between the tilemap and the scripting section.
-    const layoutOf = (xml: string) =>
-      xml.slice(xml.indexOf('<dictionary name="doodads">'), xml.indexOf('<dictionary name="scripting">'))
-    expect(layoutOf(trapped.xml)).toBe(layoutOf(plain.xml))
-
-    // Items — the scattered food and the victory orb — come after scripting.
-    const itemsOf = (xml: string) => xml.slice(xml.indexOf('<dictionary name="items">'))
-    expect(itemsOf(trapped.xml)).toBe(itemsOf(plain.xml))
+    // Every unit — pillars, seals, the boss, food, the orb — in place.
+    expect(placements(trapped.level)).toEqual(placements(plain.level))
 
     // And the wall/floor geometry itself, which the preview carries verbatim.
     expect(JSON.stringify(trapped.preview.rooms)).toBe(JSON.stringify(plain.preview.rooms))
 
-    expect(trapped.xml).not.toBe(plain.xml)
-    expect(trapped.xml).toContain('ProjectileSpewer')
+    expect(trapped.level.scripts.some((sc) => sc.cls === 'ProjectileSpewer')).toBe(true)
+    expect(plain.level.scripts.some((sc) => sc.cls === 'ProjectileSpewer')).toBe(false)
   })
 })
 
 describe('boss traps — the projectile roster', () => {
-  it('gives every entry a unique id and a projectiles/ path', () => {
+  it('gives every entry a unique id and a unit the install ships', () => {
     const ids = PROJECTILE_DEFS.map((d) => d.id)
     expect(new Set(ids).size).toBe(ids.length)
     for (const def of PROJECTILE_DEFS) {
-      expect(def.path).toBe(`projectiles/${def.id}.xml`)
+      expect(AE_UNIT_SET.has(def.path), `${def.id} -> ${def.path}`).toBe(true)
       expect(def.label.length).toBeGreaterThan(0)
       expect(def.description.length).toBeGreaterThan(0)
       expect(projectileById(def.id)).toBe(def)

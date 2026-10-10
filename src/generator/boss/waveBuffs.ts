@@ -14,11 +14,10 @@
  *                   (live from arena load — no trigger, it IS the opening state)
  *
  *   tier N          GlobalEventTrigger(TIER_EVENT_NAMES[N - 1])
- *                        ├─ ToggleElement{state: 1} -> each previous tier field
- *                        └─ ToggleElement{state: 0} -> each of this tier's
+ *                        ├─ ToggleScripts{disable} -> each previous tier field
+ *                        └─ ToggleScripts{enable} -> each of this tier's
  *
- * `state: 0` ENABLES and `state: 1` disables — the inverted polarity
- * NodeToggleElement documents and prefabs/trap_fire_floor.xml confirms.
+ * NodeToggleElement names the action (AE State 1 enables, 2 disables).
  *
  * "The previous tier's field" is the nearest EARLIER tier that actually carries
  * a buff, not `tier - 1`: a campaign that buffs only 100% and 25% must have the
@@ -117,7 +116,7 @@ export function buildWaveBuffRig(
       for (const stale of previous) {
         row += 1
         const off = new NodeToggleElement(ctx, col, row)
-        off.state = 1 // 1 disables the target element
+        off.action = 'disable'
         off.connectToElement(stale)
         trigger.connectTo(off)
       }
@@ -125,7 +124,7 @@ export function buildWaveBuffRig(
       for (const field of fields) {
         row += 1
         const on = new NodeToggleElement(ctx, col, row)
-        on.state = 0 // 0 enables the target element
+        on.action = 'enable'
         on.connectToElement(field)
         trigger.connectTo(on)
       }

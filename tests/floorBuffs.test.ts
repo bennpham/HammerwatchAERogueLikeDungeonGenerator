@@ -5,10 +5,10 @@
  * optional, so a campaign with no floor carrying a buff must be
  * indistinguishable from one generated before the feature existed, switching one
  * floor on must leave every other floor untouched, and — because both optional
- * field rigs now share the floor loop — a floor with only a timer must keep the
- * ids it had before buffs existed. Second, the rig itself: an always-on
- * DangerArea per buff, one shared shape per distinct target, and the right
- * `types` bitmask on each.
+ * field rigs share the floor loop — a floor with only a timer must come out
+ * exactly as it did before buffs existed. Second, the rig itself: an always-on
+ * DangerArea per buff, one shared sensor per distinct target, and the right AE
+ * filter on each.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -24,25 +24,23 @@ import { validateParameters } from '../src/generator/config/validation'
 import { generateDungeon } from '../src/generator'
 import type { DungeonParameters, DungeonResult } from '../src/generator'
 import { BUFF_DEFS, BUFF_GROUPS, BUFF_HELPFUL_IDS, buffById } from '../src/generator/objects/buffTypes'
-import { allIds, badIntArray, nodesOfType } from './xmlHelpers'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { aeAssetsDir } from './aeInstall'
+import type { AeLevel } from '../src/generator/ae/model'
+import { changedScripts, generateOk, idsParam, intParam, levelsOf, placements, scriptsOf, strParam } from './ae'
 import { plainParameters } from './params'
 
 const SEED = 4242
-
-function generateOk(params: DungeonParameters, seed: number): DungeonResult {
-  const result = generateDungeon(params, seed)
-  expect(result.ok, `generation failed: ${result.ok ? '' : result.errors.join(' ')}`).toBe(true)
-  return result as DungeonResult
-}
 
 /**
  * Stock parameters with the optional layers off, so the file list is just the
  * dungeon floors. Same isolation discipline as floorTimer.test.ts.
  *
  * The map is deliberately smaller than the stock 80x60 and carries fewer rooms.
- * The buff rig is blind to both — it emits one covering rectangle and a handful
- * of off-map marker nodes whatever the floor looks like — but generation cost
- * is dominated by map area, and this suite generates a lot of campaigns.
+ * The buff rig is blind to both — it emits one covering sensor per target
+ * whatever the floor looks like — but generation cost is dominated by map area,
+ * and this suite generates a lot of campaigns.
  */
 function bareParams(): DungeonParameters {
   const params = plainParameters()
@@ -68,53 +66,23 @@ function withBuffs(index: number, buffs: FloorBuff[]): DungeonParameters {
   return params
 }
 
-function levelXml(result: DungeonResult, index: number): string {
-  const file = result.files.find((f) => f.path === `levels/level${index}.xml`)
-  expect(file, `levels/level${index}.xml missing`).toBeDefined()
-  return (file as { content: string }).content
-}
-
-/** The ids `<int-arr name="{name}">` holds inside `body`, or null if absent. */
-function intArr(body: string, name: string): number[] | null {
-  const found = new RegExp(`<int-arr name="${name}">([^<]*)</int-arr>`).exec(body)
-  return found === null ? null : found[1].split(' ').map(Number)
-}
-
-function intParam(body: string, name: string): number | null {
-  const found = new RegExp(`<int name="${name}">(-?\\d+)</int>`).exec(body)
-  return found === null ? null : Number(found[1])
-}
-
-/** The `<string name="buff">` a DangerArea body carries, '' when empty. */
-function buffParam(body: string): string | null {
-  const found = /<string name="buff">([^<]*)<\/string>/.exec(body)
-  return found === null ? null : found[1]
-}
-
-/** Whether a node body says `<bool name="enabled">True</bool>`. */
-function isEnabled(body: string): boolean {
-  return /<bool name="enabled">True<\/bool>/.test(body)
-}
-
-/** One section of a level file, so the non-scripting sections can be compared. */
-function section(xml: string, name: string): string {
-  const open = xml.indexOf(`<dictionary name="${name}">`)
-  expect(open, `section ${name} missing`).toBeGreaterThan(-1)
-  const next = xml.indexOf('<dictionary name="', open + 1)
-  return xml.slice(open, next === -1 ? xml.length : next)
+function floor(result: DungeonResult, index: number): AeLevel {
+  const l = levelsOf(result).get(`floor${index}`)
+  expect(l, `floor${index} missing`).toBeDefined()
+  return l!
 }
 
 // --- the registry -----------------------------------------------------------
 
 describe('the buff registry', () => {
-  it('has a unique id and a well-formed path for every buff', () => {
+  it('has a unique id and an AE buff path for every buff', () => {
     expect(new Set(BUFF_DEFS.map((d) => d.id)).size).toBe(BUFF_DEFS.length)
     for (const def of BUFF_DEFS) {
-      expect(def.path, `${def.id} path`).toBe(`buffs/${def.id}.xml`)
+      expect(def.path, `${def.id} path`).toMatch(/^actors\/buffs\.sval:[a-z0-9_-]+$/)
       expect(def.label.length, `${def.id} label`).toBeGreaterThan(0)
       // The description is the whole point of the registry — the form's tooltip
       // is the only place a dungeon master learns what a buff does.
-      expect(def.description.length, `${def.id} description`).toBeGreaterThan(20)
+      expect(def.description.length, `${def.id} description`).toBeGreaterThan(10)
     }
   })
 
@@ -132,6 +100,15 @@ describe('the buff registry', () => {
 
   it('lists only real buffs as strengthening', () => {
     for (const id of BUFF_HELPFUL_IDS) expect(buffById(id), id).toBeDefined()
+  })
+
+  // Every buff names an entry of the install's own actors/buffs.sval; a name it
+  // does not define is silently ignored by the engine. Skipped without AE.
+  const assets = aeAssetsDir()
+  it.skipIf(assets === null)('names only buffs actors/buffs.sval defines', () => {
+    const sval = readFileSync(join(assets!, 'actors', 'buffs.sval'), 'utf8')
+    const defined = new Set([...sval.matchAll(/<dict name="([^"]+)">/g)].map((m) => m[1]))
+    for (const def of BUFF_DEFS) expect(defined.has(def.path.split(':')[1]), def.path).toBe(true)
   })
 })
 
@@ -153,45 +130,34 @@ describe('buff auras — none means none', () => {
 
   it('emits no DangerArea at all when no floor carries a buff', () => {
     const result = generateOk(bareParams(), SEED)
-    for (let i = 0; i < 3; i++) {
-      expect(nodesOfType(levelXml(result, i), 'DangerArea')).toHaveLength(0)
-    }
+    for (let i = 0; i < 3; i++) expect(scriptsOf(floor(result, i), 'DangerArea')).toHaveLength(0)
   })
 })
 
 describe('buff auras — one floor on leaves the others alone', () => {
-  it('leaves every other floor byte-identical', () => {
+  it('leaves every other floor identical', () => {
     const off = generateOk(bareParams(), SEED)
     const on = generateOk(withBuffs(1, [{ buff: 'frost', target: 'players' }]), SEED)
 
-    expect(levelXml(on, 0)).toBe(levelXml(off, 0))
-    expect(levelXml(on, 2)).toBe(levelXml(off, 2))
-    expect(levelXml(on, 1)).not.toBe(levelXml(off, 1))
+    expect(floor(on, 0)).toEqual(floor(off, 0))
+    expect(floor(on, 2)).toEqual(floor(off, 2))
+    expect(floor(on, 1)).not.toEqual(floor(off, 1))
   }, 30_000)
 
-  it('only appends to the buffed floor — the dungeon itself is untouched', () => {
-    const off = levelXml(generateOk(bareParams(), SEED), 1)
-    const on = levelXml(generateOk(withBuffs(1, [{ buff: 'frost', target: 'players' }]), SEED), 1)
+  it('only adds to the buffed floor — the dungeon itself is untouched', () => {
+    const off = floor(generateOk(bareParams(), SEED), 1)
+    const on = floor(generateOk(withBuffs(1, [{ buff: 'frost', target: 'players' }]), SEED), 1)
 
-    for (const name of ['tilemap', 'doodads', 'actors', 'items']) {
-      expect(section(on, name), `${name} moved`).toBe(section(off, name))
-    }
-
-    const before = allIds(off)
-    const after = allIds(on)
-    // one shared shape plus one DangerArea. `allIds` reads document order and
-    // the scripting section sits before items/lighting, so the new ids land
-    // mid-file — what matters is that they are *appended* to the id counter:
-    // every pre-existing id survives untouched and nothing was renumbered.
-    expect(after).toHaveLength(before.length + 2)
-    expect(after.filter((id) => !before.includes(id))).toHaveLength(2)
-    expect(before.every((id) => after.includes(id))).toBe(true)
-    for (const added of after.filter((id) => !before.includes(id))) {
-      expect(added).toBeGreaterThan(Math.max(...before))
-    }
+    expect(on.tileCells).toEqual(off.tileCells)
+    expect(changedScripts(off, on)).toEqual([])
+    // one shared sensor plus one DangerArea
+    const added = placements(on).filter((p) => !placements(off).includes(p))
+    expect(added).toHaveLength(1)
+    expect(added[0]).toMatch(/^:Physics_Rectangle@/)
+    expect(on.scripts.length - off.scripts.length).toBe(1)
   }, 30_000)
 
-  it('leaves a timer-only floor byte-identical to the pre-buff output', () => {
+  it('leaves a timer-only floor identical to the pre-buff output', () => {
     // The buff rig runs first in the floor loop, so it has to emit nothing at
     // all — not one id — or every timer rig in every saved campaign shifts.
     const timerOnly = bareParams()
@@ -204,91 +170,83 @@ describe('buff auras — one floor on leaves the others alone', () => {
     const withField = JSON.parse(JSON.stringify(timerOnly)) as DungeonParameters
     delete withField.levelBuffs
 
-    expect(levelXml(generateOk(timerOnly, SEED), 1)).toBe(levelXml(generateOk(withField, SEED), 1))
+    expect(floor(generateOk(timerOnly, SEED), 1)).toEqual(floor(generateOk(withField, SEED), 1))
   }, 30_000)
 })
 
 // --- the rig ----------------------------------------------------------------
 
 describe('buff auras — the field rig', () => {
+  /** The sensor a DangerArea names, and its AE filter. */
+  const areaOf = (level: AeLevel, i: number) => {
+    const area = scriptsOf(level, 'DangerArea')[i]
+    const ids = idsParam(area, 'Areas')
+    expect(ids, 'DangerArea has no sensor').toHaveLength(1)
+    const sensor = level.units.find((u) => u.id === ids[0])
+    expect(sensor?.path, 'DangerArea points at a missing sensor').toBe(':Physics_Rectangle')
+    return { sensorId: ids[0], filter: intParam(area, 'Filter') }
+  }
+
   it('emits one always-on, zero-damage DangerArea per buff', () => {
-    const result = generateOk(
-      withBuffs(0, [
-        { buff: 'frost', target: 'players' },
-        { buff: 'bloodlust', target: 'monsters' }
-      ]),
-      SEED
+    const level = floor(
+      generateOk(
+        withBuffs(0, [
+          { buff: 'frost', target: 'players' },
+          { buff: 'bloodlust', target: 'monsters' }
+        ]),
+        SEED
+      ),
+      0
     )
-    const xml = levelXml(result, 0)
-    const areas = nodesOfType(xml, 'DangerArea')
+    const areas = scriptsOf(level, 'DangerArea')
     expect(areas).toHaveLength(2)
 
     for (const area of areas) {
       // A buff field carries no damage of its own and arrives live — unlike
       // timer mode's hazard, nothing exists to switch it on.
-      expect(isEnabled(area.body)).toBe(true)
-      expect(intParam(area.body, 'damage')).toBe(0)
-      expect(intParam(area.body, 'freq')).toBe(BUFF_REFRESH_MS)
+      expect(area.enabled).toBe(true)
+      expect(intParam(area, 'Damage')).toBe(0)
+      expect(intParam(area, 'Frequency')).toBe(BUFF_REFRESH_MS)
     }
 
-    expect(buffParam(areas[0].body)).toBe('buffs/frost.xml')
-    expect(buffParam(areas[1].body)).toBe('buffs/bloodlust.xml')
+    expect(strParam(areas[0], 'Buff')).toBe(buffById('frost')!.path)
+    expect(strParam(areas[1], 'Buff')).toBe(buffById('bloodlust')!.path)
   }, 30_000)
 
-  it('gives each distinct target its own shape, with the right types bitmask', () => {
-    const result = generateOk(
-      withBuffs(0, [
-        { buff: 'frost', target: 'players' },
-        { buff: 'bloodlust', target: 'monsters' }
-      ]),
-      SEED
+  it('gives each distinct target its own sensor, with the right filter', () => {
+    const level = floor(
+      generateOk(
+        withBuffs(0, [
+          { buff: 'frost', target: 'players' },
+          { buff: 'bloodlust', target: 'monsters' }
+        ]),
+        SEED
+      ),
+      0
     )
-    const xml = levelXml(result, 0)
-    const areas = nodesOfType(xml, 'DangerArea')
-    const shapes = nodesOfType(xml, 'RectangleShape')
-
-    const shapeOf = (index: number) => {
-      const ids = intArr(areas[index].body, 'static')
-      expect(ids, 'DangerArea has no shape').not.toBeNull()
-      expect(ids).toHaveLength(1)
-      const shape = shapes.find((s) => s.id === (ids as number[])[0])
-      expect(shape, 'DangerArea points at a missing shape').toBeDefined()
-      return shape as { id: number; body: string }
-    }
-
-    const players = shapeOf(0)
-    const monsters = shapeOf(1)
-    expect(players.id).not.toBe(monsters.id)
-    expect(intParam(players.body, 'types')).toBe(BUFF_TARGET_TYPES.players)
-    expect(intParam(monsters.body, 'types')).toBe(BUFF_TARGET_TYPES.monsters)
+    const players = areaOf(level, 0)
+    const monsters = areaOf(level, 1)
+    expect(players.sensorId).not.toBe(monsters.sensorId)
+    expect(players.filter).toBe(BUFF_TARGET_TYPES.players)
+    expect(monsters.filter).toBe(BUFF_TARGET_TYPES.monsters)
   }, 30_000)
 
-  it('shares one shape between buffs aiming at the same target', () => {
-    const result = generateOk(
-      withBuffs(0, [
-        { buff: 'frost', target: 'both' },
-        { buff: 'cripple', target: 'both' },
-        { buff: 'slime_poison', target: 'both' }
-      ]),
-      SEED
+  it('shares one sensor between buffs aiming at the same target', () => {
+    const level = floor(
+      generateOk(
+        withBuffs(0, [
+          { buff: 'frost', target: 'both' },
+          { buff: 'cripple', target: 'both' },
+          { buff: 'slime_poison', target: 'both' }
+        ]),
+        SEED
+      ),
+      0
     )
-    const xml = levelXml(result, 0)
-    const areas = nodesOfType(xml, 'DangerArea')
-    expect(areas).toHaveLength(3)
-
-    const shapeIds = areas.map((a) => (intArr(a.body, 'static') as number[])[0])
-    expect(new Set(shapeIds).size).toBe(1)
-
-    const shape = nodesOfType(xml, 'RectangleShape').find((s) => s.id === shapeIds[0])
-    expect(intParam((shape as { body: string }).body, 'types')).toBe(BUFF_TARGET_TYPES.both)
-  }, 30_000)
-
-  it('emits no empty int-arr anywhere on a buffed floor', () => {
-    const result = generateOk(
-      withBuffs(2, [{ buff: 'thief_stun_1', target: 'players' }]),
-      SEED
-    )
-    expect(badIntArray(levelXml(result, 2))).toBeNull()
+    expect(scriptsOf(level, 'DangerArea')).toHaveLength(3)
+    const all = [0, 1, 2].map((i) => areaOf(level, i))
+    expect(new Set(all.map((a) => a.sensorId)).size).toBe(1)
+    for (const a of all) expect(a.filter).toBe(BUFF_TARGET_TYPES.both)
   }, 30_000)
 
   it('is deterministic for a seed', () => {

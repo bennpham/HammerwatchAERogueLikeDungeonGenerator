@@ -19,20 +19,24 @@ import type { Rand } from '../core/rand'
 import type { BossTrapDirection } from '../config/parameters'
 
 /**
- * The engine's `direction` parameter. [VERIFIED] 2026-09-01 from
- * `campaign/levels/level_10.xml` ids 2579-2582 — four spewers ringing the point
- * (-31.5, -6), each offset one tile in the direction it fires: the one below
- * centre is 1, the one to the right 3, to the left 2, above 0. Confirmed
- * against the same level's second cluster and `level_temple_3.xml`, and then
- * [VERIFIED] in game 2026-09-02 by firing all four from a generated arena: the
- * file-derived mapping needed no correction.
+ * AE `ProjectileSpewer.Direction`, in degrees. The script turns it into an
+ * angle with `Direction / 180 * PI` [VERIFIED ProjectileSpewer.as], and
+ * screen y points down, so 0 fires east, 90 south, 180 west, 270 north.
+ * Stock spewers use exactly these values (Direction 90/180 in the survey).
  */
 export const SPEWER_DIRECTION: Record<BossTrapDirection, number> = {
-  up: 0,
-  down: 1,
-  left: 2,
-  right: 3
+  up: 270,
+  down: 90,
+  left: 180,
+  right: 0
 }
+
+/**
+ * Degrees of fan per unit of the trap `spread` parameter (0..TRAP_SPREAD_MAX,
+ * kept from the HW1 remake): 2 — the widest — is a 90° fan. AE's `Spread` is
+ * the full fan width in degrees (`ang += randf() * Spread - Spread / 2`).
+ */
+export const SPREAD_DEGREES_PER_UNIT = 45
 
 /**
  * Tiles kept clear at each end of a wall. Two, because the wall band can itself

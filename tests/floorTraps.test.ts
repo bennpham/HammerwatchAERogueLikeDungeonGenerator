@@ -37,7 +37,10 @@ import { buildFloorTrapRig, floorTrapCapacity } from '../src/generator/traps/flo
 import { TILE_CENTRE, TRAP_MIN_SPACING, TRAP_WALL_MARGIN } from '../src/generator/traps/slots'
 import { overhangRows } from '../src/generator/map/reachability'
 import { NodeProjectileSpewer } from '../src/generator/objects/nodes'
-import { allIds, badIntArray, nodesOfType } from './xmlHelpers'
+import { projectileById } from '../src/generator/objects/projectileTypes'
+import { SPEWER_DIRECTION, SPREAD_DEGREES_PER_UNIT } from '../src/generator/traps/slots'
+import type { AeLevel, AeScript } from '../src/generator/ae/model'
+import { changedScripts, intParam as aeInt, levelsOf, placements, scriptsOf, strParam } from './ae'
 import { plainParameters } from './params'
 
 const SEED = 4242
@@ -77,40 +80,14 @@ function withTrapsOn(index: number, ...rows: FloorTrap[]): DungeonParameters {
   return params
 }
 
-function levelXml(result: DungeonResult, index: number): string {
-  const file = result.files.find((f) => f.path === `levels/level${index}.xml`)
-  expect(file, `levels/level${index}.xml missing`).toBeDefined()
-  return (file as { content: string }).content
+function floor(result: DungeonResult, index: number): AeLevel {
+  const l = levelsOf(result).get(`floor${index}`)
+  expect(l, `floor${index} missing`).toBeDefined()
+  return l!
 }
 
-function spewers(xml: string): { id: number; body: string }[] {
-  return nodesOfType(xml, 'ProjectileSpewer')
-}
-
-function floatParam(body: string, name: string): number {
-  const m = body.match(new RegExp(`<float name="${name}">([^<]+)</float>`))
-  expect(m, `no float "${name}" in ${body}`).not.toBeNull()
-  return parseFloat((m as RegExpMatchArray)[1])
-}
-
-function intParam(body: string, name: string): number {
-  const m = body.match(new RegExp(`<int name="${name}">([^<]+)</int>`))
-  expect(m, `no int "${name}" in ${body}`).not.toBeNull()
-  return parseInt((m as RegExpMatchArray)[1], 10)
-}
-
-function stringParam(body: string, name: string): string {
-  const m = body.match(new RegExp(`<string name="${name}">([^<]*)</string>`))
-  expect(m, `no string "${name}" in ${body}`).not.toBeNull()
-  return (m as RegExpMatchArray)[1]
-}
-
-/** The section of a level XML between one tag pair, for byte-comparing parts. */
-function section(xml: string, name: string): string {
-  const start = xml.indexOf(`<dictionary name="${name}">`)
-  expect(start, `no <${name}> section`).toBeGreaterThanOrEqual(0)
-  const end = xml.indexOf(`<dictionary name="`, start + 1)
-  return xml.slice(start, end === -1 ? undefined : end)
+function spewers(level: AeLevel): AeScript[] {
+  return scriptsOf(level, 'ProjectileSpewer')
 }
 
 /**
@@ -175,7 +152,7 @@ describe('floor traps — off means off', () => {
 
   it('an untrapped floor emits no ProjectileSpewer node', () => {
     const result = generateOk(bareParams(), SEED)
-    for (let i = 0; i < 3; i++) expect(spewers(levelXml(result, i))).toHaveLength(0)
+    for (let i = 0; i < 3; i++) expect(spewers(floor(result, i))).toHaveLength(0)
   })
 
   it('draws from no stream at all when there is nothing to place', () => {
@@ -221,37 +198,29 @@ describe('floor traps — the fourth stream keeps them additive', () => {
     expect(Array.from({ length: 12 }, () => ctx.bossRand.iRand(0, 1_000_000))).toEqual(base.bossRand)
   })
 
-  it('arming one floor leaves every other floor byte-identical', () => {
+  it('arming one floor leaves every other floor identical', () => {
     const off = generateOk(bareParams(), SEED)
     const on = generateOk(withTrapsOn(1, trapRow({ count: 6 })), SEED)
 
-    expect(levelXml(on, 0)).toBe(levelXml(off, 0))
-    expect(levelXml(on, 2)).toBe(levelXml(off, 2))
+    expect(floor(on, 0)).toEqual(floor(off, 0))
+    expect(floor(on, 2)).toEqual(floor(off, 2))
     // Preview geometry is identical on ALL floors, the armed one included:
     // script nodes are not geometry.
     expect(on.levels).toEqual(off.levels)
   })
 
-  it('on the armed floor only the scripting section changes, and only by appending', () => {
+  it('on the armed floor only scripts are added — nothing else moves', () => {
     const off = generateOk(bareParams(), SEED)
     const on = generateOk(withTrapsOn(1, trapRow({ count: 6 })), SEED)
 
-    const before = levelXml(off, 1)
-    const after = levelXml(on, 1)
+    const before = floor(off, 1)
+    const after = floor(on, 1)
 
-    for (const name of ['tilemap', 'doodads', 'actors', 'items', 'lighting']) {
-      expect(section(after, name), `${name} changed`).toBe(section(before, name))
-    }
-
-    const oldIds = allIds(before)
-    const newIds = allIds(after)
-    const added = newIds.filter((id) => !oldIds.includes(id))
-
-    // Every pre-existing id survives, and every new one is strictly above the
-    // old maximum — the rig can only append.
-    expect(oldIds.every((id) => newIds.includes(id))).toBe(true)
-    expect(added.length).toBe(spewers(after).length)
-    expect(Math.min(...added)).toBeGreaterThan(Math.max(...oldIds))
+    expect(after.tileCells).toEqual(before.tileCells)
+    expect(after.environment).toEqual(before.environment)
+    expect(placements(after)).toEqual(placements(before))
+    expect(changedScripts(before, after)).toEqual([])
+    expect(after.scripts.length - before.scripts.length).toBe(spewers(after).length)
   })
 
   it('traps on an early floor do not move a later floor at all', () => {
@@ -260,8 +229,8 @@ describe('floor traps — the fourth stream keeps them additive', () => {
     const none = generateOk(bareParams(), SEED)
     const early = generateOk(withTrapsOn(0, trapRow({ count: 8 })), SEED)
 
-    expect(levelXml(early, 1)).toBe(levelXml(none, 1))
-    expect(levelXml(early, 2)).toBe(levelXml(none, 2))
+    expect(floor(early, 1)).toEqual(floor(none, 1))
+    expect(floor(early, 2)).toEqual(floor(none, 2))
   })
 
   it('is deterministic', () => {
@@ -271,55 +240,56 @@ describe('floor traps — the fourth stream keeps them additive', () => {
 
   it('a different seed moves the positions, not the count', () => {
     const params = withTrapsOn(1, trapRow({ count: 5 }))
-    const a = spewers(levelXml(generateOk(params, 11), 1))
-    const b = spewers(levelXml(generateOk(params, 22), 1))
+    const a = spewers(floor(generateOk(params, 11), 1))
+    const b = spewers(floor(generateOk(params, 22), 1))
 
     expect(a).toHaveLength(5)
     expect(b).toHaveLength(5)
-    expect(a.map((n) => n.body)).not.toEqual(b.map((n) => n.body))
+    expect(a.map((n) => `${n.x},${n.y}`)).not.toEqual(b.map((n) => `${n.x},${n.y}`))
   })
 })
 
 describe('floor traps — emission shape', () => {
   it('places one spewer per copy, carrying the row settings', () => {
     const row = trapRow({ projectile: 'shooter_spike', direction: 'left', spread: 1.5, spawnRateMs: 250, count: 3 })
-    const xml = levelXml(generateOk(withTrapsOn(1, row), SEED), 1)
-    const nodes = spewers(xml)
+    const nodes = spewers(floor(generateOk(withTrapsOn(1, row), SEED), 1))
 
     expect(nodes).toHaveLength(3)
-    for (const { body } of nodes) {
-      expect(stringParam(body, 'projectile')).toBe('projectiles/shooter_spike.xml')
-      expect(floatParam(body, 'spread')).toBeCloseTo(1.5, 6)
-      expect(intParam(body, 'spawn-rate')).toBe(250)
-      expect(intParam(body, 'direction')).toBe(2)
-      expect(intParam(body, 'trigger-times')).toBe(-1)
+    for (const n of nodes) {
+      expect(strParam(n, 'Projectile')).toBe(projectileById('shooter_spike')!.path)
+      // AE Spread is in degrees: 45 per remake unit
+      expect(aeInt(n, 'Spread')).toBeCloseTo(1.5 * SPREAD_DEGREES_PER_UNIT, 6)
+      expect(aeInt(n, 'Frequency')).toBe(250)
+      // AE Direction is in degrees, 180 = west
+      expect(aeInt(n, 'Direction')).toBe(180)
+      expect(n.triggerTimes).toBe(-1)
     }
   })
 
   it('every spewer arrives enabled — a floor has nothing to switch it on', () => {
-    const xml = levelXml(generateOk(withTrapsOn(1, trapRow({ count: 4 })), SEED), 1)
-    const nodes = spewers(xml)
+    const nodes = spewers(floor(generateOk(withTrapsOn(1, trapRow({ count: 4 })), SEED), 1))
     expect(nodes).toHaveLength(4)
-    for (const { body } of nodes) expect(body).toContain('<bool name="enabled">True</bool>')
+    for (const n of nodes) expect(n.enabled).toBe(true)
   })
 
   it('emits no tier wiring at all', () => {
-    // The arena's rig switches tiers with GlobalEventTrigger + ToggleElement.
+    // The arena's rig switches tiers with health triggers + ToggleScripts.
     // A floor has no tiers, so a copy-paste of that wiring would be a bug.
-    const off = levelXml(generateOk(bareParams(), SEED), 1)
-    const on = levelXml(generateOk(withTrapsOn(1, trapRow({ count: 4 })), SEED), 1)
+    const off = floor(generateOk(bareParams(), SEED), 1)
+    const on = floor(generateOk(withTrapsOn(1, trapRow({ count: 4 })), SEED), 1)
 
-    expect(nodesOfType(on, 'GlobalEventTrigger').length).toBe(nodesOfType(off, 'GlobalEventTrigger').length)
-    expect(nodesOfType(on, 'ToggleElement').length).toBe(nodesOfType(off, 'ToggleElement').length)
+    for (const cls of ['ActorHealthTrigger', 'ScriptLink', 'ToggleScripts']) {
+      expect(scriptsOf(on, cls).length, cls).toBe(scriptsOf(off, cls).length)
+    }
   })
 
-  it('maps all four directions to the engine integers', () => {
-    const expected: Record<TrapDirection, number> = { up: 0, down: 1, left: 2, right: 3 }
+  it('maps all four directions to AE degrees', () => {
+    const expected: Record<TrapDirection, number> = { up: 270, down: 90, left: 180, right: 0 }
+    expect(SPEWER_DIRECTION).toEqual(expected)
     for (const direction of ['up', 'down', 'left', 'right'] as TrapDirection[]) {
-      const xml = levelXml(generateOk(withTrapsOn(1, trapRow({ direction, count: 2 })), SEED), 1)
-      const nodes = spewers(xml)
+      const nodes = spewers(floor(generateOk(withTrapsOn(1, trapRow({ direction, count: 2 })), SEED), 1))
       expect(nodes.length, `nothing placed firing ${direction}`).toBeGreaterThan(0)
-      for (const { body } of nodes) expect(intParam(body, 'direction')).toBe(expected[direction])
+      for (const n of nodes) expect(aeInt(n, 'Direction')).toBe(expected[direction])
     }
   })
 
@@ -329,14 +299,14 @@ describe('floor traps — emission shape', () => {
       trapRow({ projectile: 'shooter_arrow', count: 3 }),
       trapRow({ projectile: 'shooter_fireball', count: 3 })
     )
-    const nodes = spewers(levelXml(generateOk(params, SEED), 1))
+    const nodes = spewers(floor(generateOk(params, SEED), 1))
 
     expect(nodes).toHaveLength(6)
-    const paths = nodes.map((n) => stringParam(n.body, 'projectile'))
-    expect(paths.filter((p) => p.includes('arrow'))).toHaveLength(3)
-    expect(paths.filter((p) => p.includes('fireball'))).toHaveLength(3)
+    const paths = nodes.map((n) => strParam(n, 'Projectile'))
+    expect(paths.filter((pth) => pth === projectileById('shooter_arrow')!.path)).toHaveLength(3)
+    expect(paths.filter((pth) => pth === projectileById('shooter_fireball')!.path)).toHaveLength(3)
 
-    const tiles = nodes.map((n) => `${floatParam(n.body, 'x')},${floatParam(n.body, 'y')}`)
+    const tiles = nodes.map((n) => `${n.x},${n.y}`)
     expect(new Set(tiles).size).toBe(6)
   })
 
@@ -351,10 +321,6 @@ describe('floor traps — emission shape', () => {
     expect(placed).toHaveLength(2)
   })
 
-  it('writes no empty int-arr for LevelPacker', () => {
-    const xml = levelXml(generateOk(withTrapsOn(1, trapRow({ count: 4 })), SEED), 1)
-    expect(badIntArray(xml)).toBeNull()
-  })
 })
 
 describe('floor traps — placement', () => {
@@ -411,27 +377,21 @@ describe('floor traps — placement', () => {
     }
   })
 
-  it('clears the north wall art overhang on a lettered theme and uses row 0 on a flat one', () => {
-    const lettered = bareParams()
-    lettered.themes = lettered.themes.map(() => 'a')
-    const flat = bareParams()
-    flat.themes = flat.themes.map(() => 'h')
-
-    expect(overhangRows('a')).toBe(2)
-    expect(overhangRows('h')).toBe(0)
+  it('uses row 0 for a down trap on every theme — AE walls have no overhang', () => {
+    const themes = ['prison', 'cave_desert', 'bonus1']
+    for (const t of themes) expect(overhangRows(t)).toBe(0)
 
     for (let seed = 0; seed < 25; seed++) {
-      for (const [params, offset] of [
-        [lettered, 2],
-        [flat, 0]
-      ] as [DungeonParameters, number][]) {
+      for (const theme of themes) {
+        const params = bareParams()
+        params.themes = params.themes.map(() => theme)
         const { level, placed } = sweep(params, seed, [trapRow({ direction: 'down', count: 8 })])
         for (const node of placed) {
           const x = node.x - TILE_CENTRE
           const y = node.y - TILE_CENTRE
           const room = level.rooms.find((r) => r.contains(x, y))
           expect(room).toBeDefined()
-          if (room !== undefined) expect(y).toBe(room.y + offset)
+          if (room !== undefined) expect(y).toBe(room.y)
         }
       }
     }
@@ -481,7 +441,7 @@ describe('floor traps — placement', () => {
               const idx = px + py * level.width
 
               expect(level.tileArray[idx].wall, `wall at ${px},${py}`).toBe(false)
-              expect(level.tileArray[idx].wallSet, `wallSet at ${px},${py}`).toBe(false)
+              expect(level.tileArray[idx].reserved, `reserved at ${px},${py}`).toBe(false)
               expect(level.regionMap[idx]).toBe(roomIndex)
               for (const set of ctx.objectSets) {
                 expect(set.contains(px, py) || set.containsWall(px, py)).toBe(false)

@@ -319,7 +319,7 @@ function slotClear(
       const t = at(along, depth)
       if (!inBounds(level, t.x, t.y)) return false
       const idx = t.x + t.y * level.width
-      if (level.tileArray[idx].wall || level.tileArray[idx].wallSet) return false
+      if (level.tileArray[idx].wall || level.tileArray[idx].reserved) return false
       if (level.regionMap[idx] !== roomIndex) return false
       for (const set of ctx.objectSets) {
         if (set.contains(t.x, t.y) || set.containsWall(t.x, t.y)) return false

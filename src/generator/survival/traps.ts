@@ -7,8 +7,8 @@
  *   ProjectileSpewer × count, on the innermost floor tile of their wall   (ships disabled)
  *
  *   GlobalEventTrigger("LevelLoaded")
- *        ├─ delay startSeconds*1000 ─> ToggleElement{state: 0} × count  (on)
- *        └─ delay   endSeconds*1000 ─> ToggleElement{state: 1} × count  (off)
+ *        ├─ delay startSeconds*1000 ─> ToggleScripts{enable} × count  (on)
+ *        └─ delay   endSeconds*1000 ─> ToggleScripts{disable} × count  (off)
  *
  * Placement is `boss/traps.ts`'s own `wallSlots` — the same corner margins,
  * entrance strip, alcove mouth, pillar and spacing exclusions, and the same
@@ -105,7 +105,7 @@ export function buildSurvivalTrapRig(
     for (const spewer of spewers) {
       markerRow += 1
       const on = new NodeToggleElement(ctx, col, markerRow)
-      on.state = 0 // 0 enables the target element
+      on.action = 'enable'
       on.connectToElement(spewer)
       clock.connectTo(on, row.startSeconds * 1000)
     }
@@ -113,7 +113,7 @@ export function buildSurvivalTrapRig(
     for (const spewer of spewers) {
       markerRow += 1
       const off = new NodeToggleElement(ctx, col, markerRow)
-      off.state = 1 // 1 disables the target element
+      off.action = 'disable'
       off.connectToElement(spewer)
       clock.connectTo(off, row.endSeconds * 1000)
     }

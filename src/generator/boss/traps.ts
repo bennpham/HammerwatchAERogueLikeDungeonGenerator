@@ -13,11 +13,11 @@
  *                   (live from arena load — no trigger, it IS the opening state)
  *
  *   tier N          GlobalEventTrigger(TIER_EVENT_NAMES[N - 1])
- *                        ├─ ToggleElement{state: 1} -> each previous tier's spewer
- *                        └─ ToggleElement{state: 0} -> each of this tier's
+ *                        ├─ ToggleScripts{disable} -> each previous tier's spewer
+ *                        └─ ToggleScripts{enable} -> each of this tier's
  *
- * `state: 0` ENABLES and `state: 1` disables — the inverted polarity
- * NodeToggleElement documents. "The previous tier's spewers" is the nearest
+ * NodeToggleElement names the action (AE State 1 enables, 2 disables).
+ * "The previous tier's spewers" is the nearest
  * EARLIER tier that actually carries a trap, not `tier - 1`, so a campaign that
  * traps only 100% and 25% still has the 25% trigger switch the opening set off.
  *
@@ -225,7 +225,7 @@ export function buildTrapRig(
       for (const stale of previous) {
         markerRow += 1
         const off = new NodeToggleElement(ctx, col, markerRow)
-        off.state = 1 // 1 disables the target element
+        off.action = 'disable'
         off.connectToElement(stale)
         trigger.connectTo(off)
       }
@@ -233,7 +233,7 @@ export function buildTrapRig(
       for (const spewer of spewers) {
         markerRow += 1
         const on = new NodeToggleElement(ctx, col, markerRow)
-        on.state = 0 // 0 enables the target element
+        on.action = 'enable'
         on.connectToElement(spewer)
         trigger.connectTo(on)
       }

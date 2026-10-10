@@ -8,18 +8,17 @@
  *
  * The rig, ported from the hand-authored test_damage_player_timer.xml:
  *
- *   RectangleShape(types: 1, whole map)          // players only, not monsters
+ *   sensor (filter 2, whole map)                // players only, not monsters
  *   DangerArea{enabled: False, damage, freq, buff: ""} -> that shape
  *   GlobalEventTrigger("LevelLoaded")
  *        ├─ delay 0                AnnounceText "3:00"
  *        ├─ delay 1000             AnnounceText "2:59"
  *        ├─ ...                    (one node per second)
  *        ├─ delay seconds*1000     AnnounceText "0:00"
- *        └─ delay seconds*1000     ToggleElement{state: 0} -> the DangerArea
+ *        └─ delay seconds*1000     ToggleScripts{enable} -> the DangerArea
  *
- * `state: 0` ENABLES the target — the same inverted polarity NodeToggleElement
- * documents, re-confirmed against the shipped prefabs/trap_fire_floor.xml, where
- * area-enter sends state 0 and area-exit sends state 1.
+ * The DangerArea ships disabled and the toggle enables it (AE ToggleScripts
+ * State 1).
  *
  * Like waves.ts and invulnerability.ts this module draws **no** random values
  * from any stream and writes no XML directly — the nodes self-register on
@@ -45,7 +44,7 @@ import {
  * prefabs/bonus_field_confuse.xml uses 1 for a player-only field and
  * prefabs/trap_fire_floor.xml uses 15 for one that catches everything.
  */
-const PLAYERS_ONLY = 1
+const PLAYERS_ONLY = 2 // AE AreaFilter.PlayerActor
 
 /**
  * Builds one floor's hazard rig. Emits nothing at all — not one node, not one
@@ -98,7 +97,7 @@ export function buildFloorHazardRig(
 
   row += 1
   const arm = new NodeToggleElement(ctx, col, row)
-  arm.state = 0 // 0 enables the target element
+  arm.action = 'enable'
   arm.connectToElement(hazard)
   // A countdown-less rig still needs a real delay here, which is why this is the
   // one connection that always passes one: ScriptNode.connectTo only switches

@@ -7,8 +7,8 @@
  *        └─ DangerArea{damage: 0, freq: BUFF_REFRESH_MS, buff: <path>}   (ships disabled)
  *
  *   GlobalEventTrigger("LevelLoaded")
- *        ├─ delay startSeconds*1000 ─> ToggleElement{state: 0}  (on)
- *        └─ delay   endSeconds*1000 ─> ToggleElement{state: 1}  (off)
+ *        ├─ delay startSeconds*1000 ─> ToggleScripts{enable}  (on)
+ *        └─ delay   endSeconds*1000 ─> ToggleScripts{disable}  (off)
  *
  * The one real difference from the boss rig: **windows do not replace one
  * another.** A boss tier switches the previous tier's whole set off as it
@@ -71,13 +71,13 @@ export function buildSurvivalBuffRig(
 
     row += 1
     const on = new NodeToggleElement(ctx, x, row)
-    on.state = 0 // 0 enables the target element
+    on.action = 'enable'
     on.connectToElement(field)
     clock.connectTo(on, entry.startSeconds * 1000)
 
     row += 1
     const off = new NodeToggleElement(ctx, x, row)
-    off.state = 1 // 1 disables the target element
+    off.action = 'disable'
     off.connectToElement(field)
     clock.connectTo(off, entry.endSeconds * 1000)
   }

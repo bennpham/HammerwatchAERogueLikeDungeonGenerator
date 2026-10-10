@@ -9,8 +9,8 @@
  *   ProjectileSpewer × count, on room walls    (tier 0 live, later tiers disabled)
  *
  *   GlobalEventTrigger(TIER_EVENT_NAMES[N - 1])
- *        ├─ ToggleElement{state: 1} per previous carrying tier's spewer  (off)
- *        └─ ToggleElement{state: 0} per own spewer                      (on)
+ *        ├─ ToggleScripts{disable} per previous carrying tier's spewer  (off)
+ *        └─ ToggleScripts{enable} per own spewer                      (on)
  *
  * Tiers REPLACE one another, as they do in the arena: the hazard changes with
  * the phase instead of accumulating into an uncrossable crossfire. Tier 0
@@ -119,7 +119,7 @@ export function buildFloorBossTrapRig(
       for (const stale of previous) {
         row += 1
         const off = new NodeToggleElement(ctx, x, row)
-        off.state = 1 // 1 disables the target element
+        off.action = 'disable'
         off.connectToElement(stale)
         trigger.connectTo(off)
       }
@@ -127,7 +127,7 @@ export function buildFloorBossTrapRig(
       for (const spewer of spewers) {
         row += 1
         const on = new NodeToggleElement(ctx, x, row)
-        on.state = 0 // 0 enables the target element
+        on.action = 'enable'
         on.connectToElement(spewer)
         trigger.connectTo(on)
       }
