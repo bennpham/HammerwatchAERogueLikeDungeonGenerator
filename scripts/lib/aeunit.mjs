@@ -43,7 +43,8 @@ export function preprocess(assets, rel, defs = new Set(), replaces = new Map(), 
       if (dir === 'define') { defs.add(arg.split(/\s+/)[0]); continue }
       if (dir === 'replace') { const [a, ...b] = arg.split(/\s+/); replaces.set(a, b.join(' ')); continue }
       if (dir === 'include') {
-        const inc = /"([^"]+)"/.exec(arg)
+        // quoted or bare: `%include "a.inc"`, `%include doodads/carpeting/carpet_base.inc`
+        const inc = /"([^"]+)"/.exec(arg) ?? /^(\S+)/.exec(arg)
         if (inc) out.push(preprocess(assets, inc[1], defs, replaces, depth + 1))
         continue
       }
