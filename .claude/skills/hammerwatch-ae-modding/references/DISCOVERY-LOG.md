@@ -324,6 +324,22 @@ crypt tiles.
   Shell Game. HW1 text types now map to styles: 0/1 → `region_enter`, 2 → default,
   3 → `info_event`. Stock levels never set `Style`; the gather-party line stays default.
 
+### Lighting `[VERIFIED]` stock data, `[EMITTED]` generated (2026-10-10)
+
+- A level's `lighting.environment` (`effects/lighting/*.env`) holds an ambient colour
+  (`<ambient value="r g b a">`) and one directional light. Stock themes are very dark:
+  `prison_1` is `10 10 30`, `mine_granite_3` is `5 0 0`. The armory envs carry two
+  ambients, one per `%if` branch.
+- Stock levels are lit by lamps. Castle's level 1 has 69 `doodads/generic/lamps/torch.unit`,
+  all in the default scene `n` (or `n-off`): hung on a north wall, light falling south,
+  275–300 px. Each sits 16 px below its horizontal wall piece's anchor
+  (330 of 338 measured, `scripts/dev/torch-survey.ts`), at x offset 0 or 8 in the cell.
+- The generator placed no lamps, so floors were nearly black. Now there are torches along
+  every north-wall run (`lighting/torches.ts`, no RNG, ids after the walls), and the
+  brightness setting ships scenario copies of the used envs with the ambient lifted
+  toward grey (`lighting/envs.ts`; snapshot `scripts/scan-ae-lighting.ts`).
+  `[UNVERIFIED]` that a scenario env copy replaces the stock one (checklist #30).
+
 ### Player balance lives in `players/`, not `tweak/` `[VERIFIED]` (unpacked_assets_66, 2026-10-10)
 
 - `players/classes.sval` (loader `PlayerClass::LoadMultiple`, order 1): per class `id`,
