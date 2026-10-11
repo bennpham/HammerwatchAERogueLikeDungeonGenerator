@@ -35,7 +35,9 @@ import { defaultSurvivalOptions } from '../src/generator'
 import { validateParameters } from '../src/generator/config/validation'
 import { serializeParametersTxt, parseParametersTxt } from '../src/generator/config/configFile'
 import { countdownMarks, everySecond, milestoneSeconds } from '../src/generator/survival/clock'
-import { allIds, badIntArray, nodesOfType } from './xmlHelpers'
+import type { AeLevel, AeScript } from '../src/generator/ae/model'
+import { allIds, idsParam, intParam, levelsOf, lvlText, scriptsOf, strParam } from './ae'
+import { arenaActorPath, resolveActorPath } from '../src/generator/objects/monsterTypes'
 import { plainParameters } from './params'
 
 const SEED = 90210
@@ -79,102 +81,72 @@ function withSurvival(index: number, patch: Partial<SurvivalOptions> = {}): Dung
   return params
 }
 
-function fileAt(result: DungeonResult, path: string): string {
-  const file = result.files.find((f) => f.path === path)
-  expect(file, `${path} missing`).toBeDefined()
-  return (file as { content: string }).content
+const arenaOf = (result: DungeonResult, i: number): AeLevel => {
+  const l = levelsOf(result).get(`boss${i}`)
+  expect(l, `boss${i} missing`).toBeDefined()
+  return l!
+}
+const floorOf = (result: DungeonResult, i: number): AeLevel => {
+  const l = levelsOf(result).get(`floor${i}`)
+  expect(l, `floor${i} missing`).toBeDefined()
+  return l!
 }
 
-const arenaXml = (result: DungeonResult, i: number): string => fileAt(result, `levels/boss${i}.xml`)
-const floorXml = (result: DungeonResult, i: number): string => fileAt(result, `levels/level${i}.xml`)
+const firedIds = (s: AeScript): number[] => s.connections.map(([id]) => id)
 
-/** The ids `<int-arr name="{name}">` holds inside `body`, or null if absent. */
-function intArr(body: string, name: string): number[] | null {
-  const found = new RegExp(`<int-arr name="${name}">([^<]*)</int-arr>`).exec(body)
-  return found === null ? null : found[1].split(' ').map(Number)
-}
-
-function intParam(body: string, name: string): number | null {
-  const found = new RegExp(`<int name="${name}">(-?\\d+)</int>`).exec(body)
-  return found === null ? null : Number(found[1])
-}
-
-function stringParam(body: string, name: string): string | null {
-  const found = new RegExp(`<string name="${name}">([^<]*)</string>`).exec(body)
-  return found === null ? null : found[1]
-}
-
-/** Every scripting node's id, in document order. */
-function scriptNodeIds(xml: string): number[] {
-  const scripting = /<array name="scripting">([\s\S]*?)<\/array>/.exec(xml)
-  return scripting === null ? [] : allIds(scripting[1])
-}
-
-/** The survival arena's one LevelLoaded trigger, as `{id, body}`. */
-function clockOf(xml: string): { id: number; body: string } {
-  const clocks = nodesOfType(xml, 'GlobalEventTrigger').filter(
-    (n) => stringParam(n.body, 'parameters') === 'LevelLoaded'
-  )
-  expect(clocks, 'expected exactly one LevelLoaded trigger').toHaveLength(1)
+/** The survival arena's one level-load link — the round's clock. */
+function clockOf(level: AeLevel): AeScript {
+  const clocks = scriptsOf(level, 'ScriptLink').filter((s) => s.executeOnStart)
+  expect(clocks, 'expected exactly one level-load clock').toHaveLength(1)
   return clocks[0]
 }
 
-/** The delay, in ms, the clock fires node `id` at — or null when it never does. */
-function delayTo(clock: { body: string }, id: number): number | null {
-  const connections = intArr(clock.body, 'connections') ?? []
-  const delays = intArr(clock.body, 'connection-delays') ?? []
-  const at = connections.indexOf(id)
-  return at === -1 ? null : (delays[at] ?? null)
+/** The delay, in ms, the clock fires script `id` at — or null when it never does. */
+function delayTo(clock: AeScript, id: number): number | null {
+  return clock.connections.find(([to]) => to === id)?.[1] ?? null
 }
 
-describe('survival — the boss mode is untouched (invariant 8)', () => {
-  it('an all-boss campaign is byte-identical to one generated without the feature', () => {
-    // `mode` absent and `mode: 'boss'` must produce the same bytes as each
-    // other AND as the pre-feature generator — the first two are what this can
-    // assert directly; the third is what every other suite's unchanged
-    // expectations already prove.
-    const absent = generateOk(twoFightParams(), SEED)
+/** The ToggleScripts aimed at `id`, with their AE State (1 enable, 2 disable). */
+function togglesOf(level: AeLevel, id: number): AeScript[] {
+  return scriptsOf(level, 'ToggleScripts').filter((t) => idsParam(t, 'Scripts').includes(id))
+}
+const ENABLE = 1
+const DISABLE = 2
 
+describe('survival — the boss mode is untouched (invariant 8)', () => {
+  it('an all-boss campaign is identical to one generated without the feature', () => {
+    // `mode` absent and `mode: 'boss'` must produce the same bytes.
+    const absent = generateOk(twoFightParams(), SEED)
     const explicit = twoFightParams()
     explicit.boss.fights = explicit.boss.fights.map((f) => ({ ...f, mode: 'boss' as const }))
     const stated = generateOk(explicit, SEED)
-
-    expect(stated.files.map((f) => f.path)).toEqual(absent.files.map((f) => f.path))
-    for (const file of absent.files) {
-      expect(fileAt(stated, file.path), file.path).toBe(file.content)
-    }
+    expect(stated.files).toEqual(absent.files)
   }, 60_000)
 
-  it('flipping a fight to survival leaves every dungeon floor byte-identical', () => {
+  it('flipping a fight to survival leaves every dungeon floor identical', () => {
     // The arenas draw from ctx.bossRand and the floors from ctx.rand, so no
     // arena change can reach a floor however many draws it does or does not make.
     const boss = generateOk(twoFightParams(), SEED)
     const survival = generateOk(withSurvival(0), SEED)
-
-    for (let i = 0; i < 3; i++) {
-      expect(floorXml(survival, i), `floor ${i}`).toBe(floorXml(boss, i))
-    }
+    for (let i = 0; i < 3; i++) expect(floorOf(survival, i), `floor ${i}`).toEqual(floorOf(boss, i))
   }, 60_000)
 
-  it('flipping the SECOND fight leaves the first arena byte-identical', () => {
+  it('flipping the SECOND fight leaves the first arena identical', () => {
     // Fights share ctx.bossRand in list order, so fight 0 draws what it always
-    // drew whatever fight 1 turns into. The converse is deliberately NOT
-    // asserted: flipping fight 0 changes how many values it takes, which moves
-    // fight 1 — exactly as adding or removing a fight does.
+    // drew whatever fight 1 turns into.
     const boss = generateOk(twoFightParams(), SEED)
     const survival = generateOk(withSurvival(1), SEED)
-
-    expect(arenaXml(survival, 0)).toBe(arenaXml(boss, 0))
+    expect(arenaOf(survival, 0)).toEqual(arenaOf(boss, 0))
   }, 60_000)
 
   it('is deterministic', () => {
     const params = withSurvival(0, {
-      waves: [{ monster: 'bat1', count: 12, atSeconds: 0, intervalMs: 1000 }],
+      waves: [{ monster: 'bat', count: 12, atSeconds: 0, intervalMs: 1000 }],
       traps: [
         { projectile: 'shooter_arrow', direction: 'up', spread: 0.5, spawnRateMs: 900, count: 4, startSeconds: 10, endSeconds: 50 }
       ]
     })
-    expect(arenaXml(generateOk(params, SEED), 0)).toBe(arenaXml(generateOk(params, SEED), 0))
+    expect(arenaOf(generateOk(params, SEED), 0)).toEqual(arenaOf(generateOk(params, SEED), 0))
   }, 60_000)
 })
 
@@ -182,48 +154,35 @@ describe('survival — no boss, so no boss events', () => {
   const result = () => generateOk(withSurvival(0), SEED)
 
   it('places no boss actor', () => {
-    // The engine fires the `Boss ...` events for an actor in actors/boss_*/ and
-    // for nothing else. No actor is the whole reason the clock rig exists.
-    expect(arenaXml(result(), 0)).not.toMatch(/actors\/boss_/)
+    expect(arenaOf(result(), 0).units.some((u) => u.path.startsWith('actors/bosses/'))).toBe(false)
   }, 60_000)
 
-  it('emits no Boss Died trigger, no invulnerability and no checkpoint', () => {
-    const xml = arenaXml(result(), 0)
-    const bossEvents = nodesOfType(xml, 'GlobalEventTrigger').filter((n) =>
-      (stringParam(n.body, 'parameters') ?? '').startsWith('Boss')
-    )
-    expect(bossEvents, 'a survival arena must listen for no Boss event').toHaveLength(0)
-    expect(nodesOfType(xml, 'ToggleImmortality')).toHaveLength(0)
-    expect(nodesOfType(xml, 'Checkpoint')).toHaveLength(0)
+  it('emits no boss trigger, no invulnerability and no save point', () => {
+    const level = arenaOf(result(), 0)
+    expect(scriptsOf(level, 'ActorHealthTrigger'), 'a survival arena watches no boss').toHaveLength(0)
+    expect(scriptsOf(level, 'CreateBossBar')).toHaveLength(0)
+    expect(scriptsOf(level, 'ToggleImmortality')).toHaveLength(0)
+    expect(scriptsOf(level, 'SuperCheckPoint')).toHaveLength(0)
   }, 60_000)
 
   it('opens the alcove from the clock, at the round length', () => {
-    const xml = arenaXml(result(), 0)
-    const clock = clockOf(xml)
-
-    const destroys = nodesOfType(xml, 'DestroyObject')
-    expect(destroys, 'exactly one DestroyObject opens the alcove').toHaveLength(1)
-    // The same three need-sync seals the Boss Died chain destroys in boss mode.
-    expect(intArr(destroys[0].body, 'static')).toHaveLength(3)
+    const level = arenaOf(result(), 0)
+    const clock = clockOf(level)
+    const destroys = scriptsOf(level, 'DestroyUnits')
+    expect(destroys, 'exactly one DestroyUnits opens the alcove').toHaveLength(1)
+    // The same three seals the boss-death chain destroys in boss mode.
+    expect(idsParam(destroys[0], 'Units')).toHaveLength(3)
     expect(delayTo(clock, destroys[0].id)).toBe(60_000)
   }, 60_000)
 
-  it('still emits the gateway prefab and the arrival respawn', () => {
+  it('still emits the gateway and the arrival point, with unique ids', () => {
     // Everything about the ROOM is shared with boss mode; only what opens the
     // alcove changed.
-    const xml = arenaXml(result(), 0)
-    expect(nodesOfType(xml, 'LevelStart')).toHaveLength(1)
-    expect(nodesOfType(xml, 'RespawnPlayers')).toHaveLength(1)
-    expect(badIntArray(xml)).toBeNull()
-
-    // Script-node ids must be unique, because that is what every `connections`
-    // and `static` array points at. Deliberately NOT every `<int name="id">` in
-    // the file: doodads, items and actors are numbered from the same counter
-    // but a stock BOSS arena repeats id 0 across sections too (702 ids, 701
-    // distinct), so a whole-file uniqueness assertion would be asserting
-    // something the generator has never done — in either mode.
-    const nodeIds = scriptNodeIds(xml)
-    expect(new Set(nodeIds).size, 'script node ids must be unique').toBe(nodeIds.length)
+    const level = arenaOf(result(), 0)
+    expect(scriptsOf(level, 'LevelStart').filter((s) => strParam(s, 'StartID') === 'boss0')).toHaveLength(1)
+    expect(scriptsOf(level, 'LevelExit').length + scriptsOf(level, 'ShowGameOver').length).toBeGreaterThan(0)
+    const ids = allIds(level)
+    expect(new Set(ids).size, 'ids must be unique').toBe(ids.length)
   }, 60_000)
 })
 
@@ -231,133 +190,100 @@ describe('survival — the timed rigs', () => {
   it('arms each wave row at its own timestamp, split over the nine anchors', () => {
     const params = withSurvival(0, {
       waves: [
-        { monster: 'bat1', count: 18, atSeconds: 0, intervalMs: 1000 },
-        { monster: 'bat1', count: 9, atSeconds: 30, intervalMs: 2000 }
+        { monster: 'bat', count: 18, atSeconds: 0, intervalMs: 1000 },
+        { monster: 'bat', count: 9, atSeconds: 30, intervalMs: 2000 }
       ]
     })
-    const xml = arenaXml(generateOk(params, SEED), 0)
-    const clock = clockOf(xml)
+    const level = arenaOf(generateOk(params, SEED), 0)
+    const clock = clockOf(level)
 
-    const timers = nodesOfType(xml, 'TimerTrigger')
+    const timers = scriptsOf(level, 'TimerTrigger')
     expect(timers, 'one timer per row').toHaveLength(2)
-    // A TimerTrigger's interval goes out as its `parameters` int — see
-    // NodeTimerTrigger. Every node in this dialect names its payload that,
-    // whatever the payload happens to mean.
-    expect(timers.map((t) => intParam(t.body, 'parameters'))).toEqual([1000, 2000])
+    expect(timers.map((t) => intParam(t, 'Frequency'))).toEqual([1000, 2000])
 
     // Each row's toggle is what the clock fires; the toggle arms the timer.
     const armDelays = timers.map((timer) => {
-      const arm = nodesOfType(xml, 'ToggleElement').find(
-        (n) => intParam(n.body, 'state') === 0 && (intArr(n.body, 'static') ?? []).includes(timer.id)
-      )
+      const arm = togglesOf(level, timer.id).find((t) => intParam(t, 'State') === ENABLE)
       expect(arm, `nothing arms timer ${timer.id}`).toBeDefined()
-      return delayTo(clock, (arm as { id: number }).id)
+      return delayTo(clock, arm!.id)
     })
     expect(armDelays).toEqual([0, 30_000])
 
-    // 18 over 9 anchors is 2 each; 9 over 9 is 1 each. Two rows naming the same
-    // monster stay independent — neither replaces the other.
-    const spawns = nodesOfType(xml, 'SpawnObject')
-    const shares = spawns.map((s) => intParam(s.body, 'trigger-times'))
+    // 18 over 9 anchors is 2 each; 9 over 9 is 1 each.
+    const shares = scriptsOf(level, 'SpawnUnit').map((s) => s.triggerTimes)
     expect(shares.filter((n) => n === 2)).toHaveLength(9)
     expect(shares.filter((n) => n === 1)).toHaveLength(9)
   }, 60_000)
 
   it('gives an endless row an unbounded spawner per anchor, stopped at the end', () => {
-    // -1 means "keep coming until the clock runs out". Paired here with a
-    // finite row so the two shapes are compared in one arena: only the endless
-    // one gets a stop toggle, and only the finite one splits a count.
     const params = withSurvival(0, {
       waves: [
-        { monster: 'bat1', count: -1, atSeconds: 10, intervalMs: 1000 },
-        { monster: 'bat1', count: 9, atSeconds: 20, intervalMs: 2000 }
+        { monster: 'bat', count: -1, atSeconds: 10, intervalMs: 1000 },
+        { monster: 'bat', count: 9, atSeconds: 20, intervalMs: 2000 }
       ]
     })
-    const xml = arenaXml(generateOk(params, SEED), 0)
-    const clock = clockOf(xml)
+    const level = arenaOf(generateOk(params, SEED), 0)
+    const clock = clockOf(level)
 
-    const timers = nodesOfType(xml, 'TimerTrigger')
+    const timers = scriptsOf(level, 'TimerTrigger')
     expect(timers, 'one timer per row').toHaveLength(2)
     const [endlessTimer, finiteTimer] = timers
 
-    // The endless row: one spawner per anchor, each unbounded.
-    const spawns = nodesOfType(xml, 'SpawnObject')
-    const endlessSpawns = spawns.filter((s) =>
-      (intArr(endlessTimer.body, 'connections') ?? []).includes(s.id)
-    )
+    const spawns = scriptsOf(level, 'SpawnUnit')
+    const endlessSpawns = spawns.filter((s) => firedIds(endlessTimer).includes(s.id))
     expect(endlessSpawns).toHaveLength(9)
-    for (const spawn of endlessSpawns) {
-      expect(intParam(spawn.body, 'trigger-times'), 'endless spawners must be unbounded').toBe(-1)
-    }
+    for (const spawn of endlessSpawns) expect(spawn.triggerTimes, 'endless spawners must be unbounded').toBe(-1)
 
-    // The finite row is untouched — 9 over 9 anchors is 1 each.
-    const finiteSpawns = spawns.filter((s) =>
-      (intArr(finiteTimer.body, 'connections') ?? []).includes(s.id)
-    )
+    const finiteSpawns = spawns.filter((s) => firedIds(finiteTimer).includes(s.id))
     expect(finiteSpawns).toHaveLength(9)
-    expect(finiteSpawns.every((s) => intParam(s.body, 'trigger-times') === 1)).toBe(true)
+    expect(finiteSpawns.every((s) => s.triggerTimes === 1)).toBe(true)
 
     // Only the endless row is stopped, and on the same tick that opens the door.
-    const stopOf = (timerId: number) =>
-      nodesOfType(xml, 'ToggleElement').find(
-        (n) => intParam(n.body, 'state') === 1 && (intArr(n.body, 'static') ?? []).includes(timerId)
-      )
+    const stopOf = (timerId: number) => togglesOf(level, timerId).find((t) => intParam(t, 'State') === DISABLE)
     const stop = stopOf(endlessTimer.id)
     expect(stop, 'an endless row must be switched off at the end').toBeDefined()
-    expect(delayTo(clock, (stop as { id: number }).id)).toBe(60_000)
+    expect(delayTo(clock, stop!.id)).toBe(60_000)
     expect(stopOf(finiteTimer.id), 'a finite row needs no stop — trigger-times bounds it').toBeUndefined()
   }, 60_000)
 
   it('never scales an endless row by the arena monsterMultiplier', () => {
-    // -1 is a sentinel, not a quantity. scaledMax is what enforces that, and
-    // reusing it is what keeps this rig and the boss one from drifting.
-    const params = withSurvival(0, { waves: [{ monster: 'bat1', count: -1, atSeconds: 0, intervalMs: 1000 }] })
+    const params = withSurvival(0, { waves: [{ monster: 'bat', count: -1, atSeconds: 0, intervalMs: 1000 }] })
     params.boss.fights[0].arena.monsterMultiplier = 3
-    const xml = arenaXml(generateOk(params, SEED), 0)
-
-    const spawns = nodesOfType(xml, 'SpawnObject')
+    const spawns = scriptsOf(arenaOf(generateOk(params, SEED), 0), 'SpawnUnit')
     expect(spawns).toHaveLength(9)
-    expect(spawns.every((s) => intParam(s.body, 'trigger-times') === -1)).toBe(true)
+    expect(spawns.every((s) => s.triggerTimes === -1)).toBe(true)
   }, 60_000)
 
   it('gives each buff window its own field and an on/off pair', () => {
     const params = withSurvival(0, {
       buffs: [{ buff: 'bloodlust', target: 'monsters', startSeconds: 10, endSeconds: 40 }]
     })
-    const xml = arenaXml(generateOk(params, SEED), 0)
-    const clock = clockOf(xml)
+    const level = arenaOf(generateOk(params, SEED), 0)
+    const clock = clockOf(level)
 
-    const fields = nodesOfType(xml, 'DangerArea')
+    const fields = scriptsOf(level, 'DangerArea')
     expect(fields).toHaveLength(1)
-    // An aura is a buff field, not damage — timer mode's hazard is the rig that
-    // deals damage, and it is deliberately a different one.
-    expect(intParam(fields[0].body, 'damage')).toBe(0)
-    // Ships disabled: its own ToggleElement switches it on, even at 0 seconds.
-    expect(intParam(fields[0].body, 'enabled')).not.toBe(1)
+    expect(intParam(fields[0], 'Damage')).toBe(0)
+    // Ships disabled: its own toggle switches it on, even at 0 seconds.
+    expect(fields[0].enabled).toBe(false)
 
-    const toggles = nodesOfType(xml, 'ToggleElement').filter((n) =>
-      (intArr(n.body, 'static') ?? []).includes(fields[0].id)
-    )
+    const toggles = togglesOf(level, fields[0].id)
     expect(toggles, 'one on, one off').toHaveLength(2)
-    const on = toggles.find((t) => intParam(t.body, 'state') === 0)
-    const off = toggles.find((t) => intParam(t.body, 'state') === 1)
-    expect(delayTo(clock, (on as { id: number }).id)).toBe(10_000)
-    expect(delayTo(clock, (off as { id: number }).id)).toBe(40_000)
+    const on = toggles.find((t) => intParam(t, 'State') === ENABLE)
+    const off = toggles.find((t) => intParam(t, 'State') === DISABLE)
+    expect(delayTo(clock, on!.id)).toBe(10_000)
+    expect(delayTo(clock, off!.id)).toBe(40_000)
   }, 60_000)
 
-  it('drops one SpawnObject per pickup copy, all at the same timestamp', () => {
-    const params = withSurvival(0, {
-      pickups: [{ item: 'powerup_health', count: 3, atSeconds: 20 }]
-    })
-    const xml = arenaXml(generateOk(params, SEED), 0)
-    const clock = clockOf(xml)
+  it('drops one SpawnUnit per pickup copy, all at the same timestamp', () => {
+    const params = withSurvival(0, { pickups: [{ item: 'powerup_health', count: 3, atSeconds: 20 }] })
+    const level = arenaOf(generateOk(params, SEED), 0)
+    const clock = clockOf(level)
 
-    // A count is COPIES, not trigger-times: a SpawnObject spawns one actor per
-    // incoming trigger and the clock fires once, so N copies means N nodes.
-    const spawns = nodesOfType(xml, 'SpawnObject')
+    const spawns = scriptsOf(level, 'SpawnUnit')
     expect(spawns).toHaveLength(3)
     for (const spawn of spawns) {
-      expect(intParam(spawn.body, 'trigger-times')).toBe(1)
+      expect(spawn.triggerTimes).toBe(1)
       expect(delayTo(clock, spawn.id)).toBe(20_000)
     }
   }, 60_000)
@@ -368,47 +294,41 @@ describe('survival — the timed rigs', () => {
         { projectile: 'shooter_arrow', direction: 'up', spread: 0.5, spawnRateMs: 900, count: 4, startSeconds: 15, endSeconds: 45 }
       ]
     })
-    const xml = arenaXml(generateOk(params, SEED), 0)
-    const clock = clockOf(xml)
+    const level = arenaOf(generateOk(params, SEED), 0)
+    const clock = clockOf(level)
 
-    const spewers = nodesOfType(xml, 'ProjectileSpewer')
+    const spewers = scriptsOf(level, 'ProjectileSpewer')
     expect(spewers).toHaveLength(4)
-
     for (const spewer of spewers) {
-      const toggles = nodesOfType(xml, 'ToggleElement').filter((n) =>
-        (intArr(n.body, 'static') ?? []).includes(spewer.id)
-      )
+      const toggles = togglesOf(level, spewer.id)
       expect(toggles, `spewer ${spewer.id} needs an on and an off`).toHaveLength(2)
-      const on = toggles.find((t) => intParam(t.body, 'state') === 0)
-      const off = toggles.find((t) => intParam(t.body, 'state') === 1)
-      expect(delayTo(clock, (on as { id: number }).id)).toBe(15_000)
-      expect(delayTo(clock, (off as { id: number }).id)).toBe(45_000)
+      const on = toggles.find((t) => intParam(t, 'State') === ENABLE)
+      const off = toggles.find((t) => intParam(t, 'State') === DISABLE)
+      expect(delayTo(clock, on!.id)).toBe(15_000)
+      expect(delayTo(clock, off!.id)).toBe(45_000)
     }
   }, 60_000)
 
   it('draws nothing when no window is usable — an untrapped survival arena is stable', () => {
-    // The trap rig is the only part that touches ctx.bossRand, so an arena with
-    // no usable window must come out identical to one with an empty list.
     const empty = generateOk(withSurvival(0, { traps: [] }), SEED)
-    // The unusable case has to be one validation ALLOWS, or generation fails
-    // before it can prove anything. A list left out entirely is the honest
-    // comparison — and the case a hand-edited parameters.txt really produces:
-    // both must reach getArenaXML having spent zero bossRand values on spewers.
     const undefinedList = withSurvival(0)
     delete (undefinedList.boss.fights[0].survival as { traps?: unknown }).traps
     expect(validateParameters(undefinedList).valid, 'a missing list must validate, not throw').toBe(true)
-    expect(arenaXml(generateOk(undefinedList, SEED), 0)).toBe(arenaXml(empty, 0))
+    expect(arenaOf(generateOk(undefinedList, SEED), 0)).toEqual(arenaOf(empty, 0))
   }, 60_000)
 })
 
 describe('survival — the countdown styles', () => {
-  it('off emits no announcement, seconds emits one per second', () => {
-    const off = arenaXml(generateOk(withSurvival(0, { countdown: 'off' }), SEED), 0)
-    expect(nodesOfType(off, 'AnnounceText'), 'only the closing banner').toHaveLength(1)
+  // the round's own announcements — not the orb's victory banner on a final arena
+  const roundTexts = (l: AeLevel) => scriptsOf(l, 'AnnounceText').filter((t) => strParam(t, 'Text') !== 'Victory!')
 
-    const perSecond = arenaXml(generateOk(withSurvival(0, { seconds: 10, countdown: 'seconds' }), SEED), 0)
+  it('off emits no announcement, seconds emits one per second', () => {
+    const off = arenaOf(generateOk(withSurvival(0, { countdown: 'off' }), SEED), 0)
+    expect(roundTexts(off), 'only the closing banner').toHaveLength(1)
+
+    const perSecond = arenaOf(generateOk(withSurvival(0, { seconds: 10, countdown: 'seconds' }), SEED), 0)
     // 10..0 inclusive, plus the closing banner.
-    expect(nodesOfType(perSecond, 'AnnounceText')).toHaveLength(12)
+    expect(roundTexts(perSecond)).toHaveLength(12)
   }, 60_000)
 
   it('milestones stays a handful however long the round runs', () => {
@@ -436,7 +356,7 @@ describe('survival — validation', () => {
 
   it('accepts a well-formed survival arena', () => {
     const result = check({
-      waves: [{ monster: 'bat1', count: 10, atSeconds: 0, intervalMs: 1000 }],
+      waves: [{ monster: 'bat', count: 10, atSeconds: 0, intervalMs: 1000 }],
       buffs: [{ buff: 'bloodlust', target: 'monsters', startSeconds: 0, endSeconds: 60 }],
       pickups: [{ item: 'powerup_health', count: 2, atSeconds: 30 }],
       traps: [
@@ -461,19 +381,19 @@ describe('survival — validation', () => {
     ).toContain('boss.fights.0.survival.waves.0.monster')
     // 0 and -2 are nonsense; -1 is the endless sentinel and is legal (below).
     expect(
-      fields(check({ waves: [{ monster: 'bat1', count: 0, atSeconds: 0, intervalMs: 1000 }] }).errors)
+      fields(check({ waves: [{ monster: 'bat', count: 0, atSeconds: 0, intervalMs: 1000 }] }).errors)
     ).toContain('boss.fights.0.survival.waves.0.count')
     expect(
-      fields(check({ waves: [{ monster: 'bat1', count: -2, atSeconds: 0, intervalMs: 1000 }] }).errors)
+      fields(check({ waves: [{ monster: 'bat', count: -2, atSeconds: 0, intervalMs: 1000 }] }).errors)
     ).toContain('boss.fights.0.survival.waves.0.count')
     // A row scheduled after the door has opened never fires.
     expect(
-      fields(check({ waves: [{ monster: 'bat1', count: 5, atSeconds: 90, intervalMs: 1000 }] }).errors)
+      fields(check({ waves: [{ monster: 'bat', count: 5, atSeconds: 90, intervalMs: 1000 }] }).errors)
     ).toContain('boss.fights.0.survival.waves.0.atSeconds')
   })
 
   it('accepts -1 as the endless count', () => {
-    const result = check({ waves: [{ monster: 'bat1', count: -1, atSeconds: 0, intervalMs: 1000 }] })
+    const result = check({ waves: [{ monster: 'bat', count: -1, atSeconds: 0, intervalMs: 1000 }] })
     expect(fields(result.errors), JSON.stringify(result.errors)).not.toContain('boss.fights.0.survival.waves.0.count')
     expect(result.valid).toBe(true)
   })
@@ -505,7 +425,7 @@ describe('survival — validation', () => {
     // checkpoint presets are all kept on the object so flipping the mode is
     // lossless — but nothing reads them, so an empty pool must not block a
     // survival arena from generating.
-    const params = withSurvival(0, { waves: [{ monster: 'bat1', count: 4, atSeconds: 0, intervalMs: 1000 }] })
+    const params = withSurvival(0, { waves: [{ monster: 'bat', count: 4, atSeconds: 0, intervalMs: 1000 }] })
     params.boss.fights[0].arena.bossPool = []
     params.boss.fights[0].arena.waves = []
 
@@ -527,8 +447,8 @@ describe('survival — parameters.txt', () => {
     seconds: 240,
     countdown: 'seconds',
     waves: [
-      { monster: 'bat1', count: 50, atSeconds: 0, intervalMs: 1000 },
-      { monster: 'bat1', count: 200, atSeconds: 120, intervalMs: 500 }
+      { monster: 'bat', count: 50, atSeconds: 0, intervalMs: 1000 },
+      { monster: 'bat', count: 200, atSeconds: 120, intervalMs: 500 }
     ],
     buffs: [{ buff: 'bloodlust', target: 'monsters', startSeconds: 60, endSeconds: 180 }],
     pickups: [{ item: 'powerup_health', count: 2, atSeconds: 90 }],
@@ -543,7 +463,7 @@ describe('survival — parameters.txt', () => {
 
     expect(text).toMatch(/^boss1Mode=survival$/m)
     expect(text).toMatch(/^boss1Survival=240,seconds$/m)
-    expect(text).toMatch(/^boss1SurvivalWaves=bat1:50:0:1000\|bat1:200:120:500$/m)
+    expect(text).toMatch(/^boss1SurvivalWaves=bat:50:0:1000\|bat:200:120:500$/m)
     expect(text).toMatch(/^boss1SurvivalBuffs=bloodlust:monsters:60:180$/m)
     expect(text).toMatch(/^boss1SurvivalPickups=powerup_health:2:90$/m)
     expect(text).toMatch(/^boss1SurvivalTraps=shooter_arrow:up:0.5:900:3:30:210$/m)
@@ -613,8 +533,8 @@ describe('survival — arena bodyguard twins (issue #64 part 2)', () => {
             ...defaultSurvivalOptions(),
             seconds: 60,
             waves: [
-              { monster: 'archer1', count: 9, atSeconds: 0, intervalMs: 1000 },
-              { monster: 'skeleton3', count: 9, atSeconds: 0, intervalMs: 1000 }
+              { monster: 'skeleton_archer', count: 9, atSeconds: 0, intervalMs: 1000 },
+              { monster: 'skeleton_runner', count: 9, atSeconds: 0, intervalMs: 1000 }
             ]
           }
         }
@@ -623,19 +543,20 @@ describe('survival — arena bodyguard twins (issue #64 part 2)', () => {
     return params
   }
 
+  const spawned = (r: DungeonResult) => new Set(scriptsOf(arenaOf(r, 0), 'SpawnUnit').map((sp) => strParam(sp, 'UnitType')))
+  const archer = resolveActorPath('skeleton_archer')
+  const runner = resolveActorPath('skeleton_runner')
+
   it('substitutes the twins by default', () => {
-    const xml = arenaXml(generateOk(withTwinnedRow(undefined), SEED), 0)
-    expect(xml).toContain('actors/boss_knight/archer_1.xml')
-    expect(xml).toContain('actors/boss_lich/lich_guard_skeleton.xml')
-    expect(xml).not.toContain('>actors/archer_1.xml<')
-    expect(xml).not.toContain('>actors/skeleton_3.xml<')
+    const paths = spawned(generateOk(withTwinnedRow(undefined), SEED))
+    expect(paths).toEqual(new Set([arenaActorPath(archer), arenaActorPath(runner)]))
+    expect(arenaActorPath(archer)).not.toBe(archer)
+    expect(arenaActorPath(runner)).not.toBe(runner)
   }, 60_000)
 
   it('emits the plain actors with the toggle off', () => {
-    const xml = arenaXml(generateOk(withTwinnedRow(false), SEED), 0)
-    expect(xml).toContain('actors/archer_1.xml')
-    expect(xml).toContain('actors/skeleton_3.xml')
-    expect(xml).not.toContain('boss_knight')
-    expect(xml).not.toContain('boss_lich')
+    const result = generateOk(withTwinnedRow(false), SEED)
+    expect(spawned(result)).toEqual(new Set([archer, runner]))
+    expect(lvlText(result, 'boss0')).not.toContain(arenaActorPath(archer))
   }, 60_000)
 })
