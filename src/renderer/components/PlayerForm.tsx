@@ -29,7 +29,9 @@ const SHARED_FILES = PLAYER_STOCK.skills
   .filter((f) => SHARED_SKILL_PATHS.has(f.path))
   .sort((a, b) => Number(b.stem === 'shared_combo') - Number(a.stem === 'shared_combo'))
 
-const SHOP_KEYS = PLAYER_STOCK.shop.map((p) => shopKey(p.id))
+// the power shop's potions, and the item shops' per-quality prices (equipment_*)
+const POTIONS = PLAYER_STOCK.shop.filter((p) => !p.id.startsWith('equipment_'))
+const ITEMS = PLAYER_STOCK.shop.filter((p) => p.id.startsWith('equipment_'))
 
 /** Every all-classes key a skill file holds, for its "n changed" badge. */
 function keysOfFile(file: PlayerSkillFile): string[] {
@@ -154,13 +156,20 @@ export function PlayerForm({ tweaks, issues, onChange }: PlayerFormProps) {
         {SHARED_FILES.map(skillEditor)}
       </Section>
 
-      <Section title="Potions and items" badge={badge(SHOP_KEYS)}>
+      <Section title="Potions" badge={badge(POTIONS.map((p) => shopKey(p.id)))}>
         <p className="hint">
-          The power shop&apos;s potions, and what an item costs at each quality in every item shop. These live in the
-          game&apos;s shop scripts rather than <code>players/</code>; the install patches the scenario&apos;s copy the same
-          way.
+          What the power shop charges for each potion. It lives in the game&apos;s shop script rather than{' '}
+          <code>players/</code>; the install patches the scenario&apos;s copy the same way.
         </p>
-        <div className="field-grid">{PLAYER_STOCK.shop.map((p) => input(shopKey(p.id), shopPriceLabel(p.id)))}</div>
+        <div className="field-grid">{POTIONS.map((p) => input(shopKey(p.id), shopPriceLabel(p.id)))}</div>
+      </Section>
+
+      <Section title="Items" badge={badge(ITEMS.map((p) => shopKey(p.id)))}>
+        <p className="hint">
+          What an item costs at each quality, in every item shop. It lives in the game&apos;s shop constants; the install
+          patches the scenario&apos;s copy the same way.
+        </p>
+        <div className="field-grid">{ITEMS.map((p) => input(shopKey(p.id), shopPriceLabel(p.id)))}</div>
       </Section>
     </div>
   )
