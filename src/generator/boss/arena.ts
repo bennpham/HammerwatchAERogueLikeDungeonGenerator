@@ -405,7 +405,7 @@ export function buildBossArena(
     Monster.create(
       ctx,
       p.x,
-      p.y,
+      p.y + (p.def.placement === 'topWall' ? (p.def.artNudgeY ?? 0) : 0),
       { id: p.def.id, configKey: '', tiers: [p.def.actorPath], upgradeChance: 0, defaultMax: 0, group: 'Mini-bosses' },
       0
     )

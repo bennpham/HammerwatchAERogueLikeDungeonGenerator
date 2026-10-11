@@ -1,5 +1,5 @@
 import React from 'react'
-import { MAX_BOSS_COUNT, lineupTotal } from '../../generator'
+import { BOSS_CAMPAIGNS, MAX_BOSS_COUNT, lineupTotal } from '../../generator'
 import type { BossId, BossSelection, ValidationIssue } from '../../generator'
 import { NumberField, ToggleGroup } from './fields'
 
@@ -9,6 +9,20 @@ export interface BossPoolEntry {
   label: string
   unique: boolean
 }
+
+/** `defs` split by the AE campaign each boss comes from, in campaign order; empty groups dropped. */
+function byCampaign(defs: readonly BossPoolEntry[]): Array<{ label: string; defs: BossPoolEntry[] }> {
+  const groups = BOSS_CAMPAIGNS.map((c) => ({
+    label: c.label,
+    defs: c.bosses.map((id) => defs.find((d) => d.id === id)).filter((d): d is BossPoolEntry => d !== undefined)
+  }))
+  const placed = new Set(BOSS_CAMPAIGNS.flatMap((c) => c.bosses))
+  const other = defs.filter((d) => !placed.has(d.id))
+  if (other.length > 0) groups.push({ label: 'Other', defs: other })
+  return groups.filter((g) => g.defs.length > 0)
+}
+
+const UNIQUE_HINT = 'Both dragons and the Queen can appear at most once.'
 
 /** The subset of `BossArenaOptions`/`DungeonBoss` this editor reads and writes. */
 export interface BossSelectionPatch {
@@ -111,22 +125,27 @@ export function BossSelectionEditor({
 
       {selection === 'lineup' ? (
         <>
-          <p className="hint">Exactly these bosses appear. Dragon and Queen can appear at most once.</p>
-          <div className="field-grid">
-            {defs.map((def) => (
-              <NumberField
-                key={def.id}
-                label={def.label}
-                field={`${fieldPrefix}.bossLineup.${def.id}`}
-                value={bossLineup?.[def.id] ?? 0}
-                onChange={(v) => setLineupCount(def.id, v)}
-                issues={[]}
-                min={0}
-                max={def.unique ? 1 : MAX_BOSS_COUNT}
-                step={1}
-              />
-            ))}
-          </div>
+          <p className="hint">Exactly these bosses appear. {UNIQUE_HINT}</p>
+          {byCampaign(defs).map((group) => (
+            <div key={group.label} className="boss-campaign">
+              <span className="boss-campaign-title">{group.label}</span>
+              <div className="field-grid">
+                {group.defs.map((def) => (
+                  <NumberField
+                    key={def.id}
+                    label={def.label}
+                    field={`${fieldPrefix}.bossLineup.${def.id}`}
+                    value={bossLineup?.[def.id] ?? 0}
+                    onChange={(v) => setLineupCount(def.id, v)}
+                    issues={[]}
+                    min={0}
+                    max={def.unique ? 1 : MAX_BOSS_COUNT}
+                    step={1}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
           <p className="hint">
             <strong>Total: {bossCount} boss{bossCount === 1 ? '' : 'es'}</strong>
           </p>
@@ -152,19 +171,24 @@ export function BossSelectionEditor({
             step={1}
             title="How many bosses this arena rolls at once"
           />
-          <p className="hint">Dragon and Queen can appear at most once.</p>
-          <div className="pool-checkboxes">
-            {defs.map((def) => (
-              <label key={def.id} className="pool-checkbox">
-                <input
-                  type="checkbox"
-                  checked={bossPool.includes(def.id)}
-                  onChange={(e) => toggleBoss(def.id, e.target.checked)}
-                />
-                {def.label}
-              </label>
-            ))}
-          </div>
+          <p className="hint">{UNIQUE_HINT}</p>
+          {byCampaign(defs).map((group) => (
+            <div key={group.label} className="boss-campaign">
+              <span className="boss-campaign-title">{group.label}</span>
+              <div className="pool-checkboxes">
+                {group.defs.map((def) => (
+                  <label key={def.id} className="pool-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={bossPool.includes(def.id)}
+                      onChange={(e) => toggleBoss(def.id, e.target.checked)}
+                    />
+                    {def.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
           {issues
             .filter((i) => i.field === `${fieldPrefix}.bossPool`)
             .map((issue, i) => (

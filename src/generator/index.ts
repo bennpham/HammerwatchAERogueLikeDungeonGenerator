@@ -147,6 +147,7 @@ export { UPGRADE_KINDS, noUpgrades, oneOfEachUpgrade, upgradeItemPath } from './
 export type { UpgradeCounts, UpgradeKind } from './lobby/payout'
 export type { BossDef, BossId, BossPlacement } from './boss'
 export {
+  BOSS_CAMPAIGNS,
   BOSS_DEF_LIST,
   UNIQUE_BOSS_IDS,
   ARENA_LAYOUT_SLOTS,

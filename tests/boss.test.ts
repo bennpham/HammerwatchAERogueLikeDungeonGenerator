@@ -12,7 +12,7 @@ import { plainParameters } from './params'
 import type { BossArenaOptions, BossFight, BossOptions } from '../src/generator/config/parameters'
 import { buildBossArena } from '../src/generator/boss/arena'
 import type { Gateway } from '../src/generator/campaign'
-import { BOSS_DEFS, BOSS_DEF_LIST, topWallBossY } from '../src/generator/boss/bosses'
+import { BOSS_CAMPAIGNS, BOSS_DEFS, BOSS_DEF_LIST, topWallBossY } from '../src/generator/boss/bosses'
 import type { AlcoveWall } from '../src/generator/boss/bosses'
 import { arenaActorPath } from '../src/generator/objects/monsterTypes'
 import { aeAssetExists } from '../src/generator/catalog/assets'
@@ -154,10 +154,13 @@ describe('boss arena — geometry', () => {
       expect(bosses, id).toHaveLength(1)
       const def = BOSS_DEFS[id as keyof typeof BOSS_DEFS]
       const p = local(bosses[0])
-      const top = p.y + (def.collisionOffsetY ?? 0) - def.footprintHeight / 2
+      // the layout seats the collider on floor; a top-wall boss's art nudge
+      // (the dragon, seated higher by hand) moves only the emitted actor
+      const nudge = def.placement === 'topWall' ? (def.artNudgeY ?? 0) : 0
+      const top = p.y - nudge + (def.collisionOffsetY ?? 0) - def.footprintHeight / 2
       expect(top, `${id} collider top`).toBeGreaterThanOrEqual(0)
       expect(onInterior(preview, p.x, p.y), `${id} at ${p.x},${p.y}`).toBe(true)
-      if (def.placement === 'topWall') expect(p.y, id).toBe(topWallBossY(def))
+      if (def.placement === 'topWall') expect(p.y, id).toBe(topWallBossY(def) + nudge)
     }
   })
 
@@ -346,5 +349,19 @@ describe('boss campaign', () => {
     const b = levelsOf(generateOk(withFight({ arena: arenaOptions({ theme: 'crypt', minWidth: 50, maxWidth: 50 }) }), 42))
     for (let i = 0; i < plainParameters().levels; i++) expect(b.get(`floor${i}`)).toEqual(a.get(`floor${i}`))
     expect(b.get('boss0')).not.toEqual(a.get('boss0'))
+  })
+})
+
+describe('boss campaigns and the dragon seat', () => {
+  it('files every boss under exactly one AE campaign', () => {
+    const listed = BOSS_CAMPAIGNS.flatMap((c) => c.bosses)
+    expect([...listed].sort()).toEqual([...BOSS_DEF_LIST.map((d) => d.id)].sort())
+    expect(new Set(listed).size).toBe(listed.length)
+  })
+
+  it('seats the dragon 24 px above its collider-safe row, as the user placed it by hand', () => {
+    const { level } = arena(7, { bossSelection: 'lineup', bossLineup: { boss_dragon: 1 } })
+    const dragon = level.units.find((u) => u.path === BOSS_DEFS.boss_dragon.actorPath)!
+    expect(dragon.y).toBe(topWallBossY(BOSS_DEFS.boss_dragon) * TILE - 24)
   })
 })

@@ -28,6 +28,14 @@ export interface BossDef {
   /** where the arena places this boss */
   placement: 'centre' | 'topWall'
   /**
+   * For a `topWall` boss, tiles to move the emitted actor past the spot
+   * `topWallBossY` computes (negative = up). Art only: the layout and the
+   * spawn clearance keep using the collider. The dragon's art leaves a gap
+   * under the wall at the collider-safe spot; the user seated it 24 px
+   * higher by hand (2026-10-11, boss0_edited.lvl) and the generator follows.
+   */
+  artNudgeY?: number
+  /**
    * Alcove walls this boss must never be assigned, expressed as data rather
    * than a special case in the (later) alcove picker. Only the dragon forbids
    * one: it sits static in the top (N) wall and would otherwise be able to
@@ -90,7 +98,7 @@ export const UNIQUE_BOSS_IDS: readonly BossId[] = ['boss_dragon', 'boss_dragon_h
 const BOSS_DEFS_LIST: Omit<BossDef, 'mobile' | 'unique'>[] = [
   { id: 'boss_anubis', actorPath: 'actors/bosses/boss_anubis/boss_anubis.unit', footprintWidth: 20 / 16, footprintHeight: 20 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.d.ig.boss_3' },
   // <circle offset="0 -32" radius="40"> static
-  { id: 'boss_dragon', actorPath: 'actors/bosses/boss_dragon/boss_dragon.unit', footprintWidth: 80 / 16, footprintHeight: 80 / 16, collisionOffsetY: -32 / 16, placement: 'topWall', forbiddenAlcoveWalls: ['N'], barName: '.ig.boss4' },
+  { id: 'boss_dragon', actorPath: 'actors/bosses/boss_dragon/boss_dragon.unit', footprintWidth: 80 / 16, footprintHeight: 80 / 16, collisionOffsetY: -32 / 16, placement: 'topWall', artNudgeY: -24 / 16, forbiddenAlcoveWalls: ['N'], barName: '.ig.boss4' },
   { id: 'boss_knight', actorPath: 'actors/bosses/boss_knight/boss_knight.unit', footprintWidth: 16 / 16, footprintHeight: 16 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.boss2' },
   { id: 'boss_krilith', actorPath: 'actors/bosses/boss_krilith/boss_krilith.unit', footprintWidth: 16 / 16, footprintHeight: 16 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.d.ig.boss_2' },
   { id: 'boss_lich', actorPath: 'actors/bosses/boss_lich/boss_lich.unit', footprintWidth: 24 / 16, footprintHeight: 24 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.boss3' },
@@ -124,6 +132,21 @@ export const BOSS_DEFS: Readonly<Record<BossId, BossDef>> = Object.fromEntries(
     }
   ])
 ) as Record<BossId, BossDef>
+
+/**
+ * The AE campaign each boss comes from, for grouping the pickers. Read off
+ * the stock boss-bar keys: `.ig.boss1–4` Castle Hammerwatch, `.d.ig.*`
+ * Temple of the Sun (the desert campaign), `.ig.hwr.*` Shaftlocke Tower.
+ */
+export const BOSS_CAMPAIGNS: readonly { id: string; label: string; bosses: readonly BossId[] }[] = [
+  { id: 'castle', label: 'Castle Hammerwatch', bosses: ['boss_queen', 'boss_knight', 'boss_lich', 'boss_dragon'] },
+  { id: 'temple', label: 'Temple of the Sun', bosses: ['boss_worm', 'boss_krilith', 'boss_anubis'] },
+  {
+    id: 'shaftlocke',
+    label: 'Shaftlocke Tower',
+    bosses: ['boss_golem', 'boss_warden', 'boss_wraith', 'boss_eye', 'boss_vampire', 'boss_dragon_hwr', 'boss_seeress']
+  }
+]
 
 /** `BOSS_DEFS` as a `BOSS_IDS`-ordered array, for callers that want to iterate. */
 export const BOSS_DEF_LIST: readonly BossDef[] = BOSS_IDS.map((id) => BOSS_DEFS[id])

@@ -6,6 +6,7 @@ export { ANCHOR_INSET, ENTRANCE_DEPTH, ENTRANCE_WIDTH, NORTH_ANCHOR_INSET, ancho
 export type { AlcoveWall, BossDef, BossId } from './bosses'
 export {
   BOSS_DEFS,
+  BOSS_CAMPAIGNS,
   BOSS_DEF_LIST,
   UNIQUE_BOSS_IDS,
   expandLineup,
