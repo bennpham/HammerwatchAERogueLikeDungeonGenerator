@@ -4,6 +4,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import {
   AE_DIR_NAME,
+  assetOverrideFiles,
   findAeInstall,
   hasH1cMagic,
   installScenario,
@@ -14,6 +15,7 @@ import {
   writeCampaign
 } from '../src/main/packer'
 import { generateDungeon } from '../src/generator'
+import { playerOverrides, skillKey, statKey } from '../src/generator/players'
 import type { DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
 import { AE_ROOT, HAS_AE } from './aeInstall'
@@ -89,6 +91,31 @@ describe('packer — no extra lives for sale', () => {
     const assets = unpackedAssetsDir(AE_ROOT)
     expect(assets).not.toBeNull()
     expect(patchedPowerShop(readFileSync(join(assets!, 'scripts/GUI/Shop/PowerShopMenuContent.as'), 'utf-8'))).not.toBeNull()
+  })
+})
+
+describe('packer — patched stock files', () => {
+  it('always tries the power shop, and says why when it cannot', () => {
+    const out = assetOverrideFiles(join(tmpdir(), 'no-such-ae'), [])
+    expect(out.files).toEqual([])
+    expect(out.notes.join(' ')).toMatch(/extra life/)
+  })
+
+  it.skipIf(!HAS_AE)('patches the Players tab\'s values into the install\'s own files', () => {
+    const overrides = playerOverrides({
+      [statKey('warlock', 'base-health')]: 400,
+      [skillKey('warlock_gargoyle', 1, 'cost')]: 0,
+      [skillKey('shared_speed_melee', 1, 'movespeed-mul', 'paladin')]: 2
+    })
+    const { files, notes } = assetOverrideFiles(AE_ROOT, overrides)
+    expect(notes).toEqual([])
+    const byPath = new Map(files.map((f) => [f.path, f.content]))
+    expect(byPath.get('players/classes.sval')).toMatch(/<int name="base-health">400<\/int>/)
+    expect(byPath.get('players/classes.sval')).toContain('players/shared/skills/shared_speed_melee_paladin.sval')
+    expect(byPath.get('players/warlock/skills/warlock_gargoyle.sval')).toMatch(/<int name="cost">0<\/int>/)
+    expect(byPath.get('players/shared/skills/shared_speed_melee_paladin.sval')).toMatch(/<float name="movespeed-mul">2<\/float>/)
+    // the shared file itself is untouched, so no stock-path copy ships
+    expect(byPath.has('players/shared/skills/shared_speed_melee.sval')).toBe(false)
   })
 })
 

@@ -4,6 +4,8 @@ import { mkdir, rename, rm, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { dirname, join } from 'path'
 import type { GeneratedFile } from '../generator'
+import { applyLineEdits } from '../generator/players'
+import type { PlayerFileOverride } from '../generator/players'
 import type { ActionResult } from '../shared/ipc'
 
 /** The game's folder name under a Steam library's steamapps/common. */
@@ -134,6 +136,41 @@ function powerShopOverride(aePath: string): { content: string } | { reason: stri
   return patched === null ? { reason: 'the power shop script changed in this AE version; not patched' } : { content: patched }
 }
 
+/**
+ * The stock files a scenario ships patched, read from this install's unpacked
+ * assets: the power shop (always) and the Players tab's overrides. `notes`
+ * says what could not be patched; the scenario still works without it, just
+ * with stock values there.
+ */
+export function assetOverrideFiles(
+  aePath: string,
+  overrides: readonly PlayerFileOverride[]
+): { files: GeneratedFile[]; notes: string[] } {
+  const files: GeneratedFile[] = []
+  const notes: string[] = []
+  const powerShop = powerShopOverride(aePath)
+  if ('content' in powerShop) files.push({ path: POWER_SHOP_SCRIPT, content: powerShop.content })
+  else notes.push(`the power shop still offers an extra life (${powerShop.reason})`)
+
+  if (overrides.length === 0) return { files, notes }
+  const assets = unpackedAssetsDir(aePath)
+  if (assets === null) {
+    notes.push('the player settings were not applied: no unpacked_assets_* folder in the AE install')
+    return { files, notes }
+  }
+  for (const o of overrides) {
+    const stock = safeRead(join(assets, o.source))
+    if (stock === null) {
+      notes.push(`the player settings for ${o.path} were not applied: no ${o.source} in ${assets}`)
+      continue
+    }
+    const { text, missed } = applyLineEdits(stock, o.edits)
+    if (missed.length > 0) notes.push(`${missed.length} player setting(s) in ${o.path} did not match this AE version and were skipped`)
+    files.push({ path: o.path, content: text })
+  }
+  return { files, notes }
+}
+
 function safeRead(p: string): string | null {
   try {
     return readFileSync(p, 'utf-8')
@@ -157,7 +194,8 @@ export async function installScenario(
   aePath: string,
   scenarioId: string,
   files: GeneratedFile[],
-  keepSource: boolean
+  keepSource: boolean,
+  overrides: readonly PlayerFileOverride[] = []
 ): Promise<ActionResult> {
   if (!aePath) return { ok: false, message: 'Set your Hammerwatch Anniversary Edition folder first.' }
   if (!existsSync(aePath)) return { ok: false, message: `Hammerwatch Anniversary Edition folder not found: ${aePath}` }
@@ -176,9 +214,10 @@ export async function installScenario(
   await rm(sourceDir, { recursive: true, force: true })
   await rm(packed, { force: true })
   await writeCampaign(sourceDir, files)
-  // no "buy an extra life" in a 0-lives run (see patchedPowerShop)
-  const powerShop = powerShopOverride(aePath)
-  if ('content' in powerShop) await writeCampaign(sourceDir, [{ path: POWER_SHOP_SCRIPT, content: powerShop.content }])
+  // patched stock files: no "buy an extra life" in a 0-lives run (see
+  // patchedPowerShop), and the Players tab's class and skill values
+  const patched = assetOverrideFiles(aePath, overrides)
+  await writeCampaign(sourceDir, patched.files)
 
   const isWindows = process.platform === 'win32'
   const command = isWindows ? packager : 'wine'
@@ -221,7 +260,7 @@ export async function installScenario(
     ok: true,
     message:
       `Installed ${scenarioId}.h1c — start it from the scenario list in Hammerwatch Anniversary Edition.` +
-      ('reason' in powerShop ? ` Note: the power shop still offers an extra life (${powerShop.reason}).` : ''),
+      (patched.notes.length > 0 ? ` Note: ${patched.notes.join('; ')}.` : ''),
     outputPath: packed
   }
 }

@@ -16,6 +16,8 @@ import { buildMusicRig } from './music/rig'
 import { buildFloorTrapRig } from './traps/floor'
 import { buildFloorBossRig } from './dungeonBoss'
 import { buildMysteryButtonRig } from './mystery/rig'
+import { playerOverrides } from './players'
+import type { PlayerFileOverride } from './players'
 
 export type { DungeonParameters, DungeonBoss, LobbyOptions, BossOptions, BossFight, BossArenaOptions, BossWave, BossSpawnMode, BossFloorPattern, FloorTimer, FloorLock, FloorBuff, FloorTrap, TrapDirection, BuffTarget, WavePickup, BossTrap, BossTrapDirection, BossCheckpointPreset, ArenaMode, SurvivalOptions, SurvivalWave, SurvivalBuff, SurvivalPickup, SurvivalTrap, SurvivalCountdown } from './config/parameters'
 export {
@@ -342,6 +344,12 @@ export interface DungeonResult {
   /** the scenario id: its folder name, PACKAGER argument and `levels/<id>/` namespace */
   campaignName: string
   files: GeneratedFile[]
+  /**
+   * Stock files the scenario ships patched (the Players tab's edits). The
+   * generator never holds the game's files: the install reads each `source`
+   * from the user's own unpacked assets and applies the edits.
+   */
+  assetOverrides: PlayerFileOverride[]
   levels: LevelPreview[]
 }
 
@@ -497,7 +505,14 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
   })
   files.push({ path: 'logos.png', content: scenarioLogoBase64(usedSeed), encoding: 'base64' })
 
-  return { ok: true, seed: usedSeed, campaignName: scenarioId, files, levels: previews }
+  return {
+    ok: true,
+    seed: usedSeed,
+    campaignName: scenarioId,
+    files,
+    assetOverrides: playerOverrides(params.playerTweaks ?? {}),
+    levels: previews
+  }
 }
 
 /** One line for the scenario list: what the run holds. */

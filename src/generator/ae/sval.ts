@@ -32,6 +32,8 @@ export interface SvalNode {
   /** raw (unescaped) text of a scalar; empty for containers */
   text: string
   children: SvalNode[]
+  /** 1-based line of the opening tag, for patching a stock file in place */
+  line?: number
 }
 
 /** Child of a dict by name, or undefined. */
@@ -83,9 +85,13 @@ export function parseSval(text: string): SvalNode {
   const root: SvalNode = { tag: '#root', text: '', children: [] }
   const stack: SvalNode[] = [root]
   let last = 0
+  let line = 1
+  let counted = 0
   let m: RegExpExecArray | null
   while ((m = tagRe.exec(src)) !== null) {
     const between = src.slice(last, m.index)
+    for (let i = counted; i < m.index; i++) if (src.charCodeAt(i) === 10) line++
+    counted = m.index
     last = tagRe.lastIndex
     const top = stack[stack.length - 1]
     if (between.length > 0 && SVAL_SCALAR_TAGS.has(top.tag)) top.text += unescapeXml(between)
@@ -101,7 +107,7 @@ export function parseSval(text: string): SvalNode {
       continue
     }
     const nameMatch = /\bname\s*=\s*"([^"]*)"/.exec(m[3] ?? '')
-    const node: SvalNode = { tag, text: '', children: [] }
+    const node: SvalNode = { tag, text: '', children: [], line }
     if (nameMatch !== null) node.name = unescapeXml(nameMatch[1])
     top.children.push(node)
     if (!selfClosing) stack.push(node)

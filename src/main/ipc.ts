@@ -11,10 +11,12 @@ import {
   serializePlayerSettingsTxt,
   DungeonParameters,
   DungeonResult,
+  GeneratedFile,
   PlayerTweaks
 } from '../generator'
+import type { PlayerFileOverride } from '../generator/players'
 import { findParametersOverride, loadSettings, saveSettings } from './settings'
-import { installScenario, writeCampaign } from './packer'
+import { assetOverrideFiles, installScenario, writeCampaign } from './packer'
 import type {
   ActionResult,
   AppSettings,
@@ -73,8 +75,35 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
     const result = requireResult()
     if (!('files' in result)) return result
     const settings = loadSettings()
-    return installScenario(settings.hammerwatchPath, result.campaignName, result.files, !settings.cleanupFiles)
+    return installScenario(
+      settings.hammerwatchPath,
+      result.campaignName,
+      result.files,
+      !settings.cleanupFiles,
+      result.assetOverrides
+    )
   })
+
+  /**
+   * An export carries the same patched stock files as an install when the AE
+   * folder is set (they are read from it); without it, the player settings
+   * and the power-shop fix are left out and the message says so.
+   */
+  const exportFiles = (result: { files: GeneratedFile[]; assetOverrides: PlayerFileOverride[] }) => {
+    const aePath = loadSettings().hammerwatchPath
+    if (!aePath) {
+      const lost = result.assetOverrides.length > 0 ? ' and the player settings' : ''
+      return {
+        files: result.files,
+        note: ` Set the AE folder to include the power-shop fix${lost}; they are patched from the game's own files.`
+      }
+    }
+    const patched = assetOverrideFiles(aePath, result.assetOverrides)
+    return {
+      files: [...result.files, ...patched.files],
+      note: patched.notes.length > 0 ? ` Note: ${patched.notes.join('; ')}.` : ''
+    }
+  }
 
   ipcMain.handle('dungeon:export-folder', async (): Promise<ActionResult> => {
     const result = requireResult()
@@ -91,10 +120,13 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
     }
 
     const targetDir = join(picked.filePaths[0], result.campaignName)
-    await writeCampaign(targetDir, result.files)
+    const exported = exportFiles(result)
+    await writeCampaign(targetDir, exported.files)
     return {
       ok: true,
-      message: `Exported the scenario folder. Copy it into <AE>/scenarios/ and run "PACKAGER.exe -l ${result.campaignName}" from the AE folder.`,
+      message:
+        `Exported the scenario folder. Copy it into <AE>/scenarios/ and run "PACKAGER.exe -l ${result.campaignName}" from the AE folder.` +
+        exported.note,
       outputPath: targetDir
     }
   })
@@ -115,14 +147,15 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
     }
 
     const zip = new JSZip()
-    for (const file of result.files) {
+    const exported = exportFiles(result)
+    for (const file of exported.files) {
       zip.file(`${result.campaignName}/${file.path}`, file.content, {
         base64: file.encoding === 'base64'
       })
     }
     const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
     await writeFile(picked.filePath, buffer)
-    return { ok: true, message: 'Exported campaign zip.', outputPath: picked.filePath }
+    return { ok: true, message: `Exported campaign zip.${exported.note}`, outputPath: picked.filePath }
   })
 
   ipcMain.handle('settings:pick-path', async (): Promise<string | null> => {
