@@ -52,7 +52,6 @@ import { TrapListEditor } from './TrapListEditor'
 import { SurvivalTab } from './SurvivalTab'
 import { WaveEditor, WAVE_LABELS } from './WaveEditor'
 import { InvulnerabilityEditor, invulnBadge } from './InvulnerabilityEditor'
-import { CheckpointsEditor, checkpointBadge } from './CheckpointsEditor'
 import { BossSelectionEditor } from './BossSelectionEditor'
 
 interface BossFormProps {
@@ -774,15 +773,6 @@ function BossOnlyArenaFields({ arena, fieldPrefix, issues, setArena, setWave }: 
           )
         })}
       </Section>
-
-      {!multiBoss && (
-        <Section title="Checkpoints / Save game" badge={checkpointBadge(arena.checkpoints)}>
-          <CheckpointsEditor
-            checkpoints={arena.checkpoints}
-            onChange={(checkpoints) => setArena({ checkpoints })}
-          />
-        </Section>
-      )}
 
       <Section title="Scattered spawns">
         <p className="hint">

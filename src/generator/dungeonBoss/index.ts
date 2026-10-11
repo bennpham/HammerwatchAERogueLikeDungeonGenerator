@@ -7,7 +7,7 @@
  * the engine fires `Boss 75% / 50% / 25% / Died` ONLY for an actor in the
  * `actors/boss_*` folders, so an arena with no boss had to re-key every rig to
  * a clock. A dungeon floor WITH a boss actor gets those events for free, so
- * `boss/invulnerability.ts` and `boss/checkpoints.ts` are called here verbatim
+ * `boss/invulnerability.ts` is called here verbatim
  * and the tier wiring of `boss/waves.ts` and `boss/traps.ts` is reused as-is.
  * What is genuinely new is PLACEMENT — an arena is one open rectangle and a
  * floor is a graph of rooms — which is what `placement.ts` supplies.
@@ -20,9 +20,8 @@
  *   3. buffs           one whole-floor field per tier
  *   4. traps           per-tier spewers on room walls  <- draws
  *   5. invulnerability windows on the boss actor
- *   6. checkpoints     respawn / save-game milestones
- *   7. opener          Boss Died -> DestroyObject on the seals
- *   8. pickups         per-tier item drops across the floor <- draws
+ *   6. opener          Boss Died -> DestroyObject on the seals
+ *   7. pickups         per-tier item drops across the floor <- draws
  *
  * Every step from 2 on returns before allocating an id when its own config is
  * empty, which is what keeps one from moving another's ids. Steps 1, 2, 4 and
@@ -36,7 +35,6 @@ import type { DungeonBoss } from '../config/parameters'
 import { bossSelection, floorBossCount, isMultiBoss } from '../config/parameters'
 import type { Level } from '../map/level'
 import { buildInvulnerabilityRig } from '../boss/invulnerability'
-import { buildCheckpointRig } from '../boss/checkpoints'
 import { buildWaveBuffRig } from '../boss/waveBuffs'
 import { buildAllBossesDied, multiBossTierSource, singleBossTierSource } from '../boss/tierSource'
 import { BOSS_DEFS, expandLineup } from '../boss/bosses'
@@ -76,10 +74,8 @@ export function buildFloorBossRig(
   if (level.bossSpots.length === 0) return
 
   // Marker column for the cosmetic editor nodes: just past the map's east
-  // edge, where nothing can be standing. The spewers, SpawnObjects and the
-  // checkpoint rig's Checkpoint/RespawnPlayers care about their real
-  // positions — the last two teleport the party to themselves, so they go on
-  // the floor's LevelStart instead.
+  // edge, where nothing can be standing. The spewers and SpawnObjects care
+  // about their real positions.
   const markerX = level.width + 1
   const markerY = 0
 
@@ -118,18 +114,11 @@ export function buildFloorBossRig(
 
   buildFloorBossTrapRig(ctx, boss.waves, level, markerX, markerY, tierSource)
 
-  // Invulnerability and checkpoints need to know THE boss, not a boss, so
-  // both are skipped outright for a multi-boss floor — same reasoning as the
-  // arena's (`boss/arena.ts`). Their settings stay on `boss`, simply unread.
+  // Invulnerability needs to know THE boss, not a boss, so it is skipped
+  // outright for a multi-boss floor — same reasoning as the arena's
+  // (`boss/arena.ts`). Its settings stay on `boss`, simply unread.
   if (!multi) {
     buildInvulnerabilityRig(ctx, boss.invulnerability, actors[0].id, markerX, markerY)
-
-    // `scriptNodes` is cleared per level, so this is this floor's own start.
-    // A floor always has one; without it there is nowhere safe to respawn.
-    const start = ctx.scriptNodes.find((n) => n.cls === 'LevelStart')
-    if (start !== undefined) {
-      buildCheckpointRig(ctx, boss.checkpoints, markerX, markerY, { x: start.x, y: start.y })
-    }
   }
 
   buildFloorBossOpener(

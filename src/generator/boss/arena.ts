@@ -85,7 +85,6 @@ import { buildWaveBuffRig } from './waveBuffs'
 import { buildWavePickupRig } from './wavePickups'
 import type { TrapArena } from './traps'
 import { buildTrapRig } from './traps'
-import { buildCheckpointRig } from './checkpoints'
 import { buildMusicRig } from '../music/rig'
 import { placeSpawnPoints } from './spawnPoints'
 import { buildSurvivalRig } from '../survival'
@@ -418,7 +417,7 @@ export function buildBossArena(
     const loaded = new NodeGlobalEventTrigger(ctx, midX, height + 1, LEVEL_LOADED_EVENT)
     bossPlacements.forEach((p, i) => loaded.connectTo(new NodeCreateBossBar(ctx, midX + i, height + 2, [bossActors[i]], p.def.barName)))
   }
-  // Single-boss shorthand kept for the invulnerability/checkpoint rigs, which
+  // Single-boss shorthand kept for the invulnerability rig, which
   // only ever run for exactly one boss (see below).
   const bossActor = bossActors[0]
 
@@ -650,17 +649,6 @@ export function buildBossArena(
     })
   } else {
     buildTrapRig(ctx, arena.waves, trapArena, tierSource)
-
-    // --- checkpoints, for the same append-only reason as the ones above. Draws
-    // no random values, so it cannot move the trap rig's bossRand draw or
-    // anything laid out before it. Both checkboxes off, or an empty preset,
-    // emits nothing. Boss-only: it listens for the same `Boss ...` events.
-    // Skipped outright for a multi-boss fight, for the same reason
-    // invulnerability is — a checkpoint keyed to one boss's health threshold
-    // is meaningless once the events could belong to any of several. ---
-    if (!multi) {
-      buildCheckpointRig(ctx, arena.checkpoints, entranceShape.x, entranceShape.y)
-    }
   }
 
   // --- music: the last of every optional rig. Draws no random values either,

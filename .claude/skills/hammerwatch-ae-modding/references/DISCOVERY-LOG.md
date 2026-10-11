@@ -324,6 +324,13 @@ crypt tiles.
   Shell Game. HW1 text types now map to styles: 0/1 → `region_enter`, 2 → default,
   3 → `info_event`. Stock levels never set `Style`; the gather-party line stays default.
 
+### Boss checkpoints removed (user, 2026-10-11)
+
+- AE needs none: co-op players revive each other, and a dead party chooses to respawn
+  at the previous lobby or right at the boss fight. The arena and floor-boss
+  respawn/save rigs and their settings are gone; old `boss<f>Checkpoints` /
+  `bossFloor<i>Checkpoints` lines are read and dropped silently.
+
 ### Lighting `[VERIFIED]` stock data, `[EMITTED]` generated (2026-10-10)
 
 - A level's `lighting.environment` (`effects/lighting/*.env`) holds an ambient colour

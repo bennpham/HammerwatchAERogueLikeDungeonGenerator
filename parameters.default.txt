@@ -184,7 +184,6 @@ boss0Cover=symmetric,0.08,4,3
 boss0Spawn=2,4,3,8,1500
 boss0Invuln=30,30,30
 boss0InvulnCountdown=1
-boss0Checkpoints=75-50-25-dead,50
 boss0MonsterMultiplier=1.000000
 boss0FoodMultiplier=1.200000
 boss0Wave1=bat,bat,maggot,maggot#2,maggot#3,tick,tick#2,tick#0,flower_small|4000|bat:24,bat:24,maggot:20,maggot#2:12,maggot#3:6,tick:24,tick#2:16,tick#0:2,flower_small:6||bat:random,flower_small:random,maggot:random,maggot#2:random,maggot#3:random,tick:random,tick#0:random,tick#2:random

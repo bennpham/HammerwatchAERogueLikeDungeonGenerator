@@ -1276,7 +1276,6 @@ function shellGameBossFight(): BossFight {
     // no revives and no saves: with the stock '75-50-25-dead' the fight
     // played too easy, and a mid-fight save can lock a party into a doomed
     // state (written while someone is being torn apart)
-    checkpoints: { respawnPlayers: 'never', saveGame: 'never' },
     waves: [
       scatterWave([], [['skeleton_soldier', 8]], 2000),
       scatterWave([], [['skeleton_ranger', 6], ['mb_skeleton_guard#0', 1]], 2000, [], [], SHOOTER_ARROW_TRAPS),

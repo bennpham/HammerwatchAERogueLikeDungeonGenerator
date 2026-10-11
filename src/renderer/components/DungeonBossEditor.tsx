@@ -18,7 +18,6 @@ import { TrapListEditor } from './TrapListEditor'
 import { PickupListEditor } from './PickupListEditor'
 import { WaveEditor, WAVE_LABELS } from './WaveEditor'
 import { InvulnerabilityEditor, invulnBadge } from './InvulnerabilityEditor'
-import { CheckpointsEditor, checkpointBadge } from './CheckpointsEditor'
 import { BossSelectionEditor } from './BossSelectionEditor'
 
 interface DungeonBossEditorProps {
@@ -43,7 +42,7 @@ const MOBILE_BOSS_DEFS = BOSS_DEF_LIST.filter((def) => def.mobile)
  *
  * Shape follows BossForm's arena editor deliberately: an enable toggle per
  * floor, then `Boss 1 … Boss n` sub-tabs over the floors that are enabled,
- * each one reusing WaveEditor / InvulnerabilityEditor / CheckpointsEditor so
+ * each one reusing WaveEditor / InvulnerabilityEditor so
  * the two boss surfaces cannot drift on how a tier, an invuln window or a
  * checkpoint preset is edited.
  */
@@ -438,24 +437,6 @@ function DungeonBossFloorEditor({
           )
         })}
       </Section>
-
-      {!multiBoss && (
-        <Section title="Checkpoints / Save game" badge={checkpointBadge(boss.checkpoints)}>
-          <CheckpointsEditor
-            checkpoints={boss.checkpoints}
-            onChange={(checkpoints) => onChange({ checkpoints })}
-          />
-          {issues
-            .filter(
-              (i) => i.field === `${fieldPrefix}.checkpoints.respawnPlayers` || i.field === `${fieldPrefix}.checkpoints.saveGame`
-            )
-            .map((issue, i) => (
-              <p key={i} className="field-message">
-                {issue.message}
-              </p>
-            ))}
-        </Section>
-      )}
 
       <Section title="Chances & multipliers">
         <div className="field-grid">

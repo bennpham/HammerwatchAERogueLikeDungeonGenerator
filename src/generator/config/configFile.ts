@@ -1,6 +1,5 @@
 import { translateLegacyParametersText } from '../catalog/substitutions'
 import {
-  BOSS_CHECKPOINT_PRESETS,
   BOSS_COVER_PATTERNS,
   BOSS_DEATH_WAVE,
   BOSS_FLOOR_PATTERNS,
@@ -44,7 +43,6 @@ import { UPGRADE_KINDS, noUpgrades } from '../lobby/payout'
 import type { UpgradeCounts } from '../lobby/payout'
 import type {
   BossArenaOptions,
-  BossCheckpointPreset,
   BossFight,
   BossFloorPattern,
   BossSpawnMode,
@@ -582,18 +580,8 @@ function parseFloorBossKey(
     return true
   }
 
-  if (suffix === 'checkpoints') {
-    const parts = value.split(',').map((v) => v.trim())
-    if (parts[0] !== undefined && parts[0] !== '') {
-      if (parts[0] in BOSS_CHECKPOINT_PRESETS) boss.checkpoints.respawnPlayers = parts[0] as BossCheckpointPreset
-      else unknownKeys.push(`${key} respawn preset "${parts[0]}"`)
-    }
-    if (parts[1] !== undefined && parts[1] !== '') {
-      if (parts[1] in BOSS_CHECKPOINT_PRESETS) boss.checkpoints.saveGame = parts[1] as BossCheckpointPreset
-      else unknownKeys.push(`${key} save preset "${parts[1]}"`)
-    }
-    return true
-  }
+  // checkpoints were removed for AE; a file that still has them is not wrong
+  if (suffix === 'checkpoints') return true
 
   // The four tier lines, tested most-specific-first for the same
   // anchored-pattern reason the arena's are: `wavetrap1` must not fall through
@@ -1046,30 +1034,8 @@ function parseBossFightKey(
     }
     return true
   }
-  if (suffix === 'checkpoints') {
-    // boss<f>Checkpoints=<respawnPlayers preset>,<saveGame preset> — mirrors
-    // bosscover's per-field unknown-value guard: a bad preset id is reported
-    // and that field keeps its default rather than being cast into the
-    // union. A file written before the two presets split apart carried a
-    // third 0/1 field; it simply fails this same preset check and is
-    // reported, leaving saveGame at its default.
-    const parts = value.split(',').map((s) => s.trim())
-    const respawnPreset = parts[0]
-    if (!(respawnPreset in BOSS_CHECKPOINT_PRESETS)) {
-      unknownKeys.push(`${key} value "${respawnPreset}"`)
-    } else {
-      arena.checkpoints.respawnPlayers = respawnPreset as BossCheckpointPreset
-    }
-    if (parts.length >= 2) {
-      const savePreset = parts[1]
-      if (!(savePreset in BOSS_CHECKPOINT_PRESETS)) {
-        unknownKeys.push(`${key} value "${savePreset}"`)
-      } else {
-        arena.checkpoints.saveGame = savePreset as BossCheckpointPreset
-      }
-    }
-    return true
-  }
+  // checkpoints were removed for AE; a file that still has them is not wrong
+  if (suffix === 'checkpoints') return true
   if (suffix === 'spawn') {
     // same per-field NaN guard as cover above — a malformed segment is
     // reported and only that field keeps its default
@@ -2205,7 +2171,6 @@ export function serializeParametersTxt(params: DungeonParameters, path?: string,
           `bossFloor${i}Invuln=${boss.invulnerability.enabled ? boss.invulnerability.seconds.join(',') : 'off'}`
         )
         lines.push(`bossFloor${i}InvulnCountdown=${boss.invulnerability.countdown ? 1 : 0}`)
-        lines.push(`bossFloor${i}Checkpoints=${boss.checkpoints.respawnPlayers},${boss.checkpoints.saveGame}`)
 
         boss.waves.forEach((wave, tier) => {
           const maxes = wave.monsters
@@ -2471,7 +2436,6 @@ export function serializeParametersTxt(params: DungeonParameters, path?: string,
       `boss${f}Invuln=${arena.invulnerability.enabled ? arena.invulnerability.seconds.join(',') : 'off'}`
     )
     lines.push(`boss${f}InvulnCountdown=${arena.invulnerability.countdown ? 1 : 0}`)
-    lines.push(`boss${f}Checkpoints=${arena.checkpoints.respawnPlayers},${arena.checkpoints.saveGame}`)
     // six decimals, matching the global multipliers above
     lines.push(`boss${f}MonsterMultiplier=${arena.monsterMultiplier.toFixed(6)}`)
     lines.push(`boss${f}FoodMultiplier=${arena.foodMultiplier.toFixed(6)}`)

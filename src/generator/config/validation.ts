@@ -1,5 +1,4 @@
 import {
-  BOSS_CHECKPOINT_PRESETS,
   BOSS_COVER_DENSITY_MAX,
   BOSS_COVER_PATTERNS,
   BOSS_DEATH_WAVE,
@@ -1233,22 +1232,6 @@ function validateBossFight(
     }
   }
 
-  // an unknown preset id is only reachable via a hand-edited parameters.txt —
-  // the form only ever writes a known one — but a bad import should not silently
-  // fall back to a default without the user seeing why
-  if (!(arena.checkpoints.respawnPlayers in BOSS_CHECKPOINT_PRESETS)) {
-    bossErrors.push({
-      field: af('checkpoints.respawnPlayers'),
-      message: `Unknown checkpoint preset "${arena.checkpoints.respawnPlayers}".`
-    })
-  }
-  if (!(arena.checkpoints.saveGame in BOSS_CHECKPOINT_PRESETS)) {
-    bossErrors.push({
-      field: af('checkpoints.saveGame'),
-      message: `Unknown checkpoint preset "${arena.checkpoints.saveGame}".`
-    })
-  }
-
   if (!boss.enabled || errors.length > before) return
 
   // Both of these are shape-dependent, so they only run once the rules above
@@ -2086,13 +2069,6 @@ function validateLevelBoss(p: DungeonParameters, errors: ValidationIssue[], warn
         field: bf('invulnerability'),
         message: `Floor ${i + 1}: boss invulnerability and timer mode cannot both run on one floor — they announce competing countdowns. Switch one off.`
       })
-    }
-
-    if (!(boss.checkpoints.respawnPlayers in BOSS_CHECKPOINT_PRESETS)) {
-      errors.push({ field: bf('checkpoints.respawnPlayers'), message: `Floor ${i + 1}: unknown checkpoint preset "${boss.checkpoints.respawnPlayers}".` })
-    }
-    if (!(boss.checkpoints.saveGame in BOSS_CHECKPOINT_PRESETS)) {
-      errors.push({ field: bf('checkpoints.saveGame'), message: `Floor ${i + 1}: unknown checkpoint preset "${boss.checkpoints.saveGame}".` })
     }
 
     if (!Number.isFinite(boss.monsterMultiplier) || boss.monsterMultiplier < 0) {

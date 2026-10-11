@@ -41,7 +41,6 @@ function multiArena(count: number, overrides: Partial<BossArenaOptions> = {}): B
     bossPool: MULTI_POOL,
     bossCount: count,
     invulnerability: { enabled: true, seconds: [30, 30, 30], countdown: true },
-    checkpoints: { respawnPlayers: '75-50-25-dead', saveGame: '50' },
     ...overrides
   })
 }
@@ -225,7 +224,6 @@ describe('multi-boss dungeon floor (issue #64 part 1)', () => {
       bossCount: count,
       waves: Array.from({ length: 5 }, () => ({ monsters: [], monsterMax: {}, defaultIntervalMs: 1500 })),
       invulnerability: { enabled: false, seconds: [0, 0, 0], countdown: true },
-      checkpoints: { respawnPlayers: 'never', saveGame: 'never' },
       monsterMultiplier: 1.0
     }
     params.levelBoss = Array.from({ length: params.levels }, () => ({ ...boss, enabled: false }))
@@ -318,7 +316,6 @@ describe('boss selection mode: exact lineups (issue #64 follow-up)', () => {
       bossLineup: { boss_knight: 2, boss_lich: 1 },
       waves: Array.from({ length: 5 }, () => ({ monsters: [], monsterMax: {}, defaultIntervalMs: 1500 })),
       invulnerability: { enabled: false, seconds: [0, 0, 0], countdown: true },
-      checkpoints: { respawnPlayers: 'never', saveGame: 'never' },
       monsterMultiplier: 1.0
     }
     params.levelBoss = Array.from({ length: params.levels }, () => ({ ...boss, enabled: false }))

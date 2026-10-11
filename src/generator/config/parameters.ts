@@ -253,8 +253,6 @@ export interface DungeonBoss {
   waves: BossWave[]
   /** Seconds of immortality per health threshold. Mutually exclusive with this floor's timer. */
   invulnerability: { enabled: boolean; seconds: number[]; countdown: boolean }
-  /** The same two milestone presets the arena carries. */
-  checkpoints: { respawnPlayers: BossCheckpointPreset; saveGame: BossCheckpointPreset }
   /** Scales each tier's counts, separate from the dungeon's own monsterMultiplier. */
   monsterMultiplier: number
   /**
@@ -297,7 +295,6 @@ export function defaultDungeonBoss(): DungeonBoss {
       seconds: BOSS_INVULN_THRESHOLDS.map(() => DEFAULT_BOSS_INVULN_SECONDS),
       countdown: true
     },
-    checkpoints: { respawnPlayers: 'never', saveGame: 'never' },
     monsterMultiplier: 1.0
   }
 }
@@ -990,27 +987,6 @@ export interface BossArenaOptions {
     /** announce a ticking M:SS countdown for the length of each window */
     countdown: boolean
   }
-  /**
-   * Checkpoints: on chosen boss health milestones, pull downed players back
-   * into the fight and/or move the party's respawn point and write a save.
-   * The two behaviours are independently scheduled — a dungeon master
-   * typically wants players revived often but a save written only once, so
-   * each carries its own preset rather than sharing one threshold list.
-   *
-   * Independent of `invulnerability` and `waves` — it listens to the same
-   * `Boss 75%`/`Boss 50%`/`Boss 25%`/`Boss Died` events but wires its own
-   * dedicated triggers (one per event actually used by either preset, shared
-   * between the two behaviours when they land on the same milestone), so
-   * turning either preset on or off never touches another rig's
-   * `connections`. Both fields at `'never'` emits nothing at all — no
-   * trigger, no Checkpoint node, no RespawnPlayers node.
-   */
-  checkpoints: {
-    /** which milestones pull dead/lagging players back into the arena */
-    respawnPlayers: BossCheckpointPreset
-    /** which milestones move the respawn point and write a save (the Checkpoint node) */
-    saveGame: BossCheckpointPreset
-  }
   /** scales each wave tier's monsterMax (except -1/endless, which stays endless) */
   monsterMultiplier: number
   /** scales the sparse health/mana pickup clusters scattered around the arena */
@@ -1031,8 +1007,8 @@ export interface BossArenaOptions {
    * can tell whose threshold it saw. So above 1, every tier-keyed rig (waves,
    * wave buffs, wave pickups, traps) skips the 75/50/25% tiers entirely and
    * re-keys the death tier and the alcove opener to "every boss's own death",
-   * counted down on a shared Variable — see `boss/tierSource.ts`. Invulnerability and
-   * checkpoints are skipped outright; their settings stay on the object,
+   * counted down on a shared Variable — see `boss/tierSource.ts`.
+   * Invulnerability is skipped outright; its settings stay on the object,
    * simply unread, the same losslessness `arenaMode` already promises.
    */
   bossCount?: number
@@ -1103,7 +1079,7 @@ export interface BossFight {
    * The arena itself. Shared by BOTH modes: its size, theme, floor pattern,
    * cover, music and multipliers mean the same thing whether a boss is standing
    * in it or a clock is running. The boss-only fields (`bossPool`, `waves`,
-   * `invulnerability`, `checkpoints`, `spawn`) stay on the object in survival
+   * `invulnerability`, `spawn`) stay on the object in survival
    * mode, simply unread, so flipping a fight to Survival and back loses nothing.
    */
   arena: BossArenaOptions
@@ -1731,14 +1707,6 @@ export function defaultBossFight(): BossFight {
         seconds: BOSS_INVULN_THRESHOLDS.map(() => DEFAULT_BOSS_INVULN_SECONDS),
         countdown: true
       },
-      // Revive often — every health tier and after the boss dies — but save
-      // only once, at the halfway mark: a fight this long is costly to redo
-      // from the top after a wipe, but a save on every threshold is more
-      // than most campaigns want.
-      checkpoints: {
-        respawnPlayers: '75-50-25-dead',
-        saveGame: '50'
-      },
       monsterMultiplier: 1.0,
       foodMultiplier: 1.2,
       // All three stock presets play the same final-boss cue; `withBoss()`
@@ -1805,27 +1773,11 @@ export const DEFAULT_BOSS_INVULN_SECONDS = 30
 export const MAX_BOSS_INVULN_SECONDS = 300
 
 /**
- * Every milestone a checkpoint can fire on, in the order checkpoints.ts emits
- * them — the emitter walks this list, never a preset's own array or an
- * object's key order, so which events get a shared trigger never depends on
- * iteration order (invariant 2).
+ * Checkpoints were removed for AE (2026-10-11): co-op players revive each
+ * other, and a dead party chooses to restart at the previous lobby or at the
+ * boss fight. Old `boss<f>Checkpoints` / `bossFloor<i>Checkpoints` lines are
+ * read and dropped without a warning.
  */
-export const BOSS_CHECKPOINT_EVENTS = ['Boss 75%', 'Boss 50%', 'Boss 25%', 'Boss Died'] as const
-
-/**
- * Checkpoint threshold presets, as the engine event names each fires.
- * `parameters.txt` stores the preset id directly, so these ids are also the
- * on-disk vocabulary — never rename one without a configFile.ts migration.
- * Declaration order here is also the dropdown order in the form.
- */
-export const BOSS_CHECKPOINT_PRESETS = {
-  never: [],
-  '50': ['Boss 50%'],
-  '75-50-25': ['Boss 75%', 'Boss 50%', 'Boss 25%'],
-  '75-50-25-dead': ['Boss 75%', 'Boss 50%', 'Boss 25%', 'Boss Died']
-} as const satisfies Record<string, readonly (typeof BOSS_CHECKPOINT_EVENTS)[number][]>
-
-export type BossCheckpointPreset = keyof typeof BOSS_CHECKPOINT_PRESETS
 
 /**
  * Index of the boss-death tier — the last one. It is keyed to the engine's

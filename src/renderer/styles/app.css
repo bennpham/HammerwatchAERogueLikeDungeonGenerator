@@ -1739,12 +1739,6 @@ button.danger:hover:not(:disabled) {
   margin-top: 10px;
 }
 
-/* Checkpoints: two stacked `.field` selects — the same 10px gap .invuln-fields
-   gives its grid, applied to the second field instead. */
-.checkpoint-fields {
-  margin-top: 10px;
-}
-
 /* Mystery buttons (issue #67): the pool's rows and each floor's pick, laid out
    like the per-floor editors above. */
 .mystery-buttons .pool-level > .section-body,

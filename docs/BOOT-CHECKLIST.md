@@ -29,7 +29,7 @@ A confirmed row goes into the discovery log as `[VERIFIED]`.
 | 17 | Buff fields | The buff applies to the target set (players, monsters or both). | UNCONFIRMED |
 | 18 | Boss portal | The last floor's red portal leads into the arena. | UNCONFIRMED |
 | 19 | Boss bar | The boss's health bar shows its stock title. | UNCONFIRMED |
-| 20 | Boss tiers | Waves start on entering and step up at 75/50/25% health; invulnerability windows count down; checkpoints save. | UNCONFIRMED |
+| 20 | Boss tiers | Waves start on entering and step up at 75/50/25% health; invulnerability windows count down. (Boss checkpoints were removed 2026-10-11: co-op players revive each other, and a dead party chooses to restart at the previous lobby or at the fight.) | UNCONFIRMED |
 | 21 | Boss death | The alcove seal opens when the boss dies. | UNCONFIRMED |
 | 22 | Victory | Picking up the orb shows "Victory!" and then the game-over screen (`ShowGameOver`). | UNCONFIRMED |
 | 23 | Floor boss | On a boss floor, killing the boss opens the sealed portal room. This was broken before 2026-10-10. | UNCONFIRMED |

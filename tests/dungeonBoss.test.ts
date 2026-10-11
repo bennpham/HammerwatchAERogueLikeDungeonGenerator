@@ -418,25 +418,6 @@ describe('dungeon boss — the tier rigs', () => {
     }
   }, 120_000)
 
-  it('respawns the party into this floor and saves on its arrival point', () => {
-    // AE has no RespawnPlayers: a milestone moves the respawn point to this
-    // floor's own LevelStart (by StartID), and the save point stands on it.
-    const params = withBoss({ checkpoints: { respawnPlayers: '75-50-25-dead', saveGame: '50' } })
-    const result = generateOk(params, SEED)
-    const level = floorOf(result, BOSS_FLOOR)
-    const stem = `floor${BOSS_FLOOR}`
-
-    const starts = scriptsOf(level, 'LevelStart').filter((s) => strParam(s, 'StartID') === stem)
-    expect(starts).toHaveLength(1)
-
-    const respawns = scriptsOf(level, 'SetRespawnPoint').filter((s) => strParam(s, 'SpawnId') === stem)
-    expect(respawns, 'one per milestone').toHaveLength(4)
-
-    const checkpoints = scriptsOf(level, 'SuperCheckPoint')
-    expect(checkpoints).toHaveLength(1)
-    expect([checkpoints[0].x, checkpoints[0].y], 'the save point sits on LevelStart').toEqual([starts[0].x, starts[0].y])
-  }, 60_000)
-
   it('scatters wave pickups over the floor, one tile per copy, off each tier trigger', () => {
     const waves = defaultDungeonBoss().waves
     waves[0] = { ...waves[0], pickups: [{ item: 'health_4', count: 2 }] }
@@ -653,15 +634,13 @@ describe('dungeon boss — parameters.txt', () => {
         }
         return waves
       })(),
-      invulnerability: { enabled: true, seconds: [20, 15, 10], countdown: false },
-      checkpoints: { respawnPlayers: '75-50-25', saveGame: '50' }
+      invulnerability: { enabled: true, seconds: [20, 15, 10], countdown: false }
     })
 
     const text = serializeParametersTxt(params)
     expect(text).toMatch(/^bossFloor1=1\|boss_knight,boss_lich\|1\.500000$/m)
     expect(text).toMatch(/^bossFloor1Invuln=20,15,10$/m)
     expect(text).toMatch(/^bossFloor1InvulnCountdown=0$/m)
-    expect(text).toMatch(/^bossFloor1Checkpoints=75-50-25,50$/m)
     expect(text).toMatch(/^bossFloor1Wave2=bat,skeleton_warrior\|900\|bat:20,skeleton_warrior:6\|bat:400$/m)
     expect(text).toMatch(/^bossFloor1WaveBuff2=bloodlust:monsters$/m)
     expect(text).toMatch(/^bossFloor1WaveTrap2=shooter_arrow:up:0.5:900:3$/m)
@@ -673,7 +652,6 @@ describe('dungeon boss — parameters.txt', () => {
     expect(back?.bossPool).toEqual(['boss_knight', 'boss_lich'])
     expect(back?.monsterMultiplier).toBeCloseTo(1.5)
     expect(back?.invulnerability).toEqual({ enabled: true, seconds: [20, 15, 10], countdown: false })
-    expect(back?.checkpoints).toEqual({ respawnPlayers: '75-50-25', saveGame: '50' })
     expect(back?.waves[1].monsters).toEqual(['bat', 'skeleton_warrior'])
     expect(back?.waves[1].monsterMax).toEqual({ bat: 20, skeleton_warrior: 6 })
     expect(back?.waves[1].defaultIntervalMs).toBe(900)

@@ -20,7 +20,7 @@ import { playerOverrides } from './players'
 import { environmentOverrides } from './lighting'
 import type { PlayerFileOverride } from './players'
 
-export type { DungeonParameters, DungeonBoss, LobbyOptions, BossOptions, BossFight, BossArenaOptions, BossWave, BossSpawnMode, BossFloorPattern, FloorTimer, FloorLock, FloorBuff, FloorTrap, TrapDirection, BuffTarget, WavePickup, BossTrap, BossTrapDirection, BossCheckpointPreset, ArenaMode, SurvivalOptions, SurvivalWave, SurvivalBuff, SurvivalPickup, SurvivalTrap, SurvivalCountdown } from './config/parameters'
+export type { DungeonParameters, DungeonBoss, LobbyOptions, BossOptions, BossFight, BossArenaOptions, BossWave, BossSpawnMode, BossFloorPattern, FloorTimer, FloorLock, FloorBuff, FloorTrap, TrapDirection, BuffTarget, WavePickup, BossTrap, BossTrapDirection, ArenaMode, SurvivalOptions, SurvivalWave, SurvivalBuff, SurvivalPickup, SurvivalTrap, SurvivalCountdown } from './config/parameters'
 export {
   THEMES,
   BOSS_IDS,
@@ -34,8 +34,6 @@ export {
   BOSS_INVULN_COUNT,
   DEFAULT_BOSS_INVULN_SECONDS,
   MAX_BOSS_INVULN_SECONDS,
-  BOSS_CHECKPOINT_EVENTS,
-  BOSS_CHECKPOINT_PRESETS,
   DEFAULT_WAVE_MONSTER_MAX,
   defaultBossOptions,
   defaultBossFight,

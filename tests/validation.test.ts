@@ -947,7 +947,7 @@ describe('boss count validation (issue #64 part 1)', () => {
   // at an invisible field would be noise the user can't act on. Values still
   // round-trip losslessly — validation just no longer comments on them. See
   // the "Validation noise" section of the issue #64 UI follow-up plan.
-  it('does not error when a multi-boss fight still carries 75/50/25% content, invulnerability or checkpoints', () => {
+  it('does not error when a multi-boss fight still carries 75/50/25% content or invulnerability', () => {
     const arena = defaultParameters().boss.fights[0].arena
     const result = withBoss({
       arena: {
@@ -955,8 +955,7 @@ describe('boss count validation (issue #64 part 1)', () => {
         bossPool: ['boss_knight', 'boss_lich'],
         bossCount: 2,
         waves: arena.waves.map((w, i) => (i === 1 ? { ...w, monsters: ['bat'], monsterMax: { bat: 5 } } : w)),
-        invulnerability: { enabled: true, seconds: [30, 30, 30], countdown: true },
-        checkpoints: { respawnPlayers: '50', saveGame: 'never' }
+        invulnerability: { enabled: true, seconds: [30, 30, 30], countdown: true }
       }
     })
     expect(result.errors).toEqual([])
@@ -1188,45 +1187,6 @@ describe('boss invulnerability validation', () => {
   it('stays quiet while the feature is off', () => {
     const result = withInvuln({ enabled: false, seconds: [0, 0, 0] })
     expect(fieldsOf(result.warnings)).not.toContain('boss.fights.0.arena.invulnerability.seconds')
-  })
-})
-
-describe('boss checkpoints validation', () => {
-  const withCheckpoints = (
-    patch: Partial<ReturnType<typeof defaultParameters>['boss']['fights'][number]['arena']['checkpoints']>
-  ) => {
-    const p = defaultParameters()
-    const fight = p.boss.fights[0]
-    const arena = fight.arena
-    p.boss = {
-      ...p.boss,
-      fights: [{ ...fight, arena: { ...arena, checkpoints: { ...arena.checkpoints, ...patch } } }]
-    }
-    return validateParameters(p)
-  }
-
-  it('accepts the stock presets without comment', () => {
-    const result = withCheckpoints({})
-    expect(result.errors).toEqual([])
-    expect(fieldsOf(result.warnings).filter((f) => f.startsWith('boss.fights.0.arena.checkpoints'))).toEqual([])
-  })
-
-  it('rejects an unknown respawn preset id — only reachable via a hand-edited file', () => {
-    const result = withCheckpoints({ respawnPlayers: 'nope' as never })
-    expect(fieldsOf(result.errors)).toContain('boss.fights.0.arena.checkpoints.respawnPlayers')
-    expect(result.valid).toBe(false)
-  })
-
-  it('rejects an unknown save preset id — only reachable via a hand-edited file', () => {
-    const result = withCheckpoints({ saveGame: 'nope' as never })
-    expect(fieldsOf(result.errors)).toContain('boss.fights.0.arena.checkpoints.saveGame')
-    expect(result.valid).toBe(false)
-  })
-
-  it('accepts both presets as "never" — the feature simply emits nothing', () => {
-    const result = withCheckpoints({ respawnPlayers: 'never', saveGame: 'never' })
-    expect(result.errors).toEqual([])
-    expect(result.valid).toBe(true)
   })
 })
 
