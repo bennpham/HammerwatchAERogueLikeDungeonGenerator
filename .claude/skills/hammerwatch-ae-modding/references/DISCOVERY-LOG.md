@@ -300,3 +300,35 @@ crypt tiles.
 - `PowerShopMenuContent.as` offers "extra life" under `%if !MOD_INFINITE_LIVES | !MOD_NO_LIVES`
   (true unless both are on), and `PartyRecord.GiveLife` is a no-op under NO_LIVES.
   The installer ships a patched copy (nested %ifs) as a scenario-local override.
+
+### Player balance lives in `players/`, not `tweak/` `[VERIFIED]` (unpacked_assets_66, 2026-10-10)
+
+- `players/classes.sval` (loader `PlayerClass::LoadMultiple`, order 1): per class `id`,
+  `unit`, the list of skill files, `base-health`/`base-mana`/`base-*-regen` (regen in
+  points per second). The `level-*` twins are all 0 and `base-str/dex/int` are 0: AE has
+  no character levels.
+- One file per skill, `players/<class>/skills/*.sval`: a root skill (`starting-level` →
+  owned; else `category` + `cost` → bought), its `upgrades` array, and
+  `modifier-skills` each with their own `category`/`cost`/`binds` and `upgrades`.
+  Numbers sit in `binds` (int/float; string binds are buff refs). Upgrades **set** a
+  value (`Modifiers::AttribSet`, `player-max-health-set`), they do not add.
+- Move speed is not a class stat: two shared passive skills,
+  `shared_speed` (wizard, ranger, sorcerer, priest: 1.0, shop 1.1/1.2/1.3) and
+  `shared_speed_melee` (paladin, thief, warlock: 1.2, shop 1.3/1.4/1.5), both bind
+  `movespeed-mul` and share the skill id `shared_misc_speed_base`. `shared_combo` is
+  owned by every class; the combo window is in ms (1000 → 2250).
+- Shop descriptions carry the numbers as arguments named the HW1 way
+  (`.hp-udesc?curr-max-health=75&max-health=90`), not after the bind.
+- 67 skill files, 369 prices, 843 editable values: `src/generator/players/stock.generated.ts`
+  (`scripts/scan-ae-players.ts`).
+
+### Player overrides as scenario files `[EMITTED]` (2026-10-10)
+
+- The Players tab's edits become line edits on the install's own `players/` files, written
+  into the scenario at the stock path (like the power shop). A class with its own move
+  speed gets `players/shared/skills/shared_speed(_melee)_<class>.sval` and its line in a
+  patched `players/classes.sval`.
+- `[UNVERIFIED]` that a scenario copy of a skill `.sval` replaces the stock one.
+- `[UNVERIFIED]` that a scenario copy of `classes.sval` is read at all. Its loader runs at
+  startup, and the character-select screen needs it before a scenario is chosen. Boot
+  checklist #26–28.

@@ -21,6 +21,7 @@ Both must pass before every commit. `HWAE_PACK=1 npm test -- tests/packer.test.t
     - `substitutions.ts`: HW1 id → AE id. Old `parameters.txt` files are translated on load.
   - `map/`: rooms, passages, AE walls (`aeWalls.ts`), reachability and the seal check.
   - `objects/`: the AE script vocabulary (`nodes.ts`), doodads, items, and the monster, projectile and buff rosters.
+  - `players/`: the Players tab. A snapshot of AE's `players/` balance (`stock.generated.ts`; regenerate it with `node scripts/run-ts.mjs scripts/scan-ae-players.ts`), the `player.*` keys, the quick setup, move speed, presets, and `playerOverrides`, which turns edits into line patches the install applies to the game's own files.
   - `boss/`, `dungeonBoss/`, `survival/`, `traps/`, `timer/`, `buffs/`, `mystery/`, `music/`, `lobby/`: the rigs.
 - `src/main/`: Electron main. `packer.ts` does the install and AE detection.
 - `src/renderer/`: React UI.
@@ -45,6 +46,7 @@ The full record is `.claude/skills/hammerwatch-ae-modding/references/DISCOVERY-L
 - **Toggles:** `ToggleScripts.State` is 1 enable, 2 disable. Use `NodeToggleElement.action`, never a number.
 - **Exits** are press-F: `UseTrigger` → `AllPlayersArea` → `SetRespawnPoint` + `LevelExit`. AE has no `RespawnPlayers`.
 - **Lives:** always 0. `info.xml` forces the `NO_LIVES` modifier; never offer lives back.
+- **Player balance** is in `players/` (`classes.sval` plus a `.sval` per skill), not HW1's `tweak/*.xml`. Move speed is two shared skills (melee/ranged), not a class stat. The game's files are never stored in the repo: only line numbers and stock values are.
 - **Walls:** vertical pieces anchor one row above their cell, and `h_32`/`v_32` span two cells.
 - **`PACKAGER.exe`** exits 127 even on success; judge the install by the `.h1c` and its `HW1S` header.
 - **Lobbies** are hand-made AE editor levels: `docs/LOBBY-AUTHORING.md`. The user's `house` is the default.
