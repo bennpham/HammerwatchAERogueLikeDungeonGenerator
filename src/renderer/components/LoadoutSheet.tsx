@@ -13,7 +13,7 @@ const number = (value: number) => (Number.isInteger(value) ? String(value) : val
 /**
  * Read-only character sheet for the seven classes: what you start with, what
  * you end up with after buying the whole tree, and what that costs — with the
- * user's tweaks applied and anything they changed flagged.
+ * Players tab's overrides applied and anything they changed flagged.
  */
 export function LoadoutSheet({ tweaks }: LoadoutSheetProps) {
   const loadouts = useMemo(() => buildLoadouts(tweaks), [tweaks])
@@ -64,7 +64,7 @@ export function LoadoutSheet({ tweaks }: LoadoutSheetProps) {
               <tr key={stat.name} className={stat.changed ? 'tweaked-row' : undefined}>
                 <td>{stat.name}</td>
                 <td>
-                  {number(stat.start)}
+                  {stat.start === undefined ? <span className="hint">bought</span> : number(stat.start)}
                   {stat.changed && (
                     <span className="tweaked" title="changed from the stock game">
                       {' '}
@@ -81,7 +81,9 @@ export function LoadoutSheet({ tweaks }: LoadoutSheetProps) {
 
       <p className="hint">
         &quot;Fully upgraded&quot; buys every upgrade in the tree; a dash means no upgrade touches that
-        stat. Upgrades set values rather than adding to them, so the last tier of a chain wins.
+        stat, and &quot;bought&quot; a skill the class has to buy before it has it at all. AE&apos;s upgrades
+        set values rather than adding to them, so the last tier wins. Move speed and combo are shared
+        skills: a class with its own speed shows its own.
       </p>
     </div>
   )

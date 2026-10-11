@@ -1,5 +1,5 @@
-import { formatTweakLine, parseTweakValue, pruneTweaks } from '../tweak/overrides'
-import type { PlayerTweaks } from '../tweak/types'
+import { formatPlayerLine, parsePlayerValue, prunePlayerTweaks } from '../players/fields'
+import type { PlayerTweaks } from '../players/fields'
 
 /**
  * playersettings.txt — the Player tab on its own (issue #77).
@@ -8,7 +8,7 @@ import type { PlayerTweaks } from '../tweak/types'
  * `player.*` overrides, so a player build can be shared and layered on top of
  * any campaign: import parameters.txt (or load a campaign preset) first, then
  * import playersettings.txt. Same line grammar as parameters.txt, and the same
- * `player.*` keys written by the same `formatTweakLine`.
+ * `player.*` keys written by the same `formatPlayerLine`.
  *
  * The file states the WHOLE Player tab relative to stock: importing it
  * replaces `playerTweaks` outright, and a key it leaves out is back at stock.
@@ -16,7 +16,7 @@ import type { PlayerTweaks } from '../tweak/types'
  */
 
 const HEADER = [
-  '# playersettings.txt — Hammerwatch Dungeon Generator player settings',
+  '# playersettings.txt — Hammerwatch AE Dungeon Generator player settings',
   '# Applies to the Player tab only; every key not listed here is stock.',
   '# Import parameters.txt first, then this file, to layer a player build onto a campaign.'
 ]
@@ -31,10 +31,10 @@ export interface ParsedPlayerSettings {
 }
 
 export function serializePlayerSettingsTxt(tweaks: PlayerTweaks): string {
-  const pruned = pruneTweaks(tweaks)
+  const pruned = prunePlayerTweaks(tweaks)
   const lines = Object.keys(pruned)
     .sort()
-    .map((key) => formatTweakLine(key, pruned[key]))
+    .map((key) => formatPlayerLine(key, pruned[key]))
   // CRLF, like parameters.txt — both are meant to be opened in Notepad
   return [...HEADER, ...lines].join('\r\n') + '\r\n'
 }
@@ -56,10 +56,10 @@ export function parsePlayerSettingsTxt(content: string): ParsedPlayerSettings {
       ignoredKeys.push(key)
       continue
     }
-    const value = parseTweakValue(keyLower, parts[1].trim())
+    const value = parsePlayerValue(keyLower, parts[1].trim())
     if (value === undefined) unknownKeys.push(key)
     else if (value === 'stock') delete tweaks[keyLower]
     else tweaks[keyLower] = value
   }
-  return { tweaks: pruneTweaks(tweaks), unknownKeys, ignoredKeys }
+  return { tweaks: prunePlayerTweaks(tweaks), unknownKeys, ignoredKeys }
 }

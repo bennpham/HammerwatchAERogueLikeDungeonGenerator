@@ -5,7 +5,7 @@ import {
   defaultParameters,
   floorMystery,
   playerPresetById,
-  pruneTweaks,
+  prunePlayerTweaks,
   validateParameters
 } from '../generator'
 import type { DungeonParameters, PlayerTweaks } from '../generator'
@@ -48,7 +48,7 @@ export function App() {
 
   const validation = useMemo(() => validateParameters(params), [params])
   const tweakCount = useMemo(
-    () => Object.keys(pruneTweaks(params.playerTweaks ?? {})).length,
+    () => Object.keys(prunePlayerTweaks(params.playerTweaks ?? {})).length,
     [params.playerTweaks]
   )
 
@@ -149,10 +149,8 @@ export function App() {
     let next: DungeonParameters
     let message: string
     if (leftTab === 'player') {
-      // the default, not `{}`: it carries the extra-life removal, and this
-      // generator's campaigns never sell lives
       next = { ...params, playerTweaks: defaultParameters().playerTweaks }
-      message = 'Player tweaks reset to defaults — extra lives stay out of the shop.'
+      message = 'Player settings reset to AE stock.'
     } else if (leftTab === 'lobby') {
       next = { ...params, lobbies: defaultParameters().lobbies }
       message = 'Lobbies reset to defaults.'
@@ -177,7 +175,7 @@ export function App() {
 
   /** The per-tab Reset's label and the tab name its confirm dialog names. */
   const resetTab = {
-    player: { label: 'Reset player tweaks', tab: 'Player' },
+    player: { label: 'Reset player settings', tab: 'Player' },
     lobby: { label: 'Reset lobbies', tab: 'Lobby' },
     boss: { label: 'Reset arena tab', tab: 'Arena' },
     order: { label: 'Reset floor order', tab: 'Floor order' },
@@ -210,7 +208,7 @@ export function App() {
     if (preset === undefined) return
     const next = preset.build()
     setParams(next)
-    const lost = tweakCount > 0 ? ' Player tweaks were cleared.' : ''
+    const lost = tweakCount > 0 ? ' Player settings were cleared.' : ''
     showToast('ok', `Loaded the ${preset.label} preset — ${next.levels} floors.${lost}`)
   }
 
@@ -276,7 +274,7 @@ export function App() {
   /**
    * playersettings.txt replaces the Player tab and nothing else, so it layers
    * onto whatever campaign parameters.txt or a preset set up. Undo puts the
-   * previous player tweaks back.
+   * previous player settings back.
    */
   const importPlayerSettings = async () => {
     const imported = await window.api.importPlayerSettingsTxt()

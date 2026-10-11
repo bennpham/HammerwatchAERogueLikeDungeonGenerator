@@ -220,71 +220,7 @@ export type {
 } from './objects/monsterTypes'
 export { corpseCollision, corpseCollisionPaths } from './objects/actorCollision'
 export type { CorpseCollision } from './objects/actorCollision'
-export {
-  EXTRA_LIFE_UPGRADES,
-  SHOP_PRICE_MAX,
-  SKILL_UNLOCKS,
-  STAT_GROUPS,
-  TWEAK_BASELINE,
-  TWEAK_CLASS_IDS,
-  TWEAK_FIELDS,
-  TWEAK_FIELD_MAP,
-  applyCostCurve,
-  applyCostPolicy,
-  applyDeadUpgradeRemoval,
-  applyFullyUpgraded,
-  applyMasterFactor,
-  applyShopRemovals,
-  applySkillUnlock,
-  applySkillUnlocks,
-  applyStatFactor,
-  applyTiersSold,
-  applyValueCurve,
-  buildChains,
-  buildLoadouts,
-  countTweaksByFile,
-  currentCost,
-  currentStart,
-  currentValue,
-  deriveCostCurve,
-  deriveCostPolicy,
-  deriveMasterFactor,
-  deriveShopRemovals,
-  deriveSkillUnlocks,
-  deriveStatFactor,
-  deriveTiersSold,
-  deriveValueCurve,
-  emitTweakFiles,
-  groupOfStat,
-  isDeadUpgrade,
-  pruneTweaks,
-  resetQuickSetup,
-  shopPrice,
-  totalShopCost,
-  PLAYER_PRESETS,
-  PLAYER_PRESET_GROUPS,
-  playerPresetById
-} from './tweak'
-export type {
-  ClassLoadout,
-  CostCurve,
-  CostPolicy,
-  CurveMode,
-  LoadoutStat,
-  PlayerPreset,
-  PlayerPresetGroupId,
-  PlayerTweaks,
-  ShopRemoval,
-  StatFactor,
-  StatGroup,
-  StatGroupId,
-  TiersSold,
-  TweakChain,
-  TweakChainTier,
-  TweakFieldDef,
-  TweakUnitFile,
-  ValueCurve
-} from './tweak'
+export * from './players'
 
 export interface GeneratedFile {
   /** path relative to the scenario folder, e.g. "levels/dungeon_42/floor0.lvl" */

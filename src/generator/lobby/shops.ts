@@ -1,5 +1,4 @@
-import { applyTweaks } from '../tweak/overrides'
-import type { PlayerTweaks } from '../tweak/types'
+import { playerCategoryCounts } from '../players/validate'
 
 /**
  * The five stalls in the lobby's vendor row.
@@ -76,24 +75,13 @@ export function categoriesFor(vendor: LobbyVendorDef, selected: readonly string[
 }
 
 /**
- * How many upgrades each shop column actually contains once the Player tab's
- * edits are applied.
- *
- * Derived from the tweaked baseline rather than a hardcoded column→upgrade map,
- * so removing a ladder on the Player tab is visible on the Lobby tab without
- * the two features knowing about each other. A count of 0 means the stall would
- * stand there selling an empty column.
+ * How many purchases each skill shop column holds, across every class, from
+ * AE's own skill files. A count of 0 means the stall would stand there selling
+ * an empty column.
  */
-export function lobbyCategoryCounts(tweaks: PlayerTweaks): Record<string, number> {
+export function lobbyCategoryCounts(): Record<string, number> {
+  const stock = playerCategoryCounts()
   const counts: Record<string, number> = {}
-  for (const category of ALL_LOBBY_CATEGORIES) counts[category] = 0
-
-  for (const file of applyTweaks(tweaks)) {
-    if (file.kind !== 'unit') continue
-    for (const upgrade of file.upgrades) {
-      if (counts[upgrade.cat] !== undefined) counts[upgrade.cat] += 1
-    }
-  }
-
+  for (const category of ALL_LOBBY_CATEGORIES) counts[category] = stock[category] ?? 0
   return counts
 }

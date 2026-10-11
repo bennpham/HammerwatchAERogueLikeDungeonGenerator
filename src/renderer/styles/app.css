@@ -1933,3 +1933,18 @@ button.danger:hover:not(:disabled) {
   flex: 1;
   resize: vertical;
 }
+
+/* --- Players tab: one skill's chains (the skill, then each upgrade line) --- */
+
+.player-chain + .player-chain {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.player-chain-title {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+}

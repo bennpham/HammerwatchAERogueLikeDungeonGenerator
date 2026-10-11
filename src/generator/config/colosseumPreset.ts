@@ -104,7 +104,6 @@ maxTowers_Banner=4
 maxTowers_Flower=6
 maxTowers_Nova=4
 maxTowers_Tracking=2
-player.shared.remove.life=0
 lobbySaves=1
 lobbies=8
 lobby0Preset=BETA-dungeon-prep

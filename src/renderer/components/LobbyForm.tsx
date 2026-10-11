@@ -17,7 +17,6 @@ import type {
   DungeonParameters,
   LobbyOptions,
   LobbyPresetDef,
-  PlayerTweaks,
   ValidationIssue
 } from '../../generator'
 import { BoolField, NumberField, Section } from './fields'
@@ -81,12 +80,9 @@ export function LobbyForm({ params, issues, onChange }: LobbyFormProps) {
 
   const preset = LOBBY_PRESETS.find((p) => p.id === lobby?.preset)
 
-  // what each column is actually worth once the Player tab has had its say, so
-  // an emptied ladder is visible here without the two tabs being coupled
-  const counts = useMemo(
-    () => lobbyCategoryCounts((params.playerTweaks ?? {}) as PlayerTweaks),
-    [params.playerTweaks]
-  )
+  // how many purchases each skill column holds across the classes (AE's own
+  // skill files); power and equipment columns are not skill columns
+  const counts = useMemo(() => lobbyCategoryCounts(), [])
 
   const selected = new Set(lobby?.shopCategories ?? [])
   const toggle = (category: string, on: boolean) => {
@@ -261,10 +257,10 @@ export function LobbyForm({ params, issues, onChange }: LobbyFormProps) {
                     {vendor.categories.map((category) => (
                       <BoolField
                         key={category}
-                        label={`${category} (${counts[category] ?? 0})`}
+                        label={(counts[category] ?? 0) > 0 ? `${category} (${counts[category]})` : category}
                         checked={selected.has(category)}
                         onChange={(checked) => toggle(category, checked)}
-                        title={`${counts[category] ?? 0} upgrade(s) in this column after the Player tab's edits`}
+                        title={(counts[category] ?? 0) > 0 ? `${counts[category]} skill purchase(s) in this column, across the classes` : undefined}
                       />
                     ))}
                   </div>

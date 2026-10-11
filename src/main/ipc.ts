@@ -218,7 +218,7 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
   })
 
   // playersettings.txt — the Player tab on its own. The payload is the sparse
-  // tweak record, so it stays small however large the campaign is.
+  // override record, so it stays small however large the campaign is.
   ipcMain.handle('playerSettings:import', async (): Promise<ImportPlayerSettingsResult | null> => {
     const window = getWindow()
     if (!window) return null

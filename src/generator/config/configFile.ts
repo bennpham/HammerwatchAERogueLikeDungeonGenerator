@@ -77,7 +77,7 @@ import { isLobbyCategory } from '../lobby/shops'
 import { DEFAULT_LOBBY_PRESET_ID, LOBBY_PRESETS } from '../lobby/presets'
 import { campaignOrder, isDefaultOrder, normalizeOrder, parseSlotLabel, slotLabeller } from '../campaign'
 import type { CampaignSlot } from '../campaign'
-import { TWEAK_FIELD_MAP, formatTweakLine, parseTweakValue, pruneTweaks } from '../tweak/overrides'
+import { PLAYER_FIELD_MAP, formatPlayerLine, parsePlayerValue, prunePlayerTweaks } from '../players/fields'
 import { MUSIC_DEFAULT, isKnownMusicId } from '../music/tracks'
 
 export interface ParsedConfig {
@@ -1725,14 +1725,14 @@ export function parseParametersTxt(content: string, base?: DungeonParameters): P
     }
 
     if (keyLower.startsWith('player.')) {
-      const tweak = parseTweakValue(keyLower, value)
+      const tweak = parsePlayerValue(keyLower, value)
       if (tweak === undefined) {
         result.unknownKeys.push(key)
       } else if (tweak === 'stock') {
         // An explicit stock value is how the serializer clears an override the
-        // base object inherited (e.g. castle's stock `player.shared.remove.life`)
-        // — without this, a file naming the key back at stock would silently
-        // leave the base's non-stock value in place rather than removing it.
+        // base object inherited — without this, a file naming the key back at
+        // stock would silently leave the base's non-stock value in place
+        // rather than removing it.
         delete params.playerTweaks[keyLower]
       } else {
         params.playerTweaks[keyLower] = tweak
@@ -2041,7 +2041,7 @@ export function serializeParametersTxt(params: DungeonParameters, path?: string,
   // so it is the reference every "only write when it differs" check below
   // must diff against — not some hardcoded sentinel — or a field the base
   // ships non-default (the escape floor's timer/traps, its per-floor music,
-  // its stock `player.shared.remove.life` tweak, its shipped `levelOrder`)
+  // its shipped `levelOrder`)
   // silently leaks back in on re-import the moment a campaign turns it off.
   const base = defaultParameters()
 
@@ -2289,22 +2289,22 @@ export function serializeParametersTxt(params: DungeonParameters, path?: string,
         }
       }
     } else if (key === 'playerTweaks') {
-      const tweaks = pruneTweaks(params.playerTweaks ?? {})
-      const baseTweaks = pruneTweaks(base.playerTweaks ?? {})
+      const tweaks = prunePlayerTweaks(params.playerTweaks ?? {})
+      const baseTweaks = prunePlayerTweaks(base.playerTweaks ?? {})
       // Every key the BASE overrides (non-stock) that this campaign does not
       // override the same way must be written back to its stock value
       // explicitly, or omitting the line — which now means "delete the
       // inherited override" (see the parser change above) — would still
-      // leave nothing to delete only because nothing said to. Without this a
-      // campaign that clears castle's stock `player.shared.remove.life`
-      // tweak (an empty `playerTweaks: {}`) would silently get it back.
+      // leave nothing to delete only because nothing said to. (The stock
+      // defaults carry no player overrides today, so this only matters if
+      // they ever do.)
       const explicitStock = new Set<string>()
       for (const baseKey of Object.keys(baseTweaks)) {
         if (tweaks[baseKey] === undefined) explicitStock.add(baseKey)
       }
       const allKeys = new Set([...Object.keys(tweaks), ...explicitStock])
       for (const tweakKey of Array.from(allKeys).sort()) {
-        lines.push(formatTweakLine(tweakKey, tweaks[tweakKey] ?? TWEAK_FIELD_MAP.get(tweakKey)?.stock ?? 0))
+        lines.push(formatPlayerLine(tweakKey, tweaks[tweakKey] ?? PLAYER_FIELD_MAP.get(tweakKey)?.stock ?? 0))
       }
     }
   }

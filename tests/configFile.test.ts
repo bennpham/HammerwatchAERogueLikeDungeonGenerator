@@ -15,12 +15,13 @@ import {
 } from '../src/generator/config/parameters'
 import { DEFAULT_LOBBY_PRESET_ID } from '../src/generator/lobby/presets'
 import {
-  SHOP_PRICE_MAX,
-  applyCostPolicy,
-  applyMasterFactor,
-  applySkillUnlocks,
-  pruneTweaks
-} from '../src/generator/tweak'
+  applyFullyUpgraded,
+  applyGroupFactor,
+  prunePlayerTweaks,
+  setClassSpeed,
+  skillKey,
+  statKey
+} from '../src/generator/players'
 
 describe('parameters.default.txt', () => {
   // The shipped file documents the defaults, so a default that changes without
@@ -600,104 +601,48 @@ describe('parameters.txt parsing', () => {
     expect(parsed.unknownKeys).toEqual([])
   })
 
-  it('explicitly clears the stock tweak when every tweak is cleared', () => {
-    // defaultParameters() ships the extra-life removal (`player.shared.remove.life=1`)
-    // — omitting every `player.*` line no longer means "nothing tweaked", it
-    // means "inherit whatever the base object parseParametersTxt overlays
-    // onto already has", so clearing the stock tweak has to say so explicitly
-    // (`=0`, its stock value) or it silently comes back on re-import.
-    const params = defaultParameters()
-    params.playerTweaks = {}
-    const text = serializeParametersTxt(params)
-    expect(text).toContain('player.shared.remove.life=0')
-
-    const parsed = parseParametersTxt(text)
-    expect(parsed.params.playerTweaks).toEqual({})
-    expect(parsed.unknownKeys).toEqual([])
+  it('a stock run writes no player lines', () => {
+    const text = serializeParametersTxt(defaultParameters())
+    expect(text).not.toMatch(/^player\./m)
   })
 
-  it('round-trips player tweaks', () => {
+  it('round-trips player settings: class stats, skill tiers and a class\'s own speed', () => {
     const original = defaultParameters()
     original.playerTweaks = {
-      'player.knight.param.max-health': 120,
-      'player.knight.cost.health-1': 250,
-      'player.knight.effect.health-1.max-health': 400,
-      'player.knight.effect.chrgdmg1.charge-dmg-multiplier': 3.5,
-      'player.general.hard.enemydamagebase': 2.25
+      [statKey('warlock', 'base-health')]: 400,
+      [skillKey('warlock_dagger:warlock_dagger_dmg', 2, 'dagger-dmg')]: 99,
+      [skillKey('warlock_gargoyle', 1, 'cost')]: 0,
+      [skillKey('wiz_misc_mana', 3, 'player-mana-regen-set')]: 3.5,
+      [skillKey('shared_speed_melee', 1, 'movespeed-mul', 'thief')]: 2
     }
-
     const text = serializeParametersTxt(original)
-    expect(text).toContain('player.knight.param.max-health=120')
-    expect(text).toContain('player.knight.cost.health-1=250')
-    // the effect scope carries an extra dot segment; the parser must not split on it
-    expect(text).toContain('player.knight.effect.health-1.max-health=400')
-
+    expect(text).toContain('player.class.warlock.base-health=400')
+    expect(text).toContain('player.warlock_dagger:warlock_dagger_dmg.2.dagger-dmg=99')
+    expect(text).toContain('player.thief@shared_speed_melee.1.movespeed-mul=2')
     const parsed = parseParametersTxt(text)
-    expect(parsed.params.playerTweaks['player.knight.param.max-health']).toBe(120)
-    expect(parsed.params.playerTweaks['player.knight.cost.health-1']).toBe(250)
-    expect(parsed.params.playerTweaks['player.knight.effect.health-1.max-health']).toBe(400)
-    expect(
-      parsed.params.playerTweaks['player.knight.effect.chrgdmg1.charge-dmg-multiplier']
-    ).toBeCloseTo(3.5)
-    expect(parsed.params.playerTweaks['player.general.hard.enemydamagebase']).toBeCloseTo(2.25)
     expect(parsed.unknownKeys).toEqual([])
-  })
-
-  it('round-trips skill flags and shop removals', () => {
-    const original = defaultParameters()
-    original.playerTweaks = {
-      'player.knight.param.whirl': 1,
-      'player.shared.remove.life': 1
-    }
-
-    const text = serializeParametersTxt(original)
-    expect(text).toContain('player.knight.param.whirl=1')
-    expect(text).toContain('player.shared.remove.life=1')
-
-    const parsed = parseParametersTxt(text)
-    expect(parsed.params.playerTweaks['player.knight.param.whirl']).toBe(1)
-    expect(parsed.params.playerTweaks['player.shared.remove.life']).toBe(1)
-    expect(parsed.unknownKeys).toEqual([])
+    expect(parsed.params.playerTweaks).toEqual(original.playerTweaks)
   })
 
   it('round-trips a whole quick-setup roster', () => {
     const original = defaultParameters()
-    original.playerTweaks = applyCostPolicy(
-      'free',
-      SHOP_PRICE_MAX,
-      applyMasterFactor(2.5, applySkillUnlocks(true, {}))
-    )
-
+    original.playerTweaks = setClassSpeed(applyGroupFactor('damage', 2.5, applyFullyUpgraded({})), 'priest', 1.7)
     const parsed = parseParametersTxt(serializeParametersTxt(original))
     expect(parsed.unknownKeys).toEqual([])
-
-    // Every roster key survives the trip unchanged.
-    const round = pruneTweaks(parsed.params.playerTweaks)
-    for (const [key, value] of Object.entries(pruneTweaks(original.playerTweaks))) {
-      expect(round[key], key).toBe(value)
-    }
-
-    // No more asymmetry: applyCostPolicy clears every remove.* flag for any
-    // policy but 'removed' (bulk.ts), so the roster above has no remove.life
-    // override — but the serializer now writes an explicit
-    // `player.shared.remove.life=0` whenever the base it will be re-parsed
-    // against (defaultParameters()) carries a non-stock value the campaign no
-    // longer wants, so "extra lives are back on" really does round-trip.
-    expect(round).toEqual(pruneTweaks(original.playerTweaks))
+    expect(prunePlayerTweaks(parsed.params.playerTweaks)).toEqual(prunePlayerTweaks(original.playerTweaks))
   })
 
   it('drops player values that equal the stock game', () => {
-    const parsed = parseParametersTxt('player.knight.param.max-health=75')
-    // unchanged from the defaults, which ship the extra-life removal
-    expect(parsed.params.playerTweaks).toEqual(defaultParameters().playerTweaks)
+    const parsed = parseParametersTxt(`${statKey('paladin', 'base-health')}=75`)
+    expect(parsed.params.playerTweaks).toEqual({})
     expect(parsed.unknownKeys).toEqual([])
   })
 
-  it('reports unrecognised player keys without throwing', () => {
-    const parsed = parseParametersTxt('player.bogus.param.nope=5\nlevels=4')
+  it('reports original-Hammerwatch and unknown player keys without throwing', () => {
+    const parsed = parseParametersTxt('player.knight.param.max-health=120\nplayer.bogus.param.nope=5\nlevels=4')
     expect(parsed.params.levels).toBe(4)
-    expect(parsed.unknownKeys).toEqual(['player.bogus.param.nope'])
-    expect(parsed.params.playerTweaks).toEqual(defaultParameters().playerTweaks)
+    expect(parsed.unknownKeys).toEqual(['player.knight.param.max-health', 'player.bogus.param.nope'])
+    expect(parsed.params.playerTweaks).toEqual({})
   })
 })
 

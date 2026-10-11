@@ -1,14 +1,10 @@
 import { MONSTER_FAMILIES, MONSTER_TYPES } from '../objects/monsterTypes'
 import { THEME_DEFS } from './themes'
 import { DEFAULT_LOBBY_CATEGORIES } from '../lobby/shops'
-import type { PlayerTweaks } from '../tweak/types'
+import type { PlayerTweaks } from '../players/fields'
 import { noUpgrades } from '../lobby/payout'
 import { DEFAULT_LOBBY_PRESET_ID } from '../lobby/presets'
 import type { UpgradeCounts } from '../lobby/payout'
-// the tweak key builder, so the default life removal below cannot drift from
-// the key QuickSetup's checkbox writes. tweak/ imports nothing from config/,
-// so this direction adds no cycle
-import { removeKey } from '../tweak/chains'
 import type { ArenaMode, CampaignSlot } from '../campaign'
 import { ARENA_MODES, campaignOrder, gatewayAfter } from '../campaign'
 // Type-only: boss/bosses.ts imports BOSS_IDS/MOBILE_BOSS_IDS FROM this file at
@@ -834,9 +830,9 @@ export interface DungeonParameters {
   /** max horde size per monster id */
   monsterMax: Record<string, number>
   /**
-   * Sparse overrides of the game's tweak/*.xml balance data, keyed by the
-   * canonical lowercase field keys in tweak/overrides.ts. Empty means the user
-   * changed nothing, in which case no tweak/ folder is emitted at all.
+   * Sparse overrides of AE's player balance (players/classes.sval and the
+   * skill files), keyed by the lowercase `player.*` keys in players/fields.ts.
+   * Empty means the user changed nothing, and no player file is shipped.
    */
   playerTweaks: PlayerTweaks
   /**
@@ -1621,11 +1617,9 @@ export function isMultiBoss(count: number): boolean {
  * and imported by configFile.ts, so two lobbies must never share a
  * `shopCategories` array.
  *
- * Both stock rooms sell every column, power included — see the `LobbyOptions`
- * interface comment for why: extra lives matter more right before a boss than
- * at the start of a run, and the one thing that made buying them anywhere
- * questionable is removed by `defaultParameters()`'s own
- * `player.shared.remove.life` tweak. The only difference between the two is
+ * Both stock rooms sell every column, power included (never an extra life:
+ * runs have 0 lives, and the install patches that offer out of the power
+ * shop). The only difference between the two is
  * gold: 10000 for the campaign's own starting lobby, 20000 — the last shop
  * before a fight, so the party arrives able to actually spend at it — for the
  * boss-prep room.
@@ -2196,12 +2190,9 @@ export function defaultParameters(): DungeonParameters {
       skeleton_soldier: 100,
       tower_static_frost: 102
     },
-    // Extra lives are repeatable, so a party can farm them by leaving a level
-    // and coming back — off by default since that trivialises the campaign.
-    // Rejuvenation stays: it is a one-off full heal, not another life. This is
-    // the one tweak a stock run ships, so a stock campaign now emits exactly
-    // one tweak file (see CLAUDE.md invariant 6).
-    playerTweaks: { [removeKey('shared', 'life')]: 1 },
+    // stock AE balance; lives are never for sale (info.xml forces NO_LIVES and
+    // the install patches the power shop), so there is nothing to remove here
+    playerTweaks: {},
     // Two stock lobbies, matching the pre-#48 campaign's two shop rooms: the
     // campaign's own starting lobby (10000 gold) and what used to be the boss
     // fight's welded-on prep room (20000 gold) — now just the second lobby in

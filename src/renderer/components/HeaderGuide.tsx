@@ -86,7 +86,7 @@ export function HeaderGuide() {
           <ul>
             <li>
               <strong>Reset</strong> (orange) resets only the left-panel tab you are looking at, which is why its
-              label changes (Reset lobbies, Reset player tweaks, …). The other tabs are left alone.
+              label changes (Reset lobbies, Reset player settings, …). The other tabs are left alone.
             </li>
             <li>
               <strong>Reset all</strong> (red) puts every tab back to the defaults.

@@ -126,12 +126,13 @@ describe('lobby — shop columns', () => {
     expect(vendorOfCategory('nope')).toBeUndefined()
   })
 
-  it('counts the upgrades a skill column contains', () => {
-    const counts = lobbyCategoryCounts({})
-    for (const category of ALL_LOBBY_CATEGORIES.filter((c) => !c.startsWith('equipment_'))) {
-      expect(counts[category], `${category} has no upgrades in the stock baseline`).toBeGreaterThan(0)
+  it('counts the purchases a skill column contains, from AE\'s skill files', () => {
+    const counts = lobbyCategoryCounts()
+    // power and equipment are other shops, not skill columns
+    for (const category of ALL_LOBBY_CATEGORIES.filter((c) => !c.startsWith('equipment_') && c !== 'power')) {
+      expect(counts[category], `${category} has no purchases in AE's skill files`).toBeGreaterThan(0)
     }
-    expect(counts.power).toBe(5)
+    expect(counts.power).toBe(0)
   })
 })
 

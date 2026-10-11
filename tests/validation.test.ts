@@ -196,90 +196,6 @@ describe('parameter validation', () => {
   })
 })
 
-describe('player tweak validation', () => {
-  const withTweaks = (playerTweaks: Record<string, number>) => {
-    const p = defaultParameters()
-    p.playerTweaks = playerTweaks
-    return validateParameters(p)
-  }
-
-  it('rejects a fractional cost but allows a negative one', () => {
-    const result = withTweaks({
-      'player.knight.cost.health-1': 12.5,
-      'player.knight.cost.health-2': -1
-    })
-    expect(fieldsOf(result.errors)).toContain('player.knight.cost.health-1')
-    // confirmed in game: a negative price pays the player. Legal, and warned about.
-    expect(fieldsOf(result.errors)).not.toContain('player.knight.cost.health-2')
-    expect(fieldsOf(result.warnings)).toContain('player.knight.cost.health-2')
-  })
-
-  it('rejects a zero-health upgrade the same way as a zero-health start', () => {
-    const result = withTweaks({
-      'player.knight.param.max-health': 0,
-      'player.knight.effect.health-3.max-health': 0
-    })
-    expect(fieldsOf(result.errors)).toContain('player.knight.param.max-health')
-    expect(fieldsOf(result.errors)).toContain('player.knight.effect.health-3.max-health')
-  })
-
-  it('warns (without blocking) when a raised starting stat overtakes the ladder', () => {
-    // the reported mistake: raise starting health and leave the stock ladder alone,
-    // which stores no upgrade override at all
-    const result = withTweaks({ 'player.knight.param.max-health': 400 })
-    expect(result.valid).toBe(true)
-    expect(fieldsOf(result.warnings)).toContain('player.knight.param.max-health')
-    // all five health tiers top out at 300
-    expect(result.warnings[0].message).toContain('5 upgrades still set max-health below 400')
-
-    // raising it only past the first tier flags only that tier
-    const one = withTweaks({ 'player.knight.param.max-health': 130 })
-    expect(one.warnings[0].message).toContain('1 upgrade still sets max-health below 130')
-  })
-
-  it('says "above" for a stat where lower is better', () => {
-    // starting mana-regen is 1100 and the ladder counts down to 600
-    const result = withTweaks({ 'player.knight.param.mana-regen': 400 })
-    expect(result.warnings[0].message).toContain('5 upgrades still set mana-regen above 400')
-  })
-
-  it('warns on an upgrade edited below the starting stat', () => {
-    const result = withTweaks({ 'player.knight.effect.health-1.max-health': 40 })
-    expect(result.valid).toBe(true)
-    expect(fieldsOf(result.warnings)).toContain('player.knight.effect.health-1.max-health')
-    expect(result.warnings[0].message).toContain('downgrade')
-  })
-
-  it('stays quiet once the ladder is lifted to match', () => {
-    const result = withTweaks({
-      'player.knight.param.max-health': 400,
-      'player.knight.effect.health-1.max-health': 445,
-      'player.knight.effect.health-2.max-health': 490,
-      'player.knight.effect.health-3.max-health': 535,
-      'player.knight.effect.health-4.max-health': 580,
-      'player.knight.effect.health-5.max-health': 625
-    })
-    expect(result.valid).toBe(true)
-    expect(result.warnings).toEqual([])
-  })
-
-  it('knows which stats improve by going down', () => {
-    // mana-regen is a period in ms, so a *higher* upgrade is the downgrade
-    const worse = withTweaks({ 'player.knight.effect.mana-1.mana-regen': 1500 })
-    expect(fieldsOf(worse.warnings)).toContain('player.knight.effect.mana-1.mana-regen')
-
-    const better = withTweaks({ 'player.knight.effect.mana-1.mana-regen': 500 })
-    expect(better.warnings).toEqual([])
-  })
-
-  it('stays quiet for upgrades whose starting stat is a locked sentinel', () => {
-    // whirl-dur starts at -1 until the skill is unlocked, so there is nothing to compare
-    const result = withTweaks({ 'player.knight.effect.whirldur1.whirl-dur': 3 })
-    expect(result.warnings).toEqual([])
-    expect(result.valid).toBe(true)
-  })
-})
-
 describe('lobby validation', () => {
   // Patches lobby 0 — `defaultParameters()` ships two, and every rule here is
   // per-lobby (field keys are `lobbies.0.*`), so one exercises them all. Same
@@ -372,24 +288,6 @@ describe('lobby validation', () => {
   // `enabled` is gone (issue #48): a lobby that used to be "off" is simply
   // absent from `lobbies` now, so there is nothing left to warn about — see
   // 'accepts a lobby with 0 floors' above for the closest replacement case.
-
-  it('collapses emptied columns into one warning', () => {
-    const p = defaultParameters()
-    // both stock lobbies already sell power — strip every upgrade it sells
-    // so BOTH lobbies end up with an empty column, collapsed to one warning
-    // apiece rather than one per lobby per upgrade
-    p.playerTweaks = {
-      'player.shared.remove.life': 1,
-      'player.shared.remove.rejuv': 1,
-      'player.shared.remove.pot-dmg': 1,
-      'player.shared.remove.pot-rejuv': 1,
-      'player.shared.remove.pot-invul': 1
-    }
-    const result = validateParameters(p)
-    const lobbyWarnings = result.warnings.filter((w) => w.field === 'lobbies.0.shopCategories')
-    expect(lobbyWarnings).toHaveLength(1)
-    expect(lobbyWarnings[0].message).toContain('Power')
-  })
 
   it('scopes every rule to the lobby that broke it', () => {
     const p = defaultParameters()

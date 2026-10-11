@@ -158,7 +158,6 @@ max_tower_ballista=3
 max_flower=6
 max_banner=4
 max_bannerman=6
-player.shared.remove.life=1
 lobbySaves=1
 lobbies=2
 lobby0Preset=house
