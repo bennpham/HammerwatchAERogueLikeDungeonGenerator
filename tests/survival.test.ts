@@ -319,8 +319,12 @@ describe('survival — the timed rigs', () => {
 })
 
 describe('survival — the countdown styles', () => {
-  // the round's own announcements — not the orb's victory banner on a final arena
-  const roundTexts = (l: AeLevel) => scriptsOf(l, 'AnnounceText').filter((t) => strParam(t, 'Text') !== 'Victory!')
+  // the round's own announcements: the ones its clock fires (not the exit's
+  // gather-party line or a final arena's victory banner)
+  const roundTexts = (l: AeLevel) => {
+    const fired = new Set(clockOf(l).connections.map(([id]) => id))
+    return scriptsOf(l, 'AnnounceText').filter((t) => fired.has(t.id))
+  }
 
   it('off emits no announcement, seconds emits one per second', () => {
     const off = arenaOf(generateOk(withSurvival(0, { countdown: 'off' }), SEED), 0)
