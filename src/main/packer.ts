@@ -4,8 +4,8 @@ import { mkdir, rename, rm, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { dirname, join } from 'path'
 import type { GeneratedFile } from '../generator'
-import { applyLineEdits } from '../generator/players'
-import type { PlayerFileOverride } from '../generator/players'
+import { POWER_SHOP_PATH, applyLineEdits } from '../generator/players'
+import type { LineEdit, PlayerFileOverride } from '../generator/players'
 import type { ActionResult } from '../shared/ipc'
 
 /** The game's folder name under a Steam library's steamapps/common. */
@@ -88,7 +88,7 @@ export function hasH1cMagic(file: string): boolean {
 }
 
 /** Where the power shop script sits, scenario-relative and in the unpacked assets. */
-export const POWER_SHOP_SCRIPT = 'scripts/GUI/Shop/PowerShopMenuContent.as'
+export const POWER_SHOP_SCRIPT = POWER_SHOP_PATH
 
 /** The stock guard around the extra-life offer — true unless BOTH life modifiers are on. */
 const LIFE_GUARD = /^%if !MOD_INFINITE_LIVES \| !MOD_NO_LIVES[ \t]*\r?\n([^\r\n]*power_life[^\r\n]*\r?\n)%endif/m
@@ -126,14 +126,21 @@ function safeList(dir: string): string[] {
   }
 }
 
-/** The power shop override for this install, or null with the reason. */
-function powerShopOverride(aePath: string): { content: string } | { reason: string } {
+/**
+ * The power shop override for this install, or null with the reason. The
+ * Players tab's potion prices (`edits`) go in first, by the stock line
+ * numbers, before the life guard grows the file by two lines.
+ */
+function powerShopOverride(aePath: string, edits: readonly LineEdit[]): { content: string; missed: number } | { reason: string } {
   const assets = unpackedAssetsDir(aePath)
   if (assets === null) return { reason: 'no unpacked_assets_* folder in the AE install to patch' }
   const stock = safeRead(join(assets, POWER_SHOP_SCRIPT))
   if (stock === null) return { reason: `no ${POWER_SHOP_SCRIPT} in ${assets}` }
-  const patched = patchedPowerShop(stock)
-  return patched === null ? { reason: 'the power shop script changed in this AE version; not patched' } : { content: patched }
+  const priced = applyLineEdits(stock, edits)
+  const patched = patchedPowerShop(priced.text)
+  return patched === null
+    ? { reason: 'the power shop script changed in this AE version; not patched' }
+    : { content: patched, missed: priced.missed.length }
 }
 
 /**
@@ -148,17 +155,24 @@ export function assetOverrideFiles(
 ): { files: GeneratedFile[]; notes: string[] } {
   const files: GeneratedFile[] = []
   const notes: string[] = []
-  const powerShop = powerShopOverride(aePath)
-  if ('content' in powerShop) files.push({ path: POWER_SHOP_SCRIPT, content: powerShop.content })
-  else notes.push(`the power shop still offers an extra life (${powerShop.reason})`)
+  const potionPrices = overrides.find((o) => o.path === POWER_SHOP_SCRIPT)?.edits ?? []
+  const powerShop = powerShopOverride(aePath, potionPrices)
+  if ('content' in powerShop) {
+    files.push({ path: POWER_SHOP_SCRIPT, content: powerShop.content })
+    if (powerShop.missed > 0) notes.push(`${powerShop.missed} potion price(s) did not match this AE version and were skipped`)
+  } else {
+    notes.push(`the power shop still offers an extra life (${powerShop.reason})`)
+    if (potionPrices.length > 0) notes.push('the potion prices were not applied')
+  }
 
-  if (overrides.length === 0) return { files, notes }
+  const rest = overrides.filter((o) => o.path !== POWER_SHOP_SCRIPT)
+  if (rest.length === 0) return { files, notes }
   const assets = unpackedAssetsDir(aePath)
   if (assets === null) {
     notes.push('the player settings were not applied: no unpacked_assets_* folder in the AE install')
     return { files, notes }
   }
-  for (const o of overrides) {
+  for (const o of rest) {
     const stock = safeRead(join(assets, o.source))
     if (stock === null) {
       notes.push(`the player settings for ${o.path} were not applied: no ${o.source} in ${assets}`)

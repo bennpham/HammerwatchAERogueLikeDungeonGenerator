@@ -372,3 +372,22 @@ crypt tiles.
   384 health (the patched first health tier; stock max is 300) and 366 mana (no stock
   class gets past 200 without it). Per-class move speed (checklist #28) rides on the same
   classes.sval and is still to be seen.
+
+### Unlocking bought skills, and potion and item prices `[EMITTED]` (2026-10-10)
+
+- A class owns a skill at the start when the skill file's root has `starting-level`
+  (`PlayerClass.as` reads it per skill and per modifier; `PlayerRecord.as` adds it to the
+  picked level, and `SkillShopMenuContent.as` lists a skill with `starting-level > 0` by its
+  upgrades instead of selling it). Only the first skills carry it in stock. The Players
+  tab's **Owned from the start** (`player.<stem>.1.starting-level`) writes
+  `<int name="starting-level">1</int>` onto the root's `cost` line in the scenario copy.
+  Checklist #31.
+- Potion and item prices are not in `players/`: the power shop's offers are literals in
+  `scripts/GUI/Shop/PowerShopMenuContent.as` (`AddItemToShop(id, name, desc, cost)`:
+  rejuvenation 175, damage potion 1000, the other three potions 300; the extra life is a
+  formula and is left alone), and every item vendor prices by quality from
+  `Tweak::Equipment{Common,Uncommon,Rare,Epic,Unique}BaseCost` (200/350/750/1200/1500) in
+  `scripts/Data/Misc.as`. Every shop multiplies by `GetPriceMultiplier()` (0.995 per
+  vendor coin). The tab's `player.shop.<id>.cost` keys patch those lines; the potion
+  edits go into the same power shop copy as the life guard, before it, by stock line.
+  Checklist #32.

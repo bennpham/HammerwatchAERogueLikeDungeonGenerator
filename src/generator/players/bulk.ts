@@ -28,7 +28,7 @@ export const STAT_GROUPS: readonly StatGroup[] = [
   {
     id: 'cost',
     label: 'Prices',
-    description: 'Every skill and upgrade price in the shops.',
+    description: 'Every price in the shops: skills, upgrades, potions and items.',
     matches: (f) => f.kind === 'cost' && unscoped(f)
   },
   {
@@ -122,14 +122,14 @@ export function deriveGroupFactor(id: StatGroupId, tweaks: PlayerTweaks): number
 }
 
 /**
- * Every class starts with its owned skills at the top of their own upgrade
- * ladders, its base health and mana at its best health and mana upgrade, and
- * every purchase costs nothing. AE has no "owned from the start" switch for a
- * skill that is bought, so bought skills still have to be picked up in the
- * shop — free, and already at full strength from the first tier.
+ * Every class starts with every skill it can own, each at the top of its own
+ * upgrade ladder, its base health and mana at its best health and mana
+ * upgrade, and every purchase costs nothing. A skill that is normally bought
+ * is owned from the start (AE's `starting-level`).
  */
 export function applyFullyUpgraded(tweaks: PlayerTweaks): PlayerTweaks {
   const out = { ...tweaks }
+  for (const f of PLAYER_FIELDS) if (f.kind === 'unlock') setField(out, f, 1)
   for (const file of PLAYER_STOCK.skills) {
     // the best value each bind reaches anywhere in the file
     const top = new Map<string, number>()
@@ -179,9 +179,11 @@ export function applyEverythingFree(tweaks: PlayerTweaks): PlayerTweaks {
   return applyGroupFactor('cost', 0, tweaks)
 }
 
-/** Gold to buy every purchase once, across every class. */
+/** Gold to buy every skill and upgrade once, across every class (potions and items are bought again and again). */
 export function totalShopCost(tweaks: PlayerTweaks): number {
   let sum = 0
-  for (const f of PLAYER_FIELDS) if (f.kind === 'cost' && f.classId === undefined) sum += tweaks[f.key] ?? f.stock
+  for (const f of PLAYER_FIELDS) {
+    if (f.kind === 'cost' && f.classId === undefined && f.shopId === undefined) sum += tweaks[f.key] ?? f.stock
+  }
   return sum
 }

@@ -1,6 +1,6 @@
 import { parseSval, svalGet, svalInt, svalString } from '../ae/sval'
 import type { SvalNode } from '../ae/sval'
-import type { PlayerChain, PlayerClass, PlayerSkillFile, PlayerTier, PlayerValue } from './model'
+import type { PlayerChain, PlayerClass, PlayerShopPrice, PlayerSkillFile, PlayerTier, PlayerValue } from './model'
 
 /**
  * Read AE's stock player files into the `PlayerStock` shape. Pure: the caller
@@ -64,6 +64,29 @@ export function parseSkillFile(path: string, text: string): PlayerSkillFile {
   }
   // a chain that buys or sets nothing has nothing to edit
   return { path, stem, chains: chains.filter((c) => c.tiers.some((t) => t.cost !== undefined || Object.keys(t.binds).length > 0)) }
+}
+
+export const POWER_SHOP_PATH = 'scripts/GUI/Shop/PowerShopMenuContent.as'
+export const SHOP_CONSTANTS_PATH = 'scripts/Data/Misc.as'
+
+/**
+ * The potion and item prices: the power shop's literal offers (the extra life,
+ * whose price is a formula, is left alone — a scenario never sells it) and
+ * Misc.as's per-quality item base costs.
+ */
+export function parseShopPrices(powerShop: string, constants: string): PlayerShopPrice[] {
+  const out: PlayerShopPrice[] = []
+  powerShop.split('\n').forEach((line, i) => {
+    const m = /AddItemToShop\("(\w+)",.*(, (\d+)\);)/.exec(line)
+    if (m !== null) out.push({ id: m[1], path: POWER_SHOP_PATH, line: i + 1, find: m[2], stock: Number(m[3]) })
+  })
+  constants.split('\n').forEach((line, i) => {
+    const m = /const int Equipment(\w+)BaseCost = ((\d+);)/.exec(line)
+    if (m !== null) {
+      out.push({ id: `equipment_${m[1].toLowerCase()}`, path: SHOP_CONSTANTS_PATH, line: i + 1, find: `= ${m[2]}`, stock: Number(m[3]) })
+    }
+  })
+  return out
 }
 
 export function parseClasses(text: string): PlayerClass[] {

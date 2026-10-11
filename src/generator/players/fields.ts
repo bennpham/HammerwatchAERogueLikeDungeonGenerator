@@ -8,6 +8,8 @@ import { PLAYER_STOCK } from './stock.generated'
  *   player.class.<class>.<stat>                 classes.sval, e.g. base-health
  *   player.<chain>.<tier>.<field>               a skill file, for every class
  *   player.<class>@<chain>.<tier>.<field>       a shared skill file, one class
+ *   player.<stem>.1.starting-level              1: a bought skill is owned from the start
+ *   player.shop.<id>.cost                       a potion or item price (a script, not players/)
  *
  * `<chain>` is the file stem for the root skill (`warlock_dagger`) or
  * `<stem>:<modifier id>` for a modifier skill
@@ -23,12 +25,15 @@ export interface PlayerFieldDef {
   key: string
   type: 'int' | 'float'
   stock: number
-  kind: 'stat' | 'cost' | 'bind'
+  /** `unlock` is 0 or 1; a `cost` with no `chainKey` is a potion or item price */
+  kind: 'stat' | 'cost' | 'bind' | 'unlock'
   /** the stock file the value lives in */
   path: string
   line: number
-  /** the bind or stat name; `cost` for a cost */
+  /** the bind or stat name; `cost` for a cost, `starting-level` for an unlock */
   name: string
+  /** a shop price: its id in PLAYER_STOCK.shop */
+  shopId?: string
   /** set for `stat` fields and class-scoped skill fields */
   classId?: string
   chainKey?: string
@@ -46,6 +51,21 @@ export function statKey(classId: string, stat: string): string {
 
 export function skillKey(chainKey: string, tier: number, field: string, classId?: string): string {
   return `${PLAYER_KEY_PREFIX}${classId === undefined ? '' : `${classId}@`}${chainKey}.${tier}.${field}`
+}
+
+/** A bought skill owned from the start (AE's `starting-level`), 0 or 1. */
+export function unlockKey(stem: string): string {
+  return skillKey(stem, 1, 'starting-level')
+}
+
+export function shopKey(id: string): string {
+  return `${PLAYER_KEY_PREFIX}shop.${id}.cost`
+}
+
+/** A file's root skill, when it has to be bought (it has a price of its own). */
+export function boughtRoot(file: PlayerSkillFile): PlayerChain | undefined {
+  const root = file.chains.find((c) => c.key === file.stem)
+  return root?.tiers[0]?.cost === undefined ? undefined : root
 }
 
 /** Skill files more than one class lists — the ones a class can fork. */
@@ -114,6 +134,24 @@ export const PLAYER_FIELDS: readonly PlayerFieldDef[] = (() => {
         chain.tiers.forEach((tier, i) => out.push(...valueFields(file, chain, i, tier, classId)))
       }
     }
+    // the switch sits on the root's cost line, where the patch writes it
+    const root = boughtRoot(file)
+    if (root !== undefined) {
+      out.push({
+        key: unlockKey(file.stem),
+        type: 'int',
+        stock: 0,
+        kind: 'unlock',
+        path: file.path,
+        line: root.tiers[0].cost!.line,
+        name: 'starting-level',
+        chainKey: file.stem,
+        tier: 1
+      })
+    }
+  }
+  for (const p of PLAYER_STOCK.shop) {
+    out.push({ key: shopKey(p.id), type: 'int', stock: p.stock, kind: 'cost', path: p.path, line: p.line, name: 'cost', shopId: p.id })
   }
   return out
 })()

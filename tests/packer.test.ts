@@ -4,6 +4,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import {
   AE_DIR_NAME,
+  POWER_SHOP_SCRIPT,
   assetOverrideFiles,
   findAeInstall,
   hasH1cMagic,
@@ -15,7 +16,7 @@ import {
   writeCampaign
 } from '../src/main/packer'
 import { generateDungeon } from '../src/generator'
-import { applyEverythingFree, applyGroupFactor, playerOverrides, skillKey, statKey } from '../src/generator/players'
+import { applyEverythingFree, applyGroupFactor, playerOverrides, shopKey, skillKey, statKey } from '../src/generator/players'
 import type { DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
 import { AE_ROOT, HAS_AE } from './aeInstall'
@@ -116,6 +117,17 @@ describe('packer — patched stock files', () => {
     expect(byPath.get('players/shared/skills/shared_speed_melee_paladin.sval')).toMatch(/<float name="movespeed-mul">2<\/float>/)
     // the shared file itself is untouched, so no stock-path copy ships
     expect(byPath.has('players/shared/skills/shared_speed_melee.sval')).toBe(false)
+  })
+
+  it.skipIf(!HAS_AE)('prices the potions in the same power shop copy that drops the extra life', () => {
+    const overrides = playerOverrides({ [shopKey('potion_damage')]: 0, [shopKey('equipment_common')]: 0 })
+    const { files, notes } = assetOverrideFiles(AE_ROOT, overrides)
+    expect(notes).toEqual([])
+    const shops = files.filter((f) => f.path === POWER_SHOP_SCRIPT)
+    expect(shops).toHaveLength(1)
+    expect(shops[0].content).toContain('AddItemToShop("potion_damage", ".pot-dmg-uname", ".pot-dmg-udesc", 0);')
+    expect(shops[0].content).toContain('%if !MOD_NO_LIVES')
+    expect(files.find((f) => f.path === 'scripts/Data/Misc.as')?.content).toContain('EquipmentCommonBaseCost = 0;')
   })
 })
 

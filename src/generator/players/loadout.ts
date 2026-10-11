@@ -1,4 +1,4 @@
-import { skillKey, statKey } from './fields'
+import { skillKey, statKey, unlockKey } from './fields'
 import type { PlayerTweaks } from './fields'
 import { classLabel, skillFileLabel } from './labels'
 import { PLAYER_STOCK } from './stock.generated'
@@ -52,10 +52,13 @@ export function buildLoadouts(tweaks: PlayerTweaks): ClassLoadout[] {
     const skills: LoadoutStat[] = []
     for (const file of files) {
       const rows = new Map<string, LoadoutStat>()
+      const unlocked = (tweaks[unlockKey(file.stem)] ?? 0) >= 1
       for (const chain of file.chains) {
         chain.tiers.forEach((tier, i) => {
+          const isRoot = chain.key === file.stem && i === 0
+          // an unlocked skill is never bought, so its own price is not paid
           if (tier.cost !== undefined) {
-            totalCost += value(chain.key, i + 1, 'cost', tier.cost.stock)
+            if (!(isRoot && unlocked)) totalCost += value(chain.key, i + 1, 'cost', tier.cost.stock)
             stockTotalCost += tier.cost.stock
           }
           for (const [name, b] of Object.entries(tier.binds)) {
@@ -68,8 +71,8 @@ export function buildLoadouts(tweaks: PlayerTweaks): ClassLoadout[] {
             }
             const row = rows.get(name)
             if (row === undefined) {
-              // owned from the start only when the root skill costs nothing
-              const owned = chain.key === file.stem && i === 0 && tier.cost === undefined
+              // owned from the start when the root skill costs nothing, or is unlocked
+              const owned = isRoot && (tier.cost === undefined || unlocked)
               rows.set(name, { name: `${skillFileLabel(file)} · ${name}`, ...(owned ? { start: v } : {}), maxed: v, changed })
             } else {
               row.maxed = v

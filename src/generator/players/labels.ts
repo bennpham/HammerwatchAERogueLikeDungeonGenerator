@@ -68,6 +68,24 @@ export function chainLabel(file: PlayerSkillFile, chain: PlayerChain): string {
   return words(own.join('_'))
 }
 
+const SHOP_LABELS: Record<string, string> = {
+  power_rejuv: 'Rejuvenation (refill)',
+  potion_damage: 'Damage potion',
+  potion_rejuv: 'Rejuvenation potion',
+  potion_invul: 'Invulnerability potion',
+  potion_speed: 'Speed potion',
+  equipment_common: 'Common item',
+  equipment_uncommon: 'Uncommon item',
+  equipment_rare: 'Rare item',
+  equipment_epic: 'Epic item',
+  equipment_unique: 'Unique item'
+}
+
+/** A potion or item price, by its id in PLAYER_STOCK.shop. */
+export function shopPriceLabel(id: string): string {
+  return SHOP_LABELS[id] ?? words(id)
+}
+
 /** "Start" for a tier owned from the start, else "Tier n · column". */
 export function tierLabel(tier: PlayerTier, index: number): string {
   if (tier.cost === undefined) return 'Start'

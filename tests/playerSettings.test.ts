@@ -11,6 +11,7 @@ import {
   PLAYER_FIELD_MAP,
   PLAYER_PRESETS,
   PLAYER_PRESET_GROUPS,
+  PLAYER_STOCK,
   applyEverythingFree,
   applyFullyUpgraded,
   applyGroupFactor,
@@ -28,10 +29,12 @@ import {
   setClassSpeed,
   setEveryoneSpeed,
   setGroupSpeed,
+  shopKey,
   skillKey,
   speedOf,
   statKey,
   totalShopCost,
+  unlockKey,
   validatePlayerTweaks
 } from '../src/generator/players'
 import type { PlayerTweaks } from '../src/generator/players'
@@ -157,6 +160,22 @@ describe('quick setup', () => {
   it('everything free costs nothing', () => {
     expect(totalShopCost({})).toBeGreaterThan(100_000)
     expect(totalShopCost(applyEverythingFree({}))).toBe(0)
+  })
+
+  it('everything free covers the potions and items too', () => {
+    const t = applyEverythingFree({})
+    for (const p of PLAYER_STOCK.shop) expect(t[shopKey(p.id)], p.id).toBe(0)
+    expect(deriveGroupFactor('cost', t)).toBe(0)
+  })
+
+  it('fully upgraded owns every bought skill from the start', () => {
+    const t = applyFullyUpgraded({})
+    expect(t[unlockKey('wiz_meteor')]).toBe(1)
+    expect(t[unlockKey('warlock_gargoyle')]).toBe(1)
+    expect(t[unlockKey('shared_combo')]).toBe(1)
+    // the wizard's meteor shower now counts as owned in the loadout
+    const meteor = buildLoadouts(t).find((c) => c.id === 'wizard')!.stats.find((s) => s.name.startsWith('Meteor'))
+    expect(meteor?.start).toBeDefined()
   })
 
   it('fully upgraded starts at the top and validates', () => {

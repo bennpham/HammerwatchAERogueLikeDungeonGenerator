@@ -65,9 +65,28 @@ export interface PlayerClass {
   stats: Record<string, PlayerValue>
 }
 
+/**
+ * A potion or item price. These are not in `players/`: the power shop writes
+ * its potion prices as literals in `scripts/GUI/Shop/PowerShopMenuContent.as`,
+ * and every item vendor prices by quality from the `Equipment*BaseCost`
+ * constants in `scripts/Data/Misc.as`.
+ */
+export interface PlayerShopPrice {
+  /** `potion_damage`, `power_rejuv`, `equipment_common` … */
+  id: string
+  /** the script, as the scenario ships it */
+  path: string
+  /** 1-based line in the stock script */
+  line: number
+  /** the price as the line writes it (`, 1000);`, `= 200;`), replaced whole */
+  find: string
+  stock: number
+}
+
 export interface PlayerStock {
   classes: PlayerClass[]
   skills: PlayerSkillFile[]
+  shop: PlayerShopPrice[]
 }
 
 /**

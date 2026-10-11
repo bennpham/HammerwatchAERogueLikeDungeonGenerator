@@ -1,5 +1,5 @@
 import { fmtNum } from '../ae/sval'
-import { PLAYER_FIELDS, prunePlayerTweaks, skillKey, statKey } from './fields'
+import { PLAYER_FIELDS, boughtRoot, prunePlayerTweaks, shopKey, skillKey, statKey } from './fields'
 import type { PlayerTweaks } from './fields'
 import type { LineEdit, PlayerFileOverride, PlayerSkillFile, PlayerTier } from './model'
 import { PLAYER_STOCK } from './stock.generated'
@@ -61,6 +61,12 @@ function skillFileEdits(file: PlayerSkillFile, tweaks: PlayerTweaks, classId?: s
         return { stock: b.stock, value: effective(chain.key, t, name, b.stock), type: b.type }
       }, before))
     })
+  }
+  // a bought skill owned from the start: AE's own `starting-level`, which the
+  // classes' first skills carry, written beside the root's price (the same dict)
+  const bought = boughtRoot(file)
+  if (bought !== undefined && effective(file.stem, 1, 'starting-level', 0) >= 1) {
+    edits.push({ line: bought.tiers[0].cost!.line, kind: 'text', find: '<int name="cost">', replace: '<int name="starting-level">1</int> <int name="cost">' })
   }
   return edits
 }
@@ -148,6 +154,17 @@ export function playerOverrides(raw: PlayerTweaks): PlayerFileOverride[] {
     }
   }
   if (classEdits.length > 0) out.push({ path: CLASSES_PATH, source: CLASSES_PATH, edits: classEdits })
+
+  // potion and item prices, in the shop scripts
+  const scripts = new Map<string, LineEdit[]>()
+  for (const p of PLAYER_STOCK.shop) {
+    const value = tweaks[shopKey(p.id)]
+    if (value === undefined) continue
+    const edits = scripts.get(p.path) ?? []
+    edits.push({ line: p.line, kind: 'text', find: p.find, replace: p.find.replace(String(p.stock), String(Math.trunc(value))) })
+    scripts.set(p.path, edits)
+  }
+  for (const [path, edits] of scripts) out.push({ path, source: path, edits })
 
   return out.sort((a, b) => a.path.localeCompare(b.path))
 }

@@ -3,15 +3,19 @@ import {
   PLAYER_FIELD_MAP,
   PLAYER_STOCK,
   SHARED_SKILL_PATHS,
+  boughtRoot,
   chainLabel,
   classLabel,
+  shopKey,
+  shopPriceLabel,
   skillFileLabel,
   skillKey,
   statKey,
-  tierLabel
+  tierLabel,
+  unlockKey
 } from '../../generator'
 import type { PlayerFieldDef, PlayerSkillFile, PlayerTweaks, ValidationIssue } from '../../generator'
-import { NumberField, Section, Subsection, TierBlock } from './fields'
+import { BoolField, NumberField, Section, Subsection, TierBlock } from './fields'
 import { QuickSetup } from './QuickSetup'
 
 interface PlayerFormProps {
@@ -25,9 +29,11 @@ const SHARED_FILES = PLAYER_STOCK.skills
   .filter((f) => SHARED_SKILL_PATHS.has(f.path))
   .sort((a, b) => Number(b.stem === 'shared_combo') - Number(a.stem === 'shared_combo'))
 
+const SHOP_KEYS = PLAYER_STOCK.shop.map((p) => shopKey(p.id))
+
 /** Every all-classes key a skill file holds, for its "n changed" badge. */
 function keysOfFile(file: PlayerSkillFile): string[] {
-  const keys: string[] = []
+  const keys: string[] = boughtRoot(file) === undefined ? [] : [unlockKey(file.stem)]
   for (const chain of file.chains) {
     chain.tiers.forEach((tier, i) => {
       if (tier.cost !== undefined) keys.push(skillKey(chain.key, i + 1, 'cost'))
@@ -75,8 +81,22 @@ export function PlayerForm({ tweaks, issues, onChange }: PlayerFormProps) {
     )
   }
 
+  const unlock = (file: PlayerSkillFile) => {
+    const field = PLAYER_FIELD_MAP.get(unlockKey(file.stem))
+    if (field === undefined) return null
+    return (
+      <BoolField
+        label="Owned from the start"
+        title="Every character of the class starts with this skill instead of buying it in a shop"
+        checked={(tweaks[field.key] ?? 0) >= 1}
+        onChange={(on) => set(field, on ? 1 : 0)}
+      />
+    )
+  }
+
   const skillEditor = (file: PlayerSkillFile) => (
     <Subsection key={file.path} title={skillFileLabel(file)} badge={badge(keysOfFile(file))}>
+      {unlock(file)}
       {file.chains.map((chain) => (
         <div key={chain.key} className="player-chain">
           {file.chains.length > 1 && <span className="player-chain-title">{chainLabel(file, chain)}</span>}
@@ -132,6 +152,15 @@ export function PlayerForm({ tweaks, issues, onChange }: PlayerFormProps) {
           speed (set under <strong>All characters</strong>) keeps its own.
         </p>
         {SHARED_FILES.map(skillEditor)}
+      </Section>
+
+      <Section title="Potions and items" badge={badge(SHOP_KEYS)}>
+        <p className="hint">
+          The power shop&apos;s potions, and what an item costs at each quality in every item shop. These live in the
+          game&apos;s shop scripts rather than <code>players/</code>; the install patches the scenario&apos;s copy the same
+          way.
+        </p>
+        <div className="field-grid">{PLAYER_STOCK.shop.map((p) => input(shopKey(p.id), shopPriceLabel(p.id)))}</div>
       </Section>
     </div>
   )

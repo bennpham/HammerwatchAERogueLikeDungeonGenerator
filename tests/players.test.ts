@@ -7,17 +7,23 @@ import {
   PLAYER_FIELD_MAP,
   PLAYER_STOCK,
   PLAYER_STOCK_SOURCE,
+  POWER_SHOP_PATH,
   SHARED_SKILL_PATHS,
+  SHOP_CONSTANTS_PATH,
   applyLineEdits,
   parseClasses,
+  parseShopPrices,
   parseSkillFile,
   playerOverrides,
   prunePlayerTweaks,
   sharedCopyPath,
+  shopKey,
   skillKey,
-  statKey
+  statKey,
+  unlockKey
 } from '../src/generator/players'
 import type { PlayerTweaks } from '../src/generator/players'
+import { parseSval, svalGet, svalInt } from '../src/generator/ae/sval'
 import { aeAssetsDir } from './aeInstall'
 
 const assets = aeAssetsDir()
@@ -55,6 +61,28 @@ describe('player snapshot', () => {
     expect(assets!.endsWith(PLAYER_STOCK_SOURCE)).toBe(true)
     expect(parseClasses(readAsset(CLASSES_PATH))).toEqual(PLAYER_STOCK.classes)
     for (const s of PLAYER_STOCK.skills) expect(parseSkillFile(s.path, readAsset(s.path))).toEqual(s)
+    expect(parseShopPrices(readAsset(POWER_SHOP_PATH), readAsset(SHOP_CONSTANTS_PATH))).toEqual(PLAYER_STOCK.shop)
+  })
+
+  it('has the power shop potions and the five item qualities, but not the extra life', () => {
+    expect(PLAYER_STOCK.shop.map((p) => p.id)).toEqual([
+      'power_rejuv',
+      'potion_damage',
+      'potion_rejuv',
+      'potion_invul',
+      'potion_speed',
+      'equipment_common',
+      'equipment_uncommon',
+      'equipment_rare',
+      'equipment_epic',
+      'equipment_unique'
+    ])
+    expect(PLAYER_FIELD_MAP.get(shopKey('potion_damage'))?.stock).toBe(1000)
+  })
+
+  it('offers an unlock for a bought skill only', () => {
+    expect(PLAYER_FIELD_MAP.get(unlockKey('wiz_meteor'))?.kind).toBe('unlock')
+    expect(PLAYER_FIELD_MAP.has(unlockKey('wiz_fireball'))).toBe(false)
   })
 })
 
@@ -120,6 +148,35 @@ describe('player overrides', () => {
       expect(missed, o.path).toEqual([])
       expect(text.split('\n').length).toBe(readAsset(o.source).split('\n').length)
     }
+  })
+
+  it('an unlock writes starting-level beside the skill\'s own price', () => {
+    const out = playerOverrides({ [unlockKey('wiz_meteor')]: 1 })
+    expect(out.map((o) => o.path)).toEqual(['players/wizard/skills/wiz_meteor.sval'])
+    expect(out[0].edits).toEqual([
+      {
+        line: PLAYER_FIELD_MAP.get(skillKey('wiz_meteor', 1, 'cost'))!.line,
+        kind: 'text',
+        find: '<int name="cost">',
+        replace: '<int name="starting-level">1</int> <int name="cost">'
+      }
+    ])
+  })
+
+  it.skipIf(assets === null)('an unlocked skill reads back with starting-level 1 at its root', () => {
+    const path = 'players/wizard/skills/wiz_meteor.sval'
+    const [o] = playerOverrides({ [unlockKey('wiz_meteor')]: 1, [skillKey('wiz_meteor', 1, 'cost')]: 0 })
+    const root = parseSval(applyLineEdits(readAsset(path), o.edits).text)
+    expect(svalInt(svalGet(root, 'starting-level'))).toBe(1)
+    expect(svalInt(svalGet(root, 'cost'))).toBe(0)
+  })
+
+  it('potion and item prices patch the shop scripts', () => {
+    const out = playerOverrides({ [shopKey('potion_damage')]: 0, [shopKey('equipment_rare')]: 10 })
+    expect(out).toEqual([
+      { path: SHOP_CONSTANTS_PATH, source: SHOP_CONSTANTS_PATH, edits: [{ line: 83, kind: 'text', find: '= 750;', replace: '= 10;' }] },
+      { path: POWER_SHOP_PATH, source: POWER_SHOP_PATH, edits: [{ line: 79, kind: 'text', find: ', 1000);', replace: ', 0);' }] }
+    ])
   })
 
   it('applyLineEdits reports an edit whose target moved', () => {

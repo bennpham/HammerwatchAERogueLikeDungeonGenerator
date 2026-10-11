@@ -81,7 +81,7 @@ export function QuickSetup({ tweaks, onChange }: QuickSetupProps) {
             )
           })}
         </div>
-        <p className="hint">Gold to buy every purchase in the game, all classes: {gold(totalShopCost(tweaks))}.</p>
+        <p className="hint">Gold to buy every skill and upgrade, all classes: {gold(totalShopCost(tweaks))}.</p>
       </Subsection>
 
       <Subsection title="Move speed" defaultOpen>
@@ -140,10 +140,10 @@ export function QuickSetup({ tweaks, onChange }: QuickSetupProps) {
           </button>
         </div>
         <p className="hint">
-          <strong>Everything free</strong> sets every price to 0. <strong>Fully upgraded</strong> starts every class at its
-          best health and mana, puts each skill at the top of its own ladder and makes everything free; skills a class has
-          to buy still have to be picked up in a shop, already at full strength. <strong>Reset</strong> clears every player
-          setting.
+          <strong>Everything free</strong> sets every price to 0: skills, upgrades, potions and items.{' '}
+          <strong>Fully upgraded</strong> gives every class every one of its skills from the start, each at the top of its
+          own ladder, starts it at its best health and mana, and makes everything free. <strong>Reset</strong> clears every
+          player setting.
         </p>
       </Subsection>
     </>
