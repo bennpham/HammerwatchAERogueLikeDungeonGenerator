@@ -425,7 +425,7 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
     const exitTarget = next === undefined ? slotEntryId(order[0]) : slotEntryId(next)
     ctx.clearLevel()
     enter(slot)
-    const level = buildLobby(ctx, preset, options, exitTarget, params.lobbySaves === true, position)
+    const level = buildLobby(ctx, preset, options, exitTarget, position)
     files.push({ path: ctx.levelPath(ctx.currentStem), content: renderLevel(level) })
   })
 

@@ -23,7 +23,7 @@ Each part is found by its script **label** first. If there is no label, the gene
 
 The generator also:
 - sets the game mode to `DungeonGameMode`, because the editor saves a level opened from the main menu as `MainMenu`;
-- adds the save point (when `lobbySaves` is on) and the lobby's music at the arrival.
+- adds the lobby's music at the arrival (no save point: AE saves on arriving at a level).
 
 ## Checklist for a new lobby
 

@@ -265,9 +265,7 @@ for (const preset of LOBBY_PRESETS) {
 
     describe('integrity', () => {
       it('gives every unit and script a unique id, and resolves every link', () => {
-        const lobby = lobbyOf(preset, { startingGold: 10000, upgrades: oneOfEachUpgrade(), music: 'main' }, (p) => {
-          p.lobbySaves = true
-        })
+        const lobby = lobbyOf(preset, { startingGold: 10000, upgrades: oneOfEachUpgrade(), music: 'main' })
         const ids = allIds(lobby)
         expect(new Set(ids).size).toBe(ids.length)
         const known = new Set(ids)
@@ -283,9 +281,8 @@ for (const preset of LOBBY_PRESETS) {
         }
       }, 60_000)
 
-      it('adds a save point on arrival when lobbySaves is on, and none when off', () => {
-        expect(scriptsOf(lobbyOf(preset, {}, (p) => (p.lobbySaves = true)), 'SuperCheckPoint')).toHaveLength(1)
-        expect(scriptsOf(lobbyOf(preset, {}, (p) => (p.lobbySaves = false)), 'SuperCheckPoint')).toHaveLength(0)
+      it('adds no save point: AE saves on arriving at a level', () => {
+        expect(scriptsOf(lobbyOf(preset, {}), 'SuperCheckPoint')).toHaveLength(0)
       }, 60_000)
     })
 
@@ -322,7 +319,7 @@ describe('lobby — authored payout spots', () => {
   function build(preset: LobbyPresetDef, options: LobbyOptions): AeLevel {
     const ctx = new GenerationContext(plainParameters(), 1)
     ctx.currentStem = 'lobby0'
-    return buildLobby(ctx, preset, options, 'floor0', false, 0)
+    return buildLobby(ctx, preset, options, 'floor0', 0)
   }
 
   it('lays the diamonds on the spots the author placed, cycling once each holds one', () => {
@@ -347,7 +344,7 @@ describe('lobby — the house as authored', () => {
   function build(options: LobbyOptions): AeLevel {
     const ctx = new GenerationContext(plainParameters(), 1)
     ctx.currentStem = 'lobby0'
-    return buildLobby(ctx, house, options, 'floor0', false, 0)
+    return buildLobby(ctx, house, options, 'floor0', 0)
   }
 
   it('reads the hand-placed pickups the editor saves under statics', () => {

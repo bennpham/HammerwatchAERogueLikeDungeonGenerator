@@ -251,22 +251,10 @@ describe('parameters.txt parsing', () => {
     expect(parseParametersTxt('lockFloors=0\nlockFinalRoom=1').params.levelLock![7].enabled).toBe(false)
   })
 
-  it('round-trips lobbySaves as 1/0, defaulting to on when the key is absent', () => {
-    const original = defaultParameters()
-    expect(serializeParametersTxt(original)).toContain('lobbySaves=1')
-
-    original.lobbySaves = false
-    const text = serializeParametersTxt(original)
-    expect(text).toContain('lobbySaves=0')
-
-    const parsed = parseParametersTxt(text)
-    expect(parsed.params.lobbySaves).toBe(false)
-    expect(parsed.unknownKeys).toEqual([])
-    expect(parseParametersTxt('lobbysaves=0').params.lobbySaves).toBe(false)
-    // absent key keeps the default (on) with no unknown-key noise
-    const bare = parseParametersTxt('levels=3')
-    expect(bare.params.lobbySaves).toBe(true)
-    expect(bare.unknownKeys).toEqual([])
+  it('writes no lobbySaves line, and reads an old one without complaint', () => {
+    // lobby save points were removed: AE saves on arriving at a level
+    expect(serializeParametersTxt(defaultParameters())).not.toMatch(/lobbySaves/)
+    expect(parseParametersTxt('lobbySaves=1\nlevels=3').unknownKeys).toEqual([])
   })
 
   it('no longer writes finalLockMode, and reports it in a legacy file', () => {

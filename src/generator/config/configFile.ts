@@ -1222,7 +1222,6 @@ export function parseParametersTxt(content: string, base?: DungeonParameters): P
   if (params.playerTweaks === undefined) params.playerTweaks = {}
   if (params.lobbies === undefined) params.lobbies = defaultParameters().lobbies
   if (params.boss === undefined) params.boss = defaultParameters().boss
-  if (params.lobbySaves === undefined) params.lobbySaves = defaultParameters().lobbySaves
   const result: ParsedConfig = { params, unknownKeys: [] }
   // `lockFloors=` indices, or undefined when the file has no such line.
   // Resolved after the whole file is read, since `levels` may come after it.
@@ -1397,12 +1396,8 @@ export function parseParametersTxt(content: string, base?: DungeonParameters): P
       else result.unknownKeys.push(`${key}=${value}`)
       continue
     }
-    if (keyLower === 'lobbysaves') {
-      // absent keeps the default (on) — parseParametersTxt starts from
-      // defaultParameters(); only an explicit `lobbySaves=0` turns it off
-      params.lobbySaves = value === '1'
-      continue
-    }
+    // lobby save points were removed: AE saves on arriving at a level
+    if (keyLower === 'lobbysaves') continue
 
     // `lobbies=<n>` — how many lobby slots the campaign has. The old singular
     // `lobby`/`lobbyGold`/`lobbyShops`/`lobbyUpgrades` keys (one lobby,
@@ -2296,9 +2291,6 @@ export function serializeParametersTxt(params: DungeonParameters, path?: string,
   // below use. No bare `lobbyGold` alias to lobby 0: the old singular lobby
   // is a hard break (see the parser's comment on the same keys).
   const lobbies = params.lobbies ?? []
-  // the global heading over the per-lobby blocks: whether each carries a save
-  // checkpoint. `?? true` matches the default for a base params that predates it
-  lines.push(`lobbySaves=${(params.lobbySaves ?? true) ? 1 : 0}`)
   lines.push(`lobbies=${lobbies.length}`)
   lobbies.forEach((lobby, i) => {
     lines.push(`lobby${i}Preset=${lobby.preset}`)

@@ -14,7 +14,7 @@ import type { WallGrid } from '../map/aeWalls'
 import { tilesetSize } from '../catalog/assets'
 import { ObjectSet, SHOP_KINDS, addArrival, buildExitRig } from '../objects/objectSet'
 import type { ShopKind } from '../objects/objectSet'
-import { NodeAreaTrigger, NodeCheckpoint, SensorShape } from '../objects/nodes'
+import { SensorShape } from '../objects/nodes'
 import { buildMusicRig } from '../music/rig'
 import { STANDIN_GOLD_ORIGIN, STANDIN_MAP, STANDIN_ROOM, STANDIN_UPGRADE_ORIGIN, diamondSlot, upgradeSlot } from './layout'
 
@@ -33,7 +33,7 @@ const STANDIN_THEME = 'chambers'
  *
  * `exitTarget` is the stem of whatever slot follows this lobby in the
  * campaign order; the exit is the same press-F, whole-party rig every floor
- * uses. `saves` adds a save point on arrival (a one-shot `SuperCheckPoint`).
+ * uses. No save point: AE saves on arriving at a level.
  *
  * No RNG of any stream is read: a lobby's layout is a pure function of its
  * options, so adding or removing one never moves a dungeon seed.
@@ -43,12 +43,11 @@ export function buildLobby(
   preset: LobbyPresetDef,
   options: LobbyOptions,
   exitTarget: string,
-  saves: boolean,
   levelIndex: number
 ): AeLevel {
   return preset.lvl === undefined
-    ? buildStandIn(ctx, options, exitTarget, saves, levelIndex)
-    : buildFromTemplate(ctx, preset, options, exitTarget, saves)
+    ? buildStandIn(ctx, options, exitTarget, levelIndex)
+    : buildFromTemplate(ctx, preset, options, exitTarget)
 }
 
 /** One shop kind per vendor stall the options switch on, selling only the selected columns. */
@@ -68,7 +67,6 @@ function buildStandIn(
   ctx: GenerationContext,
   options: LobbyOptions,
   exitTarget: string,
-  saves: boolean,
   levelIndex: number
 ): AeLevel {
   const themeId = options.theme !== undefined && getTheme(options.theme) !== undefined ? options.theme : STANDIN_THEME
@@ -92,11 +90,10 @@ function buildStandIn(
     ObjectSet.create(ctx, ROOM.x + spacing * (i + 1), ROOM.y + 4, 'Shop', themeId, undefined, kind)
   })
 
-  // arrival at the bottom, centred; a save point there when asked for
+  // arrival at the bottom, centred
   const arriveX = ROOM.x + Math.trunc(ROOM.width / 2)
   const arriveY = ROOM.y + ROOM.height - 2
   addArrival(ctx, arriveX, arriveY)
-  if (saves) addSavePoint(ctx, arriveX, arriveY)
 
   // the payout: diamonds bottom-left, upgrades bottom-right
   placePayout(ctx, options, STANDIN_GOLD_ORIGIN, STANDIN_UPGRADE_ORIGIN)
@@ -124,16 +121,6 @@ function buildStandIn(
   emitObjects(level, ctx)
   emitWalls(level, ctx, grid, theme)
   return level
-}
-
-function addSavePoint(ctx: GenerationContext, x: number, y: number): void {
-  const area = new SensorShape(ctx, x, y)
-  area.width = 4
-  area.height = 3
-  const trigger = new NodeAreaTrigger(ctx, x, y + 1)
-  trigger.connectToShape(area)
-  trigger.triggerTimes = 1
-  trigger.connectTo(new NodeCheckpoint(ctx, x + 1, y + 1, ctx.currentStem))
 }
 
 /**
@@ -179,8 +166,7 @@ function buildFromTemplate(
   ctx: GenerationContext,
   preset: LobbyPresetDef,
   options: LobbyOptions,
-  exitTarget: string,
-  saves: boolean
+  exitTarget: string
 ): AeLevel {
   const { level } = readLevel(preset.lvl ?? '')
   // the editor saves a level opened from the main menu as MainMenu
@@ -258,10 +244,7 @@ function buildFromTemplate(
   } else if (spawn !== undefined) {
     placePayoutAround(ctx, options, level, spawn.x / TILE, spawn.y / TILE, authored)
   }
-  if (spawn !== undefined) {
-    if (saves) addSavePoint(ctx, spawn.x / TILE, spawn.y / TILE)
-    buildMusicRig(ctx, options.music, spawn.x / TILE, spawn.y / TILE + 1)
-  }
+  if (spawn !== undefined) buildMusicRig(ctx, options.music, spawn.x / TILE, spawn.y / TILE + 1)
   emitObjects(level, ctx)
   ctx.currentTheme = ''
   return level

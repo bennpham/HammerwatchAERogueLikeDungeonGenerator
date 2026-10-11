@@ -432,23 +432,6 @@ export class NodeSetRespawnPoint extends ScriptNode {
   }
 }
 
-/** `SuperCheckPoint` — a save point (HW1 Checkpoint with save). */
-export class NodeCheckpoint extends ScriptNode {
-  constructor(
-    ctx: GenerationContext,
-    x: number,
-    y: number,
-    public name: string
-  ) {
-    super(ctx, x, y, 'SuperCheckPoint')
-    this.triggerTimes = 1
-  }
-
-  params(): Param[] {
-    return [P.str('Name', this.name)]
-  }
-}
-
 /** `AnnounceText` — on-screen text; `Text` is a string or a `.lang.key`. */
 /**
  * AE has no text types: it styles an announcement by `Style`
