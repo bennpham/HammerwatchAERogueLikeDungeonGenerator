@@ -133,6 +133,16 @@ describe('player validation', () => {
     expect(warnings.map((w) => w.field)).toEqual([key])
   })
 
+  it('rejects negative heat, a stopped cast clock and a window that ends before it starts', () => {
+    const heat = skillKey('ran_bow', 1, 'overheating-max')
+    const clock = skillKey('pal_sword', 1, 'cast-speed-mul')
+    const window = skillKey('wiz_meteor', 1, 'move-speed-until')
+    const { errors } = validatePlayerTweaks({ [heat]: -1, [clock]: 0, [window]: -10 })
+    expect(errors.map((e) => e.field).sort()).toEqual([clock, heat, window].sort())
+    // a fast cast and a long window are fine
+    expect(validatePlayerTweaks({ [clock]: 5.4, [window]: 1000, [heat]: 0 }).errors).toEqual([])
+  })
+
   it('is part of validateParameters', () => {
     const result = validateParameters({ ...defaultParameters(), playerTweaks: { [COST_KEY]: -1 } })
     expect(result.errors.some((e) => e.field === COST_KEY)).toBe(true)

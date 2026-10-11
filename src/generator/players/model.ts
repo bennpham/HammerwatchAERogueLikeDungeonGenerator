@@ -22,6 +22,12 @@ export interface PlayerValue {
   line: number
   type: 'int' | 'float'
   stock: number
+  /**
+   * The value is the end of an ivec2 window rather than an element of its
+   * own: `<ivec2 name="move-speed">0 260</ivec2>` is `move-speed-until` 260,
+   * written back as `${start} ${value}` into `element`.
+   */
+  vec?: { element: string; start: number }
 }
 
 /** One purchase (or the starting skill) in a chain. */
@@ -34,6 +40,13 @@ export interface PlayerTier {
   cost?: PlayerValue
   /** numeric binds this tier sets, by bind name */
   binds: Record<string, PlayerValue>
+  /**
+   * Skill-level numbers beside the binds (`SKILL_PARAMS`): how fast the
+   * character walks while the skill casts, and the ranger bow's heat. Kept
+   * apart from `binds` because no description echoes them and bulk scaling
+   * leaves them alone.
+   */
+  params?: Record<string, PlayerValue>
   /** the description line, whose `?a=1&b=2` arguments echo the binds */
   description?: { line: number; text: string }
 }

@@ -14,7 +14,8 @@ import { PLAYER_STOCK } from './stock.generated'
  * `<chain>` is the file stem for the root skill (`warlock_dagger`) or
  * `<stem>:<modifier id>` for a modifier skill
  * (`warlock_dagger:warlock_dagger_dmg`); `<tier>` counts from 1 (the skill
- * itself, then each upgrade); `<field>` is `cost` or a bind name. The
+ * itself, then each upgrade); `<field>` is `cost`, a bind name or a
+ * skill-level param (`move-speed-mul`, `overheating-max` …; `SKILL_PARAMS`). The
  * `<class>@` form exists only for the files several classes share
  * (`shared_speed`, `shared_speed_melee`, `shared_combo`): it gives that class
  * its own copy of the file, so e.g. one class's move speed can differ from
@@ -25,8 +26,13 @@ export interface PlayerFieldDef {
   key: string
   type: 'int' | 'float'
   stock: number
-  /** `unlock` is 0 or 1; a `cost` with no `chainKey` is a potion or item price */
-  kind: 'stat' | 'cost' | 'bind' | 'unlock'
+  /**
+   * `unlock` is 0 or 1; a `cost` with no `chainKey` is a potion or item price;
+   * a `param` is a skill-level number beside the binds
+   */
+  kind: 'stat' | 'cost' | 'bind' | 'param' | 'unlock'
+  /** a `param` that is the end of an ivec2 window: the window's start */
+  windowStart?: number
   /** the stock file the value lives in */
   path: string
   line: number
@@ -92,7 +98,7 @@ function valueFields(
   classId?: string
 ): PlayerFieldDef[] {
   const out: PlayerFieldDef[] = []
-  const add = (name: string, kind: 'cost' | 'bind', v: PlayerValue) =>
+  const add = (name: string, kind: 'cost' | 'bind' | 'param', v: PlayerValue) =>
     out.push({
       key: skillKey(chain.key, tierIndex + 1, name, classId),
       type: v.type,
@@ -103,10 +109,12 @@ function valueFields(
       name,
       chainKey: chain.key,
       tier: tierIndex + 1,
-      ...(classId === undefined ? {} : { classId })
+      ...(classId === undefined ? {} : { classId }),
+      ...(v.vec === undefined ? {} : { windowStart: v.vec.start })
     })
   if (tier.cost !== undefined) add('cost', 'cost', tier.cost)
   for (const [name, v] of Object.entries(tier.binds)) add(name, 'bind', v)
+  for (const [name, v] of Object.entries(tier.params ?? {})) add(name, 'param', v)
   return out
 }
 

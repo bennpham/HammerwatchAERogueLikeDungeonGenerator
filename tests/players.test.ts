@@ -84,6 +84,21 @@ describe('player snapshot', () => {
     expect(PLAYER_FIELD_MAP.get(unlockKey('wiz_meteor'))?.kind).toBe('unlock')
     expect(PLAYER_FIELD_MAP.has(unlockKey('wiz_fireball'))).toBe(false)
   })
+
+  it('reads the skill-level params beside the binds', () => {
+    const stock = (key: string) => PLAYER_FIELD_MAP.get(key)
+    expect(stock(skillKey('ran_bow', 1, 'overheating-max'))).toMatchObject({ kind: 'param', stock: 5 })
+    expect(stock(skillKey('ran_bow', 1, 'move-speed-mul'))?.stock).toBe(0.25)
+    expect(stock(skillKey('pal_sword', 1, 'cast-speed-mul'))?.stock).toBe(2)
+    expect(stock(skillKey('pal_sword', 1, 'cooldown'))?.stock).toBe(200)
+    expect(stock(skillKey('ran_flurry', 1, 'speed-mul'))?.stock).toBe(0.33)
+    // upgrades carry their own heat recovery directly
+    expect([1, 2, 3, 4, 5].map((t) => stock(skillKey('ran_bow:ran_bow_damage', t, 'overheating-recovery'))?.stock)).toEqual([
+      4, 5, 6, 7, 8
+    ])
+    // the end of the move-speed window, with its start
+    expect(stock(skillKey('wiz_meteor', 1, 'move-speed-until'))).toMatchObject({ kind: 'param', stock: 260, windowStart: 0 })
+  })
 })
 
 describe('player overrides', () => {
@@ -169,6 +184,29 @@ describe('player overrides', () => {
     const root = parseSval(applyLineEdits(readAsset(path), o.edits).text)
     expect(svalInt(svalGet(root, 'starting-level'))).toBe(1)
     expect(svalInt(svalGet(root, 'cost'))).toBe(0)
+  })
+
+  it('a param patches its own element; a window end keeps the window start', () => {
+    const out = playerOverrides({
+      [skillKey('wiz_meteor', 1, 'move-speed-mul')]: 0,
+      [skillKey('wiz_meteor', 1, 'move-speed-until')]: 1000
+    })
+    expect(out.map((o) => o.path)).toEqual(['players/wizard/skills/wiz_meteor.sval'])
+    expect(out[0].edits).toEqual([
+      { line: PLAYER_FIELD_MAP.get(skillKey('wiz_meteor', 1, 'move-speed-mul'))!.line, kind: 'value', name: 'move-speed-mul', value: '0' },
+      { line: PLAYER_FIELD_MAP.get(skillKey('wiz_meteor', 1, 'move-speed-until'))!.line, kind: 'value', name: 'move-speed', value: '0 1000' }
+    ])
+  })
+
+  it.skipIf(assets === null)('a patched skill reads back with its new params', () => {
+    const path = 'players/wizard/skills/wiz_meteor.sval'
+    const [o] = playerOverrides({
+      [skillKey('wiz_meteor', 1, 'move-speed-mul')]: 0,
+      [skillKey('wiz_meteor', 1, 'move-speed-until')]: 1000
+    })
+    const skill = svalGet(parseSval(applyLineEdits(readAsset(path), o.edits).text), 'skill')
+    expect(svalGet(skill, 'move-speed-mul')?.text.trim()).toBe('0')
+    expect(svalGet(skill, 'move-speed')?.text.trim()).toBe('0 1000')
   })
 
   it('potion and item prices patch the shop scripts', () => {

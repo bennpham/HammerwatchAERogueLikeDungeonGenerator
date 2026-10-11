@@ -40,6 +40,7 @@ function keysOfFile(file: PlayerSkillFile): string[] {
     chain.tiers.forEach((tier, i) => {
       if (tier.cost !== undefined) keys.push(skillKey(chain.key, i + 1, 'cost'))
       for (const name of Object.keys(tier.binds)) keys.push(skillKey(chain.key, i + 1, name))
+      for (const name of Object.keys(tier.params ?? {})) keys.push(skillKey(chain.key, i + 1, name))
     })
   }
   return keys
@@ -106,6 +107,7 @@ export function PlayerForm({ tweaks, issues, onChange }: PlayerFormProps) {
             <TierBlock key={i} id={tierLabel(tier, i)}>
               {tier.cost !== undefined && input(skillKey(chain.key, i + 1, 'cost'), 'cost')}
               {Object.keys(tier.binds).map((name) => input(skillKey(chain.key, i + 1, name), name))}
+              {Object.keys(tier.params ?? {}).map((name) => input(skillKey(chain.key, i + 1, name), name))}
             </TierBlock>
           ))}
         </div>

@@ -45,6 +45,15 @@ function skillFileEdits(file: PlayerSkillFile, tweaks: PlayerTweaks, classId?: s
         const v = effective(chain.key, t, name, b.stock)
         if (v !== b.stock) edits.push({ line: b.line, kind: 'value', name, value: fmt(b.type, v) })
       }
+      for (const [name, p] of Object.entries(tier.params ?? {})) {
+        const v = effective(chain.key, t, name, p.stock)
+        if (v === p.stock) continue
+        edits.push(
+          p.vec === undefined
+            ? { line: p.line, kind: 'value', name, value: fmt(p.type, v) }
+            : { line: p.line, kind: 'value', name: p.vec.element, value: `${p.vec.start} ${fmt(p.type, v)}` }
+        )
+      }
       if (tier.description === undefined) return
       // the value a bind had before this tier: an earlier tier of the chain,
       // else (for a modifier skill) the root skill's own

@@ -12,12 +12,61 @@ import type { PlayerChain, PlayerClass, PlayerShopPrice, PlayerSkillFile, Player
  * `level-*` twins are always 0 and are left alone; str/dex/int are unused. */
 export const CLASS_STATS = ['base-health', 'base-mana', 'base-health-regen', 'base-mana-regen'] as const
 
+/**
+ * The skill-level numbers the Players tab edits, besides the binds. A skill
+ * reads them itself (`PlayerSkill.as`, `RangerShoot.as`, `Whirlnova.as`):
+ * - `move-speed-mul`: walking speed while the skill casts, inside the
+ *   `move-speed` window (read as `move-speed-until`, the window's end in cast
+ *   ms);
+ * - `speed-mul`: the same for a channelled skill (flurry, flame spray);
+ * - `cooldown`, `cast-speed-mul`, `castpoint`: how often it fires and how fast
+ *   its animation plays;
+ * - `overheating-max`, `overheating-recovery`: the ranger bow's heat, which
+ *   adds cooldown and spread as it builds; a max of 0 turns it off.
+ */
+export const SKILL_PARAMS = [
+  'move-speed-mul',
+  'speed-mul',
+  'cooldown',
+  'cast-speed-mul',
+  'castpoint',
+  'overheating-max',
+  'overheating-recovery'
+] as const
+
+/** `move-speed`'s end, the one number of the window worth editing. */
+export const MOVE_WINDOW_PARAM = 'move-speed-until'
+
 function numberOf(node: SvalNode | undefined): PlayerValue | undefined {
   if (node === undefined || node.line === undefined) return undefined
   if (node.tag !== 'int' && node.tag !== 'float') return undefined
   const stock = Number(node.text.trim())
   if (!Number.isFinite(stock)) return undefined
   return { line: node.line, type: node.tag, stock }
+}
+
+/** `<ivec2 name="move-speed">0 260</ivec2>` as its end, 260. */
+function windowEndOf(node: SvalNode | undefined): PlayerValue | undefined {
+  if (node === undefined || node.line === undefined || node.tag !== 'ivec2' || node.name === undefined) return undefined
+  const parts = node.text.trim().split(/\s+/).map(Number)
+  if (parts.length !== 2 || !parts.every(Number.isInteger)) return undefined
+  return { line: node.line, type: 'int', stock: parts[1], vec: { element: node.name, start: parts[0] } }
+}
+
+function paramsOf(dict: SvalNode): Record<string, PlayerValue> {
+  const out: Record<string, PlayerValue> = {}
+  // a root or modifier skill keeps them under `skill`; an upgrade carries them
+  // directly
+  for (const host of [svalGet(dict, 'skill'), dict]) {
+    if (host === undefined) continue
+    for (const name of SKILL_PARAMS) {
+      const v = numberOf(svalGet(host, name))
+      if (v !== undefined && out[name] === undefined) out[name] = v
+    }
+    const end = windowEndOf(svalGet(host, 'move-speed'))
+    if (end !== undefined && out[MOVE_WINDOW_PARAM] === undefined) out[MOVE_WINDOW_PARAM] = end
+  }
+  return out
 }
 
 function tierOf(dict: SvalNode): PlayerTier {
@@ -35,6 +84,8 @@ function tierOf(dict: SvalNode): PlayerTier {
     const v = numberOf(b)
     if (v !== undefined && b.name !== undefined) tier.binds[b.name] = v
   }
+  const params = paramsOf(dict)
+  if (Object.keys(params).length > 0) tier.params = params
   const desc = svalGet(dict, 'description')
   if (desc?.line !== undefined && desc.text.includes('=')) tier.description = { line: desc.line, text: desc.text }
   return tier
@@ -63,7 +114,13 @@ export function parseSkillFile(path: string, text: string): PlayerSkillFile {
     chains.push(chainOf(`${stem}:${id}`, m))
   }
   // a chain that buys or sets nothing has nothing to edit
-  return { path, stem, chains: chains.filter((c) => c.tiers.some((t) => t.cost !== undefined || Object.keys(t.binds).length > 0)) }
+  return {
+    path,
+    stem,
+    chains: chains.filter((c) =>
+      c.tiers.some((t) => t.cost !== undefined || Object.keys(t.binds).length > 0 || t.params !== undefined)
+    )
+  }
 }
 
 export const POWER_SHOP_PATH = 'scripts/GUI/Shop/PowerShopMenuContent.as'

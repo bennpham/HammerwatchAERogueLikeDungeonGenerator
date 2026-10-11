@@ -49,6 +49,15 @@ export function validatePlayerTweaks(tweaks: PlayerTweaks): { errors: PlayerIssu
     }
     if (field.kind !== 'cost' && value < 0 && field.stock >= 0) {
       errors.push({ field: key, message: 'Cannot be negative.' })
+      continue
+    }
+    // the cast clock runs at this rate; 0 would leave the skill casting forever
+    if (field.kind === 'param' && field.name === 'cast-speed-mul' && value <= 0) {
+      errors.push({ field: key, message: 'Must be above 0, or the skill never finishes casting.' })
+      continue
+    }
+    if (field.windowStart !== undefined && value < field.windowStart) {
+      errors.push({ field: key, message: `The window starts at ${field.windowStart} ms; it cannot end before that.` })
     }
   }
 

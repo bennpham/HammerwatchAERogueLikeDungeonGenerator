@@ -64,7 +64,13 @@ if (process.argv.includes('--check')) {
 } else {
   fs.writeFileSync(outFile, body)
   const values = stock.skills.reduce(
-    (n, s) => n + s.chains.reduce((m, c) => m + c.tiers.reduce((k, t) => k + Object.keys(t.binds).length + (t.cost ? 1 : 0), 0), 0),
+    (n, s) =>
+      n +
+      s.chains.reduce(
+        (m, c) =>
+          m + c.tiers.reduce((k, t) => k + Object.keys(t.binds).length + Object.keys(t.params ?? {}).length + (t.cost ? 1 : 0), 0),
+        0
+      ),
     0
   )
   console.log(`${stock.classes.length} classes, ${stock.skills.length} skill files, ${values} skill values → ${path.relative(process.cwd(), outFile)}`)

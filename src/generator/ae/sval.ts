@@ -3,7 +3,8 @@
  * levels (`.lvl`), scenario info and most data files.
  *
  * A value is one element: `dict`, `array`, `string`, `int`, `float`, `bool`,
- * `vec2`, `vec3`, `vec4`, `bytes`, `color` or `null`. Children of a `dict`
+ * `vec2`, `vec3`, `vec4`, `ivec2`, `ivec3`, `ivec4`, `bytes`, `color` or
+ * `null` (the game's own data files use `ivec2` for time windows). Children of a `dict`
  * carry a `name` attribute; children of an `array` do not. Booleans are `t` /
  * `f`. The editor indents with tabs and ends lines with LF.
  *
@@ -21,6 +22,9 @@ export const SVAL_SCALAR_TAGS = new Set([
   'vec2',
   'vec3',
   'vec4',
+  'ivec2',
+  'ivec3',
+  'ivec4',
   'bytes',
   'color',
   'null'
