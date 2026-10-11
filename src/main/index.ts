@@ -10,7 +10,7 @@ function createWindow(): void {
     height: 920,
     minWidth: 1000,
     minHeight: 700,
-    title: 'Hammerwatch Dungeon Generator',
+    title: 'Hammerwatch AE Dungeon Generator',
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

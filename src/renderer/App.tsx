@@ -316,8 +316,8 @@ export function App() {
     <div className="app">
       <header className="app-header">
         <div>
-          <h1>Hammerwatch Dungeon Generator</h1>
-          <p className="subtitle">Rogue-like campaign generator — remake of the classic forum tool</p>
+          <h1>Hammerwatch AE Dungeon Generator</h1>
+          <p className="subtitle">Rogue-like campaign generator — a port of the original Hammerwatch dungeon generator to Anniversary Edition</p>
         </div>
         <div className="header-actions">
           <HeaderGuide />
