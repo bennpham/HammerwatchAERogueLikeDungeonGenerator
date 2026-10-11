@@ -62,6 +62,7 @@ import type { ThemeDef } from '../config/themes'
 import { AeLevel } from '../ae/model'
 import { TileLayers } from '../ae/tiles'
 import { emitObjects, emitWalls } from '../ae/emit'
+import { emitTorches } from '../lighting/torches'
 import { isLineCell } from '../map/aeWalls'
 import type { WallGrid } from '../map/aeWalls'
 import { tilesetSize } from '../catalog/assets'
@@ -789,6 +790,7 @@ function buildArenaLevel(
 
   emitObjects(level, ctx)
   emitWalls(level, ctx, grid, themeDef, originX, originY)
+  emitTorches(level, ctx, grid, ctx.params.torches ?? 'normal', originX, originY)
   return level
 }
 

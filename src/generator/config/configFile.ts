@@ -78,6 +78,7 @@ import { DEFAULT_LOBBY_PRESET_ID, LOBBY_PRESETS } from '../lobby/presets'
 import { campaignOrder, isDefaultOrder, normalizeOrder, parseSlotLabel, slotLabeller } from '../campaign'
 import type { CampaignSlot } from '../campaign'
 import { PLAYER_FIELD_MAP, formatPlayerLine, parsePlayerValue, prunePlayerTweaks } from '../players/fields'
+import { isBrightness, isTorchDensity } from '../lighting'
 import { MUSIC_DEFAULT, isKnownMusicId } from '../music/tracks'
 
 export interface ParsedConfig {
@@ -111,6 +112,8 @@ export const PARAMETER_ORDER = [
   'roomPadding',
   'cleanupFiles',
   'themes',
+  'torches',
+  'brightness',
   'monsterMultiplier',
   'goldMultiplier',
   'foodMultiplier',
@@ -1418,6 +1421,16 @@ export function parseParametersTxt(content: string, base?: DungeonParameters): P
       params.themes = value.split(',').map((t) => t.trim())
       continue
     }
+    if (keyLower === 'torches') {
+      if (isTorchDensity(value)) params.torches = value
+      else result.unknownKeys.push(`${key}=${value}`)
+      continue
+    }
+    if (keyLower === 'brightness') {
+      if (isBrightness(value)) params.brightness = value
+      else result.unknownKeys.push(`${key}=${value}`)
+      continue
+    }
     if (keyLower === 'lobbysaves') {
       // absent keeps the default (on) — parseParametersTxt starts from
       // defaultParameters(); only an explicit `lobbySaves=0` turns it off
@@ -2074,6 +2087,10 @@ export function serializeParametersTxt(params: DungeonParameters, path?: string,
       lines.push(`cleanupFiles=${cleanupFiles ? 1 : 0}`)
     } else if (key === 'themes') {
       lines.push(`themes=${params.themes.join(',')}`)
+    } else if (key === 'torches') {
+      lines.push(`torches=${params.torches ?? 'normal'}`)
+    } else if (key === 'brightness') {
+      lines.push(`brightness=${params.brightness ?? 'brighter'}`)
     } else if (key === 'monsterMultiplier') {
       lines.push(`monsterMultiplier=${params.monsterMultiplier.toFixed(6)}`)
     } else if (key === 'goldMultiplier') {

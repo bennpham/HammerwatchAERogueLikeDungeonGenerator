@@ -164,7 +164,9 @@ describe.skipIf(!HAS_AE || process.env.HWAE_PACK !== '1')('packer — real PACKA
       expect(readFileSync(packed).includes(Buffer.from('PowerShopMenuContent'))).toBe(true)
       // ...and so do the patched player files and the priest's own speed skill
       expect(install.message).not.toMatch(/Note:/)
-      for (const name of ['classes.sval', 'warlock_dagger.sval', 'shared_speed_priest.sval']) {
+      // ...and the brightness setting's copy of the floor's lighting environment
+      const env = result.assetOverrides.find((o) => o.path.endsWith('.env'))!.path.split('/').pop()!
+      for (const name of ['classes.sval', 'warlock_dagger.sval', 'shared_speed_priest.sval', env]) {
         expect(readFileSync(packed).includes(Buffer.from(name)), name).toBe(true)
       }
       expect(existsSync(join(AE_ROOT, 'scenarios', result.campaignName))).toBe(false)

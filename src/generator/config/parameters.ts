@@ -2,6 +2,7 @@ import { MONSTER_FAMILIES, MONSTER_TYPES } from '../objects/monsterTypes'
 import { THEME_DEFS } from './themes'
 import { DEFAULT_LOBBY_CATEGORIES } from '../lobby/shops'
 import type { PlayerTweaks } from '../players/fields'
+import type { Brightness, TorchDensity } from '../lighting'
 import { noUpgrades } from '../lobby/payout'
 import { DEFAULT_LOBBY_PRESET_ID } from '../lobby/presets'
 import type { UpgradeCounts } from '../lobby/payout'
@@ -711,6 +712,16 @@ export interface DungeonParameters {
    * and the first floor always rolls a shop room.
    */
   ensureGargoyleShop?: boolean
+  /**
+   * Wall torches on every floor and arena (lighting/torches.ts): how closely
+   * they hang along the north walls. Absent means `normal`.
+   */
+  torches?: TorchDensity
+  /**
+   * How far the levels' ambient light is lifted above AE's dark stock
+   * environments (lighting/envs.ts). Absent means `brighter`.
+   */
+  brightness?: Brightness
   vaultChance: number
   lockChance: number
   keyChance: number
@@ -2114,6 +2125,8 @@ export function defaultParameters(): DungeonParameters {
     goldMultiplier: 1.1,
     foodMultiplier: 1.2,
     shopChance: 1.0,
+    torches: 'normal',
+    brightness: 'brighter',
     vaultChance: 0.3,
     lockChance: 0.8,
     keyChance: 1.0,

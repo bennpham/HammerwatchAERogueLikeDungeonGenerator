@@ -17,6 +17,7 @@ import { buildFloorTrapRig } from './traps/floor'
 import { buildFloorBossRig } from './dungeonBoss'
 import { buildMysteryButtonRig } from './mystery/rig'
 import { playerOverrides } from './players'
+import { environmentOverrides } from './lighting'
 import type { PlayerFileOverride } from './players'
 
 export type { DungeonParameters, DungeonBoss, LobbyOptions, BossOptions, BossFight, BossArenaOptions, BossWave, BossSpawnMode, BossFloorPattern, FloorTimer, FloorLock, FloorBuff, FloorTrap, TrapDirection, BuffTarget, WavePickup, BossTrap, BossTrapDirection, BossCheckpointPreset, ArenaMode, SurvivalOptions, SurvivalWave, SurvivalBuff, SurvivalPickup, SurvivalTrap, SurvivalCountdown } from './config/parameters'
@@ -281,7 +282,8 @@ export interface DungeonResult {
   campaignName: string
   files: GeneratedFile[]
   /**
-   * Stock files the scenario ships patched (the Players tab's edits). The
+   * Stock files the scenario ships patched (the Players tab's edits and the
+   * brightness setting's lighting environments). The
    * generator never holds the game's files: the install reads each `source`
    * from the user's own unpacked assets and applies the edits.
    */
@@ -320,6 +322,8 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
   const ctx = new GenerationContext(params, usedSeed, scenarioId)
   const files: GeneratedFile[] = []
   const floorPreviews = new Map<number, LevelPreview>()
+  // the lighting environments the generated levels use, for the brightness copies
+  const environments = new Set<string>()
   const arenaPreviews = new Map<number, LevelPreview>()
 
   const fights = bossFights(params.boss)
@@ -393,6 +397,7 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
       }
     }
     files.push({ path: ctx.levelPath(ctx.currentStem), content: renderLevel(ae) })
+    if (ae.environment !== null) environments.add(ae.environment)
     floorPreviews.set(i, buildPreview(ctx, level))
   }
 
@@ -407,6 +412,7 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
     enter(slot)
     const { level, preview } = buildBossArena(ctx, fight.arena, params.levels + i, gateway, survival)
     files.push({ path: ctx.levelPath(ctx.currentStem), content: renderLevel(level) })
+    if (level.environment !== null) environments.add(level.environment)
     arenaPreviews.set(i, preview)
   })
 
@@ -446,7 +452,10 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
     seed: usedSeed,
     campaignName: scenarioId,
     files,
-    assetOverrides: playerOverrides(params.playerTweaks ?? {}),
+    assetOverrides: [
+      ...playerOverrides(params.playerTweaks ?? {}),
+      ...environmentOverrides(environments, params.brightness ?? 'brighter')
+    ],
     levels: previews
   }
 }
@@ -490,3 +499,4 @@ function buildPreview(ctx: GenerationContext, level: Level): LevelPreview {
     walls
   }
 }
+export * from './lighting'

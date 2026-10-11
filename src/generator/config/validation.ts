@@ -88,6 +88,7 @@ import { wallCapacity } from '../boss/traps'
 import { floorTrapCapacity } from '../traps/floor'
 import { scaledMax } from '../boss/waves'
 import { validatePlayerTweaks as checkPlayerTweaks } from '../players/validate'
+import { BRIGHTNESS_LEVELS, TORCH_DENSITIES, isBrightness, isTorchDensity } from '../lighting'
 
 export interface ValidationIssue {
   /** parameter field the issue belongs to, for inline display in the GUI */
@@ -290,6 +291,13 @@ export function validateParameters(p: DungeonParameters): ValidationResult {
       })
     }
   })
+
+  if (p.torches !== undefined && !isTorchDensity(p.torches)) {
+    errors.push({ field: 'torches', message: `Torches must be one of: ${TORCH_DENSITIES.join(', ')}.` })
+  }
+  if (p.brightness !== undefined && !isBrightness(p.brightness)) {
+    errors.push({ field: 'brightness', message: `Brightness must be one of: ${BRIGHTNESS_LEVELS.join(', ')}.` })
+  }
 
   const chanceFields: Array<[string, number]> = [
     ['shopChance', p.shopChance],

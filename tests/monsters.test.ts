@@ -222,14 +222,15 @@ describe('the escape floor', () => {
     // in the same commit that causes it and say so in the commit message.
     //
     // Baselined on the AE port; re-baselined 2026-10-10 for the shop's
-    // UseTrigger→ShopArea connection and the AnnounceText Style lines (no
+    // UseTrigger→ShopArea connection and the AnnounceText Style lines, then
+    // for the wall torches (appended after the walls) (no
     // layout change: scripts/dev/layout-hash.ts, dump-floors.ts). Only the
     // floor `.lvl` files are hashed, over a
     // fixed literal plan with every optional layer off, so a change to the
     // shipped default campaign does not move it.
     const expected: Record<number, string> = {
-      1234: '1ed254114fc6685b9c3dca06ca805fbf2dcca86578f8bb4e06c979a6aceacb6b',
-      987654: '70cab70a57ed8b17b2021287dd87e2e93a29d3ad87ae51e4c4038e03cee50950'
+      1234: '7f4c8938ada00329978cab1046b6797adb4d6379cde2ca2105c425a603ff9885',
+      987654: '183280d3168e5ac4525a5a548df992a3bb58db5e16f5d00171fd8a4233d1f874'
     }
     for (const [seed, hash] of Object.entries(expected)) {
       const params = defaultParameters()

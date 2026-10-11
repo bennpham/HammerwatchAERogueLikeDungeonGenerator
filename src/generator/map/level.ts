@@ -9,6 +9,7 @@ import { getTheme, themeEnvironment, THEME_DEFS } from '../config/themes'
 import { AeLevel } from '../ae/model'
 import { TileLayers } from '../ae/tiles'
 import { emitObjects, emitWalls } from '../ae/emit'
+import { emitTorches } from '../lighting/torches'
 import { isLineCell } from './aeWalls'
 import type { WallGrid } from './aeWalls'
 import { tilesetSize } from '../catalog/assets'
@@ -491,6 +492,7 @@ export class Level {
 
     emitObjects(level, ctx)
     this.missingWallPieces = emitWalls(level, ctx, grid, theme)
+    emitTorches(level, ctx, grid, ctx.params.torches ?? 'normal')
     return level
   }
 

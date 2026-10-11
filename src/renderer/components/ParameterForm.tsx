@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { MUSIC_DEFAULT, THEME_DEFS, defaultDungeonBoss, defaultFloorLock, defaultFloorLockMystery, defaultFloorMystery, defaultFloorTimer, floorMystery, isDefaultOrder, normalizeOrder } from '../../generator'
+import { BRIGHTNESS_LABELS, BRIGHTNESS_LEVELS, MUSIC_DEFAULT, THEME_DEFS, TORCH_DENSITIES, TORCH_LABELS, defaultDungeonBoss, defaultFloorLock, defaultFloorLockMystery, defaultFloorMystery, defaultFloorTimer, floorMystery, isDefaultOrder, normalizeOrder } from '../../generator'
 import type { CampaignCounts, DungeonParameters, FloorLockMystery, ValidationIssue } from '../../generator'
-import { NumberField, Section } from './fields'
+import { NumberField, Section, ToggleGroup } from './fields'
 import { MusicPicker } from './MusicPicker'
 import { MonsterPoolsEditor } from './MonsterPoolsEditor'
 import { MonsterMaxTable } from './MonsterMaxTable'
@@ -196,6 +196,26 @@ export function ParameterForm({ params, issues, onChange }: ParameterFormProps) 
               <NumberField label="Min passage width" field="minPassageWidth" value={params.minPassageWidth} onChange={(v) => set('minPassageWidth', v)} issues={issues} min={1} />
               <NumberField label="Max passage width" field="maxPassageWidth" value={params.maxPassageWidth} onChange={(v) => set('maxPassageWidth', v)} issues={issues} min={1} />
             </div>
+          </Section>
+
+          <Section title="Lighting">
+            <ToggleGroup
+              label="Wall torches"
+              value={params.torches ?? 'normal'}
+              options={TORCH_DENSITIES.map((d) => ({ value: d, label: TORCH_LABELS[d] }))}
+              onChange={(torches) => onChange({ ...params, torches })}
+            />
+            <ToggleGroup
+              label="Brightness"
+              value={params.brightness ?? 'brighter'}
+              options={BRIGHTNESS_LEVELS.map((b) => ({ value: b, label: BRIGHTNESS_LABELS[b] }))}
+              onChange={(brightness) => onChange({ ...params, brightness })}
+            />
+            <p className="hint">
+              Torches hang along the rooms&apos; north walls the way AE&apos;s own levels light them. Brightness lifts each
+              level&apos;s ambient light above AE&apos;s dark stock setting; the install patches the game&apos;s own lighting files,
+              so it needs your AE folder set.
+            </p>
           </Section>
 
           <Section title="Chances & multipliers">
