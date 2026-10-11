@@ -3,7 +3,8 @@ import type { AeLevel, AeScript, AeUnit, Param, StateValue } from './model'
 
 /**
  * Serialise an `AeLevel` as an AE `.lvl` (SVAL text) in the layout the AE
- * editor saves: game-mode, version, lighting, tiles, units, scripts, prefabs.
+ * editor saves: game-mode, version, lighting, tiles, units, statics (when
+ * there are any), scripts, prefabs.
  * Ported from hw2ae's `ae/level_writer.py`.
  *
  * Deterministic: units are grouped by path in sorted path order and keep their
@@ -53,6 +54,25 @@ export function renderLevel(level: AeLevel): string {
     w.close('array')
   }
   w.close('dict')
+
+  if (level.statics.length > 0) {
+    const statics = new Map<string, typeof level.statics>()
+    for (const st of level.statics) statics.set(st.path, [...(statics.get(st.path) ?? []), st])
+    w.open('dict', 'statics')
+    for (const path of [...statics.keys()].sort()) {
+      w.open('array', path)
+      for (const st of statics.get(path)!) {
+        w.vec2(st.x, st.y)
+        if (st.state !== undefined) {
+          w.open('dict')
+          for (const [name, v] of Object.entries(st.state)) writeState(w, name, v)
+          w.close('dict')
+        }
+      }
+      w.close('array')
+    }
+    w.close('dict')
+  }
 
   w.open('array', 'scripts')
   for (const s of level.scripts) writeScript(w, s)

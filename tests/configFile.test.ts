@@ -1318,8 +1318,14 @@ describe('parameters.txt — free upgrades', () => {
     expect(parsed.unknownKeys).toEqual(['lobby0Upgrades value "-1"', 'lobby0Upgrades value "x"'])
   })
 
-  it('reports values past the eight kinds, and takes the eight it knows', () => {
-    const parsed = parseParametersTxt('lobby1Upgrades=1 1 1 1 1 1 1 1 1 2\n')
+  it('reads an 8-value line from before speed/attack speed, the new kinds at zero', () => {
+    const parsed = parseParametersTxt('lobby0Upgrades=1 1 1 1 1 1 1 1\n')
+    expect(parsed.params.lobbies[0].upgrades).toEqual({ ...oneOfEachUpgrade(), speed: 0, attackspeed: 0, speed2: 0, attackspeed2: 0 })
+    expect(parsed.unknownKeys).toEqual([])
+  })
+
+  it('reports values past the twelve kinds, and takes the twelve it knows', () => {
+    const parsed = parseParametersTxt('lobby1Upgrades=1 1 1 1 1 1 1 1 1 1 1 1 1 2\n')
     expect(parsed.params.lobbies[1].upgrades).toEqual(oneOfEachUpgrade())
     expect(parsed.unknownKeys).toEqual([
       'lobby1Upgrades extra value "1"',

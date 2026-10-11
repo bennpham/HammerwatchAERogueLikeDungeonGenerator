@@ -311,6 +311,8 @@ describe('lobby — authored payout spots', () => {
   function houseWithPayout(n: number): LobbyPresetDef {
     const house = lobbyPresetById(HOUSE_LOBBY_ID)!
     const { level } = readLevel(house.lvl!)
+    // only the spots this test places count: drop what the house itself authored
+    level.statics = level.statics.filter((st) => st.path !== DIAMOND_UNIT && !st.path.startsWith('items/pickups/upgrade_'))
     for (let i = 0; i < n; i++) level.units.push({ path: DIAMOND_UNIT, x: 100 + i * 16, y: 40, id: level.newId() })
     level.units.push({ path: upgradeItemPath('health'), x: 200, y: 40, id: level.newId() })
     return { ...house, lvl: renderLevel(level) }
@@ -334,5 +336,42 @@ describe('lobby — authored payout spots', () => {
     expect(lobby.units.filter((u) => u.path === DIAMOND_UNIT)).toHaveLength(0)
     const health = lobby.units.filter((u) => u.path === upgradeItemPath('health'))
     expect(health.map((u) => `${u.x},${u.y}`)).toEqual(['200,40', '200,40'])
+  })
+})
+
+describe('lobby — the house as authored', () => {
+  const house = lobbyPresetById(HOUSE_LOBBY_ID)!
+  const authored = readLevel(house.lvl!).level
+
+  function build(options: LobbyOptions): AeLevel {
+    const ctx = new GenerationContext(plainParameters(), 1)
+    ctx.currentStem = 'lobby0'
+    return buildLobby(ctx, house, options, 'floor0', false, 0)
+  }
+
+  it('reads the hand-placed pickups the editor saves under statics', () => {
+    expect(authored.statics.filter((s) => s.path === DIAMOND_UNIT).length).toBeGreaterThan(20)
+    for (const kind of UPGRADE_KINDS) expect(authored.statics.some((s) => s.path === upgradeItemPath(kind)), kind).toBe(true)
+  })
+
+  it('pays out on exactly the spots placed in the editor', () => {
+    const spots = new Set(authored.statics.filter((s) => s.path === DIAMOND_UNIT).map((s) => `${s.x},${s.y}`))
+    const lobby = build({ ...defaultLobby(HOUSE_LOBBY_ID), startingGold: 10000, upgrades: oneOfEachUpgrade() })
+    const diamonds = lobby.units.filter((u) => u.path === DIAMOND_UNIT)
+    expect(diamonds).toHaveLength(20)
+    for (const d of diamonds) expect(spots.has(`${d.x},${d.y}`), `${d.x},${d.y}`).toBe(true)
+    for (const kind of UPGRADE_KINDS) {
+      const placed = authored.statics.find((s) => s.path === upgradeItemPath(kind))!
+      const got = lobby.units.filter((u) => u.path === upgradeItemPath(kind))
+      expect(got.map((u) => `${u.x},${u.y}`), kind).toEqual([`${placed.x},${placed.y}`])
+    }
+    // the author's placeholders are gone, so nothing is doubled
+    expect(lobby.statics.some((s) => s.path === DIAMOND_UNIT || s.path.startsWith('items/pickups/upgrade_'))).toBe(false)
+  })
+
+  it('keeps the rest of the statics (the stove deco) in the emitted lobby', () => {
+    const lobby = readLevel(renderLevel(build(defaultLobby(HOUSE_LOBBY_ID)))).level
+    expect(lobby.statics.map((s) => s.path)).toEqual(expect.arrayContaining(['doodads/generic/deco/stove_jug.unit', 'doodads/generic/deco/stove_pot_2.unit']))
+    expect(lobby.statics.find((s) => s.path === 'doodads/generic/deco/stove_jug.unit')?.state).toEqual({ layer: { kind: 'int', value: 100 } })
   })
 })

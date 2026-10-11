@@ -283,3 +283,20 @@ crypt tiles.
 
 - `scripts/scan-ae-assets.mjs` now records every `doodads/**.unit` (6273 units): a
   hand-made lobby may use any prop or decorative wall piece (`_deco_shelf_books_32`).
+
+### `statics` section `[VERIFIED]` (user's lobby.lvl, 2026-10-10)
+
+- Between `units` and `scripts` the editor writes `<dict name="statics">`: one array per
+  unit path of bare `<vec2>` positions, each optionally followed by a state `<dict>`
+  (e.g. `layer`). No ids — units no script refers to (hand-placed pickups, deco).
+  Stock scenario levels have none, so the stock round-trip tests never saw it; the
+  reader and writer ignored it and the lobby lost every hand-placed diamond, upgrade
+  and stove deco. Now read into `AeLevel.statics` and written back.
+- AE ships twelve upgrade pickups: damage, defense, health, mana, speed, attackspeed,
+  each plain and `_2`.
+- The equipment (item) shop's `Categories` are loot tables from
+  `tweak/shops/equipment.sval`: `equipment_1`–`equipment_5` (common → epic),
+  `st_equipment_1`–`3` (Sun Temple). `item` is not one; the shop came up empty.
+- `PowerShopMenuContent.as` offers "extra life" under `%if !MOD_INFINITE_LIVES | !MOD_NO_LIVES`
+  (true unless both are on), and `PartyRecord.GiveLife` is a no-op under NO_LIVES.
+  The installer ships a patched copy (nested %ifs) as a scenario-local override.

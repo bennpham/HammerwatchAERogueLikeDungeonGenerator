@@ -21,7 +21,11 @@ const LABELS: Readonly<Record<UpgradeKind, string>> = {
   damage2: 'Damage II',
   defense2: 'Defense II',
   health2: 'Health II',
-  mana2: 'Mana II'
+  mana2: 'Mana II',
+  speed: 'Speed',
+  attackspeed: 'Attack speed',
+  speed2: 'Speed II',
+  attackspeed2: 'Attack speed II'
 }
 
 const TIER_1 = UPGRADE_KINDS.filter((kind) => !kind.endsWith('2'))

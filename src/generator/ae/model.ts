@@ -68,6 +68,18 @@ export interface AeScript {
   connections: Array<[number, number]>
 }
 
+/**
+ * A unit the editor saves without an id, under the level's `statics` section
+ * (props and pickups placed by hand that no script names): its path, its
+ * position and optionally a state dict (e.g. `layer`).
+ */
+export interface AeStatic {
+  path: string
+  x: number
+  y: number
+  state?: Record<string, StateValue>
+}
+
 export interface AePrefab {
   path: string
   x: number
@@ -88,6 +100,8 @@ export class AeLevel {
   units: AeUnit[] = []
   scripts: AeScript[] = []
   prefabs: AePrefab[] = []
+  /** id-less units (the `statics` section); written back as they were read */
+  statics: AeStatic[] = []
   private nextId: number
 
   constructor(environment: string | null, firstId = 1) {

@@ -320,6 +320,21 @@ function takeAuthoredPayout(level: AeLevel): AuthoredPayout {
     }
   }
   level.units = level.units.filter((u) => !taken.has(u))
+  // the editor saves hand-placed pickups no script names as statics
+  const takenStatics = new Set<(typeof level.statics)[number]>()
+  for (const st of level.statics) {
+    if (/^items\/pickups\/money\/diamond[a-z_]*\.unit$/.test(st.path)) {
+      out.diamonds.push({ x: st.x / TILE, y: st.y / TILE })
+      takenStatics.add(st)
+      continue
+    }
+    const kind = UPGRADE_KINDS.find((k) => upgradeItemPath(k) === st.path)
+    if (kind !== undefined) {
+      out.upgrades[kind] ??= { x: st.x / TILE, y: st.y / TILE }
+      takenStatics.add(st)
+    }
+  }
+  level.statics = level.statics.filter((st) => !takenStatics.has(st))
   // reading order, so the first diamonds land top-left whatever order the editor saved them in
   out.diamonds.sort((a, b) => a.y - b.y || a.x - b.x)
   return out

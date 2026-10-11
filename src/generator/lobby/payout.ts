@@ -21,7 +21,25 @@ export function diamondCount(startingGold: number): number {
   return Math.min(MAX_DIAMOND_COUNT, Math.floor(startingGold / DIAMOND_VALUE))
 }
 
-export const UPGRADE_KINDS = ['damage', 'defense', 'health', 'mana', 'damage2', 'defense2', 'health2', 'mana2'] as const
+/**
+ * Append-only: `lobby<i>Upgrades` stores the counts positionally in this
+ * order, so a file written before speed/attack speed existed (8 numbers)
+ * still reads, with the new kinds at zero. AE ships all twelve pickups.
+ */
+export const UPGRADE_KINDS = [
+  'damage',
+  'defense',
+  'health',
+  'mana',
+  'damage2',
+  'defense2',
+  'health2',
+  'mana2',
+  'speed',
+  'attackspeed',
+  'speed2',
+  'attackspeed2'
+] as const
 
 export type UpgradeKind = (typeof UPGRADE_KINDS)[number]
 

@@ -42,18 +42,27 @@ export function readLevel(text: string): ReadLevelResult {
     level.tileCells.push({ x, y, datasets })
   }
 
+  // units the editor saved with a position only (no id) — numbered after the
+  // highest id in the file, once that is known
+  const idless: AeUnit[] = []
   for (const group of svalGet(root, 'units')?.children ?? []) {
     const path = group.name ?? ''
     const kids = group.children
-    // Flat form alternates vec2,int; wrapped form is one array per unit.
+    // Flat form alternates vec2,int; wrapped form is one array per unit. The
+    // editor also writes a bare vec2 with no id after it (pickups placed by
+    // hand: `<array name="…diamond_red.unit"><vec2>…</vec2><vec2>…</vec2>`).
     for (let i = 0; i < kids.length; i++) {
       const k = kids[i]
       let unit: AeUnit | null = null
       if (k.tag === 'vec2') {
-        const id = svalInt(kids[i + 1]) ?? 0
         const [x, y] = svalNumbers(k)
-        unit = { path, x, y, id }
-        i++
+        if (kids[i + 1]?.tag === 'int') {
+          unit = { path, x, y, id: svalInt(kids[i + 1]) ?? 0 }
+          i++
+        } else {
+          idless.push({ path, x, y, id: 0 })
+          continue
+        }
       } else if (k.tag === 'array') {
         const [x, y] = svalNumbers(k.children[0])
         const id = svalInt(k.children[1]) ?? 0
@@ -64,6 +73,20 @@ export function readLevel(text: string): ReadLevelResult {
       if (unit !== null) {
         level.units.push(unit)
         maxId = Math.max(maxId, unit.id)
+      }
+    }
+  }
+
+  // statics: one array per path holding vec2 positions, each optionally
+  // followed by its own state dict
+  for (const group of svalGet(root, 'statics')?.children ?? []) {
+    const path = group.name ?? ''
+    for (const k of group.children) {
+      if (k.tag === 'vec2') {
+        const [x, y] = svalNumbers(k)
+        level.statics.push({ path, x, y })
+      } else if (k.tag === 'dict' && level.statics.length > 0) {
+        level.statics[level.statics.length - 1].state = readState(k)
       }
     }
   }
@@ -101,6 +124,10 @@ export function readLevel(text: string): ReadLevelResult {
 
   // continue numbering after the highest id read, so edits never collide
   while (level.peekId() <= maxId) level.newId()
+  for (const u of idless) {
+    u.id = level.newId()
+    level.units.push(u)
+  }
   return { level, unknownParams }
 }
 
