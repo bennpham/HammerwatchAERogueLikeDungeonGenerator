@@ -67,17 +67,28 @@ for (const u of level.units) if (u.path.startsWith('doodads/walls/')) for (const
 // floor only where the author painted tiles (the yard outside has no walls,
 // just the edge of the painted ground)
 const painted = new Set<string>()
+// the yard's ground, for HW1's grass and dirt tilesets; the path is drawn on
+// the lawn, so dirt wins where both are painted
+const ground = new Map<string, 'grass' | 'dirt'>()
+const groundOf = (tileset: string) => (/\/grass_/.test(tileset) ? 'grass' : /\/cold_dirt/.test(tileset) ? 'dirt' : undefined)
 for (const cell of level.tileCells) {
   for (const d of cell.datasets) {
     if (d.tileset.endsWith('__black.tileset')) continue
     const size = tilesetSize(d.tileset)
     const side = CELL / size
+    const kind = groundOf(d.tileset)
     decodeRle(d.rle, side).forEach((on, i) => {
       if (!on) return
       const px = cell.x - CELL / 2 + (i % side) * size
       const py = cell.y - CELL / 2 + Math.trunc(i / side) * size
       // a 32px tile covers four of our 16px cells
-      for (let oy = 0; oy < size; oy += TILE) for (let ox = 0; ox < size; ox += TILE) painted.add(`${Math.floor((px + ox) / TILE)},${Math.floor((py + oy) / TILE)}`)
+      for (let oy = 0; oy < size; oy += TILE) {
+        for (let ox = 0; ox < size; ox += TILE) {
+          const key = `${Math.floor((px + ox) / TILE)},${Math.floor((py + oy) / TILE)}`
+          painted.add(key)
+          if (kind !== undefined && ground.get(key) !== 'dirt') ground.set(key, kind)
+        }
+      }
     })
   }
 }
@@ -338,15 +349,25 @@ for (const u of [...level.units, ...level.statics]) {
 }
 
 // --- write the HW1 level ------------------------------------------------------------
+// the lawn layers stack over the library floor the way the remake stacks its
+// overlays (tilemapOverlay.ts): masked alpha, their own variant count
+const LAWN = [
+  { kind: 'grass', tilemap: 'tilemaps/grass.xml', tiles: 2 },
+  { kind: 'dirt', tilemap: 'tilemaps/c_dirt.xml', tiles: 2 }
+] as const
+const lawnCount = { grass: 0, dirt: 0 }
 const tiledata = new XMLArray('tiledata')
 for (let bx = 0; bx <= Math.ceil(width / BLOCK); bx++) {
   for (let by = 0; by <= Math.ceil(height / BLOCK); by++) {
+    const kinds: Array<'grass' | 'dirt' | undefined> = []
     const dataT: number[] = []
     for (let i = 0; i < BLOCK * BLOCK; i++) {
       const x = bx * BLOCK - 10 + (i % BLOCK)
       const y = by * BLOCK - 10 + Math.trunc(i / BLOCK)
       const open = x >= 0 && y >= 0 && x < width && y < height && !tiles[x + y * width].wall
-      dataT.push(open ? Math.trunc(ctx.cosmeticRand.nextFloat() * theme.tiles) + 1 : 0)
+      const kind = open ? ground.get(`${x + minX},${y + minY}`) : undefined
+      kinds.push(kind)
+      dataT.push(open && kind === undefined ? Math.trunc(ctx.cosmeticRand.nextFloat() * theme.tiles) + 1 : 0)
     }
     const full = () => new Array<number>(BLOCK * BLOCK).fill(255)
     const set = new XMLDictionary('')
@@ -355,6 +376,17 @@ for (let bx = 0; bx <= Math.ceil(width / BLOCK); bx++) {
     for (const c of ['data-r', 'data-g', 'data-b', 'data-a']) set.addData(new XMLIntArray(c, full()))
     const sets = new XMLArray('datasets')
     sets.addData(set)
+    for (const layer of LAWN) {
+      if (!kinds.includes(layer.kind)) continue
+      const t = kinds.map((k) => (k === layer.kind ? Math.trunc(ctx.cosmeticRand.nextFloat() * layer.tiles) + 1 : 0))
+      lawnCount[layer.kind] += t.filter((v) => v !== 0).length
+      const over = new XMLDictionary('')
+      over.addData(new XMLString('tileset', layer.tilemap))
+      over.addData(new XMLIntArray('data-t', t))
+      for (const c of ['data-r', 'data-g', 'data-b']) over.addData(new XMLIntArray(c, full()))
+      over.addData(new XMLIntArray('data-a', t.map((v) => (v === 0 ? 0 : 255))))
+      sets.addData(over)
+    }
     const block = new XMLDictionary('')
     block.addData(new XMLInt('x', bx * BLOCK))
     block.addData(new XMLInt('y', by * BLOCK))
@@ -408,6 +440,7 @@ const notes = [
   'Placed:',
   ...placed.map((p) => `  ${p}`),
   `  ${items.length} items (red diamonds and the HW1 upgrades)`,
+  `  lawn: ${lawnCount.grass} grass + ${lawnCount.dirt} dirt tiles`,
   '',
   `Ported from AE (custom doodads in ${join(outDir, 'doodads/ae')}):`,
   ...[...portedCount].sort(([a], [b]) => (a < b ? -1 : 1)).map(([type, n]) => `  ${n} x ${type}`),

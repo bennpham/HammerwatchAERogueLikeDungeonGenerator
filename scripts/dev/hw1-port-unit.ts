@@ -196,6 +196,7 @@ function over(dst: Img, src: Img, sx: number, sy: number, w: number, h: number, 
 }
 
 const blank = (width: number, height: number): Img => ({ width, height, data: Buffer.alloc(width * height * 4) })
+const nextPow2 = (n: number) => 2 ** Math.ceil(Math.log2(Math.max(1, n)))
 
 /** Quarter turns clockwise (screen space, y down). */
 const turn = (x: number, y: number, q: number): [number, number] => {
@@ -270,7 +271,8 @@ export function portUnit(assets: string, unitPath: string, rot: number, scene?: 
     }
     return out
   })
-  const strip = blank(nw * turned.length, nh)
+  // the HW1 editor wants power-of-two textures; the frames sit top-left
+  const strip = blank(nextPow2(nw * turned.length), nextPow2(nh))
   turned.forEach((img, i) => {
     for (let y = 0; y < nh; y++) img.data.copy(strip.data, (y * strip.width + i * nw) * 4, y * nw * 4, (y + 1) * nw * 4)
   })
