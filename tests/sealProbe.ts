@@ -17,6 +17,9 @@
 import type { LevelPreview } from '../src/generator'
 import type { AeLevel, AeUnit } from '../src/generator/ae/model'
 
+/** What the probe reads of a level: its units and scripts. */
+type LevelData = Pick<AeLevel, 'units' | 'scripts'>
+
 const TILE = 16
 
 /**
@@ -64,7 +67,7 @@ export class Passability {
  * every door. Deliberately no overhang: over-stating where the player can walk
  * is the safe direction for a leak probe.
  */
-export function passabilityOf(preview: LevelPreview, level: AeLevel): Passability {
+export function passabilityOf(preview: LevelPreview, level: LevelData): Passability {
   const { mapWidth: w, mapHeight: h } = preview
   const pass = new Passability(w, h)
   for (let y = 0; y < h; y++) {
@@ -142,7 +145,7 @@ const PORTALS = ['doodads/generic/teleport_red.unit', 'doodads/generic/teleport_
  *
  * `reachable: true` is a leak — the party reaches the orb without the button.
  */
-export function orbReachableWithoutButton(preview: LevelPreview, level: AeLevel): SealProbe {
+export function orbReachableWithoutButton(preview: LevelPreview, level: LevelData): SealProbe {
   const solidAt = (u: AeUnit) => preview.walls[Math.floor(u.x / TILE) + Math.floor(u.y / TILE) * preview.mapWidth] === '1'
   const seals = level.units.filter((u) => u.path.startsWith('doodads/walls/') && !solidAt(u))
   const doors = level.units.filter((u) => u.path.startsWith('doodads/doors/door_'))
@@ -151,7 +154,7 @@ export function orbReachableWithoutButton(preview: LevelPreview, level: AeLevel)
 }
 
 /** Whether the arrival point reaches the orb or portal, gated or not. */
-export function walkToTarget(preview: LevelPreview, level: AeLevel): SealProbe {
+export function walkToTarget(preview: LevelPreview, level: LevelData): SealProbe {
   const pass = passabilityOf(preview, level)
 
   // the arrival point: the LevelStart this floor's own stem names

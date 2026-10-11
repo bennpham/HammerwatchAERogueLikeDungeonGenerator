@@ -31,7 +31,6 @@ import { TIER_EVENT_NAMES } from '../src/generator/boss/waves'
 import { NodeRectangleShape } from '../src/generator/objects/nodes'
 import type { ScriptNode } from '../src/generator/objects/scriptNode'
 import { NodeGlobalEventTrigger } from '../src/generator/objects/nodes'
-import { pickupById } from '../src/generator/objects/pickupTypes'
 import { AE_UNIT_SET } from '../src/generator/catalog/assets'
 import { levelsOf } from './ae'
 import { generateDungeon } from '../src/generator'
@@ -163,7 +162,7 @@ describe('boss wave pickups — none means none', () => {
       ...params.boss.fights[0].arena,
       waves: params.boss.fights[0].arena.waves.map((w) => ({ ...w, pickups: [] as WavePickup[] }))
     }
-    expect(buildBossArena(freshCtx(4242), explicit, 0).xml).toBe(absent.xml)
+    expect(buildBossArena(freshCtx(4242), explicit, 0).level).toEqual(absent.level)
   })
 })
 

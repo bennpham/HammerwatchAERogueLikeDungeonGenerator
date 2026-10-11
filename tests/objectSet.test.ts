@@ -7,9 +7,7 @@ import type { ScriptNode } from '../src/generator/objects/scriptNode'
 import { bossArenaId, lobbyId } from '../src/generator/campaign'
 
 function newContext(): GenerationContext {
-  const ctx = new GenerationContext(defaultParameters(), 5)
-  ctx.scenarioId = 'dungeon_5'
-  return ctx
+  return new GenerationContext(defaultParameters(), 5, 'dungeon_5')
 }
 
 const paramOf = (n: ScriptNode, name: string) => n.params().find((p) => p.name === name)
@@ -33,8 +31,7 @@ describe('ObjectSet — Orb, BossPortal and LobbyPortal', () => {
     it(`${type} draws nothing from ctx.rand or ctx.cosmeticRand`, () => {
       const params = defaultParameters()
       const untouched = new GenerationContext(params, 5)
-      const withSet = new GenerationContext(params, 5)
-      withSet.scenarioId = 'dungeon_5'
+      const withSet = new GenerationContext(params, 5, 'dungeon_5')
 
       ObjectSet.create(withSet, 0, 0, type, 'prison')
 
