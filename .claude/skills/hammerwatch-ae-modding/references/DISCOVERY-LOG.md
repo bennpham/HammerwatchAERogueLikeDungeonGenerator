@@ -301,6 +301,29 @@ crypt tiles.
   (true unless both are on), and `PartyRecord.GiveLife` is a no-op under NO_LIVES.
   The installer ships a patched copy (nested %ifs) as a scenario-local override.
 
+### Shops need the UseTrigger to fire the ShopArea `[VERIFIED]` (user's lobby.lvl; play-test 2026-10-10)
+
+- The house's working vendors connect `UseTrigger → ShopArea` (connection array), on top of
+  the ShopArea's `#PlayerTarget = [useId, "User"]`. The feed only names who pressed. The
+  generated floor shops had the feed and no connection: F showed the shop prompt and
+  nothing opened.
+
+### AnnounceText styles `[VERIFIED]` source, `[EMITTED]` region_enter / info_event (2026-10-10)
+
+- `scripts/WorldScript/GUI/AnnounceText.as`: `Title`, `Text`, `Style` (default
+  `hint_announce`), `TimeOverride`, `FinishTrigger`, `PlayerTarget`. There is no text type.
+- Styles live in `gui/variable/announce/announcestyles.sval`:
+  - `ui_error`: red, at 0.25 height, replace.
+  - `region_enter`: top centre, title font arial24, 2.5 s, replace.
+  - `hint_announce`: at 0.75 height, 2 s, replace.
+  - `info_event`: top right, green, queue.
+  - `countdown`: plays a sword-swing sound, cover.
+  - The quest and pickup notification styles.
+- `replace` drops whatever is showing in the same style or category. A timed floor ticks
+  `hint_announce` once a second, which wiped the seal's "final room opened" line on
+  Shell Game. HW1 text types now map to styles: 0/1 → `region_enter`, 2 → default,
+  3 → `info_event`. Stock levels never set `Style`; the gather-party line stays default.
+
 ### Player balance lives in `players/`, not `tweak/` `[VERIFIED]` (unpacked_assets_66, 2026-10-10)
 
 - `players/classes.sval` (loader `PlayerClass::LoadMultiple`, order 1): per class `id`,

@@ -68,7 +68,7 @@ const endsOf = (r: DungeonResult) => [...levelsOf(r)].filter(([, l]) => scriptsO
 
 const hasUnit = (l: AeLevel, path: string) => l.units.some((u) => u.path === path)
 const RED_PORTAL = 'doodads/generic/teleport_red.unit'
-const BLUE_PORTAL = 'doodads/generic/teleport_round.unit'
+const BLUE_PORTAL = 'doodads/generic/teleport_mt.unit'
 const ORB = 'items/pickups/collectable_10_sphere.unit'
 
 describe('campaign order — the default is unchanged', () => {

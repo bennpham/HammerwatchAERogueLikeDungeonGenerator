@@ -25,7 +25,7 @@ import { wallCells } from './sealProbe'
 const TILE = 16
 const ORB = 'items/pickups/collectable_10_sphere.unit'
 const RED_PORTAL = 'doodads/generic/teleport_red.unit'
-const BLUE_PORTAL = 'doodads/generic/teleport_round.unit'
+const BLUE_PORTAL = 'doodads/generic/teleport_mt.unit'
 const FOOD = ['items/pickups/health_1.unit', 'items/pickups/mana_1.unit']
 const BOSS_PATHS = new Set(BOSS_DEF_LIST.map((d) => d.actorPath))
 

@@ -138,7 +138,7 @@ export interface SealProbe {
 }
 
 const ORB = 'items/pickups/collectable_10_sphere.unit'
-const PORTALS = ['doodads/generic/teleport_red.unit', 'doodads/generic/teleport_round.unit']
+const PORTALS = ['doodads/generic/teleport_red.unit', 'doodads/generic/teleport_mt.unit']
 
 /**
  * Walk from the entrance to the orb with the seal intact.

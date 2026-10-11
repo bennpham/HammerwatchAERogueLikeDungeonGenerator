@@ -20,9 +20,9 @@ A confirmed row goes into the discovery log as `[VERIFIED]`.
 | 8 | Floor exit (stairs) | Same press-F, whole-party behaviour at the down stairs; the next floor starts at its up stairs. | VERIFIED |
 | 9 | Floor banner | "Floor N" shows once on arrival. | VERIFIED |
 | 10 | Walls | No gaps, no doubled or floating pieces, no wall art bleeding over floor. The tests prove each cell gets at most one piece; whether the art lines up is for the eye. Check every theme you use. | UNCONFIRMED |
-| 11 | Floor shops | F at a shop room's stand opens it. | VERIFIED |
+| 11 | Floor shops | F at a shop room's stand opens it, and you can buy from it. Before 2026-10-10 F showed the prompt but never opened the shop (the UseTrigger didn't fire the ShopArea). | UNCONFIRMED |
 | 12 | Keys and doors | A key opens its colour's door, which then stays open. | VERIFIED |
-| 13 | Final-room button | Pressing the button plays its click, animates the plate and removes the seal. With several buttons, each press shows "N buttons remain". | UNCONFIRMED |
+| 13 | Final-room button | Pressing the button plays its click, animates the plate and removes the seal. "The way to the final room has opened!" shows at the top of the screen. With several buttons, each press shows "N buttons remain" there too. On a timed floor (e.g. Shell Game) the countdown at the bottom must not wipe them. The final room's portal is the house's square pad. | UNCONFIRMED |
 | 14 | Mystery plates | A plate clicks once and spawns its loot or monsters; trap plates switch their spewers on (and off after the timer). | UNCONFIRMED |
 | 15 | Floor traps | Wall spewers fire in the direction set, at the rate set. | UNCONFIRMED |
 | 16 | Floor timer | The countdown ticks once a second, and the damage starts when it reaches 0:00. | UNCONFIRMED |

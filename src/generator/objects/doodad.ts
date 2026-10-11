@@ -59,12 +59,13 @@ export function resolveDoodad(type: DoodadTypeName, themeId: string): Resolved {
       return { path: `doodads/walls/${theme?.exitDnSet ?? 'prison'}/exit_dn.unit`, dx: 0, dy: 0 }
     case 'ExitMarker':
       return { path: 'doodads/generic/marker_exit.unit', dx: 0, dy: 0 }
-    // [UNVERIFIED] portal art: the red teleport for a boss fight, the round
-    // (blue) one for a lobby or a locked floor's way on. Both open by default.
+    // portal art: the red square pad for a boss fight, the house's own square
+    // pad (teleport_mt, the user's call over the big round one, 2026-10-10)
+    // for a lobby or a locked floor's way on. Both open by default.
     case 'BossPortal':
       return { path: 'doodads/generic/teleport_red.unit', dx: 0, dy: 0 }
     case 'LobbyPortal':
-      return { path: 'doodads/generic/teleport_round.unit', dx: 0, dy: 0 }
+      return { path: 'doodads/generic/teleport_mt.unit', dx: 0, dy: 0 }
     // shop stands, offset like hw2ae placed them on Castle's shop spots (dy 4 px)
     case 'VendorOffense':
       return { path: 'doodads/generic/shop_offense.unit', dx: 0, dy: 0.25 }

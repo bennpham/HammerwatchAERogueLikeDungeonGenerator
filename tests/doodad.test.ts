@@ -48,7 +48,7 @@ describe('Doodad', () => {
 
   it('uses the red teleporter for a boss portal and the round one for a lobby portal', () => {
     expect(Doodad.create(newContext(), 0, 0, 'BossPortal', 'prison').path).toBe('doodads/generic/teleport_red.unit')
-    expect(Doodad.create(newContext(), 0, 0, 'LobbyPortal', 'prison').path).toBe('doodads/generic/teleport_round.unit')
+    expect(Doodad.create(newContext(), 0, 0, 'LobbyPortal', 'prison').path).toBe('doodads/generic/teleport_mt.unit')
   })
 
   it('is not blocking unless a seal says so', () => {

@@ -450,12 +450,30 @@ export class NodeCheckpoint extends ScriptNode {
 }
 
 /** `AnnounceText` — on-screen text; `Text` is a string or a `.lang.key`. */
+/**
+ * AE has no text types: it styles an announcement by `Style`
+ * (gui/variable/announce/announcestyles.sval), and a `replace` style wipes
+ * whatever is showing in the same style. Countdowns tick on the default
+ * `hint_announce` once a second, so anything else left there vanished within
+ * a second on a timed floor (the seal's "final room" line, 2026-10-10). Each
+ * of HW1's slots gets its own AE style instead:
+ *   0 Title, 1 Subtitle → `region_enter` (top centre, AE's area banner)
+ *   2 Regular           → `hint_announce` (default; the countdown line)
+ *   3 Pickup            → `info_event` (top right, queued)
+ */
+export const ANNOUNCE_STYLE_BY_TYPE: Readonly<Record<number, string | undefined>> = {
+  0: 'region_enter',
+  1: 'region_enter',
+  2: undefined,
+  3: 'info_event'
+}
+
 export class NodeAnnounceText extends ScriptNode {
   text = ''
   title?: string
   /** how long the text stays up, ms (AE `TimeOverride`); undefined = the style's default */
   time?: number
-  /** HW1's text type; AE styles text by `Style` instead, so this is kept but not written */
+  /** HW1's text slot, written as an AE `Style` through `ANNOUNCE_STYLE_BY_TYPE` */
   textType = 0
 
   constructor(ctx: GenerationContext, x: number, y: number) {
@@ -469,6 +487,8 @@ export class NodeAnnounceText extends ScriptNode {
   params(): Param[] {
     const out = [P.str('Text', this.text)]
     if (this.title !== undefined) out.unshift(P.str('Title', this.title))
+    const style = ANNOUNCE_STYLE_BY_TYPE[this.textType]
+    if (style !== undefined) out.push(P.str('Style', style))
     if (this.time !== undefined) out.push(P.int('TimeOverride', this.time))
     return out
   }

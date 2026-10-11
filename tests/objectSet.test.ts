@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { GenerationContext } from '../src/generator/core/context'
 import { defaultParameters } from '../src/generator/config/parameters'
-import { ObjectSet } from '../src/generator/objects/objectSet'
+import { ObjectSet, SHOP_KINDS } from '../src/generator/objects/objectSet'
+import { NodeAnnounceText } from '../src/generator/objects/nodes'
 import type { SetTypeName } from '../src/generator/objects/objectSet'
 import type { ScriptNode } from '../src/generator/objects/scriptNode'
 import { bossArenaId, lobbyId } from '../src/generator/campaign'
@@ -65,11 +66,11 @@ describe('ObjectSet — Orb, BossPortal and LobbyPortal', () => {
     expect(exitStartIds(lobby.scriptNodes)).toEqual(['lobby2'])
   })
 
-  it('lays the red teleporter for BossPortal and the round one for LobbyPortal', () => {
+  it('lays the red square pad for BossPortal and the house square pad for LobbyPortal', () => {
     const boss = ObjectSet.create(newContext(), 0, 0, 'BossPortal', 'prison')
     expect(boss.doodads.map((d) => d.path)).toContain('doodads/generic/teleport_red.unit')
     const lobby = ObjectSet.create(newContext(), 0, 0, 'LobbyPortal', 'prison')
-    expect(lobby.doodads.map((d) => d.path)).toContain('doodads/generic/teleport_round.unit')
+    expect(lobby.doodads.map((d) => d.path)).toContain('doodads/generic/teleport_mt.unit')
     expect(lobby.doodads.map((d) => d.path)).not.toContain('doodads/generic/teleport_red.unit')
   })
 
@@ -78,5 +79,42 @@ describe('ObjectSet — Orb, BossPortal and LobbyPortal', () => {
     expect(exits(set.scriptNodes)).toEqual([])
     const classes = set.scriptNodes.map((n) => n.cls)
     expect(classes).toEqual(expect.arrayContaining(['UnitPickedUpTrigger', 'ShowGameOver']))
+  })
+})
+
+describe('ObjectSet — Shop', () => {
+  // the house's vendors (which work) fire their ShopArea from the UseTrigger;
+  // #PlayerTarget alone only names who pressed F, it never runs the shop
+  for (const kind of SHOP_KINDS) {
+    it(`F at the ${kind.id} stand runs its ShopArea`, () => {
+      const set = ObjectSet.create(newContext(), 0, 0, 'Shop', 'prison', undefined, kind)
+      const use = set.scriptNodes.find((n) => n.cls === 'UseTrigger')!
+      const area = set.scriptNodes.find((n) => n.cls === 'ShopArea')!
+      expect(use.connections.map((c) => c.node)).toContain(area)
+      expect(paramOf(area, 'Categories')).toMatchObject({ value: kind.categories })
+    })
+  }
+})
+
+describe('AnnounceText styles', () => {
+  const styleOf = (textType: number) => {
+    const n = new NodeAnnounceText(newContext(), 0, 0)
+    n.textType = textType
+    return paramOf(n, 'Style')
+  }
+
+  it('keeps the countdown on the default line and everything else off it', () => {
+    // a timed floor ticks the default `hint_announce` every second, which
+    // replaces whatever else is showing there
+    expect(styleOf(2)).toBeUndefined()
+    expect(styleOf(0)).toMatchObject({ value: 'region_enter' })
+    expect(styleOf(1)).toMatchObject({ value: 'region_enter' })
+    expect(styleOf(3)).toMatchObject({ value: 'info_event' })
+  })
+
+  it('leaves the gather-party line as Castle writes it', () => {
+    const set = ObjectSet.create(newContext(), 0, 0, 'LobbyPortal', 'prison')
+    const gather = set.scriptNodes.find((n) => n.cls === 'AnnounceText')!
+    expect(paramOf(gather, 'Style')).toBeUndefined()
   })
 })

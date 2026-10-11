@@ -251,7 +251,7 @@ describe('locked floors (levelLock)', () => {
       for (let i = 0; i < MIDDLE; i++) expect(floorOf(locked, i)).toEqual(floorOf(plain, i))
       const level = floorOf(locked, MIDDLE)
       expect(level.units.some((u) => u.path.endsWith('/exit_dn.unit')), 'no stairs').toBe(false)
-      expect(count(level, 'doodads/generic/teleport_round.unit')).toBe(1)
+      expect(count(level, 'doodads/generic/teleport_mt.unit')).toBe(1)
       expect(count(level, 'doodads/generic/teleport_red.unit')).toBe(0)
       expect(scriptsOf(level, 'LevelExit').map((s) => strParam(s, 'StartID'))).toContain(`floor${MIDDLE + 1}`)
       expect(count(level, BOSS_PLATE)).toBe(1)

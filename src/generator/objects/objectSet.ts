@@ -83,6 +83,8 @@ export function buildExitRig(
   all.onTrue.push(respawn, exit)
   const gather = new NodeAnnounceText(ctx, x + 1, y + 1)
   gather.setText(GATHER_PARTY_TEXT)
+  // the regular line, as Castle writes it (no Style)
+  gather.textType = 2
   all.onFalse.push(gather)
   return [use, all, respawn, exit, gather]
 }
@@ -199,6 +201,9 @@ export class ObjectSet {
         use.connectToShape(sensor)
         const area = new NodeShopArea(ctx, x + 1, y + 1, use, kind.categories, kind.type)
         area.label = `shop:${kind.id}`
+        // F runs the shop: #PlayerTarget only names who pressed, the UseTrigger
+        // must also fire the ShopArea, as the stock and house vendors do
+        use.connectTo(area)
         this.scriptNodes.push(use, area)
         this.width = 1
         this.height = 1
