@@ -398,3 +398,36 @@ crypt tiles.
   vendor coin). The tab's `player.shop.<id>.cost` keys patch those lines; the potion
   edits go into the same power shop copy as the life guard, before it, by stock line.
   Checklist #32.
+
+### Skill-level params, bow heat and the original's attack feel (2026-10-11)
+
+- `[VERIFIED]` (read off the original `Hammerwatch.exe` IL with a reflection-only
+  disassembler, no game run needed) The original hard-codes movement while attacking in
+  each `Player<Class>ActorBehavior.DoUpdate`: velocity = input × `speedMul` × `speed` ×
+  0.005, then × 0 while `actor.Attacking` for the knight, wizard and warlock, × 0.5 for the
+  ranger (× 0 during flurry waves), × 0.33 for the sorcerer (× 0 while `castingComet`),
+  × `smite-speed` for the priest and + `knives-speed-mod` for the thief. The wizard is also
+  × 0 while `meteorCounter > 0` (the whole volley) and × 0.33 while spraying. Only the
+  primary attack (and the sorcerer's skills, the ranger's growth, the priest's area/aura)
+  sets `Attacking`; wizard fire nova and warlock lightning/gargoyle don't stop you.
+  `speedMul` = (1 + 0.25 × run-time ramp over 15–30 s) × 1.4 in combo × buffs.
+- `[VERIFIED]` The original's attack is gated on `!Attacking`, deals its damage inside
+  `Attack()` at once, and sets `Attacking` to the attack sprite's length; held autofire
+  repeats every `attackLength` × 1.25 (`west-attack`). The knight's attack sprite is
+  2 × 50 ms (`editor/assetsExtract/actors/player/knight_a.xml`).
+- `[EMITTED]` AE: `PlayerSkill` reads `move-speed-mul` and applies it while
+  `move-speed.x ≤ castingT < move-speed.y`; `castingT` runs at the skill's cast speed
+  (`cast-speed-mul` × attack-speed mods), and a directional cast lasts
+  `max(anim, timeline)` (meteor ≈ 1000 ms at every meteor tier, while its window ends at
+  260). `Whirlnova`/`SpewProjectiles` use `speed-mul` instead. `Player.as` halves every
+  slow under 1 while combo is on.
+- `[EMITTED]` AE's `RangerShoot` heat: +1 per arrow, capped at `overheating-max`, drains at
+  `overheating-recovery`/1000 per ms when not shooting; above `cooldown-heating.x` (2) it
+  lerps `cooldown-add` (0–300 ms) into the cooldown, above `spread-heating.x` (3) it lerps
+  `spread` (0–15°). Nothing else reads it (no HUD). `overheating-max` 0 pins heat at 0.
+- The Players tab now edits these skill-level numbers (`SKILL_PARAMS` in
+  `players/parse.ts`; the window as `move-speed-until`, patched as `<start> <end>`), and
+  `players/original.ts` bundles the original's values as three switches. Checklist
+  #33–35.
+- The repo's SVAL reader treated `ivec2` as a container and dropped its text; `ivec2/3/4`
+  are scalars now.

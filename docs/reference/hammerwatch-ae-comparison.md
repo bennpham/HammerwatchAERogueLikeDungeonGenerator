@@ -68,7 +68,19 @@ mana/heal and the gargoyle's stats.
 
 ## AE-only (no original tweak key)
 
-- **Moving while casting:** each AE skill carries `move-speed-mul` plus a time window and an `anim-walk`. For example, the wizard walks at 0.33× speed during meteor. The original's casting movement is engine code with no tweak key.
+- **Moving while casting:** each AE skill carries `move-speed-mul` over a cast-time window (`<ivec2 name="move-speed">`), or `speed-mul` for a channelled skill. The original hard-codes it in each class's `Player<Class>ActorBehavior.DoUpdate` (no tweak key); read off its IL, against AE stock:
+
+  | Original | AE stock |
+  |---|---|
+  | Paladin sword ×0 | `pal_sword` 0.1 |
+  | Wizard fireball ×0; meteor ×0 until the volley ends (~1.1 s); flame spray ×0.33; fire nova free | fireball 0.05; meteor 0.33 for 0–260 ms of a ~1000 ms cast; spray 0.33; fire nova 0 for 0–240 ms |
+  | Sorcerer shard, nova, orb ×0.33; comet ×0 | shard 0.1, nova 0, orb 0; comet 0 |
+  | Warlock dagger ×0; lightning, gargoyle free | dagger 0.05; lightning, gargoyle 0 for 0–260 ms |
+  | Ranger bow ×0.5; flurry ×0; growth ×0.5 | bow 0.25; flurry `speed-mul` 0.33; growth free (no line to patch) |
+  | Priest `smite-speed`, thief `knives-speed-mod` | the same, as binds |
+
+  AE also halves every skill slow while combo is on (`Player.as`); the original applies them in full and moves ×1.4 in combo. The Players tab's **Original movement while attacking** switch sets the AE column to the original's.
+- **Attack rate:** the original attacks the moment you press, then again when the attack sprite ends (`attackLength` = the `west-attack` sprite; held autofire waits 1.25× that). The knight's is 2 × 50 ms, so ten swings a second. AE's sword plays a 540 ms swing at `cast-speed-mul` 2 then waits `cooldown` 200 ms, about two a second. **Original paladin swing speed** sets ×5.4 and no cooldown.
 - **Cooldowns and cast points** on every skill.
 - **Skills and shop items:**
   - thief acrobatics (a free evade stack every 6 s);
@@ -77,7 +89,7 @@ mana/heal and the gargoyle's stats.
   - fire shield's combo on hit;
   - fire nova's fixed 3 damage per flame;
   - storm's cooldown, tied to its duration.
-- **Ranger bow:** heat (overheating and recovery) and arrow lifetime.
+- **Ranger bow:** heat (overheating and recovery) and arrow lifetime. Heat is the bow's "stamina": +1 per arrow up to `overheating-max` 5, draining at `overheating-recovery`/s; past 2 it adds up to 300 ms between shots, past 3 up to 15° of spread. `overheating-max` 0 turns it off (**Ranger bow never overheats**).
 - **Thief:** no gold cost per cast for fan, smoke or chain. Buying the skill unlocks it.
 
 ## Enemy difficulty (`general.xml`) — not a player setting
