@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import type { AppSettings } from '../shared/ipc'
+import { findAeInstall } from './packer'
 
 const DEFAULT_SETTINGS: AppSettings = {
   hammerwatchPath: '',
@@ -13,15 +14,17 @@ function settingsPath(): string {
 }
 
 export function loadSettings(): AppSettings {
+  let settings: AppSettings = { ...DEFAULT_SETTINGS }
   try {
     if (existsSync(settingsPath())) {
-      const raw = JSON.parse(readFileSync(settingsPath(), 'utf-8'))
-      return { ...DEFAULT_SETTINGS, ...raw }
+      settings = { ...DEFAULT_SETTINGS, ...JSON.parse(readFileSync(settingsPath(), 'utf-8')) }
     }
   } catch {
     // corrupt settings fall back to defaults
   }
-  return { ...DEFAULT_SETTINGS }
+  // no folder chosen yet: look for the AE install in the usual Steam places
+  if (settings.hammerwatchPath === '') settings.hammerwatchPath = findAeInstall() ?? ''
+  return settings
 }
 
 export function saveSettings(settings: AppSettings): void {

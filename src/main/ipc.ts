@@ -14,7 +14,7 @@ import {
   PlayerTweaks
 } from '../generator'
 import { findParametersOverride, loadSettings, saveSettings } from './settings'
-import { installCampaign, writeCampaign } from './packer'
+import { installScenario, writeCampaign } from './packer'
 import type {
   ActionResult,
   AppSettings,
@@ -73,7 +73,7 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
     const result = requireResult()
     if (!('files' in result)) return result
     const settings = loadSettings()
-    return installCampaign(settings.hammerwatchPath, result.campaignName, result.files, settings.cleanupFiles)
+    return installScenario(settings.hammerwatchPath, result.campaignName, result.files, !settings.cleanupFiles)
   })
 
   ipcMain.handle('dungeon:export-folder', async (): Promise<ActionResult> => {
@@ -94,7 +94,7 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
     await writeCampaign(targetDir, result.files)
     return {
       ok: true,
-      message: `Exported campaign folder. Copy it into Hammerwatch's editor folder and run LevelPacker on it.`,
+      message: `Exported the scenario folder. Copy it into <AE>/scenarios/ and run "PACKAGER.exe -l ${result.campaignName}" from the AE folder.`,
       outputPath: targetDir
     }
   })

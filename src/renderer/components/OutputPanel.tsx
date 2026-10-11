@@ -32,11 +32,11 @@ export function OutputPanel({
     <div className="output-panel">
       <div className="output-path">
         <label className="field">
-          <span className="field-label">Hammerwatch install folder</span>
+          <span className="field-label">Hammerwatch Anniversary Edition folder</span>
           <div className="path-row">
             <input
               type="text"
-              placeholder="e.g. C:\Program Files (x86)\Steam\steamapps\common\Hammerwatch"
+              placeholder="e.g. C:\Program Files (x86)\Steam\steamapps\common\Hammerwatch Anniversary Edition"
               value={settings.hammerwatchPath}
               onChange={(e) => onSettingsChange({ ...settings, hammerwatchPath: e.target.value })}
             />
@@ -49,7 +49,7 @@ export function OutputPanel({
             checked={settings.cleanupFiles}
             onChange={(e) => onSettingsChange({ ...settings, cleanupFiles: e.target.checked })}
           />
-          Remove intermediate editor files after packing
+          Delete the scenario source after packing (off keeps it in editor/generated for hand edits)
         </label>
         {chatIconHidden !== null && (
           <label className="checkbox">
@@ -67,14 +67,14 @@ export function OutputPanel({
           className="primary"
           disabled={!hasResult || busy || settings.hammerwatchPath === ''}
           onClick={onInstall}
-          title="Writes the campaign into <Hammerwatch>/editor, runs LevelPacker.exe and moves the .hwm into <Hammerwatch>/levels"
+          title="Writes the scenario into <AE>/scenarios, packs it into a .h1c with PACKAGER.exe and removes the source folder"
         >
-          Install into Hammerwatch
+          Install into Hammerwatch AE
         </button>
-        <button disabled={!hasResult || busy} onClick={onExportFolder} title="Export the raw campaign folder (levels XML + info.xml + levels.xml)">
+        <button disabled={!hasResult || busy} onClick={onExportFolder} title="Export the raw scenario folder (info.xml, logos.png and the .lvl levels)">
           Export folder…
         </button>
-        <button disabled={!hasResult || busy} onClick={onExportZip} title="Export the campaign folder as a .zip">
+        <button disabled={!hasResult || busy} onClick={onExportZip} title="Export the scenario folder as a .zip">
           Export .zip…
         </button>
       </div>
