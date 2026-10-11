@@ -1,5 +1,6 @@
 import React from 'react'
 import {
+  ORIGINAL_TOGGLES,
   PLAYER_STOCK,
   STAT_GROUPS,
   applyEverythingFree,
@@ -10,7 +11,9 @@ import {
   classesIn,
   deriveGroupFactor,
   deriveSpeedMode,
+  isOriginalToggleOn,
   setClassSpeed,
+  setOriginalToggle,
   setEveryoneSpeed,
   setGroupSpeed,
   speedGroupOf,
@@ -18,7 +21,7 @@ import {
   totalShopCost
 } from '../../generator'
 import type { PlayerTweaks, SpeedMode } from '../../generator'
-import { CurveField, Subsection, ToggleGroup } from './fields'
+import { BoolField, CurveField, Subsection, ToggleGroup } from './fields'
 
 interface QuickSetupProps {
   tweaks: PlayerTweaks
@@ -124,6 +127,22 @@ export function QuickSetup({ tweaks, onChange }: QuickSetupProps) {
         <p className="hint">
           A multiplier on the base walking speed. AE ships ranged classes at 1.0 and melee classes at 1.2; the original game
           had 0.9 for everyone. The three speed upgrades in the shop follow at +0.1 each.
+        </p>
+      </Subsection>
+
+      <Subsection title="Original Hammerwatch feel" defaultOpen>
+        {ORIGINAL_TOGGLES.map((t) => (
+          <BoolField
+            key={t.id}
+            label={t.label}
+            title={t.description}
+            checked={isOriginalToggleOn(t.id, tweaks)}
+            onChange={(on) => onChange(setOriginalToggle(t.id, on, tweaks))}
+          />
+        ))}
+        <p className="hint">
+          How the original game played where AE changed it in the skills themselves rather than in a number you&apos;d find
+          on a stat sheet. Each switch sets a few skill values below (hover for which); unticking puts them back to AE stock.
         </p>
       </Subsection>
 

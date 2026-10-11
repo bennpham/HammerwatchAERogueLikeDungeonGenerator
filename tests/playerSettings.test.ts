@@ -8,10 +8,12 @@ import {
 } from '../src/generator'
 import {
   HW2_CLASSES,
+  ORIGINAL_TOGGLES,
   PLAYER_FIELD_MAP,
   PLAYER_PRESETS,
   PLAYER_PRESET_GROUPS,
   PLAYER_STOCK,
+  allOriginalToggles,
   applyEverythingFree,
   applyFullyUpgraded,
   applyGroupFactor,
@@ -23,12 +25,14 @@ import {
   fieldsOfGroup,
   hw2AttributePoints,
   hw2Body,
+  isOriginalToggleOn,
   playerOverrides,
   playerPresetById,
   prunePlayerTweaks,
   setClassSpeed,
   setEveryoneSpeed,
   setGroupSpeed,
+  setOriginalToggle,
   shopKey,
   skillKey,
   speedOf,
@@ -293,6 +297,58 @@ describe('player presets', () => {
     expect(speedOf(t, 'melee')).toBe(0.9)
     expect(t[skillKey('pal_sword', 1, 'sword-dmg')]).toBe(9)
     expect(t[skillKey('shared_combo', 1, 'combo-timer')]).toBe(750)
+  })
+
+  it('original Hammerwatch: no bow heat, the original attack movement and paladin swing', () => {
+    const t = playerPresetById('original')!.build()
+    for (const toggle of ORIGINAL_TOGGLES) expect(isOriginalToggleOn(toggle.id, t), toggle.id).toBe(true)
+    expect(t[skillKey('ran_bow', 1, 'overheating-max')]).toBe(0)
+    expect(t[skillKey('ran_bow', 1, 'move-speed-mul')]).toBe(0.5)
+    expect(t[skillKey('wiz_meteor', 1, 'move-speed-mul')]).toBe(0)
+    expect(t[skillKey('wiz_meteor', 1, 'move-speed-until')]).toBe(1000)
+    expect(t[skillKey('pal_sword', 1, 'cast-speed-mul')]).toBe(5.4)
+    expect(t[skillKey('pal_sword', 1, 'cooldown')]).toBe(0)
+  })
+})
+
+describe('original Hammerwatch toggles', () => {
+  it('are all off on AE stock', () => {
+    for (const toggle of ORIGINAL_TOGGLES) expect(isOriginalToggleOn(toggle.id, {}), toggle.id).toBe(false)
+  })
+
+  it('name only real fields, each off stock', () => {
+    for (const toggle of ORIGINAL_TOGGLES) {
+      for (const [key, value] of Object.entries(toggle.values)) {
+        const field = PLAYER_FIELD_MAP.get(key)
+        expect(field, key).toBeDefined()
+        expect(value, key).not.toBe(field!.stock)
+      }
+      expect(validatePlayerTweaks(toggle.values).errors, toggle.id).toEqual([])
+    }
+  })
+
+  it('switch on and back off to exactly what was there', () => {
+    const before = { [COST_KEY]: 5 }
+    for (const toggle of ORIGINAL_TOGGLES) {
+      const on = setOriginalToggle(toggle.id, true, before)
+      expect(isOriginalToggleOn(toggle.id, on)).toBe(true)
+      expect(on[COST_KEY]).toBe(5)
+      const off = setOriginalToggle(toggle.id, false, on)
+      expect(isOriginalToggleOn(toggle.id, off)).toBe(false)
+      expect(off).toEqual(before)
+    }
+  })
+
+  it('one edited value turns its toggle off', () => {
+    const on = setOriginalToggle('paladin-swing', true, {})
+    expect(isOriginalToggleOn('paladin-swing', { ...on, [skillKey('pal_sword', 1, 'cooldown')]: 50 })).toBe(false)
+  })
+
+  it('patch the skill files', () => {
+    const paths = playerOverrides(allOriginalToggles()).map((o) => o.path)
+    expect(paths).toContain('players/ranger/skills/ran_bow.sval')
+    expect(paths).toContain('players/wizard/skills/wiz_meteor.sval')
+    expect(paths).toContain('players/paladin/skills/pal_sword.sval')
   })
 })
 

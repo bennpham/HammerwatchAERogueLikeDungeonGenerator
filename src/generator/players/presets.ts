@@ -1,5 +1,6 @@
 import { PLAYER_FIELD_MAP, prunePlayerTweaks, skillKey, statKey } from './fields'
 import type { PlayerTweaks } from './fields'
+import { allOriginalToggles } from './original'
 import { setEveryoneSpeed } from './speed'
 import { PLAYER_STOCK } from './stock.generated'
 
@@ -48,10 +49,13 @@ function tiers(chain: string, field: string, values: Record<number, number>): Pl
  * - the combo window 0.25 s shorter at every tier (AE writes it in ms);
  * - weaker sword, fireball and stronger knives ladders;
  * - the paladin's mana regen ladder and armor tiers 4–5;
- * - the original's prices where AE changed them.
+ * - the original's prices where AE changed them;
+ * - every `ORIGINAL_TOGGLES` switch: no bow heat, the original's movement
+ *   while attacking, and the paladin's fast swing.
  */
 function originalHammerwatch(): PlayerTweaks {
   return prunePlayerTweaks({
+    ...allOriginalToggles(),
     ...setEveryoneSpeed({}, 0.9),
     ...tiers('shared_combo', 'combo-timer', { 1: 750 }),
     ...tiers('shared_combo:shared_combo_timer', 'combo-timer', { 1: 1000, 2: 1250, 3: 1500, 4: 1750, 5: 2000 }),
@@ -311,7 +315,7 @@ export const PLAYER_PRESETS: readonly PlayerPreset[] = [
     label: 'Original Hammerwatch balance',
     group: 'original',
     description:
-      'The original game’s numbers where AE changed them: one slower move speed for everyone (0.9), a shorter combo window, the original sword, knife and fireball damage, the paladin’s mana regen and armor, and the original prices.',
+      'The original game’s numbers where AE changed them: one slower move speed for everyone (0.9), a shorter combo window, the original sword, knife and fireball damage, the paladin’s mana regen and armor, and the original prices. Plays like it too: the ranger’s bow never overheats, the paladin swings as fast as you click, and the paladin, wizard and warlock stand still to attack (meteor locks the wizard in place).',
     build: originalHammerwatch
   },
   {
