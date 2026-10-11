@@ -15,7 +15,7 @@ import {
   writeCampaign
 } from '../src/main/packer'
 import { generateDungeon } from '../src/generator'
-import { playerOverrides, playerPresetById, skillKey, statKey } from '../src/generator/players'
+import { applyEverythingFree, applyGroupFactor, playerOverrides, skillKey, statKey } from '../src/generator/players'
 import type { DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
 import { AE_ROOT, HAS_AE } from './aeInstall'
@@ -152,7 +152,10 @@ describe.skipIf(!HAS_AE || process.env.HWAE_PACK !== '1')('packer — real PACKA
     params.levelMonsters = [['bat']]
     params.boss = { ...params.boss, enabled: false }
     // with player settings, including a class's own move speed
-    params.playerTweaks = { ...playerPresetById('op-test')!.build(), [skillKey('shared_speed', 1, 'movespeed-mul', 'priest')]: 2 }
+    params.playerTweaks = {
+      ...applyGroupFactor('damage', 3, applyEverythingFree({})),
+      [skillKey('shared_speed', 1, 'movespeed-mul', 'priest')]: 2
+    }
     const result = generateDungeon(params, 99001) as DungeonResult
     expect(result.ok).toBe(true)
     const packed = join(AE_ROOT, 'scenarios', `${result.campaignName}.h1c`)

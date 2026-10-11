@@ -1,4 +1,3 @@
-import { applyEverythingFree, applyGroupFactor } from './bulk'
 import { PLAYER_FIELD_MAP, prunePlayerTweaks, skillKey, statKey } from './fields'
 import type { PlayerTweaks } from './fields'
 import { setEveryoneSpeed } from './speed'
@@ -120,20 +119,6 @@ function dungeonRebalanced(): PlayerTweaks {
 
     [statKey('sorcerer', 'base-health')]: 40
   })
-}
-
-/**
- * For testing a dungeon, not for playing it: everything free, three times the
- * damage, health and armor, twice the mana, and everyone a little faster.
- */
-function opTestRun(): PlayerTweaks {
-  let t: PlayerTweaks = applyEverythingFree({})
-  t = applyGroupFactor('damage', 3, t)
-  t = applyGroupFactor('health', 3, t)
-  t = applyGroupFactor('armor', 3, t)
-  t = applyGroupFactor('mana', 2, t)
-  t = setEveryoneSpeed(t, 1.4)
-  return prunePlayerTweaks(t)
 }
 
 // ---------------------------------------------------------------- HW2 bodies
@@ -313,14 +298,6 @@ const SKILLS_NOTE =
   'HW2’s skill values where they carry over. Priest and sorcerer, not in HW2, are scaled off the wizard (the priest stays frailest with the fastest mana regen).'
 
 export const PLAYER_PRESETS: readonly PlayerPreset[] = [
-  {
-    id: 'op-test',
-    label: 'OP test run',
-    group: 'generic',
-    description:
-      'For testing a dungeon: every purchase free, ×3 damage, health and armor, ×2 mana, and everyone moves at ×1.4.',
-    build: opTestRun
-  },
   {
     id: 'dungeon-rebalanced',
     label: 'Dungeon Rebalanced',

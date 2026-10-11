@@ -265,13 +265,6 @@ describe('player presets', () => {
     expect(t[skillKey('pal_sword', 1, 'sword-dmg')]).toBe(9)
     expect(t[skillKey('shared_combo', 1, 'combo-timer')]).toBe(750)
   })
-
-  it('OP test run makes everything free and the party strong', () => {
-    const t = playerPresetById('op-test')!.build()
-    expect(totalShopCost(t)).toBe(0)
-    expect(t[statKey('wizard', 'base-health')]).toBe(105)
-    expect(deriveGroupFactor('damage', t)).toBe(3)
-  })
 })
 
 describe('Hammerwatch 2 player presets', () => {

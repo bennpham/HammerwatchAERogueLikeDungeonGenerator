@@ -20,7 +20,10 @@ interface PlayerFormProps {
   onChange: (tweaks: PlayerTweaks) => void
 }
 
-const SHARED_FILES = PLAYER_STOCK.skills.filter((f) => SHARED_SKILL_PATHS.has(f.path))
+// combo first: it's the one every class shares, ahead of the two move speeds
+const SHARED_FILES = PLAYER_STOCK.skills
+  .filter((f) => SHARED_SKILL_PATHS.has(f.path))
+  .sort((a, b) => Number(b.stem === 'shared_combo') - Number(a.stem === 'shared_combo'))
 
 /** Every all-classes key a skill file holds, for its "n changed" badge. */
 function keysOfFile(file: PlayerSkillFile): string[] {
