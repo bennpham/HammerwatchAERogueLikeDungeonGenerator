@@ -24,7 +24,7 @@ const TILE = 16
  * [VERIFIED against stock levels]: the anchor is the cell's top-left corner,
  * vertical pieces anchor one row up, and the 32-px pieces span two cells.
  */
-function wallCells(u: AeUnit): Array<[number, number]> {
+export function wallCells(u: AeUnit): Array<[number, number]> {
   const piece = /\/([a-z0-9_]+)\.unit$/.exec(u.path)?.[1] ?? ''
   const x = Math.round(u.x / TILE)
   const y = Math.round(u.y / TILE)
