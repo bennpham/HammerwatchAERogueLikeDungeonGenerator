@@ -5,10 +5,10 @@ A lobby is an ordinary AE editor level. The generator copies it into each lobby 
 ## Importing
 
 ```sh
-node scripts/import-ae-lobby.mjs "<AE root>/editor/lobbies/lobby.lvl" --id hall --label "Hall" --description "..."
+node scripts/import-ae-lobby.mjs "<AE root>/editor/lobbies/lobby.lvl" --id house --label "House" --description "..."
 ```
 
-This embeds the level in `src/generator/lobby/templates.generated.ts`. Re-running the command with the same `--id` replaces that lobby. A template with the id `hall` becomes the default lobby (`DEFAULT_LOBBY_PRESET_ID`).
+This embeds the level in `src/generator/lobby/templates.generated.ts`. Re-running the command with the same `--id` replaces that lobby. A template with the id `house` becomes the default lobby (`DEFAULT_LOBBY_PRESET_ID`).
 
 ## What the generator looks for
 
@@ -35,5 +35,5 @@ The generator also:
 ## Unconfirmed in game
 
 These are on `docs/BOOT-CHECKLIST.md`:
-- **Doors.** The hall's `_door_1b` / `_door_1c` doors use AE's plain `Door` behaviour, with no key and no controller. It isn't confirmed that they open for the party on their own. If they don't, the portal room can't be reached.
-- **Item vendor.** `ShopArea` `Type 2`, category `item`, copied from the hall itself.
+- **Doors.** The house's `_door_1b` / `_door_1c` doors use AE's plain `Door` behaviour, with no key and no controller. It isn't confirmed that they open for the party on their own. If they don't, the portal room can't be reached.
+- **Item vendor.** `ShopArea` `Type 2` (the equipment shop). Its categories must be AE loot tables, `equipment_1`–`equipment_5`; an author's `item` category is rewritten to the selected tiers.

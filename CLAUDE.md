@@ -47,7 +47,7 @@ The full record is `.claude/skills/hammerwatch-ae-modding/references/DISCOVERY-L
 - **Lives:** always 0. `info.xml` forces the `NO_LIVES` modifier; never offer lives back.
 - **Walls:** vertical pieces anchor one row above their cell, and `h_32`/`v_32` span two cells.
 - **`PACKAGER.exe`** exits 127 even on success; judge the install by the `.h1c` and its `HW1S` header.
-- **Lobbies** are hand-made AE editor levels: `docs/LOBBY-AUTHORING.md`. The user's `hall` is the default.
+- **Lobbies** are hand-made AE editor levels: `docs/LOBBY-AUTHORING.md`. The user's `house` is the default.
 
 ## Working here
 

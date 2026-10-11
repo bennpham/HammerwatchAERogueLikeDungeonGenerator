@@ -5,6 +5,7 @@ import type { LobbyOptions } from '../config/parameters'
 import type { GenerationContext } from '../core/context'
 import { getTheme, themeEnvironment, THEME_DEFS } from '../config/themes'
 import { AeLevel, P } from '../ae/model'
+import type { AeUnit } from '../ae/model'
 import { readLevel } from '../ae/levelReader'
 import { TileLayers } from '../ae/tiles'
 import { emitObjects, emitWalls } from '../ae/emit'
@@ -167,7 +168,9 @@ function placePayout(
  * - vendors: `lobby:vendor:<id>`, else the vendor its ShopArea's categories
  *   name (def* -> defense, off* -> offense, item -> item...). A stand whose
  *   UseTrigger has no use area gets one, on the stand;
- * - payout: `lobby:payout`, else the free floor around the spawn.
+ * - payout: the diamonds and upgrade pickups the author placed (their spots are
+ *   the payout slots, the placed units themselves removed), else a
+ *   `lobby:payout` marker, else the free floor around the spawn.
  *
  * Units and scripts the generator adds continue the template's own id
  * numbering, so nothing collides.
@@ -247,11 +250,13 @@ function buildFromTemplate(
   }
 
   // --- payout, save point, music --------------------------------------------
+  // authored payout spots: every diamond and upgrade pickup placed in the editor
+  const authored = takeAuthoredPayout(level)
   const payout = level.scripts.find((s) => s.label === 'lobby:payout')
-  if (payout !== undefined) {
+  if (authored.diamonds.length === 0 && payout !== undefined) {
     placePayout(ctx, options, { x: payout.x / TILE, y: payout.y / TILE }, { x: payout.x / TILE + 8, y: payout.y / TILE })
   } else if (spawn !== undefined) {
-    placePayoutAround(ctx, options, level, spawn.x / TILE, spawn.y / TILE)
+    placePayoutAround(ctx, options, level, spawn.x / TILE, spawn.y / TILE, authored)
   }
   if (spawn !== undefined) {
     if (saves) addSavePoint(ctx, spawn.x / TILE, spawn.y / TILE)
@@ -274,7 +279,7 @@ function vendorIdOf(categories: string): string | undefined {
   if (first.startsWith('off')) return 'offense'
   if (first.startsWith('misc')) return 'misc'
   if (first === 'power') return 'power'
-  if (first === 'item') return 'item'
+  if (first === 'item' || first.startsWith('equipment_')) return 'item'
   return undefined
 }
 
@@ -291,14 +296,53 @@ function nearest<T extends { x: number; y: number }>(items: readonly T[], x: num
   return best
 }
 
+interface AuthoredPayout {
+  /** spots, in tiles, where the author placed a diamond */
+  diamonds: Array<{ x: number; y: number }>
+  /** where the author placed each kind of upgrade pickup */
+  upgrades: Partial<Record<(typeof UPGRADE_KINDS)[number], { x: number; y: number }>>
+}
+
+/** Pull the author's placed diamonds and upgrade pickups out of the level, keeping their spots. */
+function takeAuthoredPayout(level: AeLevel): AuthoredPayout {
+  const out: AuthoredPayout = { diamonds: [], upgrades: {} }
+  const taken = new Set<AeUnit>()
+  for (const u of level.units) {
+    if (/^items\/pickups\/money\/diamond[a-z_]*\.unit$/.test(u.path)) {
+      out.diamonds.push({ x: u.x / TILE, y: u.y / TILE })
+      taken.add(u)
+      continue
+    }
+    const kind = UPGRADE_KINDS.find((k) => upgradeItemPath(k) === u.path)
+    if (kind !== undefined) {
+      out.upgrades[kind] ??= { x: u.x / TILE, y: u.y / TILE }
+      taken.add(u)
+    }
+  }
+  level.units = level.units.filter((u) => !taken.has(u))
+  // reading order, so the first diamonds land top-left whatever order the editor saved them in
+  out.diamonds.sort((a, b) => a.y - b.y || a.x - b.x)
+  return out
+}
+
 /**
- * Lay the payout on the free floor around the spawn, nearest first: walk out
+ * Lay the payout. Authored spots first: the diamonds cycle over the author's
+ * diamond spots (stacking once each holds one), each upgrade kind lands on its
+ * own authored spot. Anything without an authored spot goes on the free floor
+ * around the spawn, nearest first: walk out
  * from the spawn tile over cells no wall, door or prop stands on, within a
  * bounded radius (an open edge in the template cannot carry it away), and
  * leave the spawn tile and its neighbours clear. Diamonds first, then one
  * cell per upgrade kind.
  */
-function placePayoutAround(ctx: GenerationContext, options: LobbyOptions, level: AeLevel, sx: number, sy: number): void {
+function placePayoutAround(
+  ctx: GenerationContext,
+  options: LobbyOptions,
+  level: AeLevel,
+  sx: number,
+  sy: number,
+  authored: AuthoredPayout = { diamonds: [], upgrades: {} }
+): void {
   const blocked = new Set<string>()
   for (const u of level.units) {
     if (u.path.startsWith(':')) continue
@@ -329,17 +373,25 @@ function placePayoutAround(ctx: GenerationContext, options: LobbyOptions, level:
   }
   let next = 0
   const take = (): [number, number] | undefined => free[next++]
-  for (let i = 0; i < diamondCount(options.startingGold); i++) {
+  const diamonds = diamondCount(options.startingGold)
+  for (let i = 0; i < diamonds; i++) {
+    if (authored.diamonds.length > 0) {
+      const at = authored.diamonds[i % authored.diamonds.length]
+      ctx.extraUnits.push({ path: DIAMOND_UNIT, x: at.x, y: at.y })
+      continue
+    }
     const at = take()
-    if (at === undefined) return
+    if (at === undefined) break
     ctx.extraUnits.push({ path: DIAMOND_UNIT, x: at[0] + 0.5, y: at[1] + 0.5 })
   }
   for (const kind of UPGRADE_KINDS) {
     const n = options.upgrades[kind] ?? 0
     if (n === 0) continue
-    const at = take()
-    if (at === undefined) return
-    for (let k = 0; k < n; k++) ctx.extraUnits.push({ path: upgradeItemPath(kind), x: at[0] + 0.5, y: at[1] + 0.5 })
+    const spot = authored.upgrades[kind]
+    const free1 = spot === undefined ? take() : undefined
+    if (spot === undefined && free1 === undefined) continue
+    const at = spot ?? { x: free1![0] + 0.5, y: free1![1] + 0.5 }
+    for (let k = 0; k < n; k++) ctx.extraUnits.push({ path: upgradeItemPath(kind), x: at.x, y: at.y })
   }
 }
 

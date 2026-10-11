@@ -1,5 +1,5 @@
 import { execFile } from 'child_process'
-import { existsSync, openSync, readSync, closeSync, readFileSync } from 'fs'
+import { existsSync, openSync, readSync, closeSync, readFileSync, readdirSync } from 'fs'
 import { mkdir, rename, rm, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { dirname, join } from 'path'
@@ -85,6 +85,55 @@ export function hasH1cMagic(file: string): boolean {
   }
 }
 
+/** Where the power shop script sits, scenario-relative and in the unpacked assets. */
+export const POWER_SHOP_SCRIPT = 'scripts/GUI/Shop/PowerShopMenuContent.as'
+
+/** The stock guard around the extra-life offer — true unless BOTH life modifiers are on. */
+const LIFE_GUARD = /^%if !MOD_INFINITE_LIVES \| !MOD_NO_LIVES[ \t]*\r?\n([^\r\n]*power_life[^\r\n]*\r?\n)%endif/m
+
+/**
+ * AE's power shop offers "buy an extra life" unless BOTH MOD_INFINITE_LIVES and
+ * MOD_NO_LIVES are on (`!A | !B`), so a forced NO_LIVES scenario still sells a
+ * life — and PartyRecord.GiveLife is a no-op under NO_LIVES, so the party pays
+ * 350 gold for nothing. The fix is that one guard, as two nested %ifs (the
+ * preprocessor's nesting is what stock PartyRecord.as uses; its `&` is
+ * unproven).
+ *
+ * Returns the patched script, or null when the install has no unpacked copy to
+ * patch or the guard is not the one we know. The game's own code is never
+ * stored in this repo: the patch is applied to the user's own copy at install.
+ */
+export function patchedPowerShop(stock: string): string | null {
+  if (!LIFE_GUARD.test(stock)) return null
+  return stock.replace(LIFE_GUARD, (_m, line: string) => `%if !MOD_INFINITE_LIVES\n%if !MOD_NO_LIVES\n${line}%endif\n%endif`)
+}
+
+/** The newest unpacked assets folder in an AE install, or null. */
+export function unpackedAssetsDir(aePath: string, list: (dir: string) => string[] = safeList): string | null {
+  const dirs = list(aePath)
+    .filter((d) => /^unpacked_assets_\d+$/.test(d))
+    .sort((a, b) => Number(b.split('_').pop()) - Number(a.split('_').pop()))
+  return dirs.length > 0 ? join(aePath, dirs[0]) : null
+}
+
+function safeList(dir: string): string[] {
+  try {
+    return readdirSync(dir)
+  } catch {
+    return []
+  }
+}
+
+/** The power shop override for this install, or null with the reason. */
+function powerShopOverride(aePath: string): { content: string } | { reason: string } {
+  const assets = unpackedAssetsDir(aePath)
+  if (assets === null) return { reason: 'no unpacked_assets_* folder in the AE install to patch' }
+  const stock = safeRead(join(assets, POWER_SHOP_SCRIPT))
+  if (stock === null) return { reason: `no ${POWER_SHOP_SCRIPT} in ${assets}` }
+  const patched = patchedPowerShop(stock)
+  return patched === null ? { reason: 'the power shop script changed in this AE version; not patched' } : { content: patched }
+}
+
 function safeRead(p: string): string | null {
   try {
     return readFileSync(p, 'utf-8')
@@ -127,6 +176,9 @@ export async function installScenario(
   await rm(sourceDir, { recursive: true, force: true })
   await rm(packed, { force: true })
   await writeCampaign(sourceDir, files)
+  // no "buy an extra life" in a 0-lives run (see patchedPowerShop)
+  const powerShop = powerShopOverride(aePath)
+  if ('content' in powerShop) await writeCampaign(sourceDir, [{ path: POWER_SHOP_SCRIPT, content: powerShop.content }])
 
   const isWindows = process.platform === 'win32'
   const command = isWindows ? packager : 'wine'
@@ -167,7 +219,9 @@ export async function installScenario(
 
   return {
     ok: true,
-    message: `Installed ${scenarioId}.h1c — start it from the scenario list in Hammerwatch Anniversary Edition.`,
+    message:
+      `Installed ${scenarioId}.h1c — start it from the scenario list in Hammerwatch Anniversary Edition.` +
+      ('reason' in powerShop ? ` Note: the power shop still offers an extra life (${powerShop.reason}).` : ''),
     outputPath: packed
   }
 }

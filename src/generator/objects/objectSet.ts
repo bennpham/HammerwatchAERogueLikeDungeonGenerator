@@ -48,7 +48,8 @@ export const SHOP_KINDS: readonly ShopKind[] = [
   { id: 'defense', vendor: 'VendorDefense', categories: 'def1 def2 def3 def4 def5', type: SHOP_SKILLS },
   { id: 'misc', vendor: 'VendorMisc', categories: 'misc1 misc2 misc3 misc4 misc5', type: SHOP_SKILLS },
   { id: 'power', vendor: 'VendorPower', categories: 'power', type: SHOP_POWER },
-  { id: 'item', vendor: 'VendorItem', categories: 'item', type: SHOP_ITEMS }
+  // AE's mid equipment table: common and uncommon items
+  { id: 'item', vendor: 'VendorItem', categories: 'equipment_3', type: SHOP_ITEMS }
 ]
 
 /**

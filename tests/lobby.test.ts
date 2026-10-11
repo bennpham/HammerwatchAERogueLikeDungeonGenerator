@@ -1,6 +1,6 @@
 /**
  * Lobbies: the generated stand-in room and every imported AE lobby (the
- * user's `hall` is the default). Each preset runs the same contract — exit,
+ * user's `house` is the default). Each preset runs the same contract — exit,
  * arrival, vendors, payout, ids, assets — read back from the emitted level.
  */
 import { describe, expect, it } from 'vitest'
@@ -21,7 +21,11 @@ import {
 import type { DungeonParameters, DungeonResult, LobbyOptions, LobbyPresetDef } from '../src/generator'
 import { UPGRADE_KINDS, noUpgrades, oneOfEachUpgrade, upgradeItemPath } from '../src/generator/lobby/payout'
 import { DIAMOND_UNIT } from '../src/generator/lobby/payout'
-import { HALL_LOBBY_ID, STANDIN_LOBBY_ID } from '../src/generator/lobby/presets'
+import { HOUSE_LOBBY_ID, STANDIN_LOBBY_ID } from '../src/generator/lobby/presets'
+import { buildLobby } from '../src/generator/lobby/build'
+import { GenerationContext } from '../src/generator/core/context'
+import { readLevel } from '../src/generator/ae/levelReader'
+import { renderLevel } from '../src/generator/ae/levelWriter'
 import { aeAssetExists } from '../src/generator/catalog/assets'
 import type { AeLevel } from '../src/generator/ae/model'
 import { allIds, idsParam, levelsOf, placements, scriptById, scriptsOf, stemsOf, strParam, unitById } from './ae'
@@ -71,9 +75,9 @@ describe('lobby — presets', () => {
     const ids = LOBBY_PRESETS.map((p) => p.id)
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids).toContain(STANDIN_LOBBY_ID)
-    expect(ids).toContain(HALL_LOBBY_ID)
-    expect(DEFAULT_LOBBY_PRESET_ID).toBe(HALL_LOBBY_ID)
-    expect(defaultLobby().preset).toBe(HALL_LOBBY_ID)
+    expect(ids).toContain(HOUSE_LOBBY_ID)
+    expect(DEFAULT_LOBBY_PRESET_ID).toBe(HOUSE_LOBBY_ID)
+    expect(defaultLobby().preset).toBe(HOUSE_LOBBY_ID)
   })
 
   it('maps the retired HW1 placeholder ids onto the default, keeping the boss-prep purse', () => {
@@ -100,10 +104,21 @@ describe('lobby — none configured', () => {
 })
 
 describe('lobby — shop columns', () => {
-  it('covers 22 columns across six stalls, items included', () => {
-    expect(ALL_LOBBY_CATEGORIES).toHaveLength(22)
+  it('covers 26 columns across six stalls; the item stall sells AE\'s equipment tables', () => {
+    expect(ALL_LOBBY_CATEGORIES).toHaveLength(26)
     expect(LOBBY_VENDORS.map((v) => v.id)).toEqual(['combo', 'defense', 'misc', 'offense', 'power', 'item'])
-    expect(new Set(ALL_LOBBY_CATEGORIES).size).toBe(22)
+    expect(new Set(ALL_LOBBY_CATEGORIES).size).toBe(26)
+    expect(LOBBY_VENDORS.find((v) => v.id === 'item')!.categories).toEqual([
+      'equipment_1',
+      'equipment_2',
+      'equipment_3',
+      'equipment_4',
+      'equipment_5'
+    ])
+  })
+
+  it('opens a new lobby with every skill column, power and one equipment tier', () => {
+    expect(defaultLobby().shopCategories).toEqual(ALL_LOBBY_CATEGORIES.filter((c) => !c.startsWith('equipment_') || c === 'equipment_2'))
   })
 
   it('maps every column back to its vendor', () => {
@@ -113,7 +128,7 @@ describe('lobby — shop columns', () => {
 
   it('counts the upgrades a skill column contains', () => {
     const counts = lobbyCategoryCounts({})
-    for (const category of ALL_LOBBY_CATEGORIES.filter((c) => c !== 'item')) {
+    for (const category of ALL_LOBBY_CATEGORIES.filter((c) => !c.startsWith('equipment_'))) {
       expect(counts[category], `${category} has no upgrades in the stock baseline`).toBeGreaterThan(0)
     }
     expect(counts.power).toBe(5)
@@ -180,8 +195,9 @@ for (const preset of LOBBY_PRESETS) {
     describe('vendor stalls', () => {
       it('sells every stall by default: the five skill and power vendors and the items', () => {
         const open = stalls(lobbyOf(preset)).map((s) => s.categories).sort()
-        expect(open).toEqual(LOBBY_VENDORS.map((v) => v.categories.join(' ')).sort())
-        const items = stalls(lobbyOf(preset)).find((s) => s.categories === 'item')
+        const expected = LOBBY_VENDORS.map((v) => (v.id === 'item' ? 'equipment_2' : v.categories.join(' '))).sort()
+        expect(open).toEqual(expected)
+        const items = stalls(lobbyOf(preset)).find((s) => s.categories === 'equipment_2')
         expect(items?.type, 'the item vendor is ShopArea Type 2').toBe(2)
       }, 60_000)
 
@@ -278,7 +294,7 @@ for (const preset of LOBBY_PRESETS) {
         params.lobbies = [
           optionsFor(preset, {
             startingGold: 2500,
-            shopCategories: ['misc1', 'misc2', 'off1', 'def1', 'power', 'item'],
+            shopCategories: ['misc1', 'misc2', 'off1', 'def1', 'power', 'equipment_4'],
             upgrades: { ...noUpgrades(), health: 3 }
           })
         ]
@@ -289,3 +305,34 @@ for (const preset of LOBBY_PRESETS) {
     })
   })
 }
+
+describe('lobby — authored payout spots', () => {
+  /** The house with `n` diamonds and a health upgrade placed by the "author". */
+  function houseWithPayout(n: number): LobbyPresetDef {
+    const house = lobbyPresetById(HOUSE_LOBBY_ID)!
+    const { level } = readLevel(house.lvl!)
+    for (let i = 0; i < n; i++) level.units.push({ path: DIAMOND_UNIT, x: 100 + i * 16, y: 40, id: level.newId() })
+    level.units.push({ path: upgradeItemPath('health'), x: 200, y: 40, id: level.newId() })
+    return { ...house, lvl: renderLevel(level) }
+  }
+
+  function build(preset: LobbyPresetDef, options: LobbyOptions): AeLevel {
+    const ctx = new GenerationContext(plainParameters(), 1)
+    ctx.currentStem = 'lobby0'
+    return buildLobby(ctx, preset, options, 'floor0', false, 0)
+  }
+
+  it('lays the diamonds on the spots the author placed, cycling once each holds one', () => {
+    const lobby = build(houseWithPayout(3), { ...defaultLobby(HOUSE_LOBBY_ID), startingGold: 5 * LOBBY_DIAMOND_VALUE })
+    const spots = lobby.units.filter((u) => u.path === DIAMOND_UNIT).map((u) => `${u.x},${u.y}`)
+    expect(spots).toHaveLength(5)
+    expect(new Set(spots)).toEqual(new Set(['100,40', '116,40', '132,40']))
+  })
+
+  it('puts an upgrade on its authored spot, and never leaves the author\'s placeholders behind', () => {
+    const lobby = build(houseWithPayout(2), { ...defaultLobby(HOUSE_LOBBY_ID), startingGold: 0, upgrades: { ...noUpgrades(), health: 2 } })
+    expect(lobby.units.filter((u) => u.path === DIAMOND_UNIT)).toHaveLength(0)
+    const health = lobby.units.filter((u) => u.path === upgradeItemPath('health'))
+    expect(health.map((u) => `${u.x},${u.y}`)).toEqual(['200,40', '200,40'])
+  })
+})

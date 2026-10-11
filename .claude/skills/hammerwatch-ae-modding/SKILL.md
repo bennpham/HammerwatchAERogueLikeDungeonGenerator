@@ -56,4 +56,4 @@ From `<AE>`, run `PACKAGER.exe -l <id>`, which writes `scenarios/<id>.h1c` (head
 
 ## Lobbies
 
-A lobby is an AE editor level imported with `scripts/import-ae-lobby.mjs`. Its parts are found by label or by structure (`docs/LOBBY-AUTHORING.md`). The user's `hall` is the default.
+A lobby is an AE editor level imported with `scripts/import-ae-lobby.mjs`. Its parts are found by label or by structure (`docs/LOBBY-AUTHORING.md`). The user's `house` is the default.

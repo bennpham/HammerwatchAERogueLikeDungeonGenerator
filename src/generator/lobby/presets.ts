@@ -8,7 +8,7 @@
  * `scripts/import-ae-lobby.mjs` into `templates.generated.ts`; the generator
  * finds their exit, spawn, vendors and payout spot by script label or by
  * structure and rewrites them (docs/LOBBY-AUTHORING.md). The user's own
- * `hall` lobby is the default.
+ * `house` lobby is the default.
  */
 import { LOBBY_TEMPLATES } from './templates.generated'
 import { standinDiagramSlots } from './layout'
@@ -41,8 +41,8 @@ export const LOBBY_PRESETS: readonly LobbyPresetDef[] = [
 ]
 
 /** The user's hand-made AE lobby, when it has been imported; else the generated room. */
-export const HALL_LOBBY_ID = 'hall'
-export const DEFAULT_LOBBY_PRESET_ID = LOBBY_TEMPLATES.some((t) => t.id === HALL_LOBBY_ID) ? HALL_LOBBY_ID : STANDIN_LOBBY_ID
+export const HOUSE_LOBBY_ID = 'house'
+export const DEFAULT_LOBBY_PRESET_ID = LOBBY_TEMPLATES.some((t) => t.id === HOUSE_LOBBY_ID) ? HOUSE_LOBBY_ID : STANDIN_LOBBY_ID
 
 export function lobbyPresetById(id: string): LobbyPresetDef | undefined {
   return LOBBY_PRESETS.find((p) => p.id === id)

@@ -12,7 +12,7 @@ A confirmed row goes into the discovery log as `[VERIFIED]`.
 |---|---|---|---|
 | 1 | Scenario loads | It's in the scenario list as "Dungeon #<seed>" and starts without errors in `HW1A.exe.log`. | UNCONFIRMED |
 | 2 | **0 lives** (`NO_LIVES` forced) | On the start screen, "No lives" is on and can't be turned off; the HUD shows no life counter; a dead player stays dead. If it can be toggled off, the `forced` value is wrong; try `forced="1"`, or `default-on`. | UNCONFIRMED |
-| 3 | Lobby: the hall | The game starts in your hall, at its spawn. | UNCONFIRMED |
+| 3 | Lobby: the house | The game starts in your house, at its spawn. | UNCONFIRMED |
 | 4 | Lobby doors | The `_door_1b` / `_door_1c` doors open as the party walks into them, or on F. If they stay shut, the portal room can't be reached. | UNCONFIRMED |
 | 5 | Lobby vendors | F at each stand opens its shop: combo, defense, misc, offense, power, and **items**. The defense shop sells the Warlock gargoyle (`def2`). | UNCONFIRMED |
 | 6 | Lobby payout | The red diamonds and any free upgrades lie near the spawn, on the floor and not inside furniture. | UNCONFIRMED |

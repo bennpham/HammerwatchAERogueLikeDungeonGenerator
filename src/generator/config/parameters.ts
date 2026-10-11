@@ -1,6 +1,6 @@
 import { MONSTER_FAMILIES, MONSTER_TYPES } from '../objects/monsterTypes'
 import { THEME_DEFS } from './themes'
-import { ALL_LOBBY_CATEGORIES } from '../lobby/shops'
+import { DEFAULT_LOBBY_CATEGORIES } from '../lobby/shops'
 import type { PlayerTweaks } from '../tweak/types'
 import { noUpgrades } from '../lobby/payout'
 import { DEFAULT_LOBBY_PRESET_ID } from '../lobby/presets'
@@ -1638,7 +1638,7 @@ export function defaultLobby(presetId: string = DEFAULT_LOBBY_PRESET_ID): LobbyO
   return {
     preset: legacy ? DEFAULT_LOBBY_PRESET_ID : presetId,
     startingGold: presetId === 'BETA-boss-prep' ? 20000 : 10000,
-    shopCategories: [...ALL_LOBBY_CATEGORIES],
+    shopCategories: [...DEFAULT_LOBBY_CATEGORIES],
     // no free upgrades by default: the vendors are the intended way to get
     // them, so handing eight out on the floor is opt-in per kind
     upgrades: noUpgrades()

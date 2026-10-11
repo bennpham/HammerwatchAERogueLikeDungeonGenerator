@@ -80,7 +80,7 @@ import { MAX_PICKUP_COUNT, pickupById } from '../objects/pickupTypes'
 import { projectileById } from '../objects/projectileTypes'
 import { LOBBY_DIAMOND_VALUE } from '../lobby/build'
 import { LOBBY_PRESETS } from '../lobby/presets'
-import { ALL_LOBBY_CATEGORIES, isLobbyCategory, lobbyCategoryCounts, vendorOfCategory } from '../lobby/shops'
+import { ALL_LOBBY_CATEGORIES, isEquipmentCategory, isLobbyCategory, lobbyCategoryCounts, vendorOfCategory } from '../lobby/shops'
 import { DIAMOND_VALUE, MAX_DIAMOND_COUNT, UPGRADE_KINDS } from '../lobby/payout'
 import type { UpgradeCounts } from '../lobby/payout'
 import { ARENA_LAYOUT_SLOTS, ARENA_MIN_HEIGHT, ARENA_MIN_WIDTH, freeFloorArea } from '../boss/geometry'
@@ -579,8 +579,8 @@ function validateLobby(
   // empty stall. Collapsed into one message the way the bulk tweak warnings
   // are — deselecting every ladder in the game would otherwise fire 21 of them.
   const counts = lobbyCategoryCounts(p.playerTweaks ?? {})
-  // the item vendor sells items, not skill upgrades, so it is never "empty"
-  const empty = lobby.shopCategories.filter((c) => c !== 'item' && counts[c] === 0)
+  // the item vendor sells equipment, not skill upgrades, so it is never "empty"
+  const empty = lobby.shopCategories.filter((c) => !isEquipmentCategory(c) && counts[c] === 0)
   if (empty.length > 0) {
     const vendors = [...new Set(empty.map((c) => vendorOfCategory(c)?.label ?? c))].sort()
     warnings.push({

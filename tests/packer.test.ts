@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { AE_DIR_NAME, findAeInstall, hasH1cMagic, installScenario, isAeInstall, steamLibraryCandidates, writeCampaign } from '../src/main/packer'
+import {
+  AE_DIR_NAME,
+  findAeInstall,
+  hasH1cMagic,
+  installScenario,
+  isAeInstall,
+  patchedPowerShop,
+  steamLibraryCandidates,
+  unpackedAssetsDir,
+  writeCampaign
+} from '../src/main/packer'
 import { generateDungeon } from '../src/generator'
 import type { DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
@@ -52,6 +62,36 @@ describe('packer — finding the install', () => {
   })
 })
 
+describe('packer — no extra lives for sale', () => {
+  const STOCK = [
+    '\t\tm_shopMenu.CloseTooltip();',
+    '',
+    '%if !MOD_INFINITE_LIVES | !MOD_NO_LIVES',
+    '\t\tAddItemToShop("power_life", ".life-uname", ".life-udesc", 350);',
+    '%endif',
+    '',
+    '\t\tAddItemToShop("power_rejuv", ".rejuv-uname", ".rejuv-udesc", 175);'
+  ].join('\r\n')
+
+  it('hides the extra life whenever either life modifier is on, and leaves the rest alone', () => {
+    const patched = patchedPowerShop(STOCK)!
+    expect(patched).toContain('%if !MOD_INFINITE_LIVES\n%if !MOD_NO_LIVES\n\t\tAddItemToShop("power_life"')
+    expect(patched).not.toContain('!MOD_INFINITE_LIVES | !MOD_NO_LIVES')
+    expect(patched.match(/%endif/g)).toHaveLength(2)
+    expect(patched).toContain('AddItemToShop("power_rejuv"')
+  })
+
+  it('refuses a script it does not recognise rather than guessing', () => {
+    expect(patchedPowerShop('%if SOMETHING_ELSE\nAddItemToShop("power_life")\n%endif')).toBeNull()
+  })
+
+  it.skipIf(!HAS_AE)('recognises the install\'s own power shop script', () => {
+    const assets = unpackedAssetsDir(AE_ROOT)
+    expect(assets).not.toBeNull()
+    expect(patchedPowerShop(readFileSync(join(assets!, 'scripts/GUI/Shop/PowerShopMenuContent.as'), 'utf-8'))).not.toBeNull()
+  })
+})
+
 describe('packer — install guards', () => {
   it('refuses an empty or missing folder', async () => {
     const noPath = await installScenario('', 'dungeon_1', [], false)
@@ -91,6 +131,8 @@ describe.skipIf(!HAS_AE || process.env.HWAE_PACK !== '1')('packer — real PACKA
       const install = await installScenario(AE_ROOT, result.campaignName, result.files, false)
       expect(install.ok, install.message).toBe(true)
       expect(hasH1cMagic(packed)).toBe(true)
+      // the patched power shop travels inside the scenario
+      expect(readFileSync(packed).includes(Buffer.from('PowerShopMenuContent'))).toBe(true)
       expect(existsSync(join(AE_ROOT, 'scenarios', result.campaignName))).toBe(false)
     } finally {
       rmSync(packed, { force: true })

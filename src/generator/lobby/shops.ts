@@ -30,12 +30,28 @@ export const LOBBY_VENDORS: readonly LobbyVendorDef[] = [
   // `power` is real and stock — five shared.xml upgrades (life, rejuv and the
   // three potions). One column, so this stall is on/off and wears no badge.
   { id: 'power', label: 'Power', categories: ['power'] },
-  // the item vendor (AE ShopArea Type 2), on/off like power
-  { id: 'item', label: 'Items', categories: ['item'] }
+  // the item vendor (AE ShopArea Type 2, the equipment shop). Its columns are
+  // AE's equipment loot tables (tweak/shops/equipment.sval): each is a handful
+  // of random items, 1 all common up to 5 with rares and an epic.
+  { id: 'item', label: 'Items', categories: ['equipment_1', 'equipment_2', 'equipment_3', 'equipment_4', 'equipment_5'] }
 ]
 
 /** Every selectable shop column, in the order the vendor row stands in. */
 export const ALL_LOBBY_CATEGORIES: readonly string[] = LOBBY_VENDORS.flatMap((v) => v.categories)
+
+/** Whether a column is an item (equipment) table rather than skill upgrades. */
+export function isEquipmentCategory(id: string): boolean {
+  return id.startsWith('equipment_')
+}
+
+/**
+ * A new lobby's columns: every skill column, power, and one equipment tier —
+ * the item vendor lists every item of every selected tier, so all five at once
+ * would be a wall of 25 items.
+ */
+export const DEFAULT_LOBBY_CATEGORIES: readonly string[] = ALL_LOBBY_CATEGORIES.filter(
+  (c) => !isEquipmentCategory(c) || c === 'equipment_2'
+)
 
 const CATEGORY_SET = new Set(ALL_LOBBY_CATEGORIES)
 
