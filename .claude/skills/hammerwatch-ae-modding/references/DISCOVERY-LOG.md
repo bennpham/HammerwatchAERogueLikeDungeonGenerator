@@ -222,3 +222,64 @@ crypt tiles.
   `PowerShopMenuContent.as`).
 - The hw1-ported `trigger_button_floor.unit` logs "no scenes in set 'pressed'". Use stock
   AE button units.
+
+---
+
+## 2026-10-10 — Test migration, lives, packing, the user's lobby
+
+### Script enums `[VERIFIED]` (`<assets>/scripts/WorldScript/*.as`)
+
+- `ToggleScripts.State`: 1 enable, 2 disable, 3 toggle. The HW1 rigs used 0 = enable,
+  1 = disable; ported literally, every "disable" became an enable. `NodeToggleElement`
+  now takes a named `action`.
+- `ChangeVariables`: `Function` (ChangeFunc: 1 Set, 2 Add, 3 Subtract, 10 Multiply…),
+  `Value`, `Variables` (plural). `CheckVariables` (file `CheckVariable.as`): `Function`
+  (CompareFunc: 1 Equal default, 2 Greater, 3 Less, 4 GreaterOrEqual…), `Value`,
+  `Variable` (singular, max 1), `OnTrue`, `OnFalse`. `Variable`: `Value`.
+- `SetUnitScene`: `Units`, `State` (scene name), `ResetTime` (default true).
+  Stock example: castle level_1 id 4425 drives a plate to `on`.
+- `PlayMusic`: `Music` int (FMOD mode). Castle level_1 id 4803 sets `Music = 6`.
+- `ProjectileSpewer`: `Projectile` (unit path), `Direction` (int, degrees; Castle
+  level_10's flame turrets fire west at 180), `Spread` (float, degrees), `Frequency`
+  (int ms, default 50), `SoundLoop`.
+
+### There are no engine-wide boss events `[VERIFIED]` (generator bug found by tests)
+
+- Every tier/death trigger is an `ActorHealthTrigger` / `UnitDestroyedTrigger` over
+  explicit boss unit ids. A dungeon-floor boss rig built before its bosses were
+  registered watched nothing, so the floor's seal could never open. Fixed: the floor
+  rig sets `ctx.bossActors` first. Arena and floor both raise a `CreateBossBar`.
+
+### Lives `[VERIFIED in assets]`, forcing them `[UNVERIFIED in game]`
+
+- `scripts/Modules/PartyRecord.as`: `%if MOD_NO_LIVES m_lives = 0 %else m_lives = 2`.
+  The HUD (`HUDResourceBar.as`), the power shop and the extra-life pickups all honour
+  `MOD_NO_LIVES`. It is defined by the scenario modifier `NO_LIVES` (info.xml).
+- HW1A.exe's info.xml modifier attributes: `name`, `id`, `tooltip`, `locked-by`,
+  `forced`, `default-on`, `radio`, `header` (strings in the exe). The generator writes
+  `<modifier … id="NO_LIVES" forced="true" />` and drops INFINITE_LIVES/DOUBLE_LIVES.
+  Whether `"true"` is the accepted value is on the boot checklist. This replaces the
+  scenario-local PartyRecord.as override (which would copy game code).
+
+### PACKAGER.exe `[VERIFIED]` (local install, tests/packer.test.ts with HWAE_PACK=1)
+
+- `PACKAGER.exe -l <id>` from `<AE>` packs `scenarios/<id>/` into
+  `scenarios/<id>.h1c` (magic `HW1S`) — and exits **127** even on success.
+- It logs `[ERR] Failed to parse XML tree: "" (source: scenarios/<id>/resources.xml)`:
+  an optional file no stock scenario has. Harmless.
+- It also lists every scenario, warning about duplicates (a folder beside its `.h1c`).
+
+### Hand-made lobby (`<AE>/editor/lobbies/lobby.lvl`) `[VERIFIED]` by reading it
+
+- Saved by the editor with `game-mode Class = MainMenu`; the generator writes the copy
+  as `DungeonGameMode`. No `lighting` block.
+- Its six `UseTrigger`s (Icon 4) had no `Areas` — the editor leaves the use area to be
+  drawn. The generator adds a circle sensor on the nearest `shop_*` stand.
+- The item vendor is `ShopArea { Categories = "item", Type = 2 }` on `shop_item.unit`.
+- Doors `_door_1b_h` / `_door_1c_h|v` are behavior `Door`, collision 32x16 from the
+  anchor, no controller. Whether they open for the party unassisted: boot checklist.
+
+### Asset snapshot
+
+- `scripts/scan-ae-assets.mjs` now records every `doodads/**.unit` (6273 units): a
+  hand-made lobby may use any prop or decorative wall piece (`_deco_shelf_books_32`).
