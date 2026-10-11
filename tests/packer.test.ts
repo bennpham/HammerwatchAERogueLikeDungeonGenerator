@@ -15,7 +15,7 @@ import {
   writeCampaign
 } from '../src/main/packer'
 import { generateDungeon } from '../src/generator'
-import { playerOverrides, skillKey, statKey } from '../src/generator/players'
+import { playerOverrides, playerPresetById, skillKey, statKey } from '../src/generator/players'
 import type { DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
 import { AE_ROOT, HAS_AE } from './aeInstall'
@@ -151,15 +151,22 @@ describe.skipIf(!HAS_AE || process.env.HWAE_PACK !== '1')('packer — real PACKA
     params.themes = ['prison']
     params.levelMonsters = [['bat']]
     params.boss = { ...params.boss, enabled: false }
+    // with player settings, including a class's own move speed
+    params.playerTweaks = { ...playerPresetById('op-test')!.build(), [skillKey('shared_speed', 1, 'movespeed-mul', 'priest')]: 2 }
     const result = generateDungeon(params, 99001) as DungeonResult
     expect(result.ok).toBe(true)
     const packed = join(AE_ROOT, 'scenarios', `${result.campaignName}.h1c`)
     try {
-      const install = await installScenario(AE_ROOT, result.campaignName, result.files, false)
+      const install = await installScenario(AE_ROOT, result.campaignName, result.files, false, result.assetOverrides)
       expect(install.ok, install.message).toBe(true)
       expect(hasH1cMagic(packed)).toBe(true)
       // the patched power shop travels inside the scenario
       expect(readFileSync(packed).includes(Buffer.from('PowerShopMenuContent'))).toBe(true)
+      // ...and so do the patched player files and the priest's own speed skill
+      expect(install.message).not.toMatch(/Note:/)
+      for (const name of ['classes.sval', 'warlock_dagger.sval', 'shared_speed_priest.sval']) {
+        expect(readFileSync(packed).includes(Buffer.from(name)), name).toBe(true)
+      }
       expect(existsSync(join(AE_ROOT, 'scenarios', result.campaignName))).toBe(false)
     } finally {
       rmSync(packed, { force: true })
