@@ -11,6 +11,7 @@
  * Exact counterparts follow hw2ae's table, which matched HW1 actors to AE
  * units on identical hp.
  */
+import { DEFAULT_LOBBY_PRESET_ID } from '../lobby/presets'
 
 export interface Substitution {
   ae: string
@@ -211,7 +212,7 @@ export const HW1_MONSTER_CONFIG_KEYS: Readonly<Record<string, string>> = {
 
 /** Keys whose value lists monster pool keys (pools, waves, mystery squads). */
 const MONSTER_LIST_KEY = /^(monsters\d+|level\d+Monsters|boss\d*Wave\d+|bossFloor\d+Wave\d+|bosswave\d+|boss\d+SurvivalWaves|mysteryButton\d+Monsters|.*SquadMonsters)$/i
-/** The HW1 remake's two placeholder lobbies are both the generated stand-in room now. */
+/** The HW1 remake's two placeholder lobbies both become the default lobby now. */
 const LOBBY_PRESET_KEY = /^lobby\d+Preset$/i
 const THEME_KEY = /^(themes|.*Theme)$/
 const MUSIC_KEY = /^(music\d+|.*Music)$/
@@ -237,7 +238,7 @@ export function translateLegacyParametersText(text: string): string {
       if (hw1 !== undefined) return `max_${translateMonsterKey(hw1).split('#')[0]}=${value}`
       if (THEME_KEY.test(key)) return `${line.slice(0, eq + 1)}${value.split(',').map((t) => translateTheme(t.trim())).join(',')}`
       if (MUSIC_KEY.test(key)) return `${line.slice(0, eq + 1)}${translateMusic(value.trim())}`
-      if (LOBBY_PRESET_KEY.test(key) && /^BETA-/.test(value.trim())) return `${line.slice(0, eq + 1)}standin`
+      if (LOBBY_PRESET_KEY.test(key) && /^BETA-/.test(value.trim())) return `${line.slice(0, eq + 1)}${DEFAULT_LOBBY_PRESET_ID}`
       if (MONSTER_LIST_KEY.test(key)) {
         return `${line.slice(0, eq + 1)}${value.replace(MONSTER_TOKEN, (tok) =>
           tok.split('#')[0] in MONSTER_SUBSTITUTIONS ? translateMonsterKey(tok) : tok
@@ -247,3 +248,4 @@ export function translateLegacyParametersText(text: string): string {
     })
     .join('\n')
 }
+

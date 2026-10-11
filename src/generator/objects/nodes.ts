@@ -58,6 +58,8 @@ export const ICON_BUTTON = 11
 /** `ShopArea.Type`: 0 skills, 1 power, 2 equipment */
 export const SHOP_SKILLS = 0
 export const SHOP_POWER = 1
+/** the item shop (category `item`), as the user's AE lobby wires it */
+export const SHOP_ITEMS = 2
 
 // --- Triggers ------------------------------------------------------------------
 

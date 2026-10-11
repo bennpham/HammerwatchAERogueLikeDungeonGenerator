@@ -3,6 +3,7 @@ import { THEME_DEFS } from './themes'
 import { ALL_LOBBY_CATEGORIES } from '../lobby/shops'
 import type { PlayerTweaks } from '../tweak/types'
 import { noUpgrades } from '../lobby/payout'
+import { DEFAULT_LOBBY_PRESET_ID } from '../lobby/presets'
 import type { UpgradeCounts } from '../lobby/payout'
 // the tweak key builder, so the default life removal below cannot drift from
 // the key QuickSetup's checkbox writes. tweak/ imports nothing from config/,
@@ -1629,13 +1630,13 @@ export function isMultiBoss(count: number): boolean {
  * before a fight, so the party arrives able to actually spend at it — for the
  * boss-prep room.
  */
-export function defaultLobby(presetId = 'standin'): LobbyOptions {
+export function defaultLobby(presetId: string = DEFAULT_LOBBY_PRESET_ID): LobbyOptions {
   // The HW1 remake's two placeholder rooms are gone; their ids still name a
-  // lobby in older presets and files and become the generated room, the
+  // lobby in older presets and files and become the default lobby, the
   // boss-prep one keeping its larger purse.
   const legacy = presetId === 'BETA-boss-prep' || presetId === 'BETA-dungeon-prep'
   return {
-    preset: legacy ? 'standin' : presetId,
+    preset: legacy ? DEFAULT_LOBBY_PRESET_ID : presetId,
     startingGold: presetId === 'BETA-boss-prep' ? 20000 : 10000,
     shopCategories: [...ALL_LOBBY_CATEGORIES],
     // no free upgrades by default: the vendors are the intended way to get

@@ -11,7 +11,7 @@ import { emitObjects, emitWalls } from '../ae/emit'
 import { isLineCell } from '../map/aeWalls'
 import type { WallGrid } from '../map/aeWalls'
 import { tilesetSize } from '../catalog/assets'
-import { ObjectSet, SHOP_KINDS, addArrival } from '../objects/objectSet'
+import { ObjectSet, SHOP_KINDS, addArrival, buildExitRig } from '../objects/objectSet'
 import type { ShopKind } from '../objects/objectSet'
 import { NodeAreaTrigger, NodeCheckpoint, SensorShape } from '../objects/nodes'
 import { buildMusicRig } from '../music/rig'
@@ -157,9 +157,20 @@ function placePayout(
 }
 
 /**
- * A hand-made lobby: the imported level, rewritten by script label
- * (docs/LOBBY-AUTHORING.md). Units and scripts the generator adds continue the
- * template's own id numbering, so nothing collides.
+ * A hand-made lobby: the imported AE editor level, rewritten for its slot.
+ * Each part is found by script LABEL first and by structure when the author
+ * did not label it (docs/LOBBY-AUTHORING.md):
+ *
+ * - spawn: `lobby:spawn`, else the LevelStart with no StartID;
+ * - exit: `lobby:exit` scripts, else a press-F exit rig built around the
+ *   level's teleporter (`doodads/generic/teleport_*`);
+ * - vendors: `lobby:vendor:<id>`, else the vendor its ShopArea's categories
+ *   name (def* -> defense, off* -> offense, item -> item...). A stand whose
+ *   UseTrigger has no use area gets one, on the stand;
+ * - payout: `lobby:payout`, else the free floor around the spawn.
+ *
+ * Units and scripts the generator adds continue the template's own id
+ * numbering, so nothing collides.
  */
 function buildFromTemplate(
   ctx: GenerationContext,
@@ -169,40 +180,182 @@ function buildFromTemplate(
   saves: boolean
 ): AeLevel {
   const { level } = readLevel(preset.lvl ?? '')
+  // the editor saves a level opened from the main menu as MainMenu
+  level.gameMode = 'DungeonGameMode'
   ctx.idCounter = level.peekId()
 
+  // --- spawn ---------------------------------------------------------------
+  const spawn =
+    level.scripts.find((s) => s.label === 'lobby:spawn' && s.cls === 'LevelStart') ??
+    level.scripts.find((s) => s.cls === 'LevelStart' && !s.params.some((p) => p.name === 'StartID'))
+  if (spawn !== undefined) {
+    if (ctx.isStartLevel) level.scripts.push({ ...spawn, id: ctx.idCounter++, params: [], label: 'default spawn', connections: [] })
+    spawn.params = [P.str('StartID', ctx.currentStem)]
+    spawn.label = ctx.currentStem
+  }
+
+  // --- exit ------------------------------------------------------------------
+  let labelledExit = false
   for (const s of level.scripts) {
-    const label = s.label ?? ''
-    if (label === 'lobby:exit' && s.cls === 'LevelExit') {
+    if (s.label !== 'lobby:exit') continue
+    labelledExit = true
+    if (s.cls === 'LevelExit') {
       s.params = [P.str('Level', ctx.levelPath(exitTarget)), P.str('StartID', exitTarget)]
       s.label = exitTarget
-    } else if (label === 'lobby:exit' && s.cls === 'SetRespawnPoint') {
+    } else if (s.cls === 'SetRespawnPoint') {
       s.params = [P.str('SpawnId', exitTarget)]
       s.label = exitTarget
-    } else if (label === 'lobby:spawn' && s.cls === 'LevelStart') {
-      s.params = [P.str('StartID', ctx.currentStem)]
-      s.label = ctx.currentStem
-      if (ctx.isStartLevel) level.scripts.push({ ...s, id: level.newId(), params: [], label: 'default spawn', connections: [] })
-    } else if (label.startsWith('lobby:vendor:') && s.cls === 'ShopArea') {
-      const vendor = LOBBY_VENDORS.find((v) => v.id === label.slice('lobby:vendor:'.length))
-      const selected = vendor === undefined ? [] : categoriesFor(vendor, options.shopCategories)
-      s.params = s.params.filter((p) => p.name !== 'Categories')
-      s.params.push(P.str('Categories', selected.join(' ')))
-      // a stall with nothing to sell is switched off rather than left empty
-      s.enabled = selected.length > 0
+    }
+  }
+  if (!labelledExit) {
+    const portal = level.units.find((u) => u.path.startsWith('doodads/generic/teleport'))
+    if (portal !== undefined) {
+      const sensor = new SensorShape(ctx, portal.x / TILE, portal.y / TILE)
+      sensor.width = 3
+      sensor.height = 3
+      buildExitRig(ctx, sensor, exitTarget, portal.x / TILE, portal.y / TILE + 2)
     }
   }
 
+  // --- vendors -------------------------------------------------------------
+  const shops = level.units.filter((u) => /^doodads\/generic\/shop_[a-z]+\.unit$/.test(u.path))
+  for (const s of level.scripts) {
+    if (s.cls !== 'ShopArea') continue
+    const label = s.label ?? ''
+    const categories = (s.params.find((p) => p.name === 'Categories')?.value as string | undefined) ?? ''
+    const vendorId = label.startsWith('lobby:vendor:') ? label.slice('lobby:vendor:'.length) : vendorIdOf(categories)
+    const vendor = LOBBY_VENDORS.find((v) => v.id === vendorId)
+    if (vendor === undefined) continue
+    const selected = categoriesFor(vendor, options.shopCategories)
+    s.params = s.params.filter((p) => p.name !== 'Categories')
+    s.params.unshift(P.str('Categories', selected.join(' ')))
+    // a stall with nothing to sell is switched off rather than left empty
+    s.enabled = selected.length > 0
+
+    // the UseTrigger that opens this shop: the one its #PlayerTarget names
+    const target = s.params.find((p) => p.name === '#PlayerTarget')
+    const use = target?.kind === 'target' ? level.scripts.find((u) => u.id === target.value[0]) : undefined
+    if (use === undefined) continue
+    use.enabled = s.enabled
+    if (use.params.some((p) => p.name === 'Areas')) continue
+    // no use area yet: a circle on the nearest stand, as floor shops have
+    const stand = nearest(shops, use.x, use.y)
+    if (stand === undefined) continue
+    const area = new SensorShape(ctx, stand.x / TILE, stand.y / TILE)
+    area.radius = SHOP_USE_RADIUS
+    use.params.push(P.ids('Areas', [area.id]))
+  }
+
+  // --- payout, save point, music --------------------------------------------
   const payout = level.scripts.find((s) => s.label === 'lobby:payout')
-  const spawn = level.scripts.find((s) => s.label === ctx.currentStem && s.cls === 'LevelStart')
   if (payout !== undefined) {
-    placePayout(ctx, options, { x: payout.x / 16, y: payout.y / 16 }, { x: payout.x / 16 + 8, y: payout.y / 16 })
+    placePayout(ctx, options, { x: payout.x / TILE, y: payout.y / TILE }, { x: payout.x / TILE + 8, y: payout.y / TILE })
+  } else if (spawn !== undefined) {
+    placePayoutAround(ctx, options, level, spawn.x / TILE, spawn.y / TILE)
   }
   if (spawn !== undefined) {
-    if (saves) addSavePoint(ctx, spawn.x / 16, spawn.y / 16)
-    buildMusicRig(ctx, options.music, spawn.x / 16, spawn.y / 16 + 1)
+    if (saves) addSavePoint(ctx, spawn.x / TILE, spawn.y / TILE)
+    buildMusicRig(ctx, options.music, spawn.x / TILE, spawn.y / TILE + 1)
   }
   emitObjects(level, ctx)
   ctx.currentTheme = ''
   return level
+}
+
+const TILE = 16
+/** a floor shop's use radius, tiles */
+const SHOP_USE_RADIUS = 1.25
+
+/** Which vendor a ShopArea is, by the categories it sells. */
+function vendorIdOf(categories: string): string | undefined {
+  const first = categories.trim().split(/\s+/)[0] ?? ''
+  if (first.startsWith('combo')) return 'combo'
+  if (first.startsWith('def')) return 'defense'
+  if (first.startsWith('off')) return 'offense'
+  if (first.startsWith('misc')) return 'misc'
+  if (first === 'power') return 'power'
+  if (first === 'item') return 'item'
+  return undefined
+}
+
+function nearest<T extends { x: number; y: number }>(items: readonly T[], x: number, y: number): T | undefined {
+  let best: T | undefined
+  let bestD = Infinity
+  for (const it of items) {
+    const d = (it.x - x) ** 2 + (it.y - y) ** 2
+    if (d < bestD) {
+      best = it
+      bestD = d
+    }
+  }
+  return best
+}
+
+/**
+ * Lay the payout on the free floor around the spawn, nearest first: walk out
+ * from the spawn tile over cells no wall, door or prop stands on, within a
+ * bounded radius (an open edge in the template cannot carry it away), and
+ * leave the spawn tile and its neighbours clear. Diamonds first, then one
+ * cell per upgrade kind.
+ */
+function placePayoutAround(ctx: GenerationContext, options: LobbyOptions, level: AeLevel, sx: number, sy: number): void {
+  const blocked = new Set<string>()
+  for (const u of level.units) {
+    if (u.path.startsWith(':')) continue
+    for (const [x, y] of templateUnitCells(u)) blocked.add(`${x},${y}`)
+  }
+  const ox = Math.floor(sx)
+  const oy = Math.floor(sy)
+  const RADIUS = 8
+  const seen = new Set<string>([`${ox},${oy}`])
+  const queue: Array<[number, number]> = [[ox, oy]]
+  const free: Array<[number, number]> = []
+  for (let head = 0; head < queue.length; head++) {
+    const [x, y] = queue[head]
+    if (Math.max(Math.abs(x - ox), Math.abs(y - oy)) > 1) free.push([x, y])
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1]
+    ]) {
+      const nx = x + dx
+      const ny = y + dy
+      const key = `${nx},${ny}`
+      if (seen.has(key) || blocked.has(key) || Math.abs(nx - ox) > RADIUS || Math.abs(ny - oy) > RADIUS) continue
+      seen.add(key)
+      queue.push([nx, ny])
+    }
+  }
+  let next = 0
+  const take = (): [number, number] | undefined => free[next++]
+  for (let i = 0; i < diamondCount(options.startingGold); i++) {
+    const at = take()
+    if (at === undefined) return
+    ctx.extraUnits.push({ path: DIAMOND_UNIT, x: at[0] + 0.5, y: at[1] + 0.5 })
+  }
+  for (const kind of UPGRADE_KINDS) {
+    const n = options.upgrades[kind] ?? 0
+    if (n === 0) continue
+    const at = take()
+    if (at === undefined) return
+    for (let k = 0; k < n; k++) ctx.extraUnits.push({ path: upgradeItemPath(kind), x: at[0] + 0.5, y: at[1] + 0.5 })
+  }
+}
+
+/** The cells a template unit stands on (walls as aeWalls lays them; anything else its anchor cell). */
+function templateUnitCells(u: { path: string; x: number; y: number }): Array<[number, number]> {
+  const x = Math.floor(u.x / TILE)
+  const y = Math.floor(u.y / TILE)
+  // a door spans two cells (`_door_1*_h` collides over 32x16 from its anchor);
+  // a vertical one is blocked a cell either side to be safe
+  if (u.path.startsWith('doodads/doors/')) {
+    return /_v\.unit$/.test(u.path) ? [[x, y - 1], [x, y], [x, y + 1]] : [[x, y], [x + 1, y]]
+  }
+  const piece = /^doodads\/walls\/[^/]+\/([a-z0-9_]+)\.unit$/.exec(u.path)?.[1]
+  if (piece === undefined) return [[x, y]]
+  if (piece === 'v_16' || piece === 'cap_n' || piece === 'cap_s') return [[x, y + 1]]
+  if (piece === 'v_32' || piece === 'v') return [[x, y + 1], [x, y + 2]]
+  if (piece === 'h_32' || piece === 'h') return [[x, y], [x + 1, y]]
+  return [[x, y]]
 }

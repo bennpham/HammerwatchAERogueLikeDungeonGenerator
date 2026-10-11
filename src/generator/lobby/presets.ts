@@ -2,13 +2,13 @@
  * The rooms a lobby slot can be built from.
  *
  * `standin` is generated (a themed room with the selected vendor stands, the
- * starting gold and free upgrades on the floor, and a press-F exit). It exists
- * so lobbies work today; it is a placeholder for a hand-made AE lobby.
+ * starting gold and free upgrades on the floor, and a press-F exit).
  *
  * Hand-made lobbies are AE editor levels imported with
  * `scripts/import-ae-lobby.mjs` into `templates.generated.ts`; the generator
- * finds their exit, spawn, vendors and payout spot by script LABEL and rewrites
- * them. The label contract is in docs/LOBBY-AUTHORING.md.
+ * finds their exit, spawn, vendors and payout spot by script label or by
+ * structure and rewrites them (docs/LOBBY-AUTHORING.md). The user's own
+ * `hall` lobby is the default.
  */
 import { LOBBY_TEMPLATES } from './templates.generated'
 import { standinDiagramSlots } from './layout'
@@ -40,7 +40,9 @@ export const LOBBY_PRESETS: readonly LobbyPresetDef[] = [
   ...LOBBY_TEMPLATES.map((t) => ({ id: t.id, label: t.label, description: t.description, lvl: t.lvl, ...standinDiagramSlots() }))
 ]
 
-export const DEFAULT_LOBBY_PRESET_ID = STANDIN_LOBBY_ID
+/** The user's hand-made AE lobby, when it has been imported; else the generated room. */
+export const HALL_LOBBY_ID = 'hall'
+export const DEFAULT_LOBBY_PRESET_ID = LOBBY_TEMPLATES.some((t) => t.id === HALL_LOBBY_ID) ? HALL_LOBBY_ID : STANDIN_LOBBY_ID
 
 export function lobbyPresetById(id: string): LobbyPresetDef | undefined {
   return LOBBY_PRESETS.find((p) => p.id === id)

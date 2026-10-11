@@ -579,7 +579,8 @@ function validateLobby(
   // empty stall. Collapsed into one message the way the bulk tweak warnings
   // are — deselecting every ladder in the game would otherwise fire 21 of them.
   const counts = lobbyCategoryCounts(p.playerTweaks ?? {})
-  const empty = lobby.shopCategories.filter((c) => counts[c] === 0)
+  // the item vendor sells items, not skill upgrades, so it is never "empty"
+  const empty = lobby.shopCategories.filter((c) => c !== 'item' && counts[c] === 0)
   if (empty.length > 0) {
     const vendors = [...new Set(empty.map((c) => vendorOfCategory(c)?.label ?? c))].sort()
     warnings.push({

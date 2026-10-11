@@ -25,6 +25,7 @@ export type DoodadTypeName =
   | 'VendorCombo'
   | 'VendorMisc'
   | 'VendorPower'
+  | 'VendorItem'
   // lights
   | 'Torch'
   | 'TorchOff'
@@ -75,6 +76,8 @@ export function resolveDoodad(type: DoodadTypeName, themeId: string): Resolved {
       return { path: 'doodads/generic/shop_health.unit', dx: 0, dy: 0.25 }
     case 'VendorPower':
       return { path: 'doodads/generic/shop_potion.unit', dx: 0, dy: 0.25 }
+    case 'VendorItem':
+      return { path: 'doodads/generic/shop_item.unit', dx: 0, dy: 0.25 }
     case 'Torch':
       return { path: 'doodads/generic/lamps/torch.unit', dx: 0.5, dy: 1 }
     case 'TorchOff':

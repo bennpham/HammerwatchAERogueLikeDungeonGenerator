@@ -34,17 +34,11 @@ function walk(rel, out = []) {
   return out
 }
 
-const WALL_PIECE = /^(h|h_16|h_32|h_single|single|v|v_16|v_32|crn_n[ew]|crn_s[ew]|x_[nsewx]|cap_h_[ew]|cap_v_[ns]|cap_[nsew]|exit_up|exit_dn|__color_\d+|__color_dither_\d+)\.unit$/
 const units = new Set()
 for (const f of walk('actors')) if (f.endsWith('.unit')) units.add(f)
 for (const f of walk('items')) if (f.endsWith('.unit')) units.add(f)
-for (const dir of ['doodads/doors', 'doodads/generic', 'doodads/traps', 'doodads/special', 'doodads/lamps', 'doodads/ledges']) {
-  for (const f of walk(dir)) if (f.endsWith('.unit')) units.add(f)
-}
-for (const f of walk('doodads/walls')) {
-  const parts = f.split('/')
-  if (parts.length === 4 && WALL_PIECE.test(parts[3])) units.add(f)
-}
+// every doodad: hand-made lobbies may use any prop or decorative wall piece
+for (const f of walk('doodads')) if (f.endsWith('.unit')) units.add(f)
 
 const tilesets = {}
 for (const f of walk('tilesets')) {

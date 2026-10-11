@@ -29,7 +29,9 @@ export const LOBBY_VENDORS: readonly LobbyVendorDef[] = [
   { id: 'offense', label: 'Offense', categories: ['off1', 'off2', 'off3', 'off4', 'off5'] },
   // `power` is real and stock — five shared.xml upgrades (life, rejuv and the
   // three potions). One column, so this stall is on/off and wears no badge.
-  { id: 'power', label: 'Power', categories: ['power'] }
+  { id: 'power', label: 'Power', categories: ['power'] },
+  // the item vendor (AE ShopArea Type 2), on/off like power
+  { id: 'item', label: 'Items', categories: ['item'] }
 ]
 
 /** Every selectable shop column, in the order the vendor row stands in. */

@@ -15,6 +15,7 @@ import {
   NodeShopArea,
   NodeUnitPickedUpTrigger,
   NodeUseTrigger,
+  SHOP_ITEMS,
   SHOP_POWER,
   SHOP_SKILLS,
   SensorShape
@@ -35,7 +36,7 @@ export const GATHER_PARTY_TEXT = '.meta.info.gatherparty'
  * sells it to a warlock.
  */
 export interface ShopKind {
-  id: 'offense' | 'defense' | 'combo' | 'misc' | 'power'
+  id: 'offense' | 'defense' | 'combo' | 'misc' | 'power' | 'item'
   vendor: DoodadTypeName
   categories: string
   type: number
@@ -46,7 +47,8 @@ export const SHOP_KINDS: readonly ShopKind[] = [
   { id: 'offense', vendor: 'VendorOffense', categories: 'off1 off2 off3 off4 off5', type: SHOP_SKILLS },
   { id: 'defense', vendor: 'VendorDefense', categories: 'def1 def2 def3 def4 def5', type: SHOP_SKILLS },
   { id: 'misc', vendor: 'VendorMisc', categories: 'misc1 misc2 misc3 misc4 misc5', type: SHOP_SKILLS },
-  { id: 'power', vendor: 'VendorPower', categories: 'power', type: SHOP_POWER }
+  { id: 'power', vendor: 'VendorPower', categories: 'power', type: SHOP_POWER },
+  { id: 'item', vendor: 'VendorItem', categories: 'item', type: SHOP_ITEMS }
 ]
 
 /**
