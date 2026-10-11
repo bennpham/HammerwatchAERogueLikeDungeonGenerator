@@ -351,7 +351,8 @@ crypt tiles.
   into the scenario at the stock path (like the power shop). A class with its own move
   speed gets `players/shared/skills/shared_speed(_melee)_<class>.sval` and its line in a
   patched `players/classes.sval`.
-- `[UNVERIFIED]` that a scenario copy of a skill `.sval` replaces the stock one.
-- `[UNVERIFIED]` that a scenario copy of `classes.sval` is read at all. Its loader runs at
-  startup, and the character-select screen needs it before a scenario is chosen. Boot
-  checklist #26–28.
+- `[VERIFIED 2026-10-10]` a scenario copy of a skill `.sval` replaces the stock one, and a
+  scenario copy of `classes.sval` is read too. On the HW2 Endgame preset the HUD showed
+  384 health (the patched first health tier; stock max is 300) and 366 mana (no stock
+  class gets past 200 without it). Per-class move speed (checklist #28) rides on the same
+  classes.sval and is still to be seen.
