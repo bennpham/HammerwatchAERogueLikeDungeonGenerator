@@ -10,6 +10,14 @@ import { escapeXml } from './sval'
  * The modifier list is the one Shaftlocke Tower and Temple of the Sun ship
  * (Castle Hammerwatch adds `LEGACY`, a switch only its own levels check).
  * [VERIFIED] against all three stock info.xml files.
+ *
+ * Except lives: a generated dungeon is a rogue-like, so it always plays with
+ * no extra lives. `NO_LIVES` is FORCED on (`forced` is a modifier attribute
+ * HW1A.exe reads, next to `default-on`) — the game then defines
+ * `MOD_NO_LIVES`, which PartyRecord.as starts at 0 lives, the HUD hides the
+ * counter and extra-life pickups honour. INFINITE_LIVES and DOUBLE_LIVES
+ * would hand lives back, so they are not offered. [UNVERIFIED] in game that
+ * `forced="true"` is the value the engine expects — docs/BOOT-CHECKLIST.md.
  */
 
 export interface ModifierDef {
@@ -17,21 +25,21 @@ export interface ModifierDef {
   id: string
   lockedBy?: string
   tooltip?: string
+  /** always on; the player cannot switch it off */
+  forced?: boolean
 }
 
 /** `null` is a separator */
 export const SCENARIO_MODIFIERS: Array<ModifierDef | null> = [
   { name: '.l.lineofsight', id: 'LINE_OF_SIGHT', tooltip: 'line of sight' },
   null,
-  { name: '.l.nolives', id: 'NO_LIVES', lockedBy: 'INFINITE_LIVES' },
-  { name: '.l.inflives', id: 'INFINITE_LIVES', lockedBy: 'NO_LIVES' },
+  { name: '.l.nolives', id: 'NO_LIVES', forced: true },
   null,
   { name: '.l.1hp', id: 'ONE_HP', lockedBy: 'REVERSE_HP_REGEN' },
   { name: '.l.sharehp', id: 'SHARED_HP' },
   { name: '.l.hpregen', id: 'HP_REGEN', lockedBy: 'ONE_HP,REVERSE_HP_REGEN' },
   null,
   { name: '.l.doubledmg', id: 'DOUBLE_DAMAGE' },
-  { name: '.l.doublelife', id: 'DOUBLE_LIVES', lockedBy: 'NO_LIVES,INFINITE_LIVES' },
   null,
   { name: '.l.nohppup', id: 'NO_HEALTH_PICKUP' },
   null,
@@ -75,6 +83,7 @@ export function renderInfoXml(info: ScenarioInfo): string {
     let attrs = `name="${m.name}" id="${m.id}"`
     if (m.lockedBy !== undefined) attrs += ` locked-by="${m.lockedBy}"`
     if (m.tooltip !== undefined) attrs += ` tooltip="${m.tooltip}"`
+    if (m.forced === true) attrs += ' forced="true"'
     lines.push(`\t\t<modifier ${attrs} />`)
   }
   lines.push('\t</modifiers>', '</info>', '')

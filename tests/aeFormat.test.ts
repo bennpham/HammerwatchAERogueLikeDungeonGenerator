@@ -92,8 +92,15 @@ describe('info.xml', () => {
   it('names the start level and lists the stock modifiers', () => {
     const xml = renderInfoXml({ name: 'Dungeon #1', description: '', startLevel: 'levels/d/floor_1.lvl' })
     expect(xml).toContain('<level name="Start level" lvl="levels/d/floor_1.lvl" />')
-    expect(xml).toContain('id="NO_LIVES" locked-by="INFINITE_LIVES"')
+    expect(xml).toContain('id="LINE_OF_SIGHT"')
     expect(scenarioSlug('Dungeon #42!')).toBe('dungeon_42')
+  })
+
+  it('always plays with 0 lives: NO_LIVES forced on, nothing that gives lives back', () => {
+    const xml = renderInfoXml({ name: 'Dungeon #1', description: '', startLevel: 'levels/d/floor_1.lvl' })
+    expect(xml).toContain('<modifier name=".l.nolives" id="NO_LIVES" forced="true" />')
+    expect(xml).not.toContain('INFINITE_LIVES')
+    expect(xml).not.toContain('DOUBLE_LIVES')
   })
 })
 
