@@ -39,7 +39,9 @@ import { buildInvulnerabilityRig } from '../boss/invulnerability'
 import { buildCheckpointRig } from '../boss/checkpoints'
 import { buildWaveBuffRig } from '../boss/waveBuffs'
 import { buildAllBossesDied, multiBossTierSource, singleBossTierSource } from '../boss/tierSource'
-import { expandLineup } from '../boss/bosses'
+import { BOSS_DEFS, expandLineup } from '../boss/bosses'
+import { LEVEL_LOADED_EVENT } from '../core/events'
+import { NodeCreateBossBar, NodeGlobalEventTrigger } from '../objects/nodes'
 import { placeFloorBoss, placeFloorBosses } from './actor'
 import { floorInteriorSlots } from './placement'
 import { buildFloorBossWaveRig } from './waves'
@@ -88,6 +90,18 @@ export function buildFloorBossRig(
   const lineup = bossSelection(boss) === 'lineup' ? expandLineup(boss.bossLineup) : undefined
   const actors = placeFloorBosses(ctx, boss.bossPool, level.bossSpots, count, lineup)
   if (actors.length === 0) return
+
+  // AE has no engine-wide boss events: every tier, death, invulnerability and
+  // checkpoint trigger below is built over these actors (NodeGlobalEventTrigger
+  // reads them when it is constructed), so register them first — as the
+  // arena does — or the seal never opens.
+  ctx.bossActors = actors
+  // a health bar per boss, as in the arena and the stock campaigns
+  const loaded = new NodeGlobalEventTrigger(ctx, markerX, markerY, LEVEL_LOADED_EVENT)
+  for (const actor of actors) {
+    const def = BOSS_DEFS[actor.type.id as keyof typeof BOSS_DEFS]
+    if (def !== undefined) loaded.connectTo(new NodeCreateBossBar(ctx, markerX, markerY, [actor], def.barName))
+  }
 
   // Multi-boss (issue #64 part 1): the same "all bosses died" rig every
   // arena builds, built once right after the actors are placed. Single boss:
