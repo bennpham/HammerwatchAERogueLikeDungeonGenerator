@@ -86,6 +86,15 @@ export function shopPriceLabel(id: string): string {
   return SHOP_LABELS[id] ?? words(id)
 }
 
+/** A skill number outside players/, by its id in PLAYER_STOCK.extras. */
+export function extraLabel(id: string): string {
+  const combo = /^combo_(mana|heal)_(\d)$/.exec(id)
+  if (combo !== null) return `${combo[1] === 'mana' ? 'mana' : 'health'}/s, tier ${combo[2]}`
+  if (id === 'lightning_range') return 'reach from impact (px)'
+  if (id === 'lightning_repeat_mul') return 'repeat-hit damage ×'
+  return words(id)
+}
+
 /** "Start" for a tier owned from the start, else "Tier n · column". */
 export function tierLabel(tier: PlayerTier, index: number): string {
   if (tier.cost === undefined) return 'Start'

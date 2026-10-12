@@ -56,6 +56,11 @@ export function validatePlayerTweaks(tweaks: PlayerTweaks): { errors: PlayerIssu
       errors.push({ field: key, message: 'Must be above 0, or the skill never finishes casting.' })
       continue
     }
+    // the bolts look for enemies within this many pixels of where the orb lands
+    if (field.extraId === 'lightning_range' && value < 1) {
+      errors.push({ field: key, message: 'Must be at least 1, or the bolts find nothing to hit.' })
+      continue
+    }
     if (field.windowStart !== undefined && value < field.windowStart) {
       errors.push({ field: key, message: `The window starts at ${field.windowStart} ms; it cannot end before that.` })
     }

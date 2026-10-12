@@ -10,6 +10,7 @@ import { PLAYER_STOCK } from './stock.generated'
  *   player.<class>@<chain>.<tier>.<field>       a shared skill file, one class
  *   player.<stem>.1.starting-level              1: a bought skill is owned from the start
  *   player.shop.<id>.cost                       a potion or item price (a script, not players/)
+ *   player.extra.<id>                           a skill number outside players/ (combo buffs, lightning bolt)
  *
  * `<chain>` is the file stem for the root skill (`warlock_dagger`) or
  * `<stem>:<modifier id>` for a modifier skill
@@ -40,6 +41,8 @@ export interface PlayerFieldDef {
   name: string
   /** a shop price: its id in PLAYER_STOCK.shop */
   shopId?: string
+  /** a `param` outside players/: its id in PLAYER_STOCK.extras */
+  extraId?: string
   /** set for `stat` fields and class-scoped skill fields */
   classId?: string
   chainKey?: string
@@ -66,6 +69,10 @@ export function unlockKey(stem: string): string {
 
 export function shopKey(id: string): string {
   return `${PLAYER_KEY_PREFIX}shop.${id}.cost`
+}
+
+export function extraKey(id: string): string {
+  return `${PLAYER_KEY_PREFIX}extra.${id}`
 }
 
 /** A file's root skill, when it has to be bought (it has a price of its own). */
@@ -160,6 +167,9 @@ export const PLAYER_FIELDS: readonly PlayerFieldDef[] = (() => {
   }
   for (const p of PLAYER_STOCK.shop) {
     out.push({ key: shopKey(p.id), type: 'int', stock: p.stock, kind: 'cost', path: p.path, line: p.line, name: 'cost', shopId: p.id })
+  }
+  for (const e of PLAYER_STOCK.extras) {
+    out.push({ key: extraKey(e.id), type: e.type, stock: e.stock, kind: 'param', path: e.path, line: e.line, name: e.id, extraId: e.id })
   }
   return out
 })()

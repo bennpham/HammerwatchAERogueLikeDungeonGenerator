@@ -9,7 +9,16 @@
 // Set HWAE_ROOT to point at another install.
 import fs from 'node:fs'
 import path from 'node:path'
-import { POWER_SHOP_PATH, SHOP_CONSTANTS_PATH, parseClasses, parseShopPrices, parseSkillFile } from '../src/generator/players/parse'
+import {
+  COMBO_BUFFS_PATH,
+  LIGHTNING_BOLT_PATH,
+  POWER_SHOP_PATH,
+  SHOP_CONSTANTS_PATH,
+  parseClasses,
+  parseExtras,
+  parseShopPrices,
+  parseSkillFile
+} from '../src/generator/players/parse'
 import type { PlayerStock } from '../src/generator/players/model'
 
 const root = process.env.HWAE_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch Anniversary Edition'
@@ -28,7 +37,8 @@ for (const c of classes) for (const s of c.skills) if (!paths.includes(s.path)) 
 const stock: PlayerStock = {
   classes,
   skills: paths.map((p) => parseSkillFile(p, read(p))),
-  shop: parseShopPrices(read(POWER_SHOP_PATH), read(SHOP_CONSTANTS_PATH))
+  shop: parseShopPrices(read(POWER_SHOP_PATH), read(SHOP_CONSTANTS_PATH)),
+  extras: parseExtras(read(COMBO_BUFFS_PATH), read(LIGHTNING_BOLT_PATH))
 }
 
 const body = [
@@ -48,6 +58,9 @@ const body = [
   '  ],',
   '  shop: [',
   ...stock.shop.map((s) => `    ${JSON.stringify(s)},`),
+  '  ],',
+  '  extras: [',
+  ...stock.extras.map((s) => `    ${JSON.stringify(s)},`),
   '  ]',
   '}',
   ''

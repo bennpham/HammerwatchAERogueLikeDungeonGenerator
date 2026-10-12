@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   CLASSES_PATH,
+  COMBO_BUFFS_PATH,
+  LIGHTNING_BOLT_PATH,
   PLAYER_FIELDS,
   PLAYER_FIELD_MAP,
   PLAYER_STOCK,
@@ -11,6 +13,8 @@ import {
   SHARED_SKILL_PATHS,
   SHOP_CONSTANTS_PATH,
   applyLineEdits,
+  extraKey,
+  parseExtras,
   parseClasses,
   parseShopPrices,
   parseSkillFile,
@@ -62,6 +66,7 @@ describe('player snapshot', () => {
     expect(parseClasses(readAsset(CLASSES_PATH))).toEqual(PLAYER_STOCK.classes)
     for (const s of PLAYER_STOCK.skills) expect(parseSkillFile(s.path, readAsset(s.path))).toEqual(s)
     expect(parseShopPrices(readAsset(POWER_SHOP_PATH), readAsset(SHOP_CONSTANTS_PATH))).toEqual(PLAYER_STOCK.shop)
+    expect(parseExtras(readAsset(COMBO_BUFFS_PATH), readAsset(LIGHTNING_BOLT_PATH))).toEqual(PLAYER_STOCK.extras)
   })
 
   it('has the power shop potions and the five item qualities, but not the extra life', () => {
@@ -83,6 +88,15 @@ describe('player snapshot', () => {
   it('offers an unlock for a bought skill only', () => {
     expect(PLAYER_FIELD_MAP.get(unlockKey('wiz_meteor'))?.kind).toBe('unlock')
     expect(PLAYER_FIELD_MAP.has(unlockKey('wiz_fireball'))).toBe(false)
+  })
+
+  it('has the combo regen buffs and the lightning bolt outside players/', () => {
+    const stock = (id: string) => PLAYER_FIELD_MAP.get(extraKey(id))?.stock
+    expect([1, 2, 3, 4, 5].map((t) => stock(`combo_mana_${t}`))).toEqual([4, 6, 8, 10, 12])
+    expect([1, 2, 3, 4, 5].map((t) => stock(`combo_heal_${t}`))).toEqual([2, 4, 6, 8, 10])
+    expect(stock('lightning_range')).toBe(50)
+    expect(stock('lightning_repeat_mul')).toBe(0.75)
+    expect(PLAYER_FIELD_MAP.get(extraKey('lightning_range'))?.kind).toBe('param')
   })
 
   it('reads the skill-level params beside the binds', () => {
@@ -207,6 +221,23 @@ describe('player overrides', () => {
     const skill = svalGet(parseSval(applyLineEdits(readAsset(path), o.edits).text), 'skill')
     expect(svalGet(skill, 'move-speed-mul')?.text.trim()).toBe('0')
     expect(svalGet(skill, 'move-speed')?.text.trim()).toBe('0 1000')
+  })
+
+  it('an extra value rewrites its whole number, nothing else on the line', () => {
+    const out = playerOverrides({ [extraKey('combo_mana_4')]: 20, [extraKey('lightning_repeat_mul')]: 1 })
+    expect(out.map((o) => o.path)).toEqual([LIGHTNING_BOLT_PATH, COMBO_BUFFS_PATH])
+    expect(out[0].edits).toEqual([
+      { line: 8, kind: 'text', find: '<float name="consecutive-mul">0.75</float>', replace: '<float name="consecutive-mul">1</float>' }
+    ])
+    // "level_4 10": the tier digit is not the value
+    expect(out[1].edits).toEqual([
+      {
+        line: 233,
+        kind: 'text',
+        find: '%block Combo_mana_regen combo_mana_regen_level_4 10',
+        replace: '%block Combo_mana_regen combo_mana_regen_level_4 20'
+      }
+    ])
   })
 
   it('potion and item prices patch the shop scripts', () => {

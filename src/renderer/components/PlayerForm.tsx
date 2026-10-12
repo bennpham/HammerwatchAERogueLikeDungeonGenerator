@@ -6,6 +6,8 @@ import {
   boughtRoot,
   chainLabel,
   classLabel,
+  extraKey,
+  extraLabel,
   shopKey,
   shopPriceLabel,
   skillFileLabel,
@@ -32,6 +34,13 @@ const SHARED_FILES = PLAYER_STOCK.skills
 // the power shop's potions, and the item shops' per-quality prices (equipment_*)
 const POTIONS = PLAYER_STOCK.shop.filter((p) => !p.id.startsWith('equipment_'))
 const ITEMS = PLAYER_STOCK.shop.filter((p) => p.id.startsWith('equipment_'))
+
+// skill numbers outside players/: the combo's regen buffs (shared) and the
+// warlock's lightning bolt, each shown with the skill it belongs to
+const COMBO_KEYS = PLAYER_STOCK.extras.filter((e) => e.id.startsWith('combo_')).map((e) => extraKey(e.id))
+const CLASS_EXTRA_KEYS: Record<string, string[]> = {
+  warlock: PLAYER_STOCK.extras.filter((e) => e.id.startsWith('lightning_')).map((e) => extraKey(e.id))
+}
 
 /** Every all-classes key a skill file holds, for its "n changed" badge. */
 function keysOfFile(file: PlayerSkillFile): string[] {
@@ -135,8 +144,10 @@ export function PlayerForm({ tweaks, issues, onChange }: PlayerFormProps) {
           .map((s) => PLAYER_STOCK.skills.find((f) => f.path === s.path))
           .filter((f): f is PlayerSkillFile => f !== undefined && f.chains.length > 0)
         const statKeys = Object.keys(c.stats).map((stat) => statKey(c.id, stat))
+        const extraKeys = CLASS_EXTRA_KEYS[c.id] ?? []
         const classKeys = [
           ...statKeys,
+          ...extraKeys,
           ...own.flatMap(keysOfFile),
           ...allKeys.filter((k) => PLAYER_FIELD_MAP.get(k)?.classId === c.id && !statKeys.includes(k))
         ]
@@ -146,16 +157,32 @@ export function PlayerForm({ tweaks, issues, onChange }: PlayerFormProps) {
               <div className="field-grid">{statKeys.map((key) => input(key, PLAYER_FIELD_MAP.get(key)!.name))}</div>
             </Subsection>
             {own.map(skillEditor)}
+            {extraKeys.length > 0 && (
+              <Subsection title="Lightning bolt" badge={badge(extraKeys)}>
+                <p className="hint">
+                  Where the lightning orb lands, its bolts strike enemies within this reach, one at a time; hitting the same
+                  enemy again in a row does this much of the damage. From <code>players/warlock/projectiles/lightning_bolt.unit</code>.
+                </p>
+                <div className="field-grid">{extraKeys.map((key) => input(key, extraLabel(PLAYER_FIELD_MAP.get(key)!.name)))}</div>
+              </Subsection>
+            )}
           </Section>
         )
       })}
 
-      <Section title="Shared skills" badge={badge(SHARED_FILES.flatMap(keysOfFile))}>
+      <Section title="Shared skills" badge={badge([...SHARED_FILES.flatMap(keysOfFile), ...COMBO_KEYS])}>
         <p className="hint">
           Skills several classes own. A change here applies to every class that has the skill; a class with its own move
           speed (set under <strong>All characters</strong>) keeps its own.
         </p>
         {SHARED_FILES.map(skillEditor)}
+        <Subsection title="Combo regen" badge={badge(COMBO_KEYS)}>
+          <p className="hint">
+            Mana and health per second while combo is on, by the tier of each combo upgrade. They live in the game&apos;s{' '}
+            <code>tweak/buffs/buffs.sval</code>; the install patches the scenario&apos;s copy.
+          </p>
+          <div className="field-grid">{COMBO_KEYS.map((key) => input(key, extraLabel(PLAYER_FIELD_MAP.get(key)!.name)))}</div>
+        </Subsection>
       </Section>
 
       <Section title="Potions" badge={badge(POTIONS.map((p) => shopKey(p.id)))}>

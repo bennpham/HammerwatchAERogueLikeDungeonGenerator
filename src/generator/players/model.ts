@@ -96,10 +96,29 @@ export interface PlayerShopPrice {
   stock: number
 }
 
+/**
+ * A skill number that lives outside `players/`: the combo's regen buffs
+ * (`tweak/buffs/buffs.sval`) and the warlock lightning bolt
+ * (`players/warlock/projectiles/lightning_bolt.unit`). The line reads
+ * `${prefix}${stock}${suffix}` and is rewritten whole.
+ */
+export interface PlayerExtraValue {
+  /** `combo_mana_1`, `lightning_range` … */
+  id: string
+  path: string
+  /** 1-based line in the stock file */
+  line: number
+  prefix: string
+  suffix: string
+  type: 'int' | 'float'
+  stock: number
+}
+
 export interface PlayerStock {
   classes: PlayerClass[]
   skills: PlayerSkillFile[]
   shop: PlayerShopPrice[]
+  extras: PlayerExtraValue[]
 }
 
 /**

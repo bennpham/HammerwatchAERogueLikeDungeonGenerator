@@ -1,6 +1,14 @@
 import { parseSval, svalGet, svalInt, svalString } from '../ae/sval'
 import type { SvalNode } from '../ae/sval'
-import type { PlayerChain, PlayerClass, PlayerShopPrice, PlayerSkillFile, PlayerTier, PlayerValue } from './model'
+import type {
+  PlayerChain,
+  PlayerClass,
+  PlayerExtraValue,
+  PlayerShopPrice,
+  PlayerSkillFile,
+  PlayerTier,
+  PlayerValue
+} from './model'
 
 /**
  * Read AE's stock player files into the `PlayerStock` shape. Pure: the caller
@@ -142,6 +150,43 @@ export function parseShopPrices(powerShop: string, constants: string): PlayerSho
     if (m !== null) {
       out.push({ id: `equipment_${m[1].toLowerCase()}`, path: SHOP_CONSTANTS_PATH, line: i + 1, find: `= ${m[2]}`, stock: Number(m[3]) })
     }
+  })
+  return out
+}
+
+export const COMBO_BUFFS_PATH = 'tweak/buffs/buffs.sval'
+export const LIGHTNING_BOLT_PATH = 'players/warlock/projectiles/lightning_bolt.unit'
+
+/**
+ * The skill numbers outside `players/` the Players tab edits:
+ * - the combo's per-tier regen buffs, `%block Combo_mana_regen
+ *   combo_mana_regen_level_N V` (and `Combo_health_regen`): + V mana (health)
+ *   per second while combo is on, as `combo_mana_N` / `combo_heal_N`;
+ * - the warlock lightning bolt's reach from where the orb lands (`range`, px)
+ *   and the falloff on a repeat hit of the same enemy (`consecutive-mul`), as
+ *   `lightning_range` / `lightning_repeat_mul`.
+ */
+export function parseExtras(buffs: string, bolt: string): PlayerExtraValue[] {
+  const out: PlayerExtraValue[] = []
+  buffs.split('\n').forEach((line, i) => {
+    const m = /^(%block Combo_(mana|health)_regen combo_\2_regen_level_(\d) )(\d+)(\s*)$/.exec(line)
+    if (m === null) return
+    const id = `combo_${m[2] === 'mana' ? 'mana' : 'heal'}_${m[3]}`
+    out.push({ id, path: COMBO_BUFFS_PATH, line: i + 1, prefix: m[1], suffix: '', type: 'int', stock: Number(m[4]) })
+  })
+  const boltIds: Record<string, string> = { range: 'lightning_range', 'consecutive-mul': 'lightning_repeat_mul' }
+  bolt.split('\n').forEach((line, i) => {
+    const m = /(<(int|float) name="(range|consecutive-mul)">)([\d.]+)(<\/\2>)/.exec(line)
+    if (m === null) return
+    out.push({
+      id: boltIds[m[3]],
+      path: LIGHTNING_BOLT_PATH,
+      line: i + 1,
+      prefix: m[1],
+      suffix: m[5],
+      type: m[2] as 'int' | 'float',
+      stock: Number(m[4])
+    })
   })
   return out
 }

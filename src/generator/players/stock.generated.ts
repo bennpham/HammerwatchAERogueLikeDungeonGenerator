@@ -95,5 +95,19 @@ export const PLAYER_STOCK: PlayerStock = {
     {"id":"equipment_rare","path":"scripts/Data/Misc.as","line":83,"find":"= 750;","stock":750},
     {"id":"equipment_epic","path":"scripts/Data/Misc.as","line":84,"find":"= 1200;","stock":1200},
     {"id":"equipment_unique","path":"scripts/Data/Misc.as","line":85,"find":"= 1500;","stock":1500},
+  ],
+  extras: [
+    {"id":"combo_heal_1","path":"tweak/buffs/buffs.sval","line":211,"prefix":"%block Combo_health_regen combo_health_regen_level_1 ","suffix":"","type":"int","stock":2},
+    {"id":"combo_heal_2","path":"tweak/buffs/buffs.sval","line":212,"prefix":"%block Combo_health_regen combo_health_regen_level_2 ","suffix":"","type":"int","stock":4},
+    {"id":"combo_heal_3","path":"tweak/buffs/buffs.sval","line":213,"prefix":"%block Combo_health_regen combo_health_regen_level_3 ","suffix":"","type":"int","stock":6},
+    {"id":"combo_heal_4","path":"tweak/buffs/buffs.sval","line":214,"prefix":"%block Combo_health_regen combo_health_regen_level_4 ","suffix":"","type":"int","stock":8},
+    {"id":"combo_heal_5","path":"tweak/buffs/buffs.sval","line":215,"prefix":"%block Combo_health_regen combo_health_regen_level_5 ","suffix":"","type":"int","stock":10},
+    {"id":"combo_mana_1","path":"tweak/buffs/buffs.sval","line":230,"prefix":"%block Combo_mana_regen combo_mana_regen_level_1 ","suffix":"","type":"int","stock":4},
+    {"id":"combo_mana_2","path":"tweak/buffs/buffs.sval","line":231,"prefix":"%block Combo_mana_regen combo_mana_regen_level_2 ","suffix":"","type":"int","stock":6},
+    {"id":"combo_mana_3","path":"tweak/buffs/buffs.sval","line":232,"prefix":"%block Combo_mana_regen combo_mana_regen_level_3 ","suffix":"","type":"int","stock":8},
+    {"id":"combo_mana_4","path":"tweak/buffs/buffs.sval","line":233,"prefix":"%block Combo_mana_regen combo_mana_regen_level_4 ","suffix":"","type":"int","stock":10},
+    {"id":"combo_mana_5","path":"tweak/buffs/buffs.sval","line":234,"prefix":"%block Combo_mana_regen combo_mana_regen_level_5 ","suffix":"","type":"int","stock":12},
+    {"id":"lightning_range","path":"players/warlock/projectiles/lightning_bolt.unit","line":7,"prefix":"<int name=\"range\">","suffix":"</int>","type":"int","stock":50},
+    {"id":"lightning_repeat_mul","path":"players/warlock/projectiles/lightning_bolt.unit","line":8,"prefix":"<float name=\"consecutive-mul\">","suffix":"</float>","type":"float","stock":0.75},
   ]
 }

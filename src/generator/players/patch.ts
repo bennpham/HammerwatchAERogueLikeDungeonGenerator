@@ -1,5 +1,5 @@
 import { fmtNum } from '../ae/sval'
-import { PLAYER_FIELDS, boughtRoot, prunePlayerTweaks, shopKey, skillKey, statKey } from './fields'
+import { PLAYER_FIELDS, boughtRoot, extraKey, prunePlayerTweaks, shopKey, skillKey, statKey } from './fields'
 import type { PlayerTweaks } from './fields'
 import type { LineEdit, PlayerFileOverride, PlayerSkillFile, PlayerTier } from './model'
 import { PLAYER_STOCK } from './stock.generated'
@@ -172,6 +172,14 @@ export function playerOverrides(raw: PlayerTweaks): PlayerFileOverride[] {
     const edits = scripts.get(p.path) ?? []
     edits.push({ line: p.line, kind: 'text', find: p.find, replace: p.find.replace(String(p.stock), String(Math.trunc(value))) })
     scripts.set(p.path, edits)
+  }
+  // skill numbers outside players/: the combo buffs, the lightning bolt
+  for (const e of PLAYER_STOCK.extras) {
+    const value = tweaks[extraKey(e.id)]
+    if (value === undefined) continue
+    const edits = scripts.get(e.path) ?? []
+    edits.push({ line: e.line, kind: 'text', find: `${e.prefix}${e.stock}${e.suffix}`, replace: `${e.prefix}${fmt(e.type, value)}${e.suffix}` })
+    scripts.set(e.path, edits)
   }
   for (const [path, edits] of scripts) out.push({ path, source: path, edits })
 

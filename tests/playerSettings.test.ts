@@ -147,6 +147,12 @@ describe('player validation', () => {
     expect(validatePlayerTweaks({ [clock]: 5.4, [window]: 1000, [heat]: 0 }).errors).toEqual([])
   })
 
+  it('rejects a lightning bolt with no reach', () => {
+    const key = 'player.extra.lightning_range'
+    expect(validatePlayerTweaks({ [key]: 0 }).errors.map((e) => e.field)).toEqual([key])
+    expect(validatePlayerTweaks({ [key]: 96 }).errors).toEqual([])
+  })
+
   it('is part of validateParameters', () => {
     const result = validateParameters({ ...defaultParameters(), playerTweaks: { [COST_KEY]: -1 } })
     expect(result.errors.some((e) => e.field === COST_KEY)).toBe(true)
