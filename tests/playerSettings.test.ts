@@ -266,8 +266,8 @@ describe('loadout sheet', () => {
 })
 
 describe('player presets', () => {
-  it('each sit in a known group, Original Hammerwatch instead of an AE one', () => {
-    expect(PLAYER_PRESET_GROUPS.map((g) => g.id)).toEqual(['generic', 'original', 'hw2'])
+  it('each sit in a known group: AE-based, the original, HW2', () => {
+    expect(PLAYER_PRESET_GROUPS.map((g) => g.id)).toEqual(['anniversary', 'original', 'hw2'])
     const groups = new Set(PLAYER_PRESET_GROUPS.map((group) => group.id))
     for (const preset of PLAYER_PRESETS) expect(groups.has(preset.group), preset.id).toBe(true)
   })
@@ -321,6 +321,51 @@ describe('player presets', () => {
     expect(t[extraKey('lightning_range')]).toBe(96)
     expect(t[extraKey('combo_mana_5')]).toBe(24)
     expect(t[skillKey('priest_smite:priest_smite_speed', 5, 'smite-speed-pen')]).toBe(0.6)
+  })
+})
+
+describe('Dungeon Rebalanced', () => {
+  const t = playerPresetById('dungeon-rebalanced')!.build()
+  const regen = (cls: string, stem: string) => [
+    t[statKey(cls, 'base-mana-regen')],
+    ...[1, 2, 3, 4, 5].map((n) => t[skillKey(stem, n, 'player-mana-regen-set')])
+  ]
+
+  it('builds on AE, not the original', () => {
+    expect(playerPresetById('dungeon-rebalanced')!.group).toBe('anniversary')
+    // AE's own feel stays: no original movement, attack speed, bow or combo
+    for (const id of ['bow-heat', 'attack-movement', 'attack-speed', 'combo'] as const) {
+      expect(isOriginalToggleOn(id, t), id).toBe(false)
+    }
+    // the two fixes it shares with the original: the beam's cost, the bolt's reach
+    expect(isOriginalToggleOn('priest-beam', t)).toBe(true)
+    expect(isOriginalToggleOn('chain-lightning', t)).toBe(true)
+  })
+
+  it('gives the warlock twice the mana regen and lightning across a pack', () => {
+    expect(regen('warlock', 'warlock_misc_mana')).toEqual([3.2, 3.6, 4, 4.4, 5, 5.7])
+    expect(t[extraKey('lightning_range')]).toBe(96)
+  })
+
+  it('gives the sorcerer a quarter more mana regen', () => {
+    expect(regen('sorcerer', 'sorc_misc_mana')).toEqual([2, 2.5, 3.13, 3.56, 4.16, 5])
+  })
+
+  it('halves the priest beam mana and fixes smite tier 5', () => {
+    expect(t[skillKey('priest_beam', 1, 'castpoint')]).toBe(200)
+    expect(t[skillKey('priest_smite:priest_smite_speed', 5, 'smite-speed-pen')]).toBe(0.6)
+  })
+
+  it('leaves the paladin, ranger and wizard alone', () => {
+    const owners = Object.keys(t).map((key) => PLAYER_FIELD_MAP.get(key)!)
+    for (const f of owners) {
+      expect(f.path, f.key).not.toMatch(/players\/(paladin|ranger|wizard)\//)
+      expect(f.classId ?? '', f.key).not.toMatch(/^(paladin|ranger|wizard)$/)
+    }
+  })
+
+  it('has no tier that weakens the character', () => {
+    expect(validatePlayerTweaks(t)).toEqual({ errors: [], warnings: [] })
   })
 })
 

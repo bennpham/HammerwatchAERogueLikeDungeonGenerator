@@ -1,4 +1,4 @@
-import { PLAYER_FIELD_MAP, prunePlayerTweaks, skillKey, statKey } from './fields'
+import { PLAYER_FIELD_MAP, extraKey, prunePlayerTweaks, skillKey, statKey } from './fields'
 import type { PlayerTweaks } from './fields'
 import { allOriginalToggles } from './original'
 import { setEveryoneSpeed } from './speed'
@@ -14,10 +14,10 @@ import { PLAYER_STOCK } from './stock.generated'
  * Stock is Anniversary Edition's own balance, so there is no "AE" preset; the
  * original game is one of the presets instead.
  */
-export type PlayerPresetGroupId = 'generic' | 'original' | 'hw2'
+export type PlayerPresetGroupId = 'anniversary' | 'original' | 'hw2'
 
 export const PLAYER_PRESET_GROUPS: readonly { id: PlayerPresetGroupId; label: string }[] = [
-  { id: 'generic', label: 'Generic' },
+  { id: 'anniversary', label: 'Anniversary Edition' },
   { id: 'original', label: 'Original Hammerwatch' },
   { id: 'hw2', label: 'Hammerwatch 2' }
 ]
@@ -102,14 +102,27 @@ function originalHammerwatch(): PlayerTweaks {
 }
 
 /**
- * Dungeon Rebalanced: buffs the classes that are weak or unfun early — the
- * priest most, then the warlock, thief and sorcerer — and nerfs nothing.
- * Paladin, ranger and wizard are left alone. (AE's own faster movement and
- * longer combo window are already stock here.) Every new start stays below
- * its first upgrade, so no tier becomes a downgrade.
+ * Dungeon Rebalanced: built on AE's own balance, it buffs the classes players
+ * find weak — the priest, warlock and sorcerer most, then the thief — and
+ * nerfs nothing. Paladin, ranger and wizard are left alone. (AE's own faster
+ * movement and longer combo window are already stock here.) Every new start
+ * stays below its first upgrade, so no tier becomes a downgrade.
+ *
+ * - warlock: twice the mana regen at every tier, and lightning that strikes
+ *   across a pack (96 px from the orb instead of 50);
+ * - sorcerer: a quarter more mana regen at every tier;
+ * - priest: the beam at the original's 15 mana/s instead of AE's 30, smite's
+ *   last walk-speed upgrade fixed (0.6, not a downgrade to 0.4), plus more
+ *   health, smite damage, shield and beam healing.
  */
 function dungeonRebalanced(): PlayerTweaks {
   return prunePlayerTweaks({
+    ...scaleManaRegen('warlock', 2),
+    [extraKey('lightning_range')]: 96,
+    ...scaleManaRegen('sorcerer', 1.25),
+
+    [skillKey('priest_beam', 1, 'castpoint')]: 200,
+    ...tiers('priest_smite:priest_smite_speed', 'smite-speed-pen', { 5: 0.6 }),
     [statKey('priest', 'base-health')]: 40,
     ...tiers('priest_misc_health', 'player-max-health-set', { 1: 55, 2: 70, 3: 80, 4: 90, 5: 100 }),
     ...tiers('priest_smite', 'smite-dmg', { 1: 9 }),
@@ -218,21 +231,41 @@ function miscFile(cls: string, kind: 'health' | 'mana'): string {
  */
 function bodyOverrides(cls: string, body: Hw2Body): PlayerTweaks {
   const out: PlayerTweaks = {
+    ...scaleManaRegen(cls, body.manaRegen / stockStat(cls, 'base-mana-regen')),
     [statKey(cls, 'base-health')]: body.maxHealth,
     [statKey(cls, 'base-mana')]: body.maxMana,
     [statKey(cls, 'base-mana-regen')]: body.manaRegen
   }
   const healthDelta = body.maxHealth - stockStat(cls, 'base-health')
   const manaDelta = body.maxMana - stockStat(cls, 'base-mana')
-  const regenRatio = body.manaRegen / stockStat(cls, 'base-mana-regen')
   for (const [kind, shift] of [['health', 'player-max-health-set'], ['mana', 'player-max-mana-set']] as const) {
-    const stem = miscFile(cls, kind)
-    const chain = PLAYER_STOCK.skills.find((f) => f.stem === stem)!.chains[0]
+    const chain = miscChain(cls, kind)
     chain.tiers.forEach((t, i) => {
       const b = t.binds[shift]
       if (b !== undefined) out[skillKey(chain.key, i + 1, shift)] = b.stock + (kind === 'health' ? healthDelta : manaDelta)
+    })
+  }
+  return out
+}
+
+/** The class's own health or mana upgrade ladder. */
+function miscChain(cls: string, kind: 'health' | 'mana') {
+  const stem = miscFile(cls, kind)
+  return PLAYER_STOCK.skills.find((f) => f.stem === stem)!.chains[0]
+}
+
+/**
+ * A class's mana regen times `ratio`: its base regen and every regen tier of
+ * its health and mana upgrades, to 2 places, so the ladder keeps its shape.
+ */
+export function scaleManaRegen(cls: string, ratio: number): PlayerTweaks {
+  const round = (v: number): number => Math.round(v * ratio * 100) / 100
+  const out: PlayerTweaks = { [statKey(cls, 'base-mana-regen')]: round(stockStat(cls, 'base-mana-regen')) }
+  for (const kind of ['health', 'mana'] as const) {
+    const chain = miscChain(cls, kind)
+    chain.tiers.forEach((t, i) => {
       const r = t.binds['player-mana-regen-set']
-      if (r !== undefined) out[skillKey(chain.key, i + 1, 'player-mana-regen-set')] = Math.round(r.stock * regenRatio * 100) / 100
+      if (r !== undefined) out[skillKey(chain.key, i + 1, 'player-mana-regen-set')] = round(r.stock)
     })
   }
   return out
@@ -309,9 +342,9 @@ export const PLAYER_PRESETS: readonly PlayerPreset[] = [
   {
     id: 'dungeon-rebalanced',
     label: 'Dungeon Rebalanced',
-    group: 'generic',
+    group: 'anniversary',
     description:
-      'Buffs the classes that are weak or unfun early — the priest most, then the warlock, thief and sorcerer — and leaves the paladin, ranger and wizard alone.',
+      'Built on Anniversary Edition’s own balance: buffs the classes players find weak and leaves the paladin, ranger and wizard alone. The warlock gets twice the mana regen and lightning that reaches across a pack; the sorcerer a quarter more mana regen; the priest a beam at half the mana (the original’s cost), more health, harder smites and a stronger shield; the thief a little more health and knife damage.',
     build: dungeonRebalanced
   },
   {
