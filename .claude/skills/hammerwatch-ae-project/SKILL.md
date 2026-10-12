@@ -10,7 +10,7 @@ description: Architecture and review bar for the Hammerwatch AE Dungeon Generato
 `generateDungeon(params, seed)` (`src/generator/index.ts`) builds the campaign:
 
 1. **Validate** (`config/validation.ts`). Invalid parameters return `{ok:false, errors}` and generation never starts.
-2. **Campaign order** (`campaign.ts`): slots are floors (`floorN`), boss fights (`bossN`) and lobbies (`lobbyN`). A slot's **stem** is its file name and its arrival StartID: `levels/<scenarioId>/<stem>.lvl`. The scenario id is `dungeon_<seed>`.
+2. **Campaign order** (`campaign.ts`): slots are floors (`floorN`), boss fights (`bossN`) and lobbies (`lobbyN`). A slot's **stem** (`slotEntryId`) is its arrival StartID and what every exit names. Its **file** is named by play order (`slotFileName`): `levels/<scenarioId>/<NN>_<what>.lvl`, where `NN` is the 1-based position padded to the campaign size and `<what>` is `floorK`, `floorK_boss` (with a floor boss), `arena_bossK`, `arena_survivalK` or `lobbyK`. For example: `01_lobby1`, `02_floor1_boss`, `04_arena_boss1`. Always build a path with `ctx.levelPath(stem)`; the two names are independent because `LevelExit` carries the path and the StartID separately. The scenario id is `dungeon_<seed>`.
 3. **Floors** (`map/level.ts`): rooms, passages, room types (Entrance, Exit/Orb, Shop, vaults), then the optional layers in a fixed order: floor bosses, traps, timer, buffs, mystery plates, music. `toAeLevel()` paints tiles and emits objects, then walls.
 4. **Arenas** (`boss/arena.ts`), **survival** (`survival/`), **lobbies** (`lobby/build.ts`: the generated stand-in or an imported template).
 5. **Files**: one `.lvl` per slot, plus `info.xml` (start level and modifiers, with `NO_LIVES` forced) and `logos.png`.

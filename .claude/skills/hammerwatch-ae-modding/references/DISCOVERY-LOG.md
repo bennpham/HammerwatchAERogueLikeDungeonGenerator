@@ -460,3 +460,11 @@ crypt tiles.
 - The generator now patches `tweak/buffs/buffs.sval` and
   `players/warlock/projectiles/lightning_bolt.unit` (`player.extra.*`). Whether the game reads
   scenario copies of those two files is checklist #36–37.
+
+### Level file names and StartIDs are independent (2026-10-12)
+
+- `[EMITTED]` A level's file is now named by play order (`03_floor2.lvl`, `04_arena_boss1.lvl`)
+  while its `LevelStart` StartID stays the stem (`floor1`, `boss0`). `LevelExit` takes `Level`
+  (the scenario-relative file path) and `StartID` as separate parameters, and info.xml's start
+  level is a path, so nothing requires them to match. Stock levels already differ
+  (`level_1.lvl` with arbitrary StartIDs). Still to be seen in game: checklist #39.
