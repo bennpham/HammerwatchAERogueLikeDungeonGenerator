@@ -312,7 +312,7 @@ export const PLAYER_PRESETS: readonly PlayerPreset[] = [
   },
   {
     id: 'original',
-    label: 'Original Hammerwatch balance',
+    label: 'Original Hammerwatch',
     group: 'original',
     description:
       'The original game’s numbers where AE changed them: one slower move speed for everyone (0.9), a shorter combo window, the original sword, knife and fireball damage, the paladin’s mana regen and armor, and the original prices. Plays like it too: the ranger’s bow never overheats, the paladin swings as fast as you click, and the paladin, wizard and warlock stand still to attack (meteor locks the wizard in place).',
