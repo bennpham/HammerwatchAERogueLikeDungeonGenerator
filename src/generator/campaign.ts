@@ -1,9 +1,14 @@
 /**
- * The campaign's level stems. In Anniversary Edition a stem is three things at
- * once: the level's file name (`levels/<scenario>/<stem>.lvl`, built by
- * `GenerationContext.levelPath`), the StartID its arrival `LevelStart` answers
- * to, and what the previous level's `LevelExit` and `SetRespawnPoint` name. A
- * single source keeps both ends of every link in step.
+ * The campaign's level stems. In Anniversary Edition a stem is the StartID a
+ * level's arrival `LevelStart` answers to, and what the previous level's
+ * `LevelExit` and `SetRespawnPoint` name. A single source keeps both ends of
+ * every link in step.
+ *
+ * The level's FILE is named separately, by play order (`slotFileName`:
+ * `03_floor2.lvl`, `04_arena_boss1.lvl`), so the scenario folder sorts the way
+ * the campaign plays. A `LevelExit` carries the file path and the StartID as two
+ * parameters, so the two never have to match; `GenerationContext.levelPath`
+ * turns a stem into its file.
  */
 
 /** Dungeon floor `i` (0-based). */
@@ -249,6 +254,53 @@ export function slotLabel(slot: CampaignSlot, mode?: ArenaMode): string {
  */
 export function slotLabeller(modes: readonly ArenaMode[]): (slot: CampaignSlot) => string {
   return (slot) => slotLabel(slot, slot.kind === 'boss' ? modes[slot.index] : undefined)
+}
+
+/**
+ * A slot's level file name, without `.lvl`: its 1-based play position,
+ * zero-padded to the width of the whole campaign (at least 2), then what it is
+ * — `floor3`, `floor3_boss` (a floor with a floor boss), `arena_boss2` /
+ * `arena_survival2` (the number of its `AB`/`AS` chip) or `lobby1`. So the
+ * folder lists in play order and says what each level is.
+ */
+export function slotFileName(slot: CampaignSlot, position: number, total: number, mode?: ArenaMode, floorBoss = false): string {
+  const prefix = String(position + 1).padStart(Math.max(2, String(total).length), '0')
+  const n = slot.index + 1
+  if (slot.kind === 'floor') return `${prefix}_floor${n}${floorBoss ? '_boss' : ''}`
+  if (slot.kind === 'boss') return `${prefix}_arena_${mode === 'survival' ? 'survival' : 'boss'}${n}`
+  return `${prefix}_lobby${n}`
+}
+
+/**
+ * Every slot's file name, keyed by its stem (`slotEntryId`), for
+ * `GenerationContext.levelFiles`. `modes[i]` is fight i's arena mode,
+ * `bossFloors[i]` whether floor i has a floor boss.
+ */
+export function campaignFileNames(
+  order: readonly CampaignSlot[],
+  modes: readonly ArenaMode[],
+  bossFloors: readonly boolean[]
+): Map<string, string> {
+  const out = new Map<string, string>()
+  order.forEach((slot, position) => {
+    const mode = slot.kind === 'boss' ? modes[slot.index] : undefined
+    const boss = slot.kind === 'floor' && bossFloors[slot.index] === true
+    out.set(slotEntryId(slot), slotFileName(slot, position, order.length, mode, boss))
+  })
+  return out
+}
+
+/**
+ * The stem a play-order file name stands for (`03_floor2_boss` → `floor1`,
+ * `04_arena_survival2` → `boss1`, `01_lobby1` → `lobby0`), or null for a name
+ * that isn't one. The inverse of `slotFileName`, for reading a scenario back.
+ */
+export function stemOfFileName(name: string): string | null {
+  const m = /^\d+_(?:(floor)(\d+)(?:_boss)?|arena_(?:boss|survival)(\d+)|(lobby)(\d+))$/.exec(name)
+  if (m === null) return null
+  if (m[1] !== undefined) return floorId(Number(m[2]) - 1)
+  if (m[3] !== undefined) return bossArenaId(Number(m[3]) - 1)
+  return lobbyId(Number(m[5]) - 1)
 }
 
 /**

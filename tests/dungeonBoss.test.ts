@@ -41,7 +41,8 @@ import {
   placements,
   scriptById,
   scriptsOf,
-  strParam
+  strParam,
+  withStemPaths
 } from './ae'
 import { plainParameters } from './params'
 
@@ -153,7 +154,8 @@ describe('dungeon boss — what must not move', () => {
     // documented cost, not a bug.
     const off = generateOk(bareParams(), SEED)
     const on = generateOk(withBoss(), SEED)
-    expect(floorOf(on, 0)).toEqual(floorOf(off, 0))
+    // floor 0's exit now names floor 1's `_boss` file; the level itself is unchanged
+    expect(withStemPaths(floorOf(on, 0))).toEqual(withStemPaths(floorOf(off, 0)))
   }, 60_000)
 
   it('arming a floor leaves every boss arena identical', () => {

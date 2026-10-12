@@ -340,7 +340,7 @@ describe('boss campaign', () => {
     const arenaLevel = levelsOf(result).get('boss0')!
     expect(scriptsOf(arenaLevel, 'LevelStart').some((s) => strParam(s, 'StartID') === undefined)).toBe(true)
     expect(/lvl="([^"]+)"/.exec(result.files.find((f) => f.path === 'info.xml')!.content)?.[1]).toBe(
-      `levels/${result.campaignName}/boss0.lvl`
+      `levels/${result.campaignName}/01_arena_boss1.lvl`
     )
   })
 

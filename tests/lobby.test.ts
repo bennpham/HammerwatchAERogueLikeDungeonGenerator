@@ -165,7 +165,7 @@ for (const preset of LOBBY_PRESETS) {
         const result = generateOk(withOneLobby(preset))
         expect(stemsOf(result)).toContain('lobby0')
         expect(/lvl="([^"]+)"/.exec(result.files.find((f) => f.path === 'info.xml')!.content)?.[1]).toBe(
-          `levels/${result.campaignName}/lobby0.lvl`
+          `levels/${result.campaignName}/01_lobby1.lvl`
         )
         const lobby = levelsOf(result).get('lobby0')!
         const starts = scriptsOf(lobby, 'LevelStart').map((s) => strParam(s, 'StartID'))

@@ -36,7 +36,7 @@ import { validateParameters } from '../src/generator/config/validation'
 import { serializeParametersTxt, parseParametersTxt } from '../src/generator/config/configFile'
 import { countdownMarks, everySecond, milestoneSeconds } from '../src/generator/survival/clock'
 import type { AeLevel, AeScript } from '../src/generator/ae/model'
-import { allIds, idsParam, intParam, levelsOf, lvlText, scriptsOf, strParam } from './ae'
+import { allIds, idsParam, intParam, levelsOf, lvlText, scriptsOf, strParam, withStemPaths } from './ae'
 import { arenaActorPath, resolveActorPath } from '../src/generator/objects/monsterTypes'
 import { plainParameters } from './params'
 
@@ -128,7 +128,8 @@ describe('survival — the boss mode is untouched (invariant 8)', () => {
     // arena change can reach a floor however many draws it does or does not make.
     const boss = generateOk(twoFightParams(), SEED)
     const survival = generateOk(withSurvival(0), SEED)
-    for (let i = 0; i < 3; i++) expect(floorOf(survival, i), `floor ${i}`).toEqual(floorOf(boss, i))
+    // a floor's exit names the arena's file, `arena_boss1` or `arena_survival1`; the floor itself is unchanged
+    for (let i = 0; i < 3; i++) expect(withStemPaths(floorOf(survival, i)), `floor ${i}`).toEqual(withStemPaths(floorOf(boss, i)))
   }, 60_000)
 
   it('flipping the SECOND fight leaves the first arena identical', () => {
@@ -136,7 +137,7 @@ describe('survival — the boss mode is untouched (invariant 8)', () => {
     // drew whatever fight 1 turns into.
     const boss = generateOk(twoFightParams(), SEED)
     const survival = generateOk(withSurvival(1), SEED)
-    expect(arenaOf(survival, 0)).toEqual(arenaOf(boss, 0))
+    expect(withStemPaths(arenaOf(survival, 0))).toEqual(withStemPaths(arenaOf(boss, 0)))
   }, 60_000)
 
   it('is deterministic', () => {

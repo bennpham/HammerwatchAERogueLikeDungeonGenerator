@@ -104,6 +104,11 @@ export class GenerationContext {
    * the StartID its arrival LevelStart answers to. Set by the generator.
    */
   currentStem = ''
+  /**
+   * Each stem's play-order file name (`campaignFileNames`), set once before the
+   * first level is built; a stem not in it keeps its own name.
+   */
+  levelFiles: ReadonlyMap<string, string> = new Map()
 
   /**
    * Whether the level being built is the campaign's first: it also gets the
@@ -213,9 +218,13 @@ export class GenerationContext {
     this.mysteryRand = new Rand(seed + 5)
   }
 
-  /** Scenario-relative path of the level a slot stem (`floor2`, `boss0`, `lobby1`) is written to. */
+  /**
+   * Scenario-relative path of the level a slot stem (`floor2`, `boss0`,
+   * `lobby1`) is written to: its play-order file (`03_floor3.lvl`), or the stem
+   * itself when the campaign hasn't named it.
+   */
   levelPath(stem: string): string {
-    return `levels/${this.scenarioId}/${stem}.lvl`
+    return `levels/${this.scenarioId}/${this.levelFiles.get(stem) ?? stem}.lvl`
   }
 
   /** Equivalent of the Clear() calls between levels in HammerwatchGen.main */

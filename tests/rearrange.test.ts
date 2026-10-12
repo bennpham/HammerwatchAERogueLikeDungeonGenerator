@@ -7,7 +7,7 @@ import { DEFAULT_LOBBY_PRESET_ID } from '../src/generator/lobby/presets'
 import { parseSlotLabel } from '../src/generator/campaign'
 import type { CampaignSlot } from '../src/generator/campaign'
 import type { AeLevel } from '../src/generator/ae/model'
-import { fileOf, generateOk, levelsOf, scriptsOf, strParam } from './ae'
+import { fileOf, generateOk, levelsOf, scriptsOf, stemOfPath, strParam } from './ae'
 
 const slots = (spec: string): CampaignSlot[] =>
   spec.split(',').map((token) => {
@@ -50,7 +50,10 @@ const level = (r: DungeonResult, stem: string): AeLevel => {
 const exitTargets = (l: AeLevel) => scriptsOf(l, 'LevelExit').map((s) => strParam(s, 'StartID'))
 
 /** The stem a new game starts in, read from info.xml. */
-const startOf = (r: DungeonResult) => /lvl="levels\/[^/]+\/([a-z]+\d+)\.lvl"/.exec(fileOf(r, 'info.xml')!.content)?.[1]
+const startOf = (r: DungeonResult) => {
+  const path = /lvl="([^"]+)"/.exec(fileOf(r, 'info.xml')!.content)?.[1]
+  return path === undefined ? undefined : stemOfPath(path)
+}
 
 /** Play order: the start level, then each level's exit, until a level ends the run. */
 function playOrder(r: DungeonResult): string[] {
@@ -233,3 +236,37 @@ describe('campaign order — reachability still holds', () => {
     expect(playOrder(result)).toHaveLength(result.files.filter((f) => f.path.endsWith('.lvl')).length)
   }, 90_000)
 })
+
+describe('level files — named by play order', () => {
+  const params = campaign('L1,1,2,AB1,L2,AB2,3', 2, 2)
+  const result = generateOk(params, SEED)
+  const names = result.files
+    .filter((f) => f.path.endsWith('.lvl'))
+    .map((f) => f.path.slice(f.path.lastIndexOf('/') + 1))
+    .sort()
+
+  it('sorts the folder in play order and says what each level is', () => {
+    expect(names).toEqual([
+      '01_lobby1.lvl',
+      '02_floor1.lvl',
+      '03_floor2.lvl',
+      '04_arena_boss1.lvl',
+      '05_lobby2.lvl',
+      '06_arena_boss2.lvl',
+      '07_floor3.lvl'
+    ])
+  })
+
+  it('keeps the StartIDs, and every exit names the file that answers its StartID', () => {
+    for (const [stem, l] of levelsOf(result)) {
+      for (const exit of scriptsOf(l, 'LevelExit')) {
+        expect(stemOfPath(strParam(exit, 'Level')!), stem).toBe(strParam(exit, 'StartID'))
+      }
+    }
+    expect(exitTargets(level(result, 'floor0'))).toContain('floor1')
+  })
+
+  it('starts the game on the 01_ file', () => {
+    expect(fileOf(result, 'info.xml')!.content).toContain(`lvl="levels/${result.campaignName}/01_lobby1.lvl"`)
+  })
+}, 90_000)

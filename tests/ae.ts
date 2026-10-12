@@ -6,6 +6,7 @@
 import { readLevel } from '../src/generator/ae/levelReader'
 import type { AeLevel, AeScript, AeUnit, Param } from '../src/generator/ae/model'
 import { generateDungeon } from '../src/generator'
+import { stemOfFileName } from '../src/generator/campaign'
 import type { DungeonParameters, DungeonResult, GeneratedFile } from '../src/generator'
 
 /** Generate, failing the test with the generator's own errors if it refuses. */
@@ -15,12 +16,50 @@ export function generateOk(params: DungeonParameters, seed = 1): DungeonResult {
   return r
 }
 
+/**
+ * The stem (`floor0`, `boss0`, `lobby1`) a level file stands for: its
+ * play-order name (`03_floor1.lvl`) read back, or a bare stem (`floor0.lvl`)
+ * as a single level built outside a campaign is named. Undefined for a file
+ * that isn't a level.
+ */
+export function stemOfPath(path: string): string | undefined {
+  const m = /\/([^/]+)\.lvl$/.exec(path)
+  if (m === null) return undefined
+  return stemOfFileName(m[1]) ?? (/^[a-z]+\d+$/.test(m[1]) ? m[1] : undefined)
+}
+
+/** A level path with its file read back as a stem: `levels/d/03_floor2.lvl` → `levels/d/floor1.lvl`. */
+export function stemPath(path: string): string {
+  const stem = stemOfPath(path)
+  return stem === undefined ? path : path.replace(/[^/]+\.lvl$/, `${stem}.lvl`)
+}
+
+/**
+ * A level with every level path its scripts name read back as a stem. File
+ * names carry what the next slot is (`_boss`, `arena_survival`), so arming a
+ * floor boss or flipping a fight renames the file the level before it exits
+ * to; this compares the levels themselves.
+ */
+export function withStemPaths(level: AeLevel): AeLevel {
+  const scripts = level.scripts.map((s) => ({
+    ...s,
+    params: s.params.map((p) => (p.kind === 'string' && p.value.endsWith('.lvl') ? { ...p, value: stemPath(p.value) } : p))
+  }))
+  // a copy that is still an AeLevel (it's a class), with only the scripts swapped
+  return Object.assign(Object.create(Object.getPrototypeOf(level) as object) as AeLevel, level, { scripts })
+}
+
+/** `withStemPaths` for raw `.lvl` text. */
+export function withStemPathsText(text: string): string {
+  return text.replace(/levels\/[^"<\s]+?\.lvl/g, (path) => stemPath(path))
+}
+
 /** Every `.lvl` in a result, read back, keyed by stem (`floor0`, `boss0`, `lobby1`). */
 export function levelsOf(result: DungeonResult): Map<string, AeLevel> {
   const out = new Map<string, AeLevel>()
   for (const f of result.files) {
-    const m = /\/([a-z]+\d+)\.lvl$/.exec(f.path)
-    if (m !== null) out.set(m[1], readLevel(f.content).level)
+    const stem = stemOfPath(f.path)
+    if (stem !== undefined) out.set(stem, readLevel(f.content).level)
   }
   return out
 }
@@ -72,14 +111,14 @@ export function allIds(level: AeLevel): number[] {
 
 /** A level's raw `.lvl` text by stem, for plain contains-checks. */
 export function lvlText(result: DungeonResult, stem: string): string {
-  const f = result.files.find((file) => file.path.endsWith(`/${stem}.lvl`))
+  const f = result.files.find((file) => stemOfPath(file.path) === stem)
   if (f === undefined) throw new Error(`no level ${stem}`)
   return f.content
 }
 
 /** Stems of every emitted level, in file order. */
 export function stemsOf(result: DungeonResult): string[] {
-  return result.files.flatMap((f) => /\/([a-z]+\d+)\.lvl$/.exec(f.path)?.[1] ?? [])
+  return result.files.flatMap((f) => stemOfPath(f.path) ?? [])
 }
 
 /**

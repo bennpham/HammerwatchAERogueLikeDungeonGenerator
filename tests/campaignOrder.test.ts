@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   bossArenaId,
+  campaignFileNames,
   campaignOrder,
   defaultOrder,
   gatewayAfter,
@@ -9,7 +10,9 @@ import {
   normalizeOrder,
   parseSlotLabel,
   slotEntryId,
-  slotLabel
+  slotFileName,
+  slotLabel,
+  stemOfFileName
 } from '../src/generator/campaign'
 import type { CampaignCounts, CampaignSlot } from '../src/generator/campaign'
 
@@ -208,5 +211,57 @@ describe('gatewayAfter', () => {
       const orbs = parsed.filter((_, i) => gatewayAfter(parsed, i).kind === 'orb')
       expect(orbs, shape).toHaveLength(1)
     }
+  })
+})
+
+describe('level file names', () => {
+  it('lead with the play position and say what the level is', () => {
+    expect(slotFileName({ kind: 'lobby', index: 0 }, 0, 7)).toBe('01_lobby1')
+    expect(slotFileName({ kind: 'floor', index: 0 }, 1, 7, undefined, true)).toBe('02_floor1_boss')
+    expect(slotFileName({ kind: 'floor', index: 1 }, 2, 7)).toBe('03_floor2')
+    expect(slotFileName({ kind: 'boss', index: 0 }, 3, 7, 'boss')).toBe('04_arena_boss1')
+    expect(slotFileName({ kind: 'boss', index: 1 }, 5, 7, 'survival')).toBe('06_arena_survival2')
+  })
+
+  it('pad the position to the campaign size', () => {
+    expect(slotFileName({ kind: 'floor', index: 4 }, 4, 120)).toBe('005_floor5')
+    expect(slotFileName({ kind: 'floor', index: 99 }, 119, 120)).toBe('120_floor100')
+  })
+
+  it('name every slot of an order, keyed by its StartID stem', () => {
+    const order: CampaignSlot[] = [
+      { kind: 'lobby', index: 0 },
+      { kind: 'floor', index: 0 },
+      { kind: 'floor', index: 1 },
+      { kind: 'boss', index: 0 },
+      { kind: 'lobby', index: 1 },
+      { kind: 'boss', index: 1 },
+      { kind: 'floor', index: 2 }
+    ]
+    const names = campaignFileNames(order, ['boss', 'survival'], [true, false, false])
+    expect([...names.entries()]).toEqual([
+      ['lobby0', '01_lobby1'],
+      ['floor0', '02_floor1_boss'],
+      ['floor1', '03_floor2'],
+      ['boss0', '04_arena_boss1'],
+      ['lobby1', '05_lobby2'],
+      ['boss1', '06_arena_survival2'],
+      ['floor2', '07_floor3']
+    ])
+  })
+
+  it('read back to the stem they were made from', () => {
+    const cases: Array<[CampaignSlot, ('boss' | 'survival')?, boolean?]> = [
+      [{ kind: 'floor', index: 3 }],
+      [{ kind: 'floor', index: 3 }, undefined, true],
+      [{ kind: 'boss', index: 2 }, 'boss'],
+      [{ kind: 'boss', index: 2 }, 'survival'],
+      [{ kind: 'lobby', index: 1 }]
+    ]
+    for (const [slot, mode, boss] of cases) {
+      expect(stemOfFileName(slotFileName(slot, 9, 150, mode, boss))).toBe(slotEntryId(slot))
+    }
+    expect(stemOfFileName('floor0')).toBeNull()
+    expect(stemOfFileName('level_1')).toBeNull()
   })
 })

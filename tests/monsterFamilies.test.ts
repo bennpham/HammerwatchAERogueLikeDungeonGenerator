@@ -20,6 +20,7 @@ import {
 import { validateParameters } from '../src/generator/config/validation'
 import type { DungeonParameters, DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
+import { lvlText } from './ae'
 import { readLevel } from '../src/generator/ae/levelReader'
 
 /** One floor pooling exactly `pool`, with `max` applied to every key in it. */
@@ -36,7 +37,7 @@ function floorWith(pool: string[], seed: number, max = 40): DungeonResult {
   return result as DungeonResult
 }
 
-const levelXML = (r: DungeonResult): string => r.files.find((f) => f.path.endsWith('/floor0.lvl'))!.content
+const levelXML = (r: DungeonResult): string => lvlText(r, 'floor0')
 
 function actorCount(lvl: string, path: string): number {
   return readLevel(lvl).level.units.filter((u) => u.path === path).length

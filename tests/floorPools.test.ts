@@ -14,6 +14,7 @@ import {
 import { validateParameters } from '../src/generator/config/validation'
 import type { DungeonParameters, DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
+import { lvlText } from './ae'
 import { readLevel } from '../src/generator/ae/levelReader'
 
 /**
@@ -35,7 +36,7 @@ function floorWith(pool: string[], seed: number, max = 60): DungeonResult {
 }
 
 /** The emitted floor0.lvl text. */
-const levelXML = (r: DungeonResult): string => r.files.find((f) => f.path.endsWith('/floor0.lvl'))!.content
+const levelXML = (r: DungeonResult): string => lvlText(r, 'floor0')
 
 /** How many units of `path` the level places. */
 function actorCount(lvl: string, path: string): number {

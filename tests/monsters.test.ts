@@ -18,7 +18,7 @@ import { isKnownMonsterId } from '../src/generator/objects/monsterTypes'
 import { AE_UNIT_SET } from '../src/generator/catalog/assets'
 import type { DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
-import { generateOk, lvlText } from './ae'
+import { generateOk, lvlText, stemPath, withStemPathsText } from './ae'
 
 /** Generate a single floor whose only monster type is `id`, with a usable max. */
 function generateWithOnly(id: string, seed: number, max = 60): DungeonResult {
@@ -256,8 +256,11 @@ describe('the escape floor', () => {
       const result = generateOk(params, Number(seed))
       const digest = createHash('sha256')
       for (const file of result.files) {
-        if (!/\/floor\d+\.lvl$/.test(file.path)) continue
-        digest.update(`${file.path} ${file.content} `)
+        // hashed under the stem names the pins were taken with: file names are
+        // play-order labels, not layout
+        const path = stemPath(file.path)
+        if (!/\/floor\d+\.lvl$/.test(path)) continue
+        digest.update(`${path} ${withStemPathsText(file.content)} `)
       }
       expect(digest.digest('hex'), `seed ${seed}`).toBe(hash)
     }

@@ -10,7 +10,7 @@ import { plainParameters } from './params'
 import { SEAL_SOUND } from '../src/generator/map/buttonSeal'
 import { KEY_UNITS } from '../src/generator/objects/item'
 import type { AeLevel, AeScript } from '../src/generator/ae/model'
-import { allIds, idsParam, intParam, levelsOf, scriptById, scriptsOf, sensorSizePx, stemsOf, strParam, unitById } from './ae'
+import { allIds, idsParam, intParam, levelsOf, scriptById, scriptsOf, sensorSizePx, stemOfPath, stemsOf, strParam, unitById } from './ae'
 
 // The shipped campaign ends on an extra dungeon floor played AFTER the boss
 // arena (see presets.ts), which moves the orb off the last generated floor.
@@ -45,7 +45,8 @@ describe('generateDungeon', () => {
     for (let i = 0; i < floors; i++) expect(stems).toContain(`floor${i}`)
     expect(stems).toContain('boss0')
     for (const f of result.files.filter((file) => file.path.endsWith('.lvl'))) {
-      expect(f.path).toMatch(new RegExp(`^levels/${result.campaignName}/[a-z]+\\d+\\.lvl$`))
+      // play position, then what the level is: 01_floor1, 04_arena_boss1, 01_lobby1
+      expect(f.path).toMatch(new RegExp(`^levels/${result.campaignName}/\\d{2,}_(floor\\d+(_boss)?|arena_(boss|survival)\\d+|lobby\\d+)\\.lvl$`))
     }
     const paths = result.files.map((f) => f.path)
     expect(paths).toContain('info.xml')
@@ -370,7 +371,8 @@ describe('campaign level references — every exit lands somewhere', () => {
         const path = strParam(exit, 'Level')!
         const start = strParam(exit, 'StartID')!
         expect(files.has(path), `${label}: ${stem} exits to missing ${path}`).toBe(true)
-        expect(path, `${label}: ${stem}`).toBe(`levels/${result.campaignName}/${start}.lvl`)
+        // the file the exit names is the level that answers its StartID
+        expect(stemOfPath(path), `${label}: ${stem}`).toBe(start)
         const target = levels.get(start)!
         expect(
           scriptsOf(target, 'LevelStart').some((s) => strParam(s, 'StartID') === start),

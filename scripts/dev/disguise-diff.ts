@@ -8,7 +8,8 @@ function bare() {
   p.levelLock[1] = { enabled: true, buttons: 2 }
   return p
 }
-const lvl = (r: any) => readLevel(r.files.find((f: any) => f.path.endsWith('/floor1.lvl')).content).level
+// floor 2's file: `<position>_floor2.lvl`, `_boss` when it has a floor boss
+const lvl = (r: any) => readLevel(r.files.find((f: any) => /_floor2(_boss)?\.lvl$/.test(f.path)).content).level
 const off = lvl(generateDungeon(bare(), 4242))
 const d = bare(); d.levelLockMystery = Array.from({ length: 4 }, () => defaultFloorLockMystery()); d.levelLockMystery[1] = { count: 0, pool: [], disguise: true }
 const on = lvl(generateDungeon(d, 4242))

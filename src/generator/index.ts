@@ -5,7 +5,7 @@ import type { DungeonParameters } from './config/parameters'
 import { validateParameters, ValidationResult } from './config/validation'
 import { DEFAULT_LOBBY_PRESET_ID, buildLobby, lobbyPresetById } from './lobby'
 import { buildBossArena } from './boss'
-import { campaignOrder, floorId, gatewayAfter, slotEntryId, slotLabeller } from './campaign'
+import { campaignFileNames, campaignOrder, floorId, gatewayAfter, slotEntryId, slotLabeller } from './campaign'
 import type { CampaignSlot } from './campaign'
 import { renderLevel } from './ae/levelWriter'
 import { renderInfoXml } from './ae/scenario'
@@ -329,6 +329,12 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
   const lobbies = params.lobbies ?? []
   const order = campaignOrder({ levels: params.levels, fights: fights.length, lobbies: lobbies.length }, params.levelOrder)
   const label = slotLabeller(fights.map(arenaMode))
+  // play-order file names, before any level links to another
+  ctx.levelFiles = campaignFileNames(
+    order,
+    fights.map(arenaMode),
+    Array.from({ length: params.levels }, (_, i) => floorBoss(params, i) !== undefined)
+  )
   const positionOf = new Map<string, number>()
   order.forEach((slot, position) => positionOf.set(slotEntryId(slot), position))
 
