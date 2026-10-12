@@ -431,3 +431,32 @@ crypt tiles.
   #33–35.
 - The repo's SVAL reader treated `ivec2` as a container and dropped its text; `ivec2/3/4`
   are scalars now.
+
+### Why the warlock, priest and sorcerer feel weaker than the original (2026-10-12)
+
+- Context: the Steam thread "Wizard is OP" (Oct 2025) ranks wizard S, thief/paladin/ranger A,
+  sorcerer B (mana), warlock C (mana, weak), priest "useless". A developer says AE's balance is
+  meant to match the original. The tweak numbers do match (regen, mana ladders, costs,
+  lightning and beam damage); the differences are mechanics.
+- `[VERIFIED]` (original IL) Combo: `PlayerActorBehavior.Update` adds `comboMana` mana and
+  `comboHeal` health every 500 ms while `comboActive`. AE `[EMITTED]`: `PlayerBase.as`
+  re-applies the combo effects every 1000 ms, and the mana/health effect is a 1000 ms
+  `AttribAdd` regen buff of the same number (`tweak/buffs/buffs.sval`), so half the amount.
+- `[VERIFIED]` (original IL) Priest beam: 5 parallel rays, damage tick every 200 ms
+  (`beamCounter`), `beamCost` (3) taken per tick, stops at the first enemy, heals players it
+  crosses. AE `[EMITTED]`: `ShootBeam` damages every `interval` 200 ms but
+  `PlayerSkillDirectionalChannelling` takes `mana-cost` every `castpoint` (100 ms), so 30
+  mana/s against the original's 15. `castpoint` 200 restores the original's drain.
+- `[VERIFIED]` (original IL) Warlock lightning: `WarlockLightningStrike.Update` every 50 ms
+  picks a random already-hit target, queries ±2 tiles around it for the best next one, hits
+  everything in ±0.65 tiles of that one for `lightningDmg / (1 + times already hit)`. AE
+  `[EMITTED]`: the orb (10 flat damage on hit) spawns a `BoltShooter` that fires
+  `proj-bolts` bolts over 500 ms from the impact point at random enemies within `range` 50,
+  one each, `consecutive-mul` 0.75 on a repeat. No travel, no splash.
+- `[VERIFIED]` Attack sprites (`editor/assetsExtract/actors/player/*_a.xml`, `west-attack`):
+  knight 100, warlock 120, wizard/priest/ranger 200, thief 201, sorcerer 240 ms. AE's primary
+  cycles are 1.1–4.7× longer (see the comparison doc).
+- AE data bug: `priest_smite_speed` tier 5 `smite-speed-pen` 0.4 (ladder 0.2–0.5; text says 40).
+- The generator now patches `tweak/buffs/buffs.sval` and
+  `players/warlock/projectiles/lightning_bolt.unit` (`player.extra.*`). Whether the game reads
+  scenario copies of those two files is checklist #36–37.

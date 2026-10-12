@@ -80,7 +80,23 @@ mana/heal and the gargoyle's stats.
   | Priest `smite-speed`, thief `knives-speed-mod` | the same, as binds |
 
   AE also halves every skill slow while combo is on (`Player.as`); the original applies them in full and moves ×1.4 in combo. The Players tab's **Original movement while attacking** switch sets the AE column to the original's.
-- **Attack rate:** the original attacks the moment you press, then again when the attack sprite ends (`attackLength` = the `west-attack` sprite; held autofire waits 1.25× that). The knight's is 2 × 50 ms, so ten swings a second. AE's sword plays a 540 ms swing at `cast-speed-mul` 2 then waits `cooldown` 200 ms, about two a second. **Original paladin swing speed** sets ×5.4 and no cooldown.
+- **Attack rate:** the original attacks the moment you press, then again when the attack sprite ends (`attackLength` = the `west-attack` sprite; held autofire waits 1.25× that). AE plays an attack animation at `cast-speed-mul`, then waits `cooldown`:
+
+  | Primary | Original | AE |
+  |---|---|---|
+  | Paladin sword | 100 ms | 540 ÷ 2 + 200 ≈ 470 ms |
+  | Warlock dagger | 120 ms | 300 ÷ 2 + 150 = 300 ms |
+  | Wizard fireball | 200 ms | 300 ÷ 1 + 150 = 450 ms |
+  | Thief knives | 201 ms | 530 ÷ 2 + 100 ≈ 365 ms |
+  | Ranger bow | 200 ms | 400 ÷ 1.5 + 0 ≈ 267 ms (plus heat) |
+  | Priest smite | 200 ms | 240 ÷ 1.5 + 100 = 260 ms |
+  | Sorcerer shard | 240 ms | 240 ÷ 1.2 + 80 = 280 ms |
+
+  **Original attack speed** (`ORIGINAL_ATTACKS` in `players/original.ts`) brings each back: only the cooldown shrinks where AE's animation already fits, otherwise the animation speeds up and the cooldown goes.
+- **Combo mana and health:** the original adds `combo-mana` mana and `combo-heal` health every 500 ms while combo is on (`PlayerActorBehavior.Update`). AE gives the same numbers as a regen buff that `PlayerBase.as` re-applies once a second (`tweak/buffs/buffs.sval`, `combo_mana_regen_level_N` 4–12, `combo_health_regen_level_N` 2–10), so half as much. **Original combo rewards** doubles them.
+- **Priest beam mana:** both deal damage every 200 ms. The original takes 3 mana per damage tick (15/s). AE takes 3 mana per 100 ms cast loop (`castpoint` 100 in `PlayerSkillDirectionalChannelling`), 30/s. Both stop at the first enemy. **Original beam mana cost** sets `castpoint` 200.
+- **Warlock lightning:** the original's strike jumps every 50 ms from a random enemy it already hit to the best target within about 2 tiles, damaging everything within about ±10 px of that target; a repeat hit on an enemy does 1/n (`WarlockLightningStrike.Update`). AE's orb lands, then a `BoltShooter` fires its bolts from that spot at random enemies within `range` 50 px, one each, ×0.75 per repeat on the same enemy (`players/warlock/projectiles/lightning_bolt.unit`). It no longer travels through a pack. **Original chain lightning reach** widens `range` to 96 px (no hop or splash is possible in data). Mana costs, damage and bolt counts match; AE's lightning is even 5 mana cheaper.
+- **Priest smite tier 5:** AE's `smite-speed-pen` ladder is 0.2 / 0.3 / 0.4 / 0.5 / **0.4**; its own text and the original's penalty of 40 mean 0.6. Both presets fix it.
 - **Cooldowns and cast points** on every skill.
 - **Skills and shop items:**
   - thief acrobatics (a free evade stack every 6 s);
