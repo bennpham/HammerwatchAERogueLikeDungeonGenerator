@@ -466,5 +466,6 @@ crypt tiles.
 - `[EMITTED]` A level's file is now named by play order (`03_floor2.lvl`, `04_arena_boss1.lvl`)
   while its `LevelStart` StartID stays the stem (`floor1`, `boss0`). `LevelExit` takes `Level`
   (the scenario-relative file path) and `StartID` as separate parameters, and info.xml's start
-  level is a path, so nothing requires them to match. Stock levels already differ
-  (`level_1.lvl` with arbitrary StartIDs). Still to be seen in game: checklist #39.
+  level is a path, so nothing requires them to match. `[VERIFIED]` stock does the same:
+  castle `level_1.lvl` exits to `levels/level_2.lvl` with StartIDs `level_2a` / `level_3b`.
+  Our own files in game: checklist #39.
