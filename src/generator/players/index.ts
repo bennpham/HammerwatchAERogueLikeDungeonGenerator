@@ -74,7 +74,7 @@ export {
 export type { SpeedGroup, SpeedMode } from './speed'
 export { HW2_CLASSES, PLAYER_PRESETS, PLAYER_PRESET_GROUPS, hw2AttributePoints, hw2Body, playerPresetById } from './presets'
 export type { Hw2Body, Hw2Class, PlayerPreset, PlayerPresetGroupId } from './presets'
-export { ORIGINAL_TOGGLES, allOriginalToggles, isOriginalToggleOn, setOriginalToggle } from './original'
+export { ORIGINAL_ATTACKS, ORIGINAL_TOGGLES, allOriginalToggles, isOriginalToggleOn, setOriginalToggle } from './original'
 export type { OriginalToggle, OriginalToggleId } from './original'
 export { chainLabel, classLabel, extraLabel, shopPriceLabel, skillFileLabel, tierLabel } from './labels'
 export { buildLoadouts } from './loadout'

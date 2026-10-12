@@ -8,6 +8,7 @@ import {
 } from '../src/generator'
 import {
   HW2_CLASSES,
+  ORIGINAL_ATTACKS,
   ORIGINAL_TOGGLES,
   PLAYER_FIELD_MAP,
   PLAYER_PRESETS,
@@ -22,6 +23,7 @@ import {
   classesIn,
   deriveGroupFactor,
   deriveSpeedMode,
+  extraKey,
   fieldsOfGroup,
   hw2AttributePoints,
   hw2Body,
@@ -314,6 +316,11 @@ describe('player presets', () => {
     expect(t[skillKey('wiz_meteor', 1, 'move-speed-until')]).toBe(1000)
     expect(t[skillKey('pal_sword', 1, 'cast-speed-mul')]).toBe(5.4)
     expect(t[skillKey('pal_sword', 1, 'cooldown')]).toBe(0)
+    expect(t[skillKey('wiz_fireball', 1, 'cast-speed-mul')]).toBe(1.5)
+    expect(t[skillKey('priest_beam', 1, 'castpoint')]).toBe(200)
+    expect(t[extraKey('lightning_range')]).toBe(96)
+    expect(t[extraKey('combo_mana_5')]).toBe(24)
+    expect(t[skillKey('priest_smite:priest_smite_speed', 5, 'smite-speed-pen')]).toBe(0.6)
   })
 })
 
@@ -346,8 +353,29 @@ describe('original Hammerwatch toggles', () => {
   })
 
   it('one edited value turns its toggle off', () => {
-    const on = setOriginalToggle('paladin-swing', true, {})
-    expect(isOriginalToggleOn('paladin-swing', { ...on, [skillKey('pal_sword', 1, 'cooldown')]: 50 })).toBe(false)
+    const on = setOriginalToggle('attack-speed', true, {})
+    expect(isOriginalToggleOn('attack-speed', { ...on, [skillKey('pal_sword', 1, 'cooldown')]: 50 })).toBe(false)
+  })
+
+  it('attack speed repeats every primary at the original rate', () => {
+    const t = setOriginalToggle('attack-speed', true, {})
+    for (const a of ORIGINAL_ATTACKS) {
+      const value = (field: string) => t[skillKey(a.chain, 1, field)] ?? PLAYER_FIELD_MAP.get(skillKey(a.chain, 1, field))!.stock
+      const cycle = a.animMs / value('cast-speed-mul') + value('cooldown')
+      expect(Math.abs(cycle - a.originalMs), a.chain).toBeLessThan(5)
+    }
+    // the paladin as before: x5.4, no wait
+    expect(t[skillKey('pal_sword', 1, 'cast-speed-mul')]).toBe(5.4)
+    expect(t[skillKey('pal_sword', 1, 'cooldown')]).toBe(0)
+    // the priest's animation already fits: only the wait shrinks
+    expect(t[skillKey('priest_smite', 1, 'cast-speed-mul')]).toBeUndefined()
+    expect(t[skillKey('priest_smite', 1, 'cooldown')]).toBe(40)
+  })
+
+  it('combo rewards double every combo regen tier', () => {
+    const t = setOriginalToggle('combo', true, {})
+    expect([1, 2, 3, 4, 5].map((n) => t[extraKey(`combo_mana_${n}`)])).toEqual([8, 12, 16, 20, 24])
+    expect([1, 2, 3, 4, 5].map((n) => t[extraKey(`combo_heal_${n}`)])).toEqual([4, 8, 12, 16, 20])
   })
 
   it('patch the skill files', () => {
@@ -355,6 +383,9 @@ describe('original Hammerwatch toggles', () => {
     expect(paths).toContain('players/ranger/skills/ran_bow.sval')
     expect(paths).toContain('players/wizard/skills/wiz_meteor.sval')
     expect(paths).toContain('players/paladin/skills/pal_sword.sval')
+    expect(paths).toContain('players/priest/skills/priest_beam.sval')
+    expect(paths).toContain('players/warlock/projectiles/lightning_bolt.unit')
+    expect(paths).toContain('tweak/buffs/buffs.sval')
   })
 })
 

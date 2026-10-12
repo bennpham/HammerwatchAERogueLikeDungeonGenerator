@@ -50,8 +50,11 @@ function tiers(chain: string, field: string, values: Record<number, number>): Pl
  * - weaker sword, fireball and stronger knives ladders;
  * - the paladin's mana regen ladder and armor tiers 4–5;
  * - the original's prices where AE changed them;
+ * - smite's last walk-speed upgrade at the original's ×0.6 (AE writes 0.4,
+ *   a downgrade from tier 4's 0.5, against its own description's 40);
  * - every `ORIGINAL_TOGGLES` switch: no bow heat, the original's movement
- *   while attacking, and the paladin's fast swing.
+ *   while attacking and attack speed, combo rewards every half second, the
+ *   beam's mana cost and the lightning's reach.
  */
 function originalHammerwatch(): PlayerTweaks {
   return prunePlayerTweaks({
@@ -72,6 +75,7 @@ function originalHammerwatch(): PlayerTweaks {
 
     ...tiers('priest_smite:priest_smite_damage', 'cost', { 1: 600 }),
     ...tiers('priest_smite:priest_smite_speed', 'cost', { 1: 250 }),
+    ...tiers('priest_smite:priest_smite_speed', 'smite-speed-pen', { 5: 0.6 }),
 
     ...tiers('ran_bow:ran_bow_damage', 'cost', { 1: 800 }),
     ...tiers('ran_bow:ran_bow_penetration', 'cost', { 1: 700 }),
@@ -315,7 +319,7 @@ export const PLAYER_PRESETS: readonly PlayerPreset[] = [
     label: 'Original Hammerwatch',
     group: 'original',
     description:
-      'The original game’s numbers where AE changed them: one slower move speed for everyone (0.9), a shorter combo window, the original sword, knife and fireball damage, the paladin’s mana regen and armor, and the original prices. Plays like it too: the ranger’s bow never overheats, the paladin swings as fast as you click, and the paladin, wizard and warlock stand still to attack (meteor locks the wizard in place).',
+      'The original game’s numbers where AE changed them: one slower move speed for everyone (0.9), a shorter combo window, the original sword, knife and fireball damage, the paladin’s mana regen and armor, and the original prices. Plays like it too: every class attacks at the original rate (the paladin ten swings a second), the paladin, wizard and warlock stand still to attack and meteor locks the wizard in place, the ranger’s bow never overheats, combo gives mana and health twice as often, the priest’s beam costs half the mana, and lightning reaches across a pack.',
     build: originalHammerwatch
   },
   {

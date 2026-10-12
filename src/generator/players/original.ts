@@ -1,5 +1,6 @@
-import { PLAYER_FIELD_MAP, prunePlayerTweaks, skillKey } from './fields'
+import { PLAYER_FIELD_MAP, extraKey, prunePlayerTweaks, skillKey } from './fields'
 import type { PlayerTweaks } from './fields'
+import { PLAYER_STOCK } from './stock.generated'
 
 /**
  * The original Hammerwatch's feel on AE's skills, as on/off switches for the
@@ -8,9 +9,9 @@ import type { PlayerTweaks } from './fields'
  * have no tweak file to come from; the numbers are read off the original's
  * `Hammerwatch.exe` (each class's `Player<Class>ActorBehavior.DoUpdate`) and
  * its `actors/player/*.xml` sprites, and AE's skill scripts
- * (`PlayerSkill.as`, `RangerShoot.as`, `PlayerSkillDirectional.as`).
+ * (`PlayerSkill.as`, `RangerShoot.as`, `PlayerSkillDirectional.as`, `BoltShooter.as`).
  */
-export type OriginalToggleId = 'bow-heat' | 'attack-movement' | 'paladin-swing'
+export type OriginalToggleId = 'bow-heat' | 'attack-movement' | 'attack-speed' | 'combo' | 'priest-beam' | 'chain-lightning'
 
 export interface OriginalToggle {
   id: OriginalToggleId
@@ -20,6 +21,39 @@ export interface OriginalToggle {
 }
 
 const root = (chain: string, field: string, value: number): PlayerTweaks => ({ [skillKey(chain, 1, field)]: value })
+
+/**
+ * Each class's primary attack: how long the original's `west-attack` sprite
+ * runs (`actors/player/<class>_a.xml`; it attacks again when it ends) and how
+ * long AE's attack animation is (the scene's frame times in
+ * `players/<class>/<class>.unit`). AE's cycle is the animation ÷
+ * `cast-speed-mul` + `cooldown`.
+ */
+export const ORIGINAL_ATTACKS: readonly { chain: string; originalMs: number; animMs: number }[] = [
+  { chain: 'pal_sword', originalMs: 100, animMs: 540 },
+  { chain: 'warlock_dagger', originalMs: 120, animMs: 300 },
+  { chain: 'wiz_fireball', originalMs: 200, animMs: 300 },
+  { chain: 'priest_smite', originalMs: 200, animMs: 240 },
+  { chain: 'ran_bow', originalMs: 200, animMs: 400 },
+  { chain: 'thief_knives', originalMs: 201, animMs: 530 },
+  { chain: 'sorc_shard', originalMs: 240, animMs: 240 }
+]
+
+/**
+ * The cast speed and cooldown that repeat an attack at the original's rate:
+ * if AE's animation already fits, only the wait shrinks; otherwise the
+ * animation plays faster and there is no wait.
+ */
+function originalAttackValues(a: { chain: string; originalMs: number; animMs: number }): PlayerTweaks {
+  const speed = PLAYER_FIELD_MAP.get(skillKey(a.chain, 1, 'cast-speed-mul'))!.stock
+  const played = a.animMs / speed
+  if (played <= a.originalMs) return prunePlayerTweaks(root(a.chain, 'cooldown', Math.round(a.originalMs - played)))
+  // a cooldown already 0 (the bow's) is stock and left out
+  return prunePlayerTweaks({
+    ...root(a.chain, 'cast-speed-mul', Math.round((a.animMs / a.originalMs) * 100) / 100),
+    ...root(a.chain, 'cooldown', 0)
+  })
+}
 
 export const ORIGINAL_TOGGLES: readonly OriginalToggle[] = [
   {
@@ -52,11 +86,34 @@ export const ORIGINAL_TOGGLES: readonly OriginalToggle[] = [
     }
   },
   {
-    id: 'paladin-swing',
-    label: 'Original paladin swing speed',
+    id: 'attack-speed',
+    label: 'Original attack speed',
     description:
-      'The original sword hits the moment you press and swings again 0.1 s later. AE plays a 540 ms swing at double speed, then waits 0.2 s: this plays it at ×5.4 with no wait.',
-    values: { ...root('pal_sword', 'cast-speed-mul', 5.4), ...root('pal_sword', 'cooldown', 0) }
+      'The original attacks the moment you press and again as soon as the attack sprite ends: the paladin every 0.1 s, the warlock 0.12 s, the wizard, priest, ranger and thief 0.2 s, the sorcerer 0.24 s. AE plays a longer animation and then waits; this speeds each primary attack up to the original rate.',
+    values: Object.assign({}, ...ORIGINAL_ATTACKS.map(originalAttackValues)) as PlayerTweaks
+  },
+  {
+    id: 'combo',
+    label: 'Original combo rewards',
+    description:
+      'The original combo gives its mana and health every half second; AE gives the same amounts once a second. This doubles the combo’s mana and health regen at every tier.',
+    values: Object.fromEntries(
+      PLAYER_STOCK.extras.filter((e) => e.id.startsWith('combo_')).map((e) => [extraKey(e.id), e.stock * 2])
+    )
+  },
+  {
+    id: 'priest-beam',
+    label: 'Original beam mana cost',
+    description:
+      'The original beam costs 3 mana per damage tick, every 0.2 s (15 mana/s). AE charges the 3 mana every 0.1 s instead, twice as much for the same damage.',
+    values: root('priest_beam', 'castpoint', 200)
+  },
+  {
+    id: 'chain-lightning',
+    label: 'Original chain lightning reach',
+    description:
+      'The original lightning hops from enemy to enemy, up to two tiles each time, through a whole pack. AE’s bolts only strike within 50 px of where the orb lands; this widens that to 96 px, about three of the original’s hops.',
+    values: { [extraKey('lightning_range')]: 96 }
   }
 ]
 
