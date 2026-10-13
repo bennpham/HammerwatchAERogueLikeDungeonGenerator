@@ -116,7 +116,31 @@ function originalHammerwatch(): PlayerTweaks {
  *   health, smite damage, shield and beam healing.
  */
 function dungeonRebalanced(): PlayerTweaks {
-  return prunePlayerTweaks({
+  return prunePlayerTweaks(rebalanceBuffs())
+}
+
+/**
+ * Original Hammerwatch Rebalanced: the Original Hammerwatch preset (its
+ * numbers, attack speed and every original switch: the paladin's fast swing, a
+ * bow that never overheats …) with Dungeon Rebalanced's class buffs on top,
+ * and AE's faster movement and longer combo window, as the HW1 remake's
+ * rebalance of the original game did (its commit 5850437). Nothing is nerfed.
+ *
+ * Movement is one speed for everyone at 1.1 (shop 1.2/1.3/1.4), splitting
+ * AE's ranged 1.0 and melee 1.2; the combo window is AE's stock one, so the
+ * original preset's shorter combo-timer values are dropped.
+ */
+function originalRebalanced(): PlayerTweaks {
+  const t = originalHammerwatch()
+  for (const key of Object.keys(t)) {
+    if (PLAYER_FIELD_MAP.get(key)?.name === 'combo-timer') delete t[key]
+  }
+  return prunePlayerTweaks({ ...setEveryoneSpeed(t, 1.1), ...rebalanceBuffs() })
+}
+
+/** Dungeon Rebalanced's class buffs, unpruned, for both rebalanced presets. */
+function rebalanceBuffs(): PlayerTweaks {
+  return {
     ...scaleManaRegen('warlock', 2),
     [extraKey('lightning_range')]: 96,
     ...scaleManaRegen('sorcerer', 1.25),
@@ -139,7 +163,7 @@ function dungeonRebalanced(): PlayerTweaks {
     ...tiers('thief_knives', 'knives-dmg', { 1: 6 }),
 
     [statKey('sorcerer', 'base-health')]: 40
-  })
+  }
 }
 
 // ---------------------------------------------------------------- HW2 bodies
@@ -354,6 +378,14 @@ export const PLAYER_PRESETS: readonly PlayerPreset[] = [
     description:
       'The original game’s numbers where AE changed them: one slower move speed for everyone (0.9), a shorter combo window, the original sword, knife and fireball damage, the paladin’s mana regen and armor, and the original prices. Plays like it too: every class attacks at the original rate (the paladin ten swings a second), the paladin, wizard and warlock stand still to attack and meteor locks the wizard in place, the ranger’s bow never overheats, combo gives mana and health twice as often, the priest’s beam costs half the mana, and lightning reaches across a pack.',
     build: originalHammerwatch
+  },
+  {
+    id: 'original-rebalanced',
+    label: 'Original Hammerwatch Rebalanced',
+    group: 'original',
+    description:
+      'Original Hammerwatch with the Dungeon Rebalanced buffs: the original’s numbers, attack speed and feel (the paladin’s fast swing, a bow that never overheats), plus AE’s faster movement and longer combo window, twice the warlock’s mana regen and lightning that reaches across a pack, a quarter more sorcerer regen, and a sturdier priest and thief. Nothing is nerfed.',
+    build: originalRebalanced
   },
   {
     id: 'hw2-level-1',

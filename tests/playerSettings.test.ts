@@ -369,6 +369,41 @@ describe('Dungeon Rebalanced', () => {
   })
 })
 
+describe('Original Hammerwatch Rebalanced', () => {
+  const t = playerPresetById('original-rebalanced')!.build()
+  const rebalanced = playerPresetById('dungeon-rebalanced')!.build()
+
+  it('sits with the original', () => {
+    expect(playerPresetById('original-rebalanced')!.group).toBe('original')
+  })
+
+  it('keeps every original switch: the paladin swing, a bow that never overheats …', () => {
+    for (const toggle of ORIGINAL_TOGGLES) expect(isOriginalToggleOn(toggle.id, t), toggle.id).toBe(true)
+    expect(t[skillKey('pal_sword', 1, 'cast-speed-mul')]).toBe(5.4)
+    expect(t[skillKey('ran_bow', 1, 'overheating-max')]).toBe(0)
+    // and the original's own numbers
+    expect(t[skillKey('pal_sword', 1, 'sword-dmg')]).toBe(9)
+  })
+
+  it('moves at 1.1 for everyone and keeps AE’s combo window', () => {
+    expect(deriveSpeedMode(t)).toBe('everyone')
+    expect(speedOf(t, 'melee')).toBe(1.1)
+    expect(speedOf(t, 'ranged')).toBe(1.1)
+    expect(Object.keys(t).filter((key) => PLAYER_FIELD_MAP.get(key)!.name === 'combo-timer')).toEqual([])
+  })
+
+  it('carries every Dungeon Rebalanced buff', () => {
+    for (const [key, value] of Object.entries(rebalanced)) expect(t[key], key).toBe(value)
+    expect(t[statKey('warlock', 'base-mana-regen')]).toBe(3.2)
+    expect(t[statKey('sorcerer', 'base-mana-regen')]).toBe(2)
+    expect(t[statKey('priest', 'base-health')]).toBe(40)
+  })
+
+  it('has no tier that weakens the character', () => {
+    expect(validatePlayerTweaks(t)).toEqual({ errors: [], warnings: [] })
+  })
+})
+
 describe('original Hammerwatch toggles', () => {
   it('are all off on AE stock', () => {
     for (const toggle of ORIGINAL_TOGGLES) expect(isOriginalToggleOn(toggle.id, {}), toggle.id).toBe(false)
