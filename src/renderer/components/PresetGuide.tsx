@@ -1,9 +1,12 @@
 import React, { useRef, useState } from 'react'
 import { CAMPAIGN_PRESETS, PLAYER_PRESETS, PLAYER_PRESET_GROUPS, PRESET_GROUPS } from '../../generator'
-import type { PresetGroupId } from '../../generator'
+import type { PlayerPresetGroupId, PresetGroupId } from '../../generator'
 
 /** The one group open when the dialog first shows — Classic holds the default Castle. */
 const DEFAULT_OPEN_GROUP: PresetGroupId = 'classic'
+
+/** The same on the Player presets tab — Generic, the AE-based builds. */
+const DEFAULT_OPEN_PLAYER_GROUP: PlayerPresetGroupId = 'generic'
 
 interface PresetGuideProps {
   /** Loads a campaign preset by id — replaces the whole parameter set. */
@@ -42,7 +45,7 @@ function PresetRow({ label, description, disabled, onLoad }: PresetRowProps) {
  * reading what it does.
  *
  * Two tabs. Campaign presets replace everything; each group is a native
- * `<details>`, all collapsed but Classic, so the list starts as a handful of
+ * `<details>`, all collapsed but Classic (Generic on the Player tab), so the list starts as a handful of
  * headers rather than a long scroll. Player presets replace only the Player tab, the
  * same as importing a playersettings.txt, so they layer onto a campaign.
  *
@@ -144,13 +147,13 @@ export function PresetGuide({ onLoad, onLoadPlayer, disabled }: PresetGuideProps
               {PLAYER_PRESETS.length === 0 ? (
                 <p className="preset-guide-empty">No player presets yet.</p>
               ) : (
-                // same collapsible sections as the campaign tab, all collapsed
-                // on open so the tab starts as a list of game names
+                // same collapsible sections as the campaign tab, Generic open
+                // and the rest collapsed, like Classic on the campaign tab
                 PLAYER_PRESET_GROUPS.map((group) => {
                   const presets = PLAYER_PRESETS.filter((preset) => preset.group === group.id)
                   if (presets.length === 0) return null
                   return (
-                    <details key={group.id} className="preset-group">
+                    <details key={group.id} className="preset-group" open={group.id === DEFAULT_OPEN_PLAYER_GROUP}>
                       <summary>
                         {group.label}
                         <span className="preset-group-count">{presets.length}</span>
