@@ -266,8 +266,8 @@ describe('loadout sheet', () => {
 })
 
 describe('player presets', () => {
-  it('each sit in a known group: AE-based, the original, HW2', () => {
-    expect(PLAYER_PRESET_GROUPS.map((g) => g.id)).toEqual(['anniversary', 'original', 'hw2'])
+  it('each sit in a known group: generic (on AE), the original, HW2', () => {
+    expect(PLAYER_PRESET_GROUPS.map((g) => g.id)).toEqual(['generic', 'original', 'hw2'])
     const groups = new Set(PLAYER_PRESET_GROUPS.map((group) => group.id))
     for (const preset of PLAYER_PRESETS) expect(groups.has(preset.group), preset.id).toBe(true)
   })
@@ -332,7 +332,7 @@ describe('Dungeon Rebalanced', () => {
   ]
 
   it('builds on AE, not the original', () => {
-    expect(playerPresetById('dungeon-rebalanced')!.group).toBe('anniversary')
+    expect(playerPresetById('dungeon-rebalanced')!.group).toBe('generic')
     // AE's own feel stays: no original movement, attack speed, bow or combo
     for (const id of ['bow-heat', 'attack-movement', 'attack-speed', 'combo'] as const) {
       expect(isOriginalToggleOn(id, t), id).toBe(false)

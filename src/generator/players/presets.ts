@@ -14,10 +14,10 @@ import { PLAYER_STOCK } from './stock.generated'
  * Stock is Anniversary Edition's own balance, so there is no "AE" preset; the
  * original game is one of the presets instead.
  */
-export type PlayerPresetGroupId = 'anniversary' | 'original' | 'hw2'
+export type PlayerPresetGroupId = 'generic' | 'original' | 'hw2'
 
 export const PLAYER_PRESET_GROUPS: readonly { id: PlayerPresetGroupId; label: string }[] = [
-  { id: 'anniversary', label: 'Anniversary Edition' },
+  { id: 'generic', label: 'Generic' },
   { id: 'original', label: 'Original Hammerwatch' },
   { id: 'hw2', label: 'Hammerwatch 2' }
 ]
@@ -342,9 +342,9 @@ export const PLAYER_PRESETS: readonly PlayerPreset[] = [
   {
     id: 'dungeon-rebalanced',
     label: 'Dungeon Rebalanced',
-    group: 'anniversary',
+    group: 'generic',
     description:
-      'Built on Anniversary Edition’s own balance: buffs the classes players find weak and leaves the paladin, ranger and wizard alone. The warlock gets twice the mana regen and lightning that reaches across a pack; the sorcerer a quarter more mana regen; the priest a beam at half the mana (the original’s cost), more health, harder smites and a stronger shield; the thief a little more health and knife damage.',
+      'Buffs the classes players find weak and leaves the paladin, ranger and wizard alone. The warlock gets twice the mana regen and lightning that reaches across a pack; the sorcerer a quarter more mana regen; the priest a beam at half the mana (the original’s cost), more health, harder smites and a stronger shield; the thief a little more health and knife damage.',
     build: dungeonRebalanced
   },
   {
