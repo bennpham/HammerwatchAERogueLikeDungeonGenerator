@@ -23,6 +23,13 @@ export interface OriginalToggle {
 const root = (chain: string, field: string, value: number): PlayerTweaks => ({ [skillKey(chain, 1, field)]: value })
 
 /**
+ * Walking speed while attacking for the classes the original stops during the
+ * attack sprite: the time-averaged speed under held autofire (free for 0.25 of
+ * every 1.25 sprite lengths).
+ */
+const CRAWL = 0.2
+
+/**
  * Each class's primary attack: how long the original's `west-attack` sprite
  * runs (`actors/player/<class>_a.xml`; it attacks again when it ends) and how
  * long AE's attack animation is (the scene's frame times in
@@ -67,15 +74,19 @@ export const ORIGINAL_TOGGLES: readonly OriginalToggle[] = [
     id: 'attack-movement',
     label: 'Original movement while attacking',
     description:
-      'The paladin, wizard and warlock stand still to attack and meteor locks the wizard until the last one lands; the ranger walks at half speed while shooting and stands still for flurry; the sorcerer slows to a third. Fire nova, lightning and the gargoyle no longer stop you. Priest and thief already match.',
+      'The paladin, wizard and warlock crawl at a fifth of their speed while attacking, so you can still kite, and meteor locks the wizard until the last one lands; the ranger walks at half speed while shooting and stands still for flurry; the sorcerer slows to a third. Fire nova, lightning and the gargoyle no longer stop you. Priest and thief already match.',
     values: {
-      ...root('pal_sword', 'move-speed-mul', 0),
-      ...root('wiz_fireball', 'move-speed-mul', 0),
+      // The original stops these three only while the attack sprite plays, and
+      // held autofire waits 1.25× the sprite between attacks, so a fifth of the
+      // time you move at full speed: about ×0.2 on average, enough to kite.
+      // AE at the original attack speed has no such gap, so ×0 would pin you.
+      ...root('pal_sword', 'move-speed-mul', CRAWL),
+      ...root('wiz_fireball', 'move-speed-mul', CRAWL),
       // the cast runs as long as its meteor timeline, 1000 ms at every tier
       ...root('wiz_meteor', 'move-speed-mul', 0),
       ...root('wiz_meteor', 'move-speed-until', 1000),
       ...root('wiz_fire_nova', 'move-speed-mul', 1),
-      ...root('warlock_dagger', 'move-speed-mul', 0),
+      ...root('warlock_dagger', 'move-speed-mul', CRAWL),
       ...root('warlock_lightning', 'move-speed-mul', 1),
       ...root('warlock_gargoyle', 'move-speed-mul', 1),
       ...root('ran_bow', 'move-speed-mul', 0.5),

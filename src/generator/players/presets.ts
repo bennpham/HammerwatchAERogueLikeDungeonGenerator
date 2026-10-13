@@ -376,7 +376,7 @@ export const PLAYER_PRESETS: readonly PlayerPreset[] = [
     label: 'Original Hammerwatch',
     group: 'original',
     description:
-      'The original game’s numbers where AE changed them: one slower move speed for everyone (0.9), a shorter combo window, the original sword, knife and fireball damage, the paladin’s mana regen and armor, and the original prices. Plays like it too: every class attacks at the original rate (the paladin ten swings a second), the paladin, wizard and warlock stand still to attack and meteor locks the wizard in place, the ranger’s bow never overheats, combo gives mana and health twice as often, the priest’s beam costs half the mana, and lightning reaches across a pack.',
+      'The original game’s numbers where AE changed them: one slower move speed for everyone (0.9), a shorter combo window, the original sword, knife and fireball damage, the paladin’s mana regen and armor, and the original prices. Plays like it too: every class attacks at the original rate (the paladin ten swings a second), the paladin, wizard and warlock slow to a crawl while attacking (you can still kite) and meteor locks the wizard in place, the ranger’s bow never overheats, combo gives mana and health twice as often, the priest’s beam costs half the mana, and lightning reaches across a pack.',
     build: originalHammerwatch
   },
   {

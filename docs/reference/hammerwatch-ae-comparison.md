@@ -79,7 +79,7 @@ mana/heal and the gargoyle's stats.
   | Ranger bow ×0.5; flurry ×0; growth ×0.5 | bow 0.25; flurry `speed-mul` 0.33; growth free (no line to patch) |
   | Priest `smite-speed`, thief `knives-speed-mod` | the same, as binds |
 
-  AE also halves every skill slow while combo is on (`Player.as`); the original applies them in full and moves ×1.4 in combo. The Players tab's **Original movement while attacking** switch sets the AE column to the original's.
+  AE also halves every skill slow while combo is on (`Player.as`); the original applies them in full and moves ×1.4 in combo. The Players tab's **Original movement while attacking** switch sets the AE column to the original's, with one exception. For the paladin sword, wizard fireball and warlock dagger it uses ×0.2, not ×0. The original's ×0 lasts only while the attack sprite plays, and held autofire waits 1.25× the sprite between attacks, so you walk at full speed a fifth of the time and can kite. AE at the original attack speed has no such gap, so a flat ×0 would pin you; ×0.2 is that average. Meteor's lock stays ×0.
 - **Attack rate:** the original attacks the moment you press, then again when the attack sprite ends (`attackLength` = the `west-attack` sprite; held autofire waits 1.25× that). AE plays an attack animation at `cast-speed-mul`, then waits `cooldown`:
 
   | Primary | Original | AE |
