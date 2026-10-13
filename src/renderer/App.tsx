@@ -315,7 +315,7 @@ export function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <div>
+        <div className="header-title">
           <h1>Hammerwatch AE Dungeon Generator</h1>
           <p className="subtitle">Rogue-like campaign generator — a port of the original Hammerwatch dungeon generator to Anniversary Edition</p>
         </div>
