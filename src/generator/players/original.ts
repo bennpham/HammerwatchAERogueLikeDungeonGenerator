@@ -74,7 +74,7 @@ export const ORIGINAL_TOGGLES: readonly OriginalToggle[] = [
     id: 'attack-movement',
     label: 'Original movement while attacking',
     description:
-      'The paladin, wizard and warlock crawl at a fifth of their speed while attacking, so you can still kite, and meteor locks the wizard until the last one lands; the ranger walks at half speed while shooting and stands still for flurry; the sorcerer slows to a third. Fire nova, lightning and the gargoyle no longer stop you. Priest and thief already match.',
+      'The paladin, wizard and warlock crawl at a fifth of their speed while attacking, so you can still kite, and meteor locks the wizard until the last one lands; the ranger walks at half speed while shooting and runs at full speed while flurrying; the sorcerer slows to a third. Fire nova, lightning and the gargoyle no longer stop you. Priest and thief already match.',
     values: {
       // The original stops these three only while the attack sprite plays, and
       // held autofire waits 1.25× the sprite between attacks, so a fifth of the
@@ -90,7 +90,10 @@ export const ORIGINAL_TOGGLES: readonly OriginalToggle[] = [
       ...root('warlock_lightning', 'move-speed-mul', 1),
       ...root('warlock_gargoyle', 'move-speed-mul', 1),
       ...root('ran_bow', 'move-speed-mul', 0.5),
-      ...root('ran_flurry', 'speed-mul', 0),
+      // The original's code zeroes the ranger's velocity while flurry waves
+      // fire, but it never played as a stop, and a spin that roots you is a
+      // dead skill: full speed instead (AE stock slows to 0.33).
+      ...root('ran_flurry', 'speed-mul', 1),
       ...root('sorc_shard', 'move-speed-mul', 0.33),
       ...root('sorc_nova', 'move-speed-mul', 0.33),
       ...root('sorc_ice_orb', 'move-speed-mul', 0.33)

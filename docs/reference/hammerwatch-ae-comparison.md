@@ -76,10 +76,10 @@ mana/heal and the gargoyle's stats.
   | Wizard fireball ×0; meteor ×0 until the volley ends (~1.1 s); flame spray ×0.33; fire nova free | fireball 0.05; meteor 0.33 for 0–260 ms of a ~1000 ms cast; spray 0.33; fire nova 0 for 0–240 ms |
   | Sorcerer shard, nova, orb ×0.33; comet ×0 | shard 0.1, nova 0, orb 0; comet 0 |
   | Warlock dagger ×0; lightning, gargoyle free | dagger 0.05; lightning, gargoyle 0 for 0–260 ms |
-  | Ranger bow ×0.5; flurry ×0; growth ×0.5 | bow 0.25; flurry `speed-mul` 0.33; growth free (no line to patch) |
+  | Ranger bow ×0.5; flurry ×0 in code (but the switch gives ×1, see below); growth ×0.5 | bow 0.25; flurry `speed-mul` 0.33; growth free (no line to patch) |
   | Priest `smite-speed`, thief `knives-speed-mod` | the same, as binds |
 
-  AE also halves every skill slow while combo is on (`Player.as`); the original applies them in full and moves ×1.4 in combo. The Players tab's **Original movement while attacking** switch sets the AE column to the original's, with one exception. For the paladin sword, wizard fireball and warlock dagger it uses ×0.2, not ×0. The original's ×0 lasts only while the attack sprite plays, and held autofire waits 1.25× the sprite between attacks, so you walk at full speed a fifth of the time and can kite. AE at the original attack speed has no such gap, so a flat ×0 would pin you; ×0.2 is that average. Meteor's lock stays ×0.
+  AE also halves every skill slow while combo is on (`Player.as`); the original applies them in full and moves ×1.4 in combo. The Players tab's **Original movement while attacking** switch sets the AE column to the original's, with one exception. For the paladin sword, wizard fireball and warlock dagger it uses ×0.2, not ×0. The original's ×0 lasts only while the attack sprite plays, and held autofire waits 1.25× the sprite between attacks, so you walk at full speed a fifth of the time and can kite. AE at the original attack speed has no such gap, so a flat ×0 would pin you; ×0.2 is that average. Meteor's lock stays ×0. Flurry is a deliberate exception: the original's code zeroes velocity while its waves fire, but in play the ranger runs through it, and a rooting spin is a dead skill, so the switch gives it full speed (×1; AE stock is ×0.33).
 - **Attack rate:** the original attacks the moment you press, then again when the attack sprite ends (`attackLength` = the `west-attack` sprite; held autofire waits 1.25× that). AE plays an attack animation at `cast-speed-mul`, then waits `cooldown`:
 
   | Primary | Original | AE |
