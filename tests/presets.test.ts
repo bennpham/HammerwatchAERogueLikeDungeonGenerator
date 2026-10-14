@@ -616,6 +616,13 @@ describe('campaign presets', () => {
       )
     })
 
+    it('opens the potion vendor in every lobby, and an item tier that climbs with the run', () => {
+      params.lobbies.forEach((lobby, i) => {
+        expect(lobby.shopCategories, `lobby ${i}`).toContain('power')
+        expect(lobby.shopCategories.filter((c) => c.startsWith('equipment_')), `lobby ${i}`).toEqual([`equipment_${Math.floor(i / 2) + 1}`])
+      })
+    })
+
     it('drops 4 Health (Large) and 4 Mana (Large) on every survival arena but the first', () => {
       fights.forEach((fight, i) => {
         if (BOSS_ROOMS.includes(i)) return
