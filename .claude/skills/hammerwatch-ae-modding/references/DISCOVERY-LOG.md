@@ -482,3 +482,21 @@ crypt tiles.
   `dungeon_441147059` floor 5). `[EMITTED]` `exitDoorway` now reserves the middle two cells
   for a narrow set, the art is anchored over them, and the wall placer fills the rest.
   `tests/themes.test.ts` checks every theme's stair rect against the reserve.
+
+### Owning skills from the start: starting-level and the shop (2026-10-14)
+
+- `[VERIFIED]` (`PlayerClass.as`) `starting-level` is read on a root skill *and* on each
+  `modifier-skills` entry. A skill's level is `picked + starting-level`
+  (`PlayerRecord.GetSkillLevel`); `SkillUp` refuses once that reaches the level count.
+- `[VERIFIED]` (`PlayerBase.LoadSkills`) A skill's binds come from level 1 and the current
+  level only: `[mod level N, mod level 1, …, root level N, root level 1]`, first match wins.
+  A modifier only counts once its root's level is above 0.
+- `[VERIFIED]` (`SkillShopMenuContent.BuildList`) A root with `starting-level` > 0 lists only
+  its next upgrade (none at the top). But `AddModifiersToShop` lists any modifier nobody has
+  *picked*, whatever its `starting-level`, at its level-1 price, and buying one at its top
+  does nothing. So a maxed modifier has to leave the shop by `category`.
+- The old "Fully upgraded" copied each bind's top value into level 1 and only unlocked the
+  roots. Every modifier stayed on sale, and combo broke: the root got `combo-nova-parts` 22
+  with an empty `combo-nova-projectile` (a string, never copied). `[EMITTED]` It now sets
+  each chain's `starting-level` to its level count and moves maxed modifiers to the
+  `owned` column, which no ShopArea sells. In game: checklist #31.

@@ -1,6 +1,5 @@
-import { PLAYER_FIELDS, PLAYER_FIELD_MAP, prunePlayerTweaks, skillKey, statKey } from './fields'
+import { PLAYER_FIELDS, prunePlayerTweaks } from './fields'
 import type { PlayerFieldDef, PlayerTweaks } from './fields'
-import { PLAYER_STOCK } from './stock.generated'
 
 /**
  * The Players tab's quick setup: whole-game knobs that write ordinary
@@ -122,54 +121,17 @@ export function deriveGroupFactor(id: StatGroupId, tweaks: PlayerTweaks): number
 }
 
 /**
- * Every class starts with every skill it can own, each at the top of its own
- * upgrade ladder, its base health and mana at its best health and mana
- * upgrade, and every purchase costs nothing. A skill that is normally bought
- * is owned from the start (AE's `starting-level`).
+ * Every class starts with every skill it can own and every modifier of it,
+ * each at the top level of its own ladder (AE's `starting-level`), so the
+ * game reads the real top-tier binds — nova projectiles and combo buffs
+ * included — and the skill shop has nothing left to sell. Every skill price
+ * is 0 too.
  */
 export function applyFullyUpgraded(tweaks: PlayerTweaks): PlayerTweaks {
   const out = { ...tweaks }
-  for (const f of PLAYER_FIELDS) if (f.kind === 'unlock') setField(out, f, 1)
-  for (const file of PLAYER_STOCK.skills) {
-    // the best value each bind reaches anywhere in the file
-    const top = new Map<string, number>()
-    for (const chain of file.chains) {
-      for (const tier of chain.tiers) {
-        for (const [name, b] of Object.entries(tier.binds)) top.set(name, b.stock)
-      }
-    }
-    for (const chain of file.chains) {
-      chain.tiers.forEach((tier, i) => {
-        if (tier.cost !== undefined) {
-          const f = PLAYER_FIELD_MAP.get(skillKey(chain.key, i + 1, 'cost'))
-          if (f !== undefined) setField(out, f, 0)
-        }
-        for (const name of Object.keys(tier.binds)) {
-          const f = PLAYER_FIELD_MAP.get(skillKey(chain.key, i + 1, name))
-          const best = top.get(name)
-          if (f !== undefined && best !== undefined) setField(out, f, best)
-        }
-      })
-    }
-  }
-  // a class's own body starts at its best health and mana upgrade
-  for (const c of PLAYER_STOCK.classes) {
-    for (const s of c.skills) {
-      const file = PLAYER_STOCK.skills.find((f) => f.path === s.path)
-      const last = file?.chains[0]?.tiers.at(-1)
-      if (last === undefined) continue
-      const bodyStat: Array<[string, string]> = [
-        ['player-max-health-set', 'base-health'],
-        ['player-max-mana-set', 'base-mana'],
-        ['player-mana-regen-set', 'base-mana-regen'],
-        ['player-health-regen-set', 'base-health-regen']
-      ]
-      for (const [bind, stat] of bodyStat) {
-        const b = last.binds[bind]
-        const f = PLAYER_FIELD_MAP.get(statKey(c.id, stat))
-        if (b !== undefined && f !== undefined && b.stock > f.stock) setField(out, f, b.stock)
-      }
-    }
+  for (const f of PLAYER_FIELDS) {
+    if (f.kind === 'unlock') setField(out, f, f.maxLevel ?? 1)
+    else if (f.kind === 'cost' && f.chainKey !== undefined && f.classId === undefined) setField(out, f, 0)
   }
   return prunePlayerTweaks(out)
 }

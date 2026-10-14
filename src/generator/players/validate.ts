@@ -35,8 +35,11 @@ export function validatePlayerTweaks(tweaks: PlayerTweaks): { errors: PlayerIssu
       errors.push({ field: key, message: 'Must be a whole number.' })
       continue
     }
-    if (field.kind === 'unlock' && value !== 0 && value !== 1) {
-      errors.push({ field: key, message: 'Must be 0 (bought in a shop) or 1 (owned from the start).' })
+    if (field.kind === 'unlock' && (value < 0 || value > (field.maxLevel ?? 1))) {
+      errors.push({
+        field: key,
+        message: `Must be from 0 (bought in a shop) to ${field.maxLevel ?? 1} (every level owned from the start).`
+      })
       continue
     }
     if (field.kind === 'cost' && (value < 0 || value > PLAYER_COST_MAX)) {

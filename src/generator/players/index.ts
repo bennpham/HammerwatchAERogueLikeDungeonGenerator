@@ -13,6 +13,7 @@ export {
   extraKey,
   shopKey,
   skillKey,
+  startingLevelKey,
   statKey,
   unlockKey
 } from './fields'
@@ -31,7 +32,7 @@ export {
   parseSkillFile,
   stemOf
 } from './parse'
-export { CLASSES_PATH, applyLineEdits, playerOverrides, sharedCopyPath } from './patch'
+export { CLASSES_PATH, OWNED_CATEGORY, applyLineEdits, playerOverrides, sharedCopyPath } from './patch'
 export { PLAYER_STOCK, PLAYER_STOCK_SOURCE } from './stock.generated'
 export type {
   LineEdit,

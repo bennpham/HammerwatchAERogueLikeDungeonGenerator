@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CLASSES_PATH,
   COMBO_BUFFS_PATH,
+  OWNED_CATEGORY,
   LIGHTNING_BOLT_PATH,
   PLAYER_FIELDS,
   PLAYER_FIELD_MAP,
@@ -23,6 +24,7 @@ import {
   sharedCopyPath,
   shopKey,
   skillKey,
+  startingLevelKey,
   statKey,
   unlockKey
 } from '../src/generator/players'
@@ -85,9 +87,12 @@ describe('player snapshot', () => {
     expect(PLAYER_FIELD_MAP.get(shopKey('potion_damage'))?.stock).toBe(1000)
   })
 
-  it('offers an unlock for a bought skill only', () => {
-    expect(PLAYER_FIELD_MAP.get(unlockKey('wiz_meteor'))?.kind).toBe('unlock')
-    expect(PLAYER_FIELD_MAP.has(unlockKey('wiz_fireball'))).toBe(false)
+  it('offers a starting level for every skill and modifier, up to its level count', () => {
+    // bought, so none owned; a class's first skill, owned at level 1 as AE ships it
+    expect(PLAYER_FIELD_MAP.get(unlockKey('wiz_meteor'))).toMatchObject({ kind: 'unlock', stock: 0 })
+    expect(PLAYER_FIELD_MAP.get(unlockKey('wiz_fireball'))).toMatchObject({ kind: 'unlock', stock: 1, maxLevel: 1 })
+    expect(PLAYER_FIELD_MAP.get(startingLevelKey('shared_combo:shared_combo_nova'))).toMatchObject({ kind: 'unlock', stock: 0, maxLevel: 5 })
+    expect(PLAYER_FIELD_MAP.get(unlockKey('shared_combo'))?.maxLevel).toBe(1)
   })
 
   it('has the combo regen buffs and the lightning bolt outside players/', () => {
@@ -198,6 +203,32 @@ describe('player overrides', () => {
     const root = parseSval(applyLineEdits(readAsset(path), o.edits).text)
     expect(svalInt(svalGet(root, 'starting-level'))).toBe(1)
     expect(svalInt(svalGet(root, 'cost'))).toBe(0)
+  })
+
+  it('a starting level rewrites one the file already has', () => {
+    // the wizard's fireball, which AE ships owned at level 1
+    const field = PLAYER_FIELD_MAP.get(unlockKey('wiz_fireball'))!
+    const out = playerOverrides({ [field.key]: 0 })
+    expect(out[0].edits).toEqual([{ line: field.line, kind: 'value', name: 'starting-level', value: '0' }])
+  })
+
+  it('a modifier owned at its top level leaves the shop; one below it stays on sale', () => {
+    const nova = startingLevelKey('shared_combo:shared_combo_nova')
+    const nova1 = PLAYER_STOCK.skills.find((s) => s.stem === 'shared_combo')!.chains.find((c) => c.key.endsWith('nova'))!.tiers[0]
+    const top = playerOverrides({ [nova]: 5 })[0].edits
+    expect(top).toContainEqual({ line: nova1.categoryLine, kind: 'value', name: 'category', value: OWNED_CATEGORY })
+    const partway = playerOverrides({ [nova]: 2 })[0].edits
+    expect(partway.some((e) => e.kind === 'value' && e.name === 'category')).toBe(false)
+  })
+
+  it.skipIf(assets === null)('a maxed modifier reads back at its top level, in no vendor\'s column', () => {
+    const path = 'players/shared/skills/shared_combo.sval'
+    const [o] = playerOverrides({ [startingLevelKey('shared_combo:shared_combo_nova')]: 5 })
+    const nova = svalGet(parseSval(applyLineEdits(readAsset(path), o.edits).text), 'modifier-skills')!.children.find(
+      (m) => svalGet(m, 'id')?.text === 'shared_combo_nova'
+    )!
+    expect(svalInt(svalGet(nova, 'starting-level'))).toBe(5)
+    expect(svalGet(nova, 'category')?.text).toBe(OWNED_CATEGORY)
   })
 
   it('a param patches its own element; a window end keeps the window start', () => {

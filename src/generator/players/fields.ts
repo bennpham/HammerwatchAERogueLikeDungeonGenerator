@@ -8,7 +8,7 @@ import { PLAYER_STOCK } from './stock.generated'
  *   player.class.<class>.<stat>                 classes.sval, e.g. base-health
  *   player.<chain>.<tier>.<field>               a skill file, for every class
  *   player.<class>@<chain>.<tier>.<field>       a shared skill file, one class
- *   player.<stem>.1.starting-level              1: a bought skill is owned from the start
+ *   player.<chain>.1.starting-level             levels of a skill owned from the start (1: no need to buy it)
  *   player.shop.<id>.cost                       a potion or item price (a script, not players/)
  *   player.extra.<id>                           a skill number outside players/ (combo buffs, lightning bolt)
  *
@@ -28,10 +28,13 @@ export interface PlayerFieldDef {
   type: 'int' | 'float'
   stock: number
   /**
-   * `unlock` is 0 or 1; a `cost` with no `chainKey` is a potion or item price;
-   * a `param` is a skill-level number beside the binds
+   * `unlock` is a chain's starting level, 0 to `maxLevel`; a `cost` with no
+   * `chainKey` is a potion or item price; a `param` is a skill-level number
+   * beside the binds
    */
   kind: 'stat' | 'cost' | 'bind' | 'param' | 'unlock'
+  /** an `unlock`: the chain's level count (the skill and its upgrades) */
+  maxLevel?: number
   /** a `param` that is the end of an ivec2 window: the window's start */
   windowStart?: number
   /** the stock file the value lives in */
@@ -62,9 +65,14 @@ export function skillKey(chainKey: string, tier: number, field: string, classId?
   return `${PLAYER_KEY_PREFIX}${classId === undefined ? '' : `${classId}@`}${chainKey}.${tier}.${field}`
 }
 
-/** A bought skill owned from the start (AE's `starting-level`), 0 or 1. */
+/** The levels of a chain (a root or modifier skill) owned from the start: AE's `starting-level`. */
+export function startingLevelKey(chainKey: string): string {
+  return skillKey(chainKey, 1, 'starting-level')
+}
+
+/** A bought root skill owned from the start: its starting level, 0 or 1 (or higher, owning its upgrades too). */
 export function unlockKey(stem: string): string {
-  return skillKey(stem, 1, 'starting-level')
+  return startingLevelKey(stem)
 }
 
 export function shopKey(id: string): string {
@@ -149,18 +157,22 @@ export const PLAYER_FIELDS: readonly PlayerFieldDef[] = (() => {
         chain.tiers.forEach((tier, i) => out.push(...valueFields(file, chain, i, tier, classId)))
       }
     }
-    // the switch sits on the root's cost line, where the patch writes it
-    const root = boughtRoot(file)
-    if (root !== undefined) {
+    // the levels each chain owns from the start: on its own `starting-level`
+    // line, else its price's line, where the patch writes one
+    for (const chain of file.chains) {
+      const first = chain.tiers[0]
+      const line = first.startingLevel?.line ?? first.cost?.line
+      if (line === undefined) continue
       out.push({
-        key: unlockKey(file.stem),
+        key: startingLevelKey(chain.key),
         type: 'int',
-        stock: 0,
+        stock: first.startingLevel?.stock ?? 0,
         kind: 'unlock',
+        maxLevel: chain.tiers.length,
         path: file.path,
-        line: root.tiers[0].cost!.line,
+        line,
         name: 'starting-level',
-        chainKey: file.stem,
+        chainKey: chain.key,
         tier: 1
       })
     }

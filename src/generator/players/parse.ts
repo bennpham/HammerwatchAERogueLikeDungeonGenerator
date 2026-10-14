@@ -81,8 +81,12 @@ function tierOf(dict: SvalNode): PlayerTier {
   const tier: PlayerTier = { binds: {} }
   const lvl = svalInt(svalGet(dict, 'lvl'))
   if (lvl !== undefined) tier.lvl = lvl
-  const category = svalString(svalGet(dict, 'category'))
+  const categoryNode = svalGet(dict, 'category')
+  const category = svalString(categoryNode)
   if (category !== undefined) tier.category = category
+  if (category !== undefined && categoryNode?.line !== undefined) tier.categoryLine = categoryNode.line
+  const startingLevel = numberOf(svalGet(dict, 'starting-level'))
+  if (startingLevel !== undefined) tier.startingLevel = startingLevel
   const cost = numberOf(svalGet(dict, 'cost'))
   if (cost !== undefined) tier.cost = cost
   // the root and a modifier skill keep their binds under `skill`; an upgrade

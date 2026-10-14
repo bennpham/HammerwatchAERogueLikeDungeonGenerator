@@ -12,6 +12,7 @@ import {
   shopPriceLabel,
   skillFileLabel,
   skillKey,
+  startingLevelKey,
   statKey,
   tierLabel,
   unlockKey
@@ -44,8 +45,9 @@ const CLASS_EXTRA_KEYS: Record<string, string[]> = {
 
 /** Every all-classes key a skill file holds, for its "n changed" badge. */
 function keysOfFile(file: PlayerSkillFile): string[] {
-  const keys: string[] = boughtRoot(file) === undefined ? [] : [unlockKey(file.stem)]
+  const keys: string[] = []
   for (const chain of file.chains) {
+    if (PLAYER_FIELD_MAP.has(startingLevelKey(chain.key))) keys.push(startingLevelKey(chain.key))
     chain.tiers.forEach((tier, i) => {
       if (tier.cost !== undefined) keys.push(skillKey(chain.key, i + 1, 'cost'))
       for (const name of Object.keys(tier.binds)) keys.push(skillKey(chain.key, i + 1, name))
@@ -95,12 +97,12 @@ export function PlayerForm({ tweaks, issues, onChange }: PlayerFormProps) {
 
   const unlock = (file: PlayerSkillFile) => {
     const field = PLAYER_FIELD_MAP.get(unlockKey(file.stem))
-    if (field === undefined) return null
+    if (field === undefined || boughtRoot(file) === undefined) return null
     return (
       <BoolField
         label="Owned from the start"
         title="Every character of the class starts with this skill instead of buying it in a shop"
-        checked={(tweaks[field.key] ?? 0) >= 1}
+        checked={(tweaks[field.key] ?? field.stock) >= 1}
         onChange={(on) => set(field, on ? 1 : 0)}
       />
     )

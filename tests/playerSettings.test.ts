@@ -10,6 +10,7 @@ import {
   HW2_CLASSES,
   ORIGINAL_ATTACKS,
   ORIGINAL_TOGGLES,
+  OWNED_CATEGORY,
   PLAYER_FIELD_MAP,
   PLAYER_PRESETS,
   PLAYER_PRESET_GROUPS,
@@ -38,6 +39,7 @@ import {
   shopKey,
   skillKey,
   speedOf,
+  startingLevelKey,
   statKey,
   totalShopCost,
   unlockKey,
@@ -200,14 +202,40 @@ describe('quick setup', () => {
     expect(meteor?.start).toBeDefined()
   })
 
-  it('fully upgraded starts at the top and validates', () => {
+  it('fully upgraded owns every skill and modifier at its top level, and validates', () => {
     const t = applyFullyUpgraded({})
-    expect(t[statKey('warlock', 'base-health')]).toBe(130)
-    expect(t[statKey('paladin', 'base-health')]).toBe(300)
-    expect(t[skillKey('warlock_dagger', 1, 'dagger-dmg')]).toBe(38)
-    expect(t[skillKey('pal_misc_armor', 1, 'player-armor-set')]).toBe(12)
+    for (const file of PLAYER_STOCK.skills) {
+      for (const chain of file.chains) {
+        const f = PLAYER_FIELD_MAP.get(startingLevelKey(chain.key))
+        if (f === undefined) continue
+        expect(t[f.key] ?? f.stock, chain.key).toBe(chain.tiers.length)
+      }
+    }
+    // the combo's nova at level 5, its projectile and all: no copied binds
+    expect(t[startingLevelKey('shared_combo:shared_combo_nova')]).toBe(5)
+    expect(t[skillKey('shared_combo', 1, 'combo-nova-parts')]).toBeUndefined()
+    expect(t[skillKey('warlock_dagger', 1, 'dagger-dmg')]).toBeUndefined()
     expect(totalShopCost(t)).toBe(0)
     expect(validatePlayerTweaks(t).errors).toEqual([])
+  })
+
+  it('fully upgraded leaves the skill shop nothing to sell', () => {
+    // every modifier moves to a column no vendor sells; a root at its top
+    // level lists no upgrade (AE's SkillShopMenuContent)
+    const t = applyFullyUpgraded({})
+    const overrides = playerOverrides(t)
+    for (const file of PLAYER_STOCK.skills) {
+      const o = overrides.find((x) => x.path === file.path)
+      for (const chain of file.chains.filter((c) => c.key !== file.stem)) {
+        const line = chain.tiers[0].categoryLine
+        expect(o?.edits, chain.key).toContainEqual({ line, kind: 'value', name: 'category', value: OWNED_CATEGORY })
+      }
+    }
+    // and the loadout counts everything as owned from the start
+    for (const c of buildLoadouts(t)) {
+      expect(c.totalCost, c.id).toBe(0)
+      for (const s of c.stats) expect(s.start, `${c.id} ${s.name}`).toBe(s.maxed)
+    }
   })
 })
 

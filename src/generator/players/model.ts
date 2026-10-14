@@ -36,6 +36,14 @@ export interface PlayerTier {
   lvl?: number
   /** shop column, e.g. `off1`; absent on a skill owned from the start */
   category?: string
+  /** the line `category` is on */
+  categoryLine?: number
+  /**
+   * A chain's first tier only: the levels owned from the start, when the file
+   * writes `starting-level` (the classes' first skills, 1). AE reads it on a
+   * root and on a modifier skill alike (`PlayerClass.as`).
+   */
+  startingLevel?: PlayerValue
   /** absent on a skill owned from the start */
   cost?: PlayerValue
   /** numeric binds this tier sets, by bind name */

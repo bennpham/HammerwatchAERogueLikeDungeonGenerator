@@ -1,5 +1,5 @@
 import { fmtNum } from '../ae/sval'
-import { PLAYER_FIELDS, boughtRoot, extraKey, prunePlayerTweaks, shopKey, skillKey, statKey } from './fields'
+import { PLAYER_FIELDS, extraKey, prunePlayerTweaks, shopKey, skillKey, statKey } from './fields'
 import type { PlayerTweaks } from './fields'
 import type { LineEdit, PlayerFileOverride, PlayerSkillFile, PlayerTier } from './model'
 import { PLAYER_STOCK } from './stock.generated'
@@ -71,14 +71,32 @@ function skillFileEdits(file: PlayerSkillFile, tweaks: PlayerTweaks, classId?: s
       }, before))
     })
   }
-  // a bought skill owned from the start: AE's own `starting-level`, which the
-  // classes' first skills carry, written beside the root's price (the same dict)
-  const bought = boughtRoot(file)
-  if (bought !== undefined && effective(file.stem, 1, 'starting-level', 0) >= 1) {
-    edits.push({ line: bought.tiers[0].cost!.line, kind: 'text', find: '<int name="cost">', replace: '<int name="starting-level">1</int> <int name="cost">' })
+  // levels owned from the start: AE's own `starting-level`, which the classes'
+  // first skills carry, rewritten where the file has one, else written beside
+  // the chain's price (the same dict)
+  for (const chain of file.chains) {
+    const first = chain.tiers[0]
+    const stock = first.startingLevel?.stock ?? 0
+    const level = effective(chain.key, 1, 'starting-level', stock)
+    if (level !== stock) {
+      if (first.startingLevel !== undefined) {
+        edits.push({ line: first.startingLevel.line, kind: 'value', name: 'starting-level', value: String(Math.trunc(level)) })
+      } else if (first.cost !== undefined) {
+        edits.push({ line: first.cost.line, kind: 'text', find: '<int name="cost">', replace: `<int name="starting-level">${Math.trunc(level)}</int> <int name="cost">` })
+      }
+    }
+    // AE's shop lists a modifier skill nobody has bought whatever its starting
+    // level (`SkillShopMenuContent.AddModifiersToShop`), and buying one already
+    // at its top does nothing; a column no vendor sells keeps it off the shelf
+    if (chain.key !== file.stem && level >= chain.tiers.length && first.categoryLine !== undefined) {
+      edits.push({ line: first.categoryLine, kind: 'value', name: 'category', value: OWNED_CATEGORY })
+    }
   }
   return edits
 }
+
+/** The shop column a maxed modifier skill moves to: no vendor sells it. */
+export const OWNED_CATEGORY = 'owned'
 
 type Valued = { stock: number; value: number; type: 'int' | 'float' }
 

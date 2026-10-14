@@ -1,4 +1,4 @@
-import { skillKey, statKey, unlockKey } from './fields'
+import { skillKey, startingLevelKey, statKey, unlockKey } from './fields'
 import type { PlayerTweaks } from './fields'
 import { classLabel, skillFileLabel } from './labels'
 import { PLAYER_STOCK } from './stock.generated'
@@ -48,17 +48,25 @@ export function buildLoadouts(tweaks: PlayerTweaks): ClassLoadout[] {
 
     let totalCost = 0
     let stockTotalCost = 0
-    const body = new Map<string, { maxed: number; changed: boolean }>()
+    const body = new Map<string, { maxed: number; owned?: number; changed: boolean }>()
     const skills: LoadoutStat[] = []
     for (const file of files) {
       const rows = new Map<string, LoadoutStat>()
-      const unlocked = (tweaks[unlockKey(file.stem)] ?? 0) >= 1
+      const rootOwned = (tweaks[unlockKey(file.stem)] ?? file.chains[0]?.tiers[0].startingLevel?.stock ?? 0) >= 1
       for (const chain of file.chains) {
+        // the levels owned from the start (AE's starting-level); a root with no
+        // price is owned regardless
+        const isRootChain = chain.key === file.stem
+        const ownedLevels = Math.max(
+          tweaks[startingLevelKey(chain.key)] ?? chain.tiers[0].startingLevel?.stock ?? 0,
+          isRootChain && chain.tiers[0].cost === undefined ? 1 : 0
+        )
+        // a modifier's levels count only once its skill is owned
+        const owned = isRootChain || rootOwned ? ownedLevels : 0
         chain.tiers.forEach((tier, i) => {
-          const isRoot = chain.key === file.stem && i === 0
-          // an unlocked skill is never bought, so its own price is not paid
+          // an owned level is never bought, so its price is not paid
           if (tier.cost !== undefined) {
-            if (!(isRoot && unlocked)) totalCost += value(chain.key, i + 1, 'cost', tier.cost.stock)
+            if (i >= owned) totalCost += value(chain.key, i + 1, 'cost', tier.cost.stock)
             stockTotalCost += tier.cost.stock
           }
           for (const [name, b] of Object.entries(tier.binds)) {
@@ -66,15 +74,17 @@ export function buildLoadouts(tweaks: PlayerTweaks): ClassLoadout[] {
             const changed = isChanged(chain.key, i + 1, name)
             if (BODY_BINDS.has(name)) {
               const prev = body.get(name)
-              body.set(name, { maxed: v, changed: (prev?.changed ?? false) || changed })
+              const ownedValue = i < owned ? v : prev?.owned
+              body.set(name, { maxed: v, ...(ownedValue === undefined ? {} : { owned: ownedValue }), changed: (prev?.changed ?? false) || changed })
               continue
             }
+            // the start is the highest owned level that sets it; a modifier
+            // comes after its root and wins, as in game
             const row = rows.get(name)
             if (row === undefined) {
-              // owned from the start when the root skill costs nothing, or is unlocked
-              const owned = isRoot && (tier.cost === undefined || unlocked)
-              rows.set(name, { name: `${skillFileLabel(file)} · ${name}`, ...(owned ? { start: v } : {}), maxed: v, changed })
+              rows.set(name, { name: `${skillFileLabel(file)} · ${name}`, ...(i < owned ? { start: v } : {}), maxed: v, changed })
             } else {
+              if (i < owned) row.start = v
               row.maxed = v
               row.changed ||= changed
             }
@@ -86,8 +96,10 @@ export function buildLoadouts(tweaks: PlayerTweaks): ClassLoadout[] {
 
     const stats: LoadoutStat[] = BODY.map(({ stat, bind, name }) => {
       const s = c.stats[stat]
-      const start = tweaks[statKey(c.id, stat)] ?? s?.stock ?? 0
+      const base = tweaks[statKey(c.id, stat)] ?? s?.stock ?? 0
       const up = body.get(bind)
+      // an upgrade owned from the start sets the stat from the start
+      const start = up?.owned === undefined ? base : Math.max(base, up.owned)
       return {
         name,
         start,

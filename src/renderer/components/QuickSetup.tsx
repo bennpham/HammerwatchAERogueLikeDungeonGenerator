@@ -160,9 +160,9 @@ export function QuickSetup({ tweaks, onChange }: QuickSetupProps) {
         </div>
         <p className="hint">
           <strong>Everything free</strong> sets every price to 0: skills, upgrades, potions and items.{' '}
-          <strong>Fully upgraded</strong> gives every class every one of its skills from the start, each at the top of its
-          own ladder, starts it at its best health and mana, and makes everything free. <strong>Reset</strong> clears every
-          player setting.
+          <strong>Fully upgraded</strong> gives every class every one of its skills and upgrades from the start, each at its
+          top level (combo included), so the skill vendors have nothing left to sell. Potions and items keep their prices.{' '}
+          <strong>Reset</strong> clears every player setting.
         </p>
       </Subsection>
     </>
