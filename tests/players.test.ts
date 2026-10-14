@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CLASSES_PATH,
   COMBO_BUFFS_PATH,
+  COMBO_OWNED_FIXES,
   OWNED_CATEGORY,
   LIGHTNING_BOLT_PATH,
   PLAYER_FIELDS,
@@ -229,6 +230,23 @@ describe('player overrides', () => {
     )!
     expect(svalInt(svalGet(nova, 'starting-level'))).toBe(5)
     expect(svalGet(nova, 'category')?.text).toBe(OWNED_CATEGORY)
+  })
+
+  it('combo owned from the start patches AE\'s two bought-only combo checks; a bought one does not', () => {
+    const owned = playerOverrides({ [unlockKey('shared_combo')]: 1 })
+    for (const fix of COMBO_OWNED_FIXES) {
+      expect(owned.find((o) => o.path === fix.path)?.edits, fix.path).toEqual([
+        { line: fix.line, kind: 'text', find: fix.find, replace: fix.replace }
+      ])
+    }
+    const bought = playerOverrides({ [skillKey('shared_combo', 1, 'cost')]: 0 })
+    for (const fix of COMBO_OWNED_FIXES) expect(bought.some((o) => o.path === fix.path), fix.path).toBe(false)
+  })
+
+  it.skipIf(assets === null)('the combo checks sit on the lines AE ships them on', () => {
+    for (const fix of COMBO_OWNED_FIXES) {
+      expect(readAsset(fix.path).split('\n')[fix.line - 1], fix.path).toContain(fix.find)
+    }
   })
 
   it('a param patches its own element; a window end keeps the window start', () => {

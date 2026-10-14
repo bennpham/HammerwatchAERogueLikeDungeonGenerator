@@ -98,6 +98,31 @@ function skillFileEdits(file: PlayerSkillFile, tweaks: PlayerTweaks, classId?: s
 /** The shop column a maxed modifier skill moves to: no vendor sells it. */
 export const OWNED_CATEGORY = 'owned'
 
+const COMBO_STEM = 'shared_combo'
+
+/**
+ * AE's two checks for "has combo" read `pickedSkills["shared_misc_combo"]`, how
+ * many times the combo skill was *bought*, where everything else reads
+ * `GetSkillLevel`, which adds `starting-level`. A combo owned from the start
+ * therefore never counts a kill (`Player.KilledActor`) nor takes a combo
+ * pickup (`GiveCombo.CanApply`). [VERIFIED] the only two such checks in the
+ * scripts; stock lines, the text exactly as AE ships it.
+ */
+export const COMBO_OWNED_FIXES: ReadonlyArray<{ path: string; line: number; find: string; replace: string }> = [
+  {
+    path: 'scripts/Behaviors/Actors/Player/Player.as',
+    line: 183,
+    find: 'int(m_record.pickedSkills["shared_misc_combo"]) > 0',
+    replace: 'm_record.GetSkillLevel("shared_misc_combo") > 0'
+  },
+  {
+    path: 'scripts/Behaviors/Effects/GiveCombo.as',
+    line: 38,
+    find: 'int(player.m_record.pickedSkills["shared_misc_combo"]) == 0',
+    replace: 'player.m_record.GetSkillLevel("shared_misc_combo") == 0'
+  }
+]
+
 type Valued = { stock: number; value: number; type: 'int' | 'float' }
 
 /**
@@ -198,6 +223,15 @@ export function playerOverrides(raw: PlayerTweaks): PlayerFileOverride[] {
     const edits = scripts.get(e.path) ?? []
     edits.push({ line: e.line, kind: 'text', find: `${e.prefix}${e.stock}${e.suffix}`, replace: `${e.prefix}${fmt(e.type, value)}${e.suffix}` })
     scripts.set(e.path, edits)
+  }
+  // combo owned from the start: AE counts combo kills only for a combo that
+  // was bought, so the scenario's scripts ask for its level instead
+  if ((tweaks[skillKey(COMBO_STEM, 1, 'starting-level')] ?? 0) >= 1) {
+    for (const fix of COMBO_OWNED_FIXES) {
+      const edits = scripts.get(fix.path) ?? []
+      edits.push({ line: fix.line, kind: 'text', find: fix.find, replace: fix.replace })
+      scripts.set(fix.path, edits)
+    }
   }
   for (const [path, edits] of scripts) out.push({ path, source: path, edits })
 

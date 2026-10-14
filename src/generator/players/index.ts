@@ -32,7 +32,7 @@ export {
   parseSkillFile,
   stemOf
 } from './parse'
-export { CLASSES_PATH, OWNED_CATEGORY, applyLineEdits, playerOverrides, sharedCopyPath } from './patch'
+export { CLASSES_PATH, COMBO_OWNED_FIXES, OWNED_CATEGORY, applyLineEdits, playerOverrides, sharedCopyPath } from './patch'
 export { PLAYER_STOCK, PLAYER_STOCK_SOURCE } from './stock.generated'
 export type {
   LineEdit,

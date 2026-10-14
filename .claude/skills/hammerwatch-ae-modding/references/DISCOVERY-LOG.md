@@ -547,3 +547,13 @@ crypt tiles.
   bronze/silver/gold (the lock tiers), so the bonus doors open with those. The prison doors
   had looked shifted up on bonus floors because their art is drawn ~32 px above their
   collision, like prison walls, while bonus walls are flat.
+
+### Combo owned from the start never counts a kill (2026-10-14)
+
+- `[VERIFIED]` (user) With Fully upgraded, combo never started. `[VERIFIED]` (scripts) AE's
+  only two "has combo" checks read `pickedSkills["shared_misc_combo"]`, the times the combo
+  was *bought*, not `GetSkillLevel` (which adds `starting-level`):
+  `Player.as:183` (`KilledActor` counts combo kills) and `GiveCombo.as:38` (`CanApply`). No
+  other skill is checked that way.
+- `[EMITTED]` When combo is owned from the start, the scenario ships both scripts with the
+  check rewritten to `GetSkillLevel(...)` (`COMBO_OWNED_FIXES`). In game: checklist #44.
