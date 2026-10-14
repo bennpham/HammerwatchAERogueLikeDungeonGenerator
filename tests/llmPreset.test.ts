@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BOSS_IDS,
   CAMPAIGN_PRESETS,
+  MOBILE_BOSS_IDS,
+  MONSTER_TYPES,
   defaultParameters,
   parseParametersTxt,
   serializeParametersTxt,
   validateParameters
 } from '../src/generator'
-import { buildRepairMessage, buildSystemPrompt } from '../src/shared/llm/prompt'
+import { ACT_EXAMPLE_BLOCK, FEATURE_KEYS, buildRepairMessage, buildSystemPrompt } from '../src/shared/llm/prompt'
 import { LLM_PROVIDERS, isProviderId, providerById } from '../src/shared/llm/providers'
 import { diffParams, expandShorthands, extractParametersBlock, fillPerFloorLists } from '../src/shared/llm/reply'
 import { describeHttpError } from '../src/main/llm/client'
@@ -102,6 +105,18 @@ describe('buildRepairMessage', () => {
     expect(buildRepairMessage([], ['levelz'])).not.toContain('Validation errors')
     expect(buildRepairMessage([{ field: 'a', message: 'b' }], [])).not.toContain('did not recognise')
   })
+
+  it('spells out the fix for the mistakes models keep making', () => {
+    const params = parseParametersTxt('bossFloor2=1|boss_queen|1.0|1\nmonsters0=legion_boss', defaultParameters()).params
+    const message = buildRepairMessage(validateParameters(params).errors, [])
+    expect(message).toContain('How to fix these')
+    expect(message).toContain('make it an arena fight')
+    expect(message).toContain('does not exist')
+  })
+
+  it('adds no hints for an error it has none for', () => {
+    expect(buildRepairMessage([{ field: 'a', message: 'b' }], [])).not.toContain('How to fix')
+  })
 })
 
 describe('buildSystemPrompt', () => {
@@ -115,6 +130,49 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('mapWidth=140')
     expect(prompt).toContain('boss_dragon')
     expect(prompt).toContain('mine_granite')
+  })
+
+  it('groups monsters by campaign and says which bosses are arena only', () => {
+    const prompt = buildSystemPrompt(defaultParameters())
+    expect(prompt).toMatch(/Castle Hammerwatch monsters: [^\n]*skeleton_warrior/)
+    expect(prompt).toMatch(/Temple of the Sun monsters: [^\n]*mummy/)
+    expect(prompt).toMatch(/Castle Hammerwatch themes: prison, armory, archives, chambers/)
+    for (const id of BOSS_IDS) {
+      const line = prompt.split('\n').find((l) => l.startsWith(`- ${id}:`))
+      expect(line, id).toBeDefined()
+      expect(line!.includes('ARENA ONLY'), id).toBe(!(MOBILE_BOSS_IDS as readonly string[]).includes(id))
+    }
+  })
+
+  it('lists every live monster at least once', () => {
+    const prompt = buildSystemPrompt(defaultParameters())
+    const listed = new Set(
+      prompt
+        .split('\n')
+        .filter((l) => /monsters[^:]*: |Towers|Mini-bosses|bodyguards|Bonus hordes/.test(l))
+        .flatMap((l) => l.slice(l.indexOf(': ') + 2).split(', '))
+    )
+    for (const m of MONSTER_TYPES.filter((t) => t.deprecated !== true)) expect(listed.has(m.id), m.id).toBe(true)
+  })
+
+  it('the act-by-act example parses and validates cleanly', () => {
+    const { text, playerPreset } = expandShorthands(ACT_EXAMPLE_BLOCK)
+    expect(playerPreset).toBe('dungeon-rebalanced')
+    const parsed = parseParametersTxt(text, defaultParameters())
+    expect(parsed.unknownKeys).toEqual([])
+    const { params } = fillPerFloorLists(parsed.params)
+    expect(validateParameters(params).errors).toEqual([])
+    expect(params.boss.fights?.map((f) => f.arena.bossPool)).toEqual([['boss_queen'], ['boss_knight']])
+  })
+
+  it('every feature-key example parses with no unknown keys', () => {
+    const examples = FEATURE_KEYS.flatMap((rule) => [...rule.matchAll(/`([A-Za-z]+\d+[A-Za-z]*\d*=[^`]+)`/g)].map((m) => m[1]))
+    expect(examples.length).toBeGreaterThan(10)
+    // the arena examples need a second fight to land on
+    const base = parseParametersTxt('levels=8\nbossFights=2', defaultParameters()).params
+    for (const line of examples) {
+      expect(parseParametersTxt(line, base).unknownKeys, line).toEqual([])
+    }
   })
 
   it('stays compact enough for a small free model', () => {
