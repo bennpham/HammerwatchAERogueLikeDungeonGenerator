@@ -510,3 +510,8 @@ crypt tiles.
 - `[VERIFIED]` (user, checklist #25) A player still dead when the party exits arrives on the
   next level as a gravestone. AE has revive, not respawn: a living player must revive them.
   `SetRespawnPoint` in the exit rig does not bring them back by itself.
+- `[VERIFIED]` (user) Also confirmed in game: the final-room button (#13), Everything free
+  for potions and items, so a scenario copy of `scripts/Data/Misc.as` is read (#32), original
+  attack movement (#34), the warlock lightning reach, so a scenario copy of a projectile unit
+  is read (#37), closed lobby vendors losing their sign (#40), the Colosseum's vendors (#41)
+  and the narrow-stair walls (#42). The bonus themes still have wall holes everywhere.
