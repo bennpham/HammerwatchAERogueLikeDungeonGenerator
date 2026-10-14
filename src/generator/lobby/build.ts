@@ -154,7 +154,8 @@ function placePayout(
  *   level's teleporter (`doodads/generic/teleport_*`);
  * - vendors: `lobby:vendor:<id>`, else the vendor its ShopArea's categories
  *   name (def* -> defense, off* -> offense, item -> item...). A stand whose
- *   UseTrigger has no use area gets one, on the stand;
+ *   UseTrigger has no use area gets one, on the stand. A stall with nothing
+ *   selected is switched off and its sign removed;
  * - payout: the diamonds and upgrade pickups the author placed (their spots are
  *   the payout slots, the placed units themselves removed), else a
  *   `lobby:payout` marker, else the free floor around the spawn.
@@ -226,6 +227,15 @@ function buildFromTemplate(
     const use = target?.kind === 'target' ? level.scripts.find((u) => u.id === target.value[0]) : undefined
     if (use === undefined) continue
     use.enabled = s.enabled
+    if (!s.enabled) {
+      // and its sign comes down, so no vendor stands there selling nothing
+      const sign = nearest(shops, use.x, use.y)
+      if (sign !== undefined && Math.abs(sign.x - use.x) <= TILE && Math.abs(sign.y - use.y) <= TILE && !isReferenced(level, sign.id)) {
+        level.units = level.units.filter((u) => u !== sign)
+        shops.splice(shops.indexOf(sign), 1)
+      }
+      continue
+    }
     if (use.params.some((p) => p.name === 'Areas')) continue
     // no use area yet: a circle on the nearest stand, as floor shops have
     const stand = nearest(shops, use.x, use.y)
@@ -264,6 +274,15 @@ function vendorIdOf(categories: string): string | undefined {
   if (first === 'power') return 'power'
   if (first === 'item' || first.startsWith('equipment_')) return 'item'
   return undefined
+}
+
+/** Whether any script names `id`, by connection or in an id or target parameter. */
+function isReferenced(level: AeLevel, id: number): boolean {
+  return level.scripts.some(
+    (s) =>
+      s.connections.some(([c]) => c === id) ||
+      s.params.some((p) => (p.kind === 'ids' && p.value.includes(id)) || (p.kind === 'target' && p.value[0] === id))
+  )
 }
 
 function nearest<T extends { x: number; y: number }>(items: readonly T[], x: number, y: number): T | undefined {

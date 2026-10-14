@@ -211,6 +211,16 @@ for (const preset of LOBBY_PRESETS) {
         expect(stalls(lobbyOf(preset, { shopCategories: [] }))).toEqual([])
       }, 60_000)
 
+      it('takes down the sign of a stall that sells nothing, and keeps the others', () => {
+        const skillsOnly = ALL_LOBBY_CATEGORIES.filter((c) => !c.startsWith('equipment_') && c !== 'power')
+        const lobby = lobbyOf(preset, { shopCategories: skillsOnly })
+        expect(count(lobby, 'doodads/generic/shop_potion.unit')).toBe(0)
+        expect(count(lobby, 'doodads/generic/shop_item.unit')).toBe(0)
+        const signs = lobby.units.filter((u) => /^doodads\/generic\/shop_[a-z]+\.unit$/.test(u.path))
+        expect(signs.length).toBeGreaterThanOrEqual(4)
+        expect(count(lobbyOf(preset, { shopCategories: [] }), 'doodads/generic/shop_combo.unit')).toBe(0)
+      }, 60_000)
+
       it('gives every open stall a use area that exists', () => {
         const lobby = lobbyOf(preset)
         for (const shop of scriptsOf(lobby, 'ShopArea').filter((s) => s.enabled)) {
