@@ -16,8 +16,8 @@
  *   prison2, armory, armory2, crypt, caves, pyramids;
  * - legacy style (`h`, `v`, `cap_e/w/n/s`, `single`): archives, chambers,
  *   battlement, challenge, mine_granite;
- * - the bonus sets, which ship no corners or T-junctions at all (corners and
- *   junctions fall back to `x_x`; see `cosmeticWarning`).
+ * - the flat bonus sets, flat 16-px tiles with their own piece names and
+ *   anchors (`crn_l_up`, `x_t_dn`, `h_cap_l`…; `FLAT_CANDIDATES` in aeWalls.ts).
  */
 
 export type ThemeGroup = 'Castle Hammerwatch' | 'Shaftlocke Tower' | 'Temple of the Sun' | 'Caves' | 'Bonus'
@@ -45,6 +45,11 @@ export interface ThemeDef {
   exitUpSet: string
   exitDnSet: string
   /**
+   * The way in and out is a floor pad inside the room (`doodads/special/bonus_entrance`
+   * / `bonus_exit`, as stock bonus levels have) rather than stairs set in the wall
+   */
+  exitPads?: boolean
+  /**
    * Floor tilesets, bottom layer first. The bottom layer is painted grown under
    * the walls (AE's own levels do the same, so no void shows at wall edges);
    * the rest cover walkable floor only.
@@ -59,7 +64,7 @@ export interface ThemeDef {
   /** lighting environments the theme's stock levels use; a floor takes one by its index */
   environments: string[]
   doors: DoorStyle
-  /** wall art lacks corners/junctions; resolved through fallbacks in walls.ts */
+  /** flat wall art (the bonus sets), whose doors are not keyed; see `cosmeticWarning` */
   sparsePieces?: boolean
   /** advisory note the validator surfaces once when the theme is used */
   cosmeticWarning?: string
@@ -77,6 +82,7 @@ function theme(
     walls?: string
     exitUp?: string
     exitDn?: string
+    exitPads?: boolean
     floor: string[]
     mixed?: string[]
     environments: string[]
@@ -98,14 +104,15 @@ function theme(
     doors: opts.doors
   }
   if (opts.mixed !== undefined) def.mixed = opts.mixed.map(TS)
+  if (opts.exitPads === true) def.exitPads = true
   if (opts.sparsePieces === true) def.sparsePieces = true
   if (opts.cosmeticWarning !== undefined) def.cosmeticWarning = opts.cosmeticWarning
   return def
 }
 
 const BONUS_WARNING =
-  'The bonus wall sets ship no corner or junction pieces, so corners use the cross piece and ' +
-  'the stairs borrow prison art. Cosmetic only — the level is sealed.'
+  'The bonus sets have only button doors, no keyed ones, so locked doors use prison art. ' +
+  'Cosmetic only — the level is sealed.'
 
 export const THEME_DEFS: readonly ThemeDef[] = [
   // --- Castle Hammerwatch (the remade campaign) -------------------------------
@@ -226,7 +233,7 @@ export const THEME_DEFS: readonly ThemeDef[] = [
   // --- Bonus -----------------------------------------------------------------
   ...[1, 2, 3, 4, 5].map((n) =>
     theme(`bonus${n}`, `Bonus ${n}`, 'Bonus', {
-      exitUp: 'prison',
+      exitPads: true,
       floor: [`bonus_${n}`],
       environments: [LIGHT('bonus')],
       doors: 'prison',

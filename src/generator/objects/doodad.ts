@@ -67,21 +67,50 @@ function stairSet(type: 'ExitUp' | 'ExitDn', themeId: string): string {
 }
 
 /**
+ * Whether the theme's way in and out is a floor pad inside the room (the bonus
+ * sets, as stock bonus levels have) rather than stairs set in the wall.
+ */
+export function exitIsPad(themeId: string): boolean {
+  return getTheme(themeId)?.exitPads === true
+}
+
+/**
  * The wall-line cells a stair's art closes, from the stair set's first cell:
- * all four for the shared 64-px art, the middle two for a narrow set. The wall
- * placer lays ordinary pieces on the rest, so no gap is left beside the stairs.
+ * all four for the shared 64-px art, the middle two for a narrow set, none for
+ * a floor pad. The wall placer lays ordinary pieces on the rest, so no gap is
+ * left beside the stairs.
  */
 export function exitDoorway(type: 'ExitUp' | 'ExitDn', themeId: string): { from: number; cells: number } {
+  if (exitIsPad(themeId)) return { from: 0, cells: 0 }
   return NARROW_STAIRS[stairSet(type, themeId)]?.[type] === undefined ? { from: 0, cells: 4 } : { from: 1, cells: 2 }
 }
+
+/**
+ * Where a floor pad is centred, in tiles from the stair set's first doorway
+ * cell: two cells in from the left, two rows below the wall line (the first
+ * floor row's bottom edge), clear of the wall.
+ */
+export const EXIT_PAD_CENTRE = { dx: 2, dy: 2 } as const
 
 /** The AE unit (and anchor offset) a doodad kind resolves to on `theme`. */
 export function resolveDoodad(type: DoodadTypeName, themeId: string): Resolved {
   const theme = getTheme(themeId)
   const walls = theme?.walls ?? 'prison'
   switch (type) {
+    // the bonus pads are 24-px floor art, anchored top-left; the exit's
+    // sprite sits 4 px below its anchor, and it starts `inactive` unless told
     case 'ExitUp':
     case 'ExitDn': {
+      if (exitIsPad(themeId)) {
+        return type === 'ExitUp'
+          ? { path: 'doodads/special/bonus_entrance.unit', dx: EXIT_PAD_CENTRE.dx - 0.75, dy: EXIT_PAD_CENTRE.dy - 0.75 }
+          : {
+              path: 'doodads/special/bonus_exit.unit',
+              dx: EXIT_PAD_CENTRE.dx - 0.75,
+              dy: EXIT_PAD_CENTRE.dy - 1,
+              state: { start: { kind: 'string', value: 'active' } }
+            }
+      }
       const set = stairSet(type, themeId)
       const file = type === 'ExitUp' ? 'exit_up' : 'exit_dn'
       return { path: `doodads/walls/${set}/${file}.unit`, dx: NARROW_STAIRS[set]?.[type] ?? 0, dy: 0 }

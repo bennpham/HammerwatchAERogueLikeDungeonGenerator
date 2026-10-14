@@ -72,8 +72,8 @@ const PIECE_BY_MASK: Record<number, string> = {
 /**
  * Unit candidates per logical piece, best first, with a cell offset for the
  * anchor. New-style sets ship `h_32`/`cap_h_*`; legacy sets (archives,
- * chambers, battlement, mines…) ship `h`/`cap_*`/`single`; the bonus sets have
- * no corners or junctions at all and fall back to `x_x`.
+ * chambers, battlement, mines…) ship `h`/`cap_*`/`single`. The flat bonus sets
+ * name theirs differently and anchor them differently (`FLAT_CANDIDATES`).
  */
 const CANDIDATES: Record<string, Array<{ unit: string; dy: number }>> = {
   h_32: [
@@ -121,8 +121,43 @@ for (const p of ['crn_nw', 'crn_ne', 'crn_sw', 'crn_se', 'x_n', 'x_s', 'x_e', 'x
 }
 CANDIDATES.x_x = [{ unit: 'x_x', dy: 0 }]
 
+/**
+ * The bonus sets (`bonus1`–`bonus5`): flat 16-px tiles with a full set of
+ * corners, junctions and caps under their own names. Each collides over one
+ * cell, either its anchor cell (`0 0 16 16`, dy 0) or the cell above it
+ * (`0 -16 16 16`: `v`, `v_16`, `x_x`, `x_t_up/l/r`, `crn_*_up`, `v_cap_up`),
+ * which is anchored a row BELOW its footprint (dy 1). A cap is named for the
+ * way its wall runs on: `h_cap_r` is a west end, `v_cap_dn` a top end.
+ * [VERIFIED from the unit files and base.png]
+ */
+const FLAT_CANDIDATES: Record<string, Array<{ unit: string; dy: number }>> = {
+  h_32: [{ unit: 'h', dy: 0 }],
+  h_16: [{ unit: 'h_16', dy: 0 }],
+  v_32: [{ unit: 'v', dy: 1 }],
+  v_16: [{ unit: 'v_16', dy: 1 }],
+  single: [{ unit: 'single', dy: 0 }],
+  cap_h_w: [{ unit: 'h_cap_r', dy: 0 }],
+  cap_h_e: [{ unit: 'h_cap_l', dy: 0 }],
+  cap_v_n: [{ unit: 'v_cap_dn', dy: 0 }],
+  cap_v_s: [{ unit: 'v_cap_up', dy: 1 }],
+  crn_nw: [{ unit: 'crn_l_up', dy: 1 }],
+  crn_ne: [{ unit: 'crn_r_up', dy: 1 }],
+  crn_sw: [{ unit: 'crn_l_dn', dy: 0 }],
+  crn_se: [{ unit: 'crn_r_dn', dy: 0 }],
+  x_n: [{ unit: 'x_t_dn', dy: 0 }],
+  x_s: [{ unit: 'x_t_up', dy: 1 }],
+  x_e: [{ unit: 'x_t_l', dy: 1 }],
+  x_w: [{ unit: 'x_t_r', dy: 1 }],
+  x_x: [{ unit: 'x_x', dy: 1 }]
+}
+
 export function wallUnitPath(walls: string, unit: string): string {
   return `doodads/walls/${walls}/${unit}.unit`
+}
+
+/** Whether a wall set is the flat bonus family, told by its `crn_l_up` corner. */
+export function isFlatWallSet(walls: string, exists: (path: string) => boolean): boolean {
+  return exists(wallUnitPath(walls, 'crn_l_up'))
 }
 
 /** The unit (and anchor offset) a logical piece resolves to for this wall set, or null. */
@@ -131,7 +166,8 @@ export function resolvePiece(
   piece: string,
   exists: (path: string) => boolean
 ): { path: string; dy: number; unit: string } | null {
-  for (const c of CANDIDATES[piece] ?? []) {
+  const table = isFlatWallSet(walls, exists) ? FLAT_CANDIDATES : CANDIDATES
+  for (const c of table[piece] ?? []) {
     const path = wallUnitPath(walls, c.unit)
     if (exists(path)) return { path, dy: c.dy, unit: c.unit }
   }

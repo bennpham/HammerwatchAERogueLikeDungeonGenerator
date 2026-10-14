@@ -4,7 +4,7 @@
  * no two wall pieces stand on the same anchor (the bleeding/overlapping walls
  * the hw2ae piratecove port shows).
  */
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { generateDungeon } from '../src/generator'
@@ -13,7 +13,7 @@ import { THEMES, THEME_DEFS, THEME_GROUPS, getTheme, themeEnvironment } from '..
 import { aeAssetExists } from '../src/generator/catalog/assets'
 import { doorUnitPath } from '../src/generator/objects/item'
 import { resolvePiece, wallUnitPath } from '../src/generator/map/aeWalls'
-import { exitDoorway, resolveDoodad } from '../src/generator/objects/doodad'
+import { exitDoorway, exitIsPad, resolveDoodad } from '../src/generator/objects/doodad'
 import { levelsOf } from './ae'
 import { aeAssetsDir } from './aeInstall'
 import { wallCells } from './sealProbe'
@@ -55,8 +55,18 @@ describe('theme registry', () => {
     for (const t of THEME_DEFS) {
       for (const ts of [...t.floor, ...(t.mixed ?? [])]) expect(aeAssetExists(ts), `${t.id}: ${ts}`).toBe(true)
       for (const env of t.environments) expect(aeAssetExists(env), `${t.id}: ${env}`).toBe(true)
-      expect(aeAssetExists(wallUnitPath(t.exitUpSet, 'exit_up')), `${t.id}: exit_up`).toBe(true)
-      expect(aeAssetExists(wallUnitPath(t.exitDnSet, 'exit_dn')), `${t.id}: exit_dn`).toBe(true)
+      for (const type of ['ExitUp', 'ExitDn'] as const) {
+        const r = resolveDoodad(type, t.id)
+        expect(aeAssetExists(r.path), `${t.id}: ${r.path}`).toBe(true)
+      }
+    }
+  })
+
+  it('gives the bonus sets their own floor pads, as stock bonus levels have, not borrowed stairs', () => {
+    for (const t of THEME_DEFS.filter((d) => d.group === 'Bonus')) {
+      expect(resolveDoodad('ExitUp', t.id).path, t.id).toBe('doodads/special/bonus_entrance.unit')
+      expect(resolveDoodad('ExitDn', t.id).path, t.id).toBe('doodads/special/bonus_exit.unit')
+      expect(exitDoorway('ExitDn', t.id).cells, t.id).toBe(0)
     }
   })
 
@@ -132,6 +142,12 @@ describe('generating every theme', () => {
             for (const [x, y] of wallCells(u)) walled.add(`${x},${y}`)
           }
         }
+        if (exitIsPad(theme)) {
+          // pads on the floor, no doorway: the wall-coverage sweep proves the wall whole
+          expect(level.units.some((u) => u.path === 'doodads/special/bonus_entrance.unit'), `${theme} ${stem}: entrance pad`).toBe(true)
+          expect(level.units.some((u) => /\/exit_(up|dn)\.unit$/.test(u.path)), `${theme} ${stem}: no stairs`).toBe(false)
+          continue
+        }
         const stairs = level.units.filter((u) => /\/exit_(up|dn)\.unit$/.test(u.path))
         expect(stairs.length, `${theme} ${stem}: stairs`).toBeGreaterThan(0)
         for (const u of stairs) {
@@ -148,21 +164,49 @@ describe('generating every theme', () => {
   }
 })
 
+/**
+ * A unit's solid collision rects (sensors left out), px from its anchor, as
+ * [x0, y0, x1, y1] with a negative size normalised, following `include`s.
+ */
+const rectCache = new Map<string, Array<[number, number, number, number]>>()
+function collisionRects(rel: string): Array<[number, number, number, number]> {
+  const cached = rectCache.get(rel)
+  if (cached !== undefined) return cached
+  const text = readFileSync(join(aeAssetsDir()!, rel), 'utf8')
+  const out: Array<[number, number, number, number]> = []
+  // an include inside a `%if` branch the game never takes may name no file
+  for (const inc of text.matchAll(/include\s+"([^"]+)"/g)) {
+    if (existsSync(join(aeAssetsDir()!, inc[1]))) out.push(...collisionRects(inc[1]))
+  }
+  for (const block of text.matchAll(/<collision[^>]*>([\s\S]*?)<\/collision>/g)) {
+    for (const r of block[1].matchAll(/<rect([^>]*)>([^<]*)<\/rect>/g)) {
+      if (/sensor="true"/.test(r[1])) continue
+      const [x, y, w, h] = r[2].trim().split(/\s+/).map(Number)
+      out.push([Math.min(x, x + w), Math.min(y, y + h), Math.max(x, x + w), Math.max(y, y + h)])
+    }
+  }
+  rectCache.set(rel, out)
+  return out
+}
+
 describe.skipIf(aeAssetsDir() === null)('stair art', () => {
-  /** The x-span, in px from the anchor, of a unit's first collision rect, following an `include`. */
+  /** The x-span, in px from the anchor, of a unit's first collision rect. */
   function collisionSpan(rel: string): [number, number] {
-    const text = readFileSync(join(aeAssetsDir()!, rel), 'utf8')
-    const inc = /include\s+"([^"]+)"/.exec(text)
-    if (inc !== null && !/<collision/.test(text)) return collisionSpan(inc[1])
-    const rect = /<collision[^>]*>\s*<rect>\s*(-?\d+)\s+-?\d+\s+(\d+)\s+-?\d+\s*<\/rect>/.exec(text)
-    expect(rect, `${rel}: collision rect`).not.toBeNull()
-    return [Number(rect![1]), Number(rect![1]) + Number(rect![2])]
+    const rects = collisionRects(rel)
+    expect(rects.length, `${rel}: collision rect`).toBeGreaterThan(0)
+    return [rects[0][0], rects[0][2]]
   }
 
   it('closes exactly the doorway cells the generator leaves open, in every theme', () => {
     for (const t of THEME_DEFS) {
       for (const type of ['ExitUp', 'ExitDn'] as const) {
         const r = resolveDoodad(type, t.id)
+        if (exitIsPad(t.id)) {
+          // a floor pad: nothing to walk into, no doorway to close
+          expect(collisionRects(r.path), `${t.id} ${r.path}`).toEqual([])
+          expect(exitDoorway(type, t.id).cells).toBe(0)
+          continue
+        }
         const [x0, x1] = collisionSpan(r.path)
         const door = exitDoorway(type, t.id)
         expect([r.dx + x0 / 16, r.dx + x1 / 16], `${t.id} ${r.path}`).toEqual([door.from, door.from + door.cells])
@@ -177,4 +221,46 @@ describe('determinism', () => {
       expect(generateTheme(theme, 77).files, theme).toEqual(generateTheme(theme, 77).files)
     }
   }, 120_000)
+})
+
+describe.skipIf(aeAssetsDir() === null)('walls hold, by the game\'s own collision', () => {
+  // Every solid cell beside the floor (orthogonally: a diagonal squeeze
+  // between two blocked cells is no way through) has a wall unit whose real
+  // collision rect, read from the install, covers the cell's centre. This is
+  // the "can't walk off the map" guarantee for every set, independent of the
+  // generator's own idea of where each piece reaches.
+  for (const theme of THEMES) {
+    it(`${theme}: no hole in any wall`, () => {
+      const result = generateTheme(theme)
+      const files = levelsOf(result)
+      result.levels.forEach((preview, i) => {
+        const level = files.get(`floor${i}`)!
+        const { mapWidth: w, mapHeight: h, walls } = preview
+        const blocked = new Set<string>()
+        for (const u of level.units) {
+          if (!u.path.startsWith('doodads/walls/')) continue
+          for (const [x0, y0, x1, y1] of collisionRects(u.path)) {
+            for (let cy = Math.floor((u.y + y0) / 16) - 1; cy <= Math.ceil((u.y + y1) / 16); cy++) {
+              for (let cx = Math.floor((u.x + x0) / 16) - 1; cx <= Math.ceil((u.x + x1) / 16); cx++) {
+                const px = cx * 16 + 8
+                const py = cy * 16 + 8
+                if (px >= u.x + x0 && px < u.x + x1 && py >= u.y + y0 && py < u.y + y1) blocked.add(`${cx},${cy}`)
+              }
+            }
+          }
+        }
+        const solid = (x: number, y: number) => x < 0 || y < 0 || x >= w || y >= h || walls[x + y * w] === '1'
+        const holes: string[] = []
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            if (solid(x, y)) continue
+            for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+              if (solid(nx, ny) && !blocked.has(`${nx},${ny}`)) holes.push(`${nx},${ny}`)
+            }
+          }
+        }
+        expect([...new Set(holes)].slice(0, 10), `${theme} floor${i}: open wall cells`).toEqual([])
+      })
+    }, 60_000)
+  }
 })

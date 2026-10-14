@@ -515,3 +515,26 @@ crypt tiles.
   attack movement (#34), the warlock lightning reach, so a scenario copy of a projectile unit
   is read (#37), closed lobby vendors losing their sign (#40), the Colosseum's vendors (#41)
   and the narrow-stair walls (#42). The bonus themes still have wall holes everywhere.
+
+### The bonus sets: flat walls with their own anchors, and floor pads (2026-10-14)
+
+- `[VERIFIED]` (unit files, `base.png`) bonus1–5 are flat 16-px tiles, and they do ship
+  corners, T-junctions and caps under their own names: `crn_l_up` NW, `crn_r_up` NE,
+  `crn_l_dn` SW, `crn_r_dn` SE; `x_t_dn` (stem down), `x_t_up`, `x_t_l`, `x_t_r`; `h_cap_r`
+  is a *west* end and `v_cap_dn` a *top* end (named for the way the wall runs on). Each
+  collides over one cell: its anchor (`0 0 16 16`) or the cell above it (`0 -16 16 16`:
+  `v_16`, `x_x`, `x_t_up/l/r`, `crn_*_up`, `v_cap_up`; `v` is `0 -16 16 32`). So those are
+  anchored a row *below* their footprint, the opposite of the other sets' vertical pieces.
+- The generator treated the bonus sets as having no corners or junctions (falling back to
+  `x_x`) and anchored their vertical pieces a row up. Most pieces landed one or two rows
+  off, leaving holes everywhere (user report). `[EMITTED]` `FLAT_CANDIDATES` in aeWalls.ts.
+- `[VERIFIED]` (castle `level_bonus_1..4`, sun temple `level_bonus_5`) Stock bonus levels
+  have no stairs: the way in is `doodads/special/bonus_entrance.unit` and the way out is
+  `bonus_exit.unit`, 24-px floor pads with no collision (the exit's first scene is
+  `inactive`; `active` shows it lit). The exit has the same press-F `UseTrigger` →
+  `AllPlayersArea` → `LevelExit` rig as ours. `[EMITTED]` Bonus themes now use the pads
+  inside the room, under an unbroken wall, the exit started `active`; previously they
+  borrowed prison stairs. Their doors are button doors (`door_*_32_bonus`) with no key
+  tiers, so locked doors stay prison art.
+- `tests/themes.test.ts` "walls hold" checks every theme against the game's own collision
+  rects: every solid cell beside the floor must be covered.

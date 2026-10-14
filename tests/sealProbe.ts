@@ -31,6 +31,14 @@ export function wallCells(u: AeUnit): Array<[number, number]> {
   const piece = /\/([a-z0-9_]+)\.unit$/.exec(u.path)?.[1] ?? ''
   const x = Math.round(u.x / TILE)
   const y = Math.round(u.y / TILE)
+  // the flat bonus sets: each piece covers its anchor cell, or the cell above
+  // it (`0 -16 16 16`), and `v` the two above-and-at
+  if (/^doodads\/walls\/bonus\d\//.test(u.path)) {
+    if (piece === 'h') return [[x, y], [x + 1, y]]
+    if (piece === 'v') return [[x, y - 1], [x, y]]
+    if (/^(v_16|x_x|x_t_(up|l|r)|crn_[lr]_up|v_cap_up)$/.test(piece)) return [[x, y - 1]]
+    return [[x, y]]
+  }
   if (piece === 'v_16') return [[x, y + 1]]
   if (piece === 'v_32' || piece === 'v') return [[x, y + 1], [x, y + 2]]
   if (piece === 'h_32' || piece === 'h') return [[x, y], [x + 1, y]]

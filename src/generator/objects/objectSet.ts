@@ -1,4 +1,4 @@
-import { Doodad, exitDoorway } from './doodad'
+import { Doodad, EXIT_PAD_CENTRE, exitDoorway, exitIsPad } from './doodad'
 import type { DoodadTypeName } from './doodad'
 import { Item } from './item'
 import { ScriptNode } from './scriptNode'
@@ -155,8 +155,11 @@ export class ObjectSet {
         // Those cells become the walkable doorway, the art's own collision
         // closes the row above, and the wall placer fills the rest of the row.
         // [VERIFIED] geometry from Castle level_2's exit_up at -432,-112.
+        // A pad theme (bonus) has no doorway: its pad lies on the floor below
+        // an unbroken wall, and the party arrives and leaves on the pad.
         const ax = x + 1
         const ay = y + 1
+        const pad = exitIsPad(theme)
         this.doodads.push(Doodad.create(ctx, ax, ay, type, theme))
         const door = exitDoorway(type, theme)
         for (let dx = door.from; dx < door.from + door.cells; dx++) this.reserved.push([ax + dx, ay])
@@ -164,7 +167,7 @@ export class ObjectSet {
         if (type === 'ExitUp') {
           // where the party arrives from the previous level, and the default
           // spawn when this is the campaign's first level (index.ts adds it)
-          this.scriptNodes.push(...addArrival(ctx, ax + 2, ay + 1))
+          this.scriptNodes.push(...addArrival(ctx, ax + 2, pad ? ay + EXIT_PAD_CENTRE.dy : ay + 1))
           // one-shot floor banner as the party steps out of the stairs
           const banner = new SensorShape(ctx, ax + 2, ay + 2)
           banner.width = 6
@@ -178,10 +181,11 @@ export class ObjectSet {
           trig.connectTo(text)
           this.scriptNodes.push(trig, text)
         } else {
-          // the doorway's middle two cells, as Castle's 32×16 exit sensor
-          const sensor = new SensorShape(ctx, ax + 2, ay + 0.5)
+          // the doorway's middle two cells, as Castle's 32×16 exit sensor; on
+          // a pad theme, the pad
+          const sensor = pad ? new SensorShape(ctx, ax + EXIT_PAD_CENTRE.dx, ay + EXIT_PAD_CENTRE.dy) : new SensorShape(ctx, ax + 2, ay + 0.5)
           sensor.width = 2
-          sensor.height = 1
+          sensor.height = pad ? 2 : 1
           this.sensors.push(sensor)
           const target = exitTarget ?? (ctx.gateway?.kind === 'exit' ? ctx.gateway.target : undefined)
           if (target !== undefined) this.scriptNodes.push(...buildExitRig(ctx, sensor, target, ax, ay + 2))
