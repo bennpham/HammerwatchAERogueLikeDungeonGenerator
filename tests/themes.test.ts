@@ -22,13 +22,14 @@ import { plainParameters } from './params'
 /** The wall pieces every set must be able to resolve (directly or by fallback). */
 const REQUIRED_PIECES = ['h_16', 'v_16', 'crn_nw', 'crn_ne', 'crn_sw', 'crn_se', 'x_n', 'x_s', 'x_e', 'x_w', 'x_x', 'cap_h_w', 'cap_h_e', 'cap_v_n', 'cap_v_s']
 
-function generateTheme(theme: string, seed = 4242): DungeonResult {
+function generateTheme(theme: string, seed = 4242, tweak?: (p: ReturnType<typeof plainParameters>) => void): DungeonResult {
   const params = plainParameters()
   params.levels = 2
   params.themes = [theme, theme]
   params.levelMonsters = params.levelMonsters.slice(0, 2)
   params.lobbies = []
   params.boss = { ...params.boss, enabled: false }
+  tweak?.(params)
   const result = generateDungeon(params, seed)
   expect(result.ok, `${theme}: ${result.ok ? '' : result.errors.join(' ')}`).toBe(true)
   return result as DungeonResult
@@ -175,7 +176,8 @@ function collisionRects(rel: string): Array<[number, number, number, number]> {
   const text = readFileSync(join(aeAssetsDir()!, rel), 'utf8')
   const out: Array<[number, number, number, number]> = []
   // an include inside a `%if` branch the game never takes may name no file
-  for (const inc of text.matchAll(/include\s+"([^"]+)"/g)) {
+  // quoted (`%include "a.inc"`) or bare (`%include a.inc`), both as AE writes them
+  for (const inc of text.matchAll(/include\s+"?([^"\s]+)"?/g)) {
     if (existsSync(join(aeAssetsDir()!, inc[1]))) out.push(...collisionRects(inc[1]))
   }
   for (const block of text.matchAll(/<collision[^>]*>([\s\S]*?)<\/collision>/g)) {
@@ -186,6 +188,23 @@ function collisionRects(rel: string): Array<[number, number, number, number]> {
     }
   }
   rectCache.set(rel, out)
+  return out
+}
+
+/** The cells whose centre a unit's real collision covers. */
+function coveredCells(units: ReadonlyArray<{ path: string; x: number; y: number }>): Set<string> {
+  const out = new Set<string>()
+  for (const u of units) {
+    for (const [x0, y0, x1, y1] of collisionRects(u.path)) {
+      for (let cy = Math.floor((u.y + y0) / 16) - 1; cy <= Math.ceil((u.y + y1) / 16); cy++) {
+        for (let cx = Math.floor((u.x + x0) / 16) - 1; cx <= Math.ceil((u.x + x1) / 16); cx++) {
+          const px = cx * 16 + 8
+          const py = cy * 16 + 8
+          if (px >= u.x + x0 && px < u.x + x1 && py >= u.y + y0 && py < u.y + y1) out.add(`${cx},${cy}`)
+        }
+      }
+    }
+  }
   return out
 }
 
@@ -236,19 +255,7 @@ describe.skipIf(aeAssetsDir() === null)('walls hold, by the game\'s own collisio
       result.levels.forEach((preview, i) => {
         const level = files.get(`floor${i}`)!
         const { mapWidth: w, mapHeight: h, walls } = preview
-        const blocked = new Set<string>()
-        for (const u of level.units) {
-          if (!u.path.startsWith('doodads/walls/')) continue
-          for (const [x0, y0, x1, y1] of collisionRects(u.path)) {
-            for (let cy = Math.floor((u.y + y0) / 16) - 1; cy <= Math.ceil((u.y + y1) / 16); cy++) {
-              for (let cx = Math.floor((u.x + x0) / 16) - 1; cx <= Math.ceil((u.x + x1) / 16); cx++) {
-                const px = cx * 16 + 8
-                const py = cy * 16 + 8
-                if (px >= u.x + x0 && px < u.x + x1 && py >= u.y + y0 && py < u.y + y1) blocked.add(`${cx},${cy}`)
-              }
-            }
-          }
-        }
+        const blocked = coveredCells(level.units.filter((u) => u.path.startsWith('doodads/walls/')))
         const solid = (x: number, y: number) => x < 0 || y < 0 || x >= w || y >= h || walls[x + y * w] === '1'
         const holes: string[] = []
         for (let y = 0; y < h; y++) {
@@ -261,6 +268,48 @@ describe.skipIf(aeAssetsDir() === null)('walls hold, by the game\'s own collisio
         }
         expect([...new Set(holes)].slice(0, 10), `${theme} floor${i}: open wall cells`).toEqual([])
       })
+    }, 60_000)
+  }
+})
+
+describe.skipIf(aeAssetsDir() === null)("locked doors hold, by the game's own collision", () => {
+  // Each DoorController's doors must close one straight, unbroken line of
+  // cells, walled (or solid rock) at both ends, so there is no squeezing past
+  // a locked door. Every floor rolls its locks, on every theme.
+  for (const theme of THEMES) {
+    it(`${theme}: every locked door closes its passage`, () => {
+      const result = generateTheme(theme, 4242, (p) => {
+        p.lockChance = 1
+      })
+      const files = levelsOf(result)
+      let checked = 0
+      result.levels.forEach((preview, i) => {
+        const level = files.get(`floor${i}`)!
+        const { mapWidth: w, mapHeight: h, walls } = preview
+        const solid = (x: number, y: number) => x < 0 || y < 0 || x >= w || y >= h || walls[x + y * w] === '1'
+        const walled = coveredCells(level.units.filter((u) => u.path.startsWith('doodads/walls/')))
+        const shut = (x: number, y: number) => solid(x, y) || walled.has(`${x},${y}`)
+        for (const controller of level.scripts.filter((s) => s.cls === 'DoorController')) {
+          const ids = controller.params.find((p) => p.name === 'Doors')
+          const doors = level.units.filter((u) => ids?.kind === 'ids' && ids.value.includes(u.id))
+          expect(doors.length, `${theme} floor${i}: controller ${controller.id} doors`).toBeGreaterThan(0)
+          const cells = [...coveredCells(doors)].map((k) => k.split(',').map(Number) as [number, number])
+          const label = `${theme} floor${i}: ${doors[0].path} x${doors.length}`
+          expect(cells.length, label).toBeGreaterThan(0)
+          const row = cells.every(([, y]) => y === cells[0][1])
+          const col = cells.every(([x]) => x === cells[0][0])
+          expect(row || col, `${label}: one straight line`).toBe(true)
+          const along = cells.map(([x, y]) => (row ? x : y)).sort((a, b) => a - b)
+          along.forEach((v, k) => expect(v, `${label}: unbroken`).toBe(along[0] + k))
+          const [ex, ey] = cells[0]
+          const before: [number, number] = row ? [along[0] - 1, ey] : [ex, along[0] - 1]
+          const after: [number, number] = row ? [along.at(-1)! + 1, ey] : [ex, along.at(-1)! + 1]
+          expect(shut(...before), `${label}: open at ${before}`).toBe(true)
+          expect(shut(...after), `${label}: open at ${after}`).toBe(true)
+          checked++
+        }
+      })
+      expect(checked, `${theme}: some locked doors`).toBeGreaterThan(0)
     }, 60_000)
   }
 })
