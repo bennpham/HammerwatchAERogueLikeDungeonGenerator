@@ -108,6 +108,8 @@ export const LLM_PROVIDERS: readonly LlmProviderDef[] = [
     modelsPath: '/models',
     needsKey: true,
     defaultModel: 'gemini-2.5-flash',
+    // uncapped, Gemini's thinking over a long campaign can run for minutes before the first word
+    extraBody: { reasoning_effort: 'low' },
     signupUrl: 'https://aistudio.google.com/apikey',
     minIntervalMs: 0,
     privacyNote: 'Your prompts and your current settings are sent to Google. Free-tier prompts may be used to improve Google products.'

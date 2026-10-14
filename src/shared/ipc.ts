@@ -81,4 +81,6 @@ export interface RendererApi {
   llmListModels(provider: LlmProviderId): Promise<LlmModelsResult>
   llmChat(request: LlmChatRequest): Promise<LlmChatResult>
   llmCancel(): Promise<void>
+  /** Answer characters received so far, while `llmChat` streams; returns an unsubscribe. */
+  onLlmProgress(callback: (chars: number) => void): () => void
 }

@@ -7,7 +7,7 @@ import type { ChatMessage, LlmChatResult, LlmModelsResult } from '../../shared/l
  * tier, so every request is billed to the user's own Anthropic account.
  */
 
-/** Adaptive thinking on a ~9k-token prompt can outlast the 60 s the other providers get. */
+/** Adaptive thinking on a long prompt can run past a minute; same budget as the other providers. */
 export const CLAUDE_TIMEOUT_MS = 180_000
 /** A full 99-floor answer is a few thousand tokens; this leaves room for thinking too. */
 const MAX_TOKENS = 16000

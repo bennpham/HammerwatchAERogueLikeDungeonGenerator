@@ -284,7 +284,7 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
     return listModels(endpoint)
   })
 
-  ipcMain.handle('llm:chat', async (_event, request: LlmChatRequest): Promise<LlmChatResult> => {
+  ipcMain.handle('llm:chat', async (event, request: LlmChatRequest): Promise<LlmChatResult> => {
     if (!isProviderId(request?.provider) || !Array.isArray(request.messages)) {
       return { ok: false, message: 'Malformed chat request.' }
     }
@@ -296,7 +296,9 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
       const problem = checkBaseUrl(endpoint.baseUrl)
       if (problem !== null) return { ok: false, message: problem }
     }
-    return chatCompletion(endpoint, String(request.model ?? ''), messages)
+    return chatCompletion(endpoint, String(request.model ?? ''), messages, (chars) => {
+      if (!event.sender.isDestroyed()) event.sender.send('llm:progress', chars)
+    })
   })
 
   ipcMain.handle('llm:cancel', () => {

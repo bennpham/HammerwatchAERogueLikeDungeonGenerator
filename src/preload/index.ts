@@ -20,7 +20,14 @@ const api: RendererApi = {
   llmSetKey: (provider: LlmProviderId, key: string) => ipcRenderer.invoke('llm:set-key', provider, key),
   llmListModels: (provider: LlmProviderId) => ipcRenderer.invoke('llm:list-models', provider),
   llmChat: (request: LlmChatRequest) => ipcRenderer.invoke('llm:chat', request),
-  llmCancel: () => ipcRenderer.invoke('llm:cancel')
+  llmCancel: () => ipcRenderer.invoke('llm:cancel'),
+  onLlmProgress: (callback: (chars: number) => void) => {
+    const listener = (_event: unknown, chars: number): void => callback(chars)
+    ipcRenderer.on('llm:progress', listener)
+    return () => {
+      ipcRenderer.removeListener('llm:progress', listener)
+    }
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)

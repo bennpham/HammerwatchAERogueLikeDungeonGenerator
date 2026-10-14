@@ -2,13 +2,19 @@ import { effectiveModel, joinUrl, providerById } from '../../shared/llm/provider
 import type { LlmProviderDef } from '../../shared/llm/providers'
 import type { ChatMessage, LlmChatResult, LlmModelsResult } from '../../shared/llm/types'
 import { claudeChat, claudeModels } from './anthropic'
+import { SseChatAccumulator } from '../../shared/llm/stream'
 
 /**
  * Plain `fetch` against any OpenAI chat-completions compatible endpoint. Claude
  * is the exception and goes through its own SDK in `./anthropic`.
  */
 
-export const CHAT_TIMEOUT_MS = 60_000
+// Replies stream, so a slow answer that is still arriving is not mistaken for a hang:
+// a thinking model gets FIRST_BYTE before anything must arrive, then each gap
+// between chunks gets IDLE, and TOTAL caps the whole request. Cancel stays available.
+export const FIRST_BYTE_TIMEOUT_MS = 180_000
+export const IDLE_TIMEOUT_MS = 60_000
+export const TOTAL_TIMEOUT_MS = 600_000
 const MODELS_TIMEOUT_MS = 15_000
 
 /** The one in-flight chat request; `llm:cancel` aborts it. */
@@ -110,7 +116,8 @@ function headers(key: string | undefined, json: boolean): Record<string, string>
 export async function chatCompletion(
   endpoint: Endpoint,
   model: string,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  onProgress?: (chars: number) => void
 ): Promise<LlmChatResult> {
   const { provider } = endpoint
   if (provider.needsKey && (endpoint.key === undefined || endpoint.key === '')) {
@@ -129,31 +136,71 @@ export async function chatCompletion(
       if (active === controller) active = null
     }
   }
-  let timedOut = false
-  const timer = setTimeout(() => {
-    timedOut = true
+
+  // which limit fired, worded to follow the provider's name
+  let timedOut: string | null = null
+  let gapTimer: ReturnType<typeof setTimeout> | undefined
+  const armGap = (ms: number, why: string): void => {
+    clearTimeout(gapTimer)
+    gapTimer = setTimeout(() => {
+      timedOut = why
+      controller.abort()
+    }, ms)
+  }
+  armGap(FIRST_BYTE_TIMEOUT_MS, `did not start answering within ${FIRST_BYTE_TIMEOUT_MS / 1000} s`)
+  const totalTimer = setTimeout(() => {
+    timedOut = `did not finish within ${TOTAL_TIMEOUT_MS / 60_000} minutes`
     controller.abort()
-  }, CHAT_TIMEOUT_MS)
+  }, TOTAL_TIMEOUT_MS)
   try {
     const response = await fetch(joinUrl(endpoint.baseUrl, provider.chatPath), {
       method: 'POST',
       headers: headers(endpoint.key, true),
-      body: JSON.stringify({ ...provider.extraBody, model: chosen, messages, stream: false }),
+      body: JSON.stringify({ ...provider.extraBody, model: chosen, messages, stream: true }),
       signal: controller.signal
     })
-    const raw = await response.text()
     if (!response.ok) {
+      const raw = await response.text()
       return { ok: false, ...describeHttpError(provider.label, response.status, response.headers.get('retry-after'), raw) }
     }
+
     let text: unknown
     let finishReason: unknown
-    try {
-      const choice = (JSON.parse(raw) as { choices?: Array<{ message?: { content?: unknown }; finish_reason?: unknown }> })
-        .choices?.[0]
-      text = choice?.message?.content
-      finishReason = choice?.finish_reason
-    } catch {
-      return { ok: false, message: `${provider.label} sent a reply that is not valid JSON: ${bodyExcerpt(raw)}` }
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.includes('text/event-stream') && response.body !== null) {
+      const stream = new SseChatAccumulator()
+      const decoder = new TextDecoder()
+      const reader = response.body.getReader()
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        stream.push(decoder.decode(value, { stream: true }))
+        // a role-only opening chunk can precede minutes of thinking, so the
+        // first-byte limit holds until real text or reasoning arrives
+        if (stream.text.length + stream.reasoningChars > 0) {
+          armGap(IDLE_TIMEOUT_MS, `stopped sending for ${IDLE_TIMEOUT_MS / 1000} s`)
+        }
+        onProgress?.(stream.text.length)
+        if (stream.done) break
+      }
+      stream.push(decoder.decode())
+      stream.end()
+      if (stream.error !== null && stream.text.trim() === '') {
+        return { ok: false, message: `${provider.label} reported an error: ${stream.error}` }
+      }
+      text = stream.text
+      finishReason = stream.finishReason
+    } else {
+      // the provider ignored `stream: true` and sent one JSON body
+      const raw = await response.text()
+      try {
+        const choice = (JSON.parse(raw) as { choices?: Array<{ message?: { content?: unknown }; finish_reason?: unknown }> })
+          .choices?.[0]
+        text = choice?.message?.content
+        finishReason = choice?.finish_reason
+      } catch {
+        return { ok: false, message: `${provider.label} sent a reply that is not valid JSON: ${bodyExcerpt(raw)}` }
+      }
     }
     if ((typeof text !== 'string' || text.trim() === '') && finishReason === 'length') {
       return {
@@ -166,13 +213,20 @@ export async function chatCompletion(
     }
     return { ok: true, text }
   } catch (error) {
-    if (timedOut) return { ok: false, message: `${provider.label} did not answer within ${CHAT_TIMEOUT_MS / 1000} s.` }
+    if (timedOut !== null) return { ok: false, message: timeoutMessage(provider.label, timedOut, messages) }
     if (controller.signal.aborted) return { ok: false, message: 'Cancelled.', cancelled: true }
     return { ok: false, message: describeNetworkError(error, endpoint) }
   } finally {
-    clearTimeout(timer)
+    clearTimeout(gapTimer)
+    clearTimeout(totalTimer)
     if (active === controller) active = null
   }
+}
+
+/** Says how big the request was, since a large campaign in the prompt is the usual reason. Exported for tests. */
+export function timeoutMessage(providerLabel: string, why: string, messages: readonly ChatMessage[]): string {
+  const chars = messages.reduce((sum, m) => sum + m.content.length, 0)
+  return `${providerLabel} ${why}. The request was ${chars.toLocaleString('en-US')} characters, and a big campaign makes a model slower. Try again, switch to a faster provider such as Groq, or start a New chat.`
 }
 
 /** `GET {base}/models`. Providers without a list return a message and the UI falls back to a text field. */
