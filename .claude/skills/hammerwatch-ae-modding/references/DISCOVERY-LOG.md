@@ -557,3 +557,12 @@ crypt tiles.
   other skill is checked that way.
 - `[EMITTED]` When combo is owned from the start, the scenario ships both scripts with the
   check rewritten to `GetSkillLevel(...)` (`COMBO_OWNED_FIXES`). In game: checklist #44.
+
+### In game: bonus themes, owned combo, buff fields (2026-10-14)
+
+- `[VERIFIED]` (user, #43) Bonus floors: whole walls, the entrance and exit pads, and the
+  bonus doors lined up and opened by the tier keys (a DoorController opens bonus doors
+  whatever its Collectable).
+- `[VERIFIED]` (user, #44) Combo owned from the start works with the patched `Player.as` and
+  `GiveCombo.as`, so a scenario copy of a core player script is read.
+- `[VERIFIED]` (user, #17) Buff fields apply to the targets they name, players and monsters.
