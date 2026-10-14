@@ -1,4 +1,4 @@
-import { Doodad } from './doodad'
+import { Doodad, exitDoorway } from './doodad'
 import type { DoodadTypeName } from './doodad'
 import { Item } from './item'
 import { ScriptNode } from './scriptNode'
@@ -149,15 +149,17 @@ export class ObjectSet {
     switch (type) {
       case 'ExitUp':
       case 'ExitDn': {
-        // The set spans x..x+5 with y = room.y - 2. The exit art (64 px, 4
-        // cells) stands in the room's top wall row (y + 1) over cells
-        // x+1..x+4: those become the walkable doorway, and the art's own
-        // collision closes the row above. [VERIFIED] geometry from Castle
-        // level_2's exit_up at -432,-112.
+        // The set spans x..x+5 with y = room.y - 2. The exit art stands in the
+        // room's top wall row (y + 1): the shared 64-px art over cells
+        // x+1..x+4, a narrow set's 32-px art over the middle two (exitDoorway).
+        // Those cells become the walkable doorway, the art's own collision
+        // closes the row above, and the wall placer fills the rest of the row.
+        // [VERIFIED] geometry from Castle level_2's exit_up at -432,-112.
         const ax = x + 1
         const ay = y + 1
         this.doodads.push(Doodad.create(ctx, ax, ay, type, theme))
-        for (let dx = 0; dx < 4; dx++) this.reserved.push([ax + dx, ay])
+        const door = exitDoorway(type, theme)
+        for (let dx = door.from; dx < door.from + door.cells; dx++) this.reserved.push([ax + dx, ay])
 
         if (type === 'ExitUp') {
           // where the party arrives from the previous level, and the default

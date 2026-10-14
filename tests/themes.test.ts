@@ -4,6 +4,8 @@
  * no two wall pieces stand on the same anchor (the bleeding/overlapping walls
  * the hw2ae piratecove port shows).
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { generateDungeon } from '../src/generator'
 import type { DungeonResult } from '../src/generator'
@@ -11,7 +13,9 @@ import { THEMES, THEME_DEFS, THEME_GROUPS, getTheme, themeEnvironment } from '..
 import { aeAssetExists } from '../src/generator/catalog/assets'
 import { doorUnitPath } from '../src/generator/objects/item'
 import { resolvePiece, wallUnitPath } from '../src/generator/map/aeWalls'
+import { exitDoorway, resolveDoodad } from '../src/generator/objects/doodad'
 import { levelsOf } from './ae'
+import { aeAssetsDir } from './aeInstall'
 import { wallCells } from './sealProbe'
 import { plainParameters } from './params'
 
@@ -119,7 +123,52 @@ describe('generating every theme', () => {
         expect(covered.size, `${theme} ${stem}: some walls`).toBeGreaterThan(0)
       }
     }, 60_000)
+
+    it(`${theme}: leaves no gap in the wall beside either stairs`, () => {
+      for (const [stem, level] of levelsOf(generateTheme(theme))) {
+        const walled = new Set<string>()
+        for (const u of level.units) {
+          if (u.path.startsWith('doodads/walls/') && !/\/exit_(up|dn)\.unit$/.test(u.path)) {
+            for (const [x, y] of wallCells(u)) walled.add(`${x},${y}`)
+          }
+        }
+        const stairs = level.units.filter((u) => /\/exit_(up|dn)\.unit$/.test(u.path))
+        expect(stairs.length, `${theme} ${stem}: stairs`).toBeGreaterThan(0)
+        for (const u of stairs) {
+          const type = u.path.endsWith('exit_up.unit') ? 'ExitUp' : 'ExitDn'
+          const ax = Math.round(u.x / 16) - resolveDoodad(type, theme).dx
+          const y = Math.round(u.y / 16)
+          const door = exitDoorway(type, theme)
+          for (const x of [ax + door.from - 1, ax + door.from + door.cells]) {
+            expect(walled.has(`${x},${y}`), `${theme} ${stem}: ${u.path} leaves cell ${x},${y} open`).toBe(true)
+          }
+        }
+      }
+    }, 60_000)
   }
+})
+
+describe.skipIf(aeAssetsDir() === null)('stair art', () => {
+  /** The x-span, in px from the anchor, of a unit's first collision rect, following an `include`. */
+  function collisionSpan(rel: string): [number, number] {
+    const text = readFileSync(join(aeAssetsDir()!, rel), 'utf8')
+    const inc = /include\s+"([^"]+)"/.exec(text)
+    if (inc !== null && !/<collision/.test(text)) return collisionSpan(inc[1])
+    const rect = /<collision[^>]*>\s*<rect>\s*(-?\d+)\s+-?\d+\s+(\d+)\s+-?\d+\s*<\/rect>/.exec(text)
+    expect(rect, `${rel}: collision rect`).not.toBeNull()
+    return [Number(rect![1]), Number(rect![1]) + Number(rect![2])]
+  }
+
+  it('closes exactly the doorway cells the generator leaves open, in every theme', () => {
+    for (const t of THEME_DEFS) {
+      for (const type of ['ExitUp', 'ExitDn'] as const) {
+        const r = resolveDoodad(type, t.id)
+        const [x0, x1] = collisionSpan(r.path)
+        const door = exitDoorway(type, t.id)
+        expect([r.dx + x0 / 16, r.dx + x1 / 16], `${t.id} ${r.path}`).toEqual([door.from, door.from + door.cells])
+      }
+    }
+  })
 })
 
 describe('determinism', () => {

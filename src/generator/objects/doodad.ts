@@ -48,15 +48,44 @@ interface Resolved {
 
 const exists = (p: string) => AE_UNIT_SET.has(p)
 
+/**
+ * Stair art narrower than the shared 64-px `doodads/walls/exit_*.inc`, by wall
+ * set: each closes two cells, and `dx` is the anchor offset (tiles, from the
+ * doorway's first cell) that puts its collision over the doorway's middle two
+ * cells. [VERIFIED from the unit files] cave_desert/cave_crystal collide
+ * `0 0 32 -24` from the anchor; battlement's exit_up is centred, `-16 -16 32 16`.
+ */
+const NARROW_STAIRS: Readonly<Record<string, Partial<Record<'ExitUp' | 'ExitDn', number>>>> = {
+  cave_desert: { ExitUp: 1, ExitDn: 1 },
+  cave_crystal: { ExitUp: 1, ExitDn: 1 },
+  battlement: { ExitUp: 2 }
+}
+
+function stairSet(type: 'ExitUp' | 'ExitDn', themeId: string): string {
+  const theme = getTheme(themeId)
+  return (type === 'ExitUp' ? theme?.exitUpSet : theme?.exitDnSet) ?? 'prison'
+}
+
+/**
+ * The wall-line cells a stair's art closes, from the stair set's first cell:
+ * all four for the shared 64-px art, the middle two for a narrow set. The wall
+ * placer lays ordinary pieces on the rest, so no gap is left beside the stairs.
+ */
+export function exitDoorway(type: 'ExitUp' | 'ExitDn', themeId: string): { from: number; cells: number } {
+  return NARROW_STAIRS[stairSet(type, themeId)]?.[type] === undefined ? { from: 0, cells: 4 } : { from: 1, cells: 2 }
+}
+
 /** The AE unit (and anchor offset) a doodad kind resolves to on `theme`. */
 export function resolveDoodad(type: DoodadTypeName, themeId: string): Resolved {
   const theme = getTheme(themeId)
   const walls = theme?.walls ?? 'prison'
   switch (type) {
     case 'ExitUp':
-      return { path: `doodads/walls/${theme?.exitUpSet ?? 'prison'}/exit_up.unit`, dx: 0, dy: 0 }
-    case 'ExitDn':
-      return { path: `doodads/walls/${theme?.exitDnSet ?? 'prison'}/exit_dn.unit`, dx: 0, dy: 0 }
+    case 'ExitDn': {
+      const set = stairSet(type, themeId)
+      const file = type === 'ExitUp' ? 'exit_up' : 'exit_dn'
+      return { path: `doodads/walls/${set}/${file}.unit`, dx: NARROW_STAIRS[set]?.[type] ?? 0, dy: 0 }
+    }
     case 'ExitMarker':
       return { path: 'doodads/generic/marker_exit.unit', dx: 0, dy: 0 }
     // portal art: the red square pad for a boss fight, the house's own square

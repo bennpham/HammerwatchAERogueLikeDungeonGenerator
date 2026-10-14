@@ -469,3 +469,16 @@ crypt tiles.
   level is a path, so nothing requires them to match. `[VERIFIED]` stock does the same:
   castle `level_1.lvl` exits to `levels/level_2.lvl` with StartIDs `level_2a` / `level_3b`.
   Our own files in game: checklist #39.
+
+### Narrow stair art leaves a hole beside the stairs (2026-10-14)
+
+- `[VERIFIED]` (unit files) The shared `doodads/walls/exit_up.inc` / `exit_dn.inc` collide
+  `0 -16 64 16` (four cells from the anchor). Three sets ship their own, two cells wide:
+  cave_desert and cave_crystal `exit_up`/`exit_dn` collide `0 0 32 -24` (anchor cell and
+  the next), battlement `exit_up` collides `-16 -16 32 16` (centred on the anchor).
+  cave_dark borrows cave_desert's stairs.
+- The generator reserved a four-cell doorway for every stair, so these themes left two or
+  three wall cells open next to the art and players walked off the map (user report,
+  `dungeon_441147059` floor 5). `[EMITTED]` `exitDoorway` now reserves the middle two cells
+  for a narrow set, the art is anchored over them, and the wall placer fills the rest.
+  `tests/themes.test.ts` checks every theme's stair rect against the reserve.
