@@ -1,6 +1,6 @@
 import { Monster } from '../objects/monster'
 import type { HordeSource } from '../objects/monster'
-import { Item, ItemType } from '../objects/item'
+import { Item, ItemType, hasWideDoors } from '../objects/item'
 import { ObjectSet, SHOP_KINDS, enabledShopKinds } from '../objects/objectSet'
 import { KEY_COLLECTABLES } from '../objects/item'
 import { NodeDoorController } from '../objects/nodes'
@@ -441,20 +441,52 @@ export class Room {
     // horizontal door per column; a horizontal corridor's (width + 2 rows
     // tall, see Passage.contains) one vertical door per row. They only open
     // through a DoorController naming the tier's key.
+    //
+    // The bonus sets' doors (`door_{h|v}_32_bonus`) are 32 px long and 8 thick,
+    // their bar at the anchor: one per two cells, anchored 4 px into the cell
+    // row (column) it closes; an odd count ends with one shifted back a cell,
+    // overlapping its neighbour, rather than one poking into the wall.
     const doors: Item[] = []
+    const wide = hasWideDoors(ctx.currentTheme)
+    const door = (x: number, y: number, slot: number, blocks: Array<[number, number]>) => {
+      const d = Item.create(ctx, x, y, 'Door', slot)
+      d.blocks = blocks
+      doors.push(d)
+    }
+    /** where each 32-px door starts along a run of `n` cells */
+    const pairStarts = (n: number): number[] => {
+      const starts: number[] = []
+      for (let i = 0; i + 1 < n; i += 2) starts.push(i)
+      if (n % 2 === 1) starts.push(Math.max(0, n - 2))
+      return starts
+    }
     switch (entrance.dir.name) {
       case 'UP':
       case 'DOWN':
+        if (wide) {
+          for (const i of pairStarts(p.width)) {
+            const x = entrance.x + i
+            door(x, entrance.y + 0.25, lockTier, [[x, entrance.y], [x + 1, entrance.y]])
+          }
+          break
+        }
         for (let xOffset = 0; xOffset < p.width; xOffset++) {
-          doors.push(Item.create(ctx, entrance.x + xOffset, entrance.y + 1, 'Door', lockTier))
+          door(entrance.x + xOffset, entrance.y + 1, lockTier, [[entrance.x + xOffset, entrance.y]])
         }
         break
 
       case 'LEFT':
       case 'RIGHT':
+        // +3 selects the vertical door variants
+        if (wide) {
+          for (const i of pairStarts(p.width + 2)) {
+            const y = entrance.y + i
+            door(entrance.x + 0.25, y, lockTier + 3, [[entrance.x, y], [entrance.x, y + 1]])
+          }
+          break
+        }
         for (let yOffset = 0; yOffset < p.width + 2; yOffset++) {
-          // +3 selects the vertical door variants
-          doors.push(Item.create(ctx, entrance.x, entrance.y + yOffset + 1, 'Door', lockTier + 3))
+          door(entrance.x, entrance.y + yOffset + 1, lockTier + 3, [[entrance.x, entrance.y + yOffset]])
         }
         break
     }

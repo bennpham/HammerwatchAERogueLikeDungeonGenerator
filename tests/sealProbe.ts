@@ -86,6 +86,13 @@ export function passabilityOf(preview: LevelPreview, level: LevelData): Passabil
   for (const u of level.units) {
     if (u.path.startsWith('doodads/walls/')) {
       for (const [x, y] of wallCells(u)) pass.setSolid(x, y)
+    } else if (/^doodads\/doors\/door_[hv]_32_bonus\.unit$/.test(u.path)) {
+      // a bonus door: a 32-px bar at its anchor, 4 px into the cells it closes
+      const x = Math.floor(u.x / TILE)
+      const y = Math.floor(u.y / TILE)
+      const vertical = u.path.includes('door_v_')
+      pass.setSolid(x, y)
+      pass.setSolid(vertical ? x : x + 1, vertical ? y + 1 : y)
     } else if (u.path.startsWith('doodads/doors/door_')) {
       // a door is anchored one row below the cell it closes
       pass.setSolid(Math.round(u.x / TILE), Math.round(u.y / TILE) - 1)

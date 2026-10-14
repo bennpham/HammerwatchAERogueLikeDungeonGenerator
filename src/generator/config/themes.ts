@@ -31,7 +31,7 @@ export const THEME_GROUPS: readonly ThemeGroup[] = [
 ]
 
 /** Door art families AE ships (`doodads/doors/door_{h|v}_mid_<metal>_<style>.unit`). */
-export type DoorStyle = 'prison' | 'armory' | 'archives' | 'chambers' | 'desert' | 'mine'
+export type DoorStyle = 'prison' | 'armory' | 'archives' | 'chambers' | 'desert' | 'mine' | 'bonus'
 
 export interface ThemeDef {
   /** key used in `params.themes` — AE's wall-set name */
@@ -64,7 +64,7 @@ export interface ThemeDef {
   /** lighting environments the theme's stock levels use; a floor takes one by its index */
   environments: string[]
   doors: DoorStyle
-  /** flat wall art (the bonus sets), whose doors are not keyed; see `cosmeticWarning` */
+  /** wall art lacking pieces the generator needs; see `cosmeticWarning` (no theme today) */
   sparsePieces?: boolean
   /** advisory note the validator surfaces once when the theme is used */
   cosmeticWarning?: string
@@ -109,10 +109,6 @@ function theme(
   if (opts.cosmeticWarning !== undefined) def.cosmeticWarning = opts.cosmeticWarning
   return def
 }
-
-const BONUS_WARNING =
-  'The bonus sets have only button doors, no keyed ones, so locked doors use prison art. ' +
-  'Cosmetic only — the level is sealed.'
 
 export const THEME_DEFS: readonly ThemeDef[] = [
   // --- Castle Hammerwatch (the remade campaign) -------------------------------
@@ -236,9 +232,8 @@ export const THEME_DEFS: readonly ThemeDef[] = [
       exitPads: true,
       floor: [`bonus_${n}`],
       environments: [LIGHT('bonus')],
-      doors: 'prison',
-      sparsePieces: true,
-      cosmeticWarning: BONUS_WARNING
+      // the bonus sets' own 32-px doors, keyed in stock (key_bonus)
+      doors: 'bonus'
     })
   )
 ]

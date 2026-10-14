@@ -88,11 +88,21 @@ export const ItemType = {
 
 export type ItemTypeName = keyof typeof ItemType
 
-/** `doodads/doors/door_{h|v}_mid_<metal>_<style>.unit` for a door slot on a theme. */
+/**
+ * `doodads/doors/door_{h|v}_mid_<metal>_<style>.unit` for a door slot on a
+ * theme; the bonus sets' own `door_{h|v}_32_bonus.unit`, one art for every
+ * metal (stock locks them all with `key_bonus`).
+ */
 export function doorUnitPath(slot: number, themeId: string): string {
   const style = getTheme(themeId)?.doors ?? 'prison'
   const orient = slot >= 3 ? 'v' : 'h'
+  if (style === 'bonus') return `doodads/doors/door_${orient}_32_bonus.unit`
   return `doodads/doors/door_${orient}_mid_${DOOR_METALS[slot % 3]}_${style}.unit`
+}
+
+/** Whether a theme's doors are the bonus sets' 32-px pieces (two cells each, anchored on the bar). */
+export function hasWideDoors(themeId: string): boolean {
+  return getTheme(themeId)?.doors === 'bonus'
 }
 
 /** A pickup/prop placed on the level (ported from Item.java). */
@@ -100,6 +110,8 @@ export class Item {
   id: number
   /** the floor theme at creation, which picks door art */
   theme: string
+  /** a door: the cells it closes, for the seal check */
+  blocks?: Array<[number, number]>
 
   constructor(
     ctx: GenerationContext,

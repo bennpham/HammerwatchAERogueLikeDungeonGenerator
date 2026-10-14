@@ -153,8 +153,9 @@ function closeDoors(pass: Passability, ctx: GenerationContext): boolean {
   for (const item of ctx.items) {
     if (item.type !== 'Door') continue
     any = true
-    // an AE door piece is anchored one row below the one cell it blocks
-    pass.setSolid(Math.trunc(item.x), item.y - 1)
+    // the cells it closes (room.ts records them); a door piece without them is
+    // the one-cell kind, anchored one row below the cell it blocks
+    for (const [x, y] of item.blocks ?? [[Math.trunc(item.x), item.y - 1]]) pass.setSolid(x, y)
   }
   return any
 }

@@ -230,7 +230,7 @@ export function validateParameters(p: DungeonParameters): ValidationResult {
   for (const id of new Set(p.themes.slice(0, p.levels))) {
     const note = getTheme(id)?.cosmeticWarning
     if (note !== undefined) {
-      warnings.push({ field: 'themes', message: note })
+      warnings.push({ field: 'themes', message: `${getTheme(id)!.label}: ${note}` })
     }
   }
 
@@ -1419,7 +1419,7 @@ function validateBossFight(
   // theme select shows it inline.
   const arenaNote = getTheme(arena.theme)?.cosmeticWarning
   if (arenaNote !== undefined) {
-    warnings.push({ field: af('theme'), message: arenaNote })
+    warnings.push({ field: af('theme'), message: `${getTheme(arena.theme)!.label}: ${arenaNote}` })
   }
 
   // No area-aware density warning lives here any more. It fired only when

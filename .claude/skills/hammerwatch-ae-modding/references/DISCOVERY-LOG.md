@@ -538,3 +538,12 @@ crypt tiles.
   tiers, so locked doors stay prison art.
 - `tests/themes.test.ts` "walls hold" checks every theme against the game's own collision
   rects: every solid cell beside the floor must be covered.
+- **Correction:** the bonus doors *are* keyed. `[VERIFIED]` Every stock bonus level locks its
+  `door_h_32_bonus` / `door_v_32_bonus` doors with `DoorController(Collectable=key_bonus)`.
+  They are 32×8 (8×32) bars that collide and draw at the anchor (`origin 0 0`), so one closes
+  two cells, unlike the one-cell `door_*_mid_*` pieces anchored a row below. `[EMITTED]` The
+  bonus themes now use them (door style `bonus`), one per two cells anchored 4 px into the
+  row or column they close; an odd count ends with one shifted back a cell. Keys stay
+  bronze/silver/gold (the lock tiers), so the bonus doors open with those. The prison doors
+  had looked shifted up on bonus floors because their art is drawn ~32 px above their
+  collision, like prison walls, while bonus walls are flat.

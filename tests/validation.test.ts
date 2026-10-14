@@ -111,17 +111,12 @@ describe('parameter validation', () => {
     expect(messages).toContain('"dragon"')
   })
 
-  it('warns once about a theme with a cosmetic caveat, however many levels use it', () => {
+  it('says nothing about the bonus themes, which now use their own walls, pads and doors', () => {
     const p = defaultParameters()
-    p.themes = p.themes.map(() => 'bonus1')
+    p.themes = p.themes.map((_, i) => `bonus${(i % 5) + 1}`)
     const result = validateParameters(p)
-    // advisory only — a caveat must never block generation
     expect(result.valid).toBe(true)
-    expect(fieldsOf(result.errors)).not.toContain('themes')
-    // one warning for 8 levels of bonus1, not eight
-    const themeWarnings = result.warnings.filter((w) => w.field === 'themes')
-    expect(themeWarnings).toHaveLength(1)
-    expect(themeWarnings[0].message).toContain('onus')
+    expect(result.warnings.filter((w) => w.field === 'themes')).toEqual([])
   })
 
   it('stays silent for themes with no caveat', () => {
@@ -1113,10 +1108,10 @@ describe('boss arena theme warning', () => {
   // validateParameters surfaces a theme's cosmeticWarning once per dungeon
   // theme, but only walks p.themes — so a caveated ARENA theme needs its own
   // check.
-  it('warns on the arena theme field of the fight that uses a bonus theme', () => {
+  it('says nothing for a bonus arena theme', () => {
     const result = withBoss({ arena: { ...defaultParameters().boss.fights[0].arena, theme: 'bonus1' } })
-    expect(result.valid).toBe(true) // cosmetic, never blocking
-    expect(fieldsOf(result.warnings)).toContain('boss.fights.0.arena.theme')
+    expect(result.valid).toBe(true)
+    expect(fieldsOf(result.warnings)).not.toContain('boss.fights.0.arena.theme')
   })
 
   it('says nothing for a theme with no caveat', () => {
