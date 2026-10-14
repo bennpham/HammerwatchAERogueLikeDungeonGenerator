@@ -234,7 +234,11 @@ export function App() {
   const applyAssistantProposal = (next: DungeonParameters, changedKeys: number) => {
     const previous = params
     setParams(next)
-    showToast('ok', `Applied the assistant's proposal — ${changedKeys} setting${changedKeys === 1 ? '' : 's'} changed.`, () => {
+    const problems = validateParameters(next).errors.length
+    const summary = `Applied the assistant's proposal — ${changedKeys} setting${changedKeys === 1 ? '' : 's'} changed.`
+    const message =
+      problems === 0 ? summary : `${summary} ${problems} problem${problems === 1 ? '' : 's'} left — see "Fix before generating".`
+    showToast(problems === 0 ? 'ok' : 'info', message, () => {
       setParams(previous)
       showToast('info', 'Undid the assistant\'s changes.')
     })

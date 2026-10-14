@@ -46,6 +46,7 @@ const MAX_RANGE_FLOOR = 999
 const LOCK_FLOORS_LINE = /^lockFloors\s*=(.*)$/i
 const LOCK_RANGE_TOKEN = /^(\d+)-(\d+)(:\d+)?$/
 const FULLY_UPGRADED_LINE = /^playerFullyUpgraded\s*=\s*(1|true|yes)\s*$/i
+const PLAYER_PRESET_LINE = /^playerPreset\s*=\s*(\S*)\s*$/i
 
 /**
  * Assistant-only shorthands, rewritten into plain parameters.txt lines before
@@ -57,15 +58,23 @@ const FULLY_UPGRADED_LINE = /^playerFullyUpgraded\s*=\s*(1|true|yes)\s*$/i
  *   token per floor.
  * - `playerFullyUpgraded=1` is removed and reported, for the caller to apply
  *   the same "fully upgraded" action as the Player tab's button.
+ * - `playerPreset=<id>` is removed and reported, for the caller to load that
+ *   player preset the way the preset dialog does. The last one wins.
  * An imported parameters.txt never goes through this; it is the chat's dialect.
  */
-export function expandShorthands(block: string): { text: string; fullyUpgraded: boolean } {
+export function expandShorthands(block: string): { text: string; fullyUpgraded: boolean; playerPreset: string | null } {
   let fullyUpgraded = false
+  let playerPreset: string | null = null
   const out: string[] = []
   for (const raw of block.split('\n')) {
     const line = raw.trim()
     if (FULLY_UPGRADED_LINE.test(line)) {
       fullyUpgraded = true
+      continue
+    }
+    const preset = PLAYER_PRESET_LINE.exec(line)
+    if (preset !== null) {
+      playerPreset = preset[1]
       continue
     }
     const lock = LOCK_FLOORS_LINE.exec(line)
@@ -90,7 +99,7 @@ export function expandShorthands(block: string): { text: string; fullyUpgraded: 
     const to = Math.min(parseInt(m[3], 10), MAX_RANGE_FLOOR)
     for (let i = from; i <= to; i++) out.push(`${m[1]}${i}${m[4] ?? ''}=${m[5].trim()}`)
   }
-  return { text: out.join('\n'), fullyUpgraded }
+  return { text: out.join('\n'), fullyUpgraded, playerPreset }
 }
 
 /**

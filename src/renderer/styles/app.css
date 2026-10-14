@@ -1894,6 +1894,18 @@ button.danger:hover:not(:disabled) {
   white-space: normal;
 }
 
+/* the hand-fix escape hatch: solid grey so it reads as a button, not text */
+.chat-proposal button.chat-apply-anyway {
+  background: #4a5262;
+  border-color: #646d80;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.chat-proposal button.chat-apply-anyway:hover:not(:disabled) {
+  background: #5a6375;
+}
+
 .chat-changes {
   margin: 0;
   padding: 0;

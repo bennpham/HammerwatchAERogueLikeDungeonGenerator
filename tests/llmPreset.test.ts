@@ -143,7 +143,17 @@ describe('expandShorthands', () => {
   })
 
   it('leaves ordinary lines and other keys with dashes alone', () => {
-    expect(expandShorthands('themes=prison,armory\nlockFloors=3,5:2')).toEqual({ text: 'themes=prison,armory\nlockFloors=3,5:2', fullyUpgraded: false })
+    expect(expandShorthands('themes=prison,armory\nlockFloors=3,5:2')).toEqual({
+      text: 'themes=prison,armory\nlockFloors=3,5:2',
+      fullyUpgraded: false,
+      playerPreset: null
+    })
+  })
+
+  it('pulls out playerPreset, last one wins', () => {
+    const { text, playerPreset } = expandShorthands('levels=3\nplayerPreset=original\nplayerPreset=dungeon-rebalanced')
+    expect(text).toBe('levels=3')
+    expect(playerPreset).toBe('dungeon-rebalanced')
   })
 
   it('a 99-floor boss run written with ranges validates', () => {
