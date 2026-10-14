@@ -500,3 +500,13 @@ crypt tiles.
   with an empty `combo-nova-projectile` (a string, never copied). `[EMITTED]` It now sets
   each chain's `starting-level` to its level count and moves maxed modifiers to the
   `owned` column, which no ShopArea sells. In game: checklist #31.
+
+### In game: Fully upgraded, and the dead across an exit (2026-10-14)
+
+- `[VERIFIED]` (user, checklist #31) Fully upgraded works: every skill and modifier is owned
+  at its top level, the skill vendors list nothing, and combo works. So AE reads
+  `starting-level` above 1 and on modifier skills from a scenario copy, and a modifier in
+  the `owned` column is listed by no vendor.
+- `[VERIFIED]` (user, checklist #25) A player still dead when the party exits arrives on the
+  next level as a gravestone. AE has revive, not respawn: a living player must revive them.
+  `SetRespawnPoint` in the exit rig does not bring them back by itself.
