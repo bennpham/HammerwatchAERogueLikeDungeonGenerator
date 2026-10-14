@@ -130,7 +130,7 @@ export function QuickSetup({ tweaks, onChange }: QuickSetupProps) {
         </p>
       </Subsection>
 
-      <Subsection title="Original Hammerwatch feel" defaultOpen>
+      <Subsection title="Original Hammerwatch feel">
         {ORIGINAL_TOGGLES.map((t) => (
           <BoolField
             key={t.id}
