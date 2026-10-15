@@ -602,3 +602,10 @@ crypt tiles.
   the frost dragon's 121 px below, and the queen has a second circle (`20 -35 r50`).
   `[EMITTED]` `BossDef.hitCircles` holds the union over all scenes for the three stationary
   bosses (a test holds it to the unit files), and every trap lane keeps off all of them.
+
+### Traps verified; frost dragon seated 16 px higher (2026-10-14)
+
+- `[VERIFIED]` (user, #45) Trap lanes now spare the queen and both dragons.
+- `[EMITTED]` The frost dragon (`boss_dragon_hwr`) gets `artNudgeY` −16 px, from the user's
+  hand edit of `04_arena_boss3.lvl` (y 32 against the generator's 48: north wall line at
+  y −16, `topWallBossY` row 3). Art only, like the red dragon's −24 px. In game: checklist #46.

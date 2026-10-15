@@ -164,6 +164,11 @@ describe('boss arena — geometry', () => {
     }
   })
 
+  it('seats each dragon where the user did by hand: the red 24 px up, the frost 16 px', () => {
+    expect(BOSS_DEFS.boss_dragon.artNudgeY! * 16).toBe(-24)
+    expect(BOSS_DEFS.boss_dragon_hwr.artNudgeY! * 16).toBe(-16)
+  })
+
   it('puts the orb behind the alcove wall it rolled, outside the interior', () => {
     const seen = new Set<AlcoveWall>()
     for (let seed = 1; seed <= 30 && seen.size < 3; seed++) {

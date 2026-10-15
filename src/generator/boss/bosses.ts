@@ -43,6 +43,8 @@ export interface BossDef {
    * spawn clearance keep using the collider. The dragon's art leaves a gap
    * under the wall at the collider-safe spot; the user seated it 24 px
    * higher by hand (2026-10-11, boss0_edited.lvl) and the generator follows.
+   * The frost dragon likewise, 16 px (2026-10-14, 04_arena_boss3.lvl: y 32
+   * against the generator's 48).
    */
   artNudgeY?: number
   /**
@@ -122,7 +124,7 @@ const BOSS_DEFS_LIST: Omit<BossDef, 'mobile' | 'unique'>[] = [
   { id: 'boss_eye', actorPath: 'actors/bosses/boss_eye/eye.unit', footprintWidth: 48 / 16, footprintHeight: 48 / 16, collisionOffsetY: -12 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss4' },
   { id: 'boss_vampire', actorPath: 'actors/bosses/boss_vampire/vampire.unit', footprintWidth: 20 / 16, footprintHeight: 20 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss5' },
   // <circle offset="0 -10" radius="35"> static, Shaftlocke's frost dragon
-  { id: 'boss_dragon_hwr', actorPath: 'actors/bosses/boss_dragon_hwr/dragon.unit', footprintWidth: 70 / 16, footprintHeight: 70 / 16, collisionOffsetY: -10 / 16, placement: 'topWall', forbiddenAlcoveWalls: ['N'], barName: '.ig.hwr.boss6' },
+  { id: 'boss_dragon_hwr', actorPath: 'actors/bosses/boss_dragon_hwr/dragon.unit', footprintWidth: 70 / 16, footprintHeight: 70 / 16, collisionOffsetY: -10 / 16, placement: 'topWall', artNudgeY: -16 / 16, forbiddenAlcoveWalls: ['N'], barName: '.ig.hwr.boss6' },
   // the seeress is the giant bat Shaftlocke fights as a boss
   { id: 'boss_seeress', actorPath: 'actors/beasts/bats/bat_mb_boss.unit', footprintWidth: 16 / 16, footprintHeight: 16 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss_seeress' }
 ]
