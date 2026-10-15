@@ -613,15 +613,19 @@ export function buildBossArena(
     midX,
     midY,
     walkable,
-    // the queen and dragons never move: no trap lane may run into them. The
-    // circle is the actor's, where Monster.create put it (art nudge included).
+    // the queen and dragons never move: no trap lane may run into any circle a
+    // projectile can hit on them, placed where Monster.create put the actor
+    // (art nudge included)
     stationaryBosses: bossPlacements
       .filter((p) => !p.def.mobile)
-      .map((p) => ({
-        x: p.x + (p.def.collisionOffsetX ?? 0),
-        y: p.y + (p.def.placement === 'topWall' ? (p.def.artNudgeY ?? 0) : 0) + (p.def.collisionOffsetY ?? 0),
-        radius: p.def.footprintWidth / 2
-      }))
+      .flatMap((p) => {
+        const ay = p.y + (p.def.placement === 'topWall' ? (p.def.artNudgeY ?? 0) : 0)
+        return (p.def.hitCircles ?? [[0, (p.def.collisionOffsetY ?? 0) * 16, p.def.footprintWidth * 8]]).map(([ox, oy, r]) => ({
+          x: p.x + ox / 16,
+          y: ay + oy / 16,
+          radius: r / 16
+        }))
+      })
   }
 
   if (survival !== undefined) {

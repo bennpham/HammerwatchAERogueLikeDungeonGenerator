@@ -38,6 +38,9 @@ import type { NodeToggleElement } from '../src/generator/objects/nodes'
 import { SPEWER_DIRECTION } from '../src/generator/traps/slots'
 import { AE_UNIT_SET } from '../src/generator/catalog/assets'
 import { placements } from './ae'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { aeAssetsDir } from './aeInstall'
 
 const ARENA_W = 30
 const ARENA_H = 40
@@ -710,9 +713,9 @@ describe('boss traps — never aimed at a stationary boss', () => {
         const circles = actors.flatMap((m) => {
           const def = BOSS_DEFS[m.type.id]
           if (def === undefined || def.mobile) return []
-          return [{ x: m.x + (def.collisionOffsetX ?? 0), y: m.y + (def.collisionOffsetY ?? 0), radius: def.footprintWidth / 2 }]
+          return (def.hitCircles ?? []).map(([ox, oy, r]) => ({ x: m.x + ox / 16, y: m.y + oy / 16, radius: r / 16 }))
         })
-        expect(circles.length, `${label} seed ${seed}: stationary bosses`).toBe(Object.keys(lineup).length)
+        expect(circles.length, `${label} seed ${seed}: stationary hit circles`).toBeGreaterThanOrEqual(Object.keys(lineup).length)
         const placed = spewers(ctx)
         expect(placed.length, `${label} seed ${seed}: spewers`).toBeGreaterThan(0)
         for (const s of placed) {
@@ -723,4 +726,28 @@ describe('boss traps — never aimed at a stationary boss', () => {
     })
   }
 
+})
+
+describe("boss traps — the stationary bosses' hit circles", () => {
+  const stationary = Object.values(BOSS_DEFS).filter((d) => !d.mobile)
+
+  it('every stationary boss carries its hit circles', () => {
+    expect(stationary.map((d) => d.id).sort()).toEqual(['boss_dragon', 'boss_dragon_hwr', 'boss_queen'])
+    for (const d of stationary) expect(d.hitCircles?.length ?? 0, d.id).toBeGreaterThan(0)
+  })
+
+  it.skipIf(aeAssetsDir() === null)('match every circle a projectile can hit in the unit file, across all scenes', () => {
+    for (const d of stationary) {
+      const text = readFileSync(join(aeAssetsDir()!, d.actorPath), 'utf8')
+      const fromUnit = new Set<string>()
+      for (const m of text.matchAll(/<circle([^>]*)\/>/g)) {
+        if (/shoot-through="true"/.test(m[1])) continue
+        const off = /offset="(-?\d+) (-?\d+)"/.exec(m[1])
+        const r = /radius="(\d+)"/.exec(m[1])
+        fromUnit.add(`${off?.[1] ?? 0},${off?.[2] ?? 0},${r![1]}`)
+      }
+      const authored = new Set((d.hitCircles ?? []).map(([x, y, r]) => `${x},${y},${r}`))
+      expect([...authored].sort(), d.id).toEqual([...fromUnit].sort())
+    }
+  })
 })

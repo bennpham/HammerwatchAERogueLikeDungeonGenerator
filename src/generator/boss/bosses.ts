@@ -26,11 +26,15 @@ export interface BossDef {
    */
   collisionOffsetY?: number
   /**
-   * The collision shape's horizontal offset, in tiles, negative = left.
-   * Optional (0). Read only by the trap rig, which keeps its lanes off a
-   * stationary boss's real circle (the queen's sits 15 px left of her).
+   * A stationary boss's every hittable circle, `[offsetX, offsetY, radius]` in
+   * px from the actor: the union over all its scenes of the `<collision>`
+   * circles a projectile stops on (any not `shoot-through="true"`), body and
+   * the head sensors that move between animations. Read only by the trap rig,
+   * which keeps every trap lane off all of them; a test holds the list to the
+   * unit file. The dragon's head reaches 53 px below it and the frost dragon's
+   * body 121 px, far past the one circle `footprint` describes.
    */
-  collisionOffsetX?: number
+  hitCircles?: ReadonlyArray<readonly [number, number, number]>
   /** where the arena places this boss */
   placement: 'centre' | 'topWall'
   /**
@@ -109,7 +113,7 @@ const BOSS_DEFS_LIST: Omit<BossDef, 'mobile' | 'unique'>[] = [
   { id: 'boss_krilith', actorPath: 'actors/bosses/boss_krilith/boss_krilith.unit', footprintWidth: 16 / 16, footprintHeight: 16 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.d.ig.boss_2' },
   { id: 'boss_lich', actorPath: 'actors/bosses/boss_lich/boss_lich.unit', footprintWidth: 24 / 16, footprintHeight: 24 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.boss3' },
   // <circle offset="-15 9" radius="58"> static — the largest by far
-  { id: 'boss_queen', actorPath: 'actors/bosses/boss_queen/boss_queen.unit', footprintWidth: 116 / 16, footprintHeight: 116 / 16, collisionOffsetX: -15 / 16, collisionOffsetY: 9 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.boss1' },
+  { id: 'boss_queen', actorPath: 'actors/bosses/boss_queen/boss_queen.unit', footprintWidth: 116 / 16, footprintHeight: 116 / 16, collisionOffsetY: 9 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.boss1' },
   { id: 'boss_worm', actorPath: 'actors/bosses/boss_worm/boss_worm.unit', footprintWidth: 36 / 16, footprintHeight: 36 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.d.ig.boss_1' },
   { id: 'boss_golem', actorPath: 'actors/bosses/boss_golem/golem_rock.unit', footprintWidth: 30 / 16, footprintHeight: 30 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss1' },
   { id: 'boss_warden', actorPath: 'actors/bosses/boss_warden/warden.unit', footprintWidth: 52 / 16, footprintHeight: 52 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss2' },
@@ -123,6 +127,28 @@ const BOSS_DEFS_LIST: Omit<BossDef, 'mobile' | 'unique'>[] = [
   { id: 'boss_seeress', actorPath: 'actors/beasts/bats/bat_mb_boss.unit', footprintWidth: 16 / 16, footprintHeight: 16 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss_seeress' }
 ]
 
+/**
+ * The stationary bosses' hittable circles (see `BossDef.hitCircles`), from
+ * the unit files [VERIFIED by a test against the install].
+ */
+const HIT_CIRCLES: Partial<Record<BossId, ReadonlyArray<readonly [number, number, number]>>> = {
+  boss_dragon: [
+    [-45, 2, 16], [-42, 7, 16], [-32, -25, 35], [-30, 20, 18], [-24, 0, 15], [-15, 30, 18], [-10, 0, 15],
+    [-9, -20, 17], [-5, 0, 15], [0, -32, 40], [0, -20, 17], [0, 5, 15], [0, 35, 18], [5, 0, 15], [9, -20, 17],
+    [10, 0, 15], [15, 30, 18], [24, 0, 15], [30, 20, 18], [32, -25, 35], [42, 7, 16], [45, 2, 16]
+  ],
+  boss_dragon_hwr: [
+    [-37, 82, 16], [-32, 40, 35], [-25, 100, 16], [-24, 80, 15], [-15, 105, 16], [-10, 80, 15], [-9, 61, 17],
+    [-5, 80, 15], [-5, 105, 16], [-2, 80, 15], [0, -10, 35], [0, 20, 35], [0, 61, 17], [0, 80, 15], [0, 105, 16],
+    [2, 80, 15], [5, 80, 15], [5, 105, 16], [9, 61, 17], [10, 80, 15], [15, 105, 16], [24, 80, 15], [25, 100, 16],
+    [32, 40, 35], [37, 82, 16]
+  ],
+  boss_queen: [
+    [-15, 9, 58],
+    [20, -35, 50]
+  ]
+}
+
 /** One entry per `BOSS_IDS` id, in that order — enforced by a test. */
 // `mobile` is derived from MOBILE_BOSS_IDS rather than written on each def
 // above: that list lives in config/parameters.ts because this file imports
@@ -133,6 +159,7 @@ export const BOSS_DEFS: Readonly<Record<BossId, BossDef>> = Object.fromEntries(
     d.id,
     {
       ...d,
+      ...(HIT_CIRCLES[d.id] === undefined ? {} : { hitCircles: HIT_CIRCLES[d.id] }),
       mobile: (MOBILE_BOSS_IDS as readonly string[]).includes(d.id),
       unique: (UNIQUE_BOSS_IDS as readonly string[]).includes(d.id)
     }

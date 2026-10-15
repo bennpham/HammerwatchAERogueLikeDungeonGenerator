@@ -595,3 +595,10 @@ crypt tiles.
   and collision offsets; the queen's circle sits 15 px left, `collisionOffsetX`). Spread
   may still clip a stationary boss now and then; mobile bosses are fair game. Validation's
   over-asked-wall warning says a queen or dragon takes lanes too.
+- **Correction (user, in game):** left and right traps still hit the red dragon. A boss's
+  hittable shape is not one circle: `[VERIFIED]` (unit files) every scene lists several
+  `<collision>` circles, body plus head sensors (`shoot-through="false"`) that move
+  between animations. The dragon's reach 53 px below its anchor and 45 px to each side,
+  the frost dragon's 121 px below, and the queen has a second circle (`20 -35 r50`).
+  `[EMITTED]` `BossDef.hitCircles` holds the union over all scenes for the three stationary
+  bosses (a test holds it to the unit files), and every trap lane keeps off all of them.
