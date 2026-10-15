@@ -138,9 +138,9 @@ export interface BossArenaResult {
  * guarantees that.
  *
  * `survival` is the mode switch (issue #61). Passing it builds a SURVIVAL
- * arena: no boss actor, and therefore none of the `Boss 75%/50%/25%/Died`
- * engine events, which the game fires only for an actor in the `actors/boss_*`
- * folders. Every rig that listens for one is skipped and
+ * arena: no boss actor, and therefore nothing for the `Boss 75%/50%/25%/Died`
+ * triggers to watch (they are health and death triggers over the boss units).
+ * Every rig that hangs off one is skipped and
  * `src/generator/survival/` runs in its place, keyed to elapsed time — the
  * alcove included, which comes down on the clock rather than on the boss's
  * death. What the two modes SHARE is everything about the room itself: size,
@@ -379,8 +379,8 @@ export function buildBossArena(
   }
 
   // --- boss placement(s): a bare actor per boss, no rig of its own — the
-  // engine fires the "Boss ..." global events for any actor under
-  // actors/boss_*/. A one-off MonsterTypeDef (never added to MONSTER_TYPES)
+  // "Boss ..." triggers below watch these actors by id (ctx.bossActors).
+  // A one-off MonsterTypeDef (never added to MONSTER_TYPES)
   // lets Monster's existing getXML() emit the {id, type, x, y} shape unchanged.
   //
   // Single boss (unchanged): one Monster.create at `bossLocal`, exactly as
@@ -486,9 +486,9 @@ export function buildBossArena(
     ? multiBossTierSource(buildAllBossesDied(ctx, bossActors, entranceShape.x, entranceShape.y))
     : singleBossTierSource()
 
-  // Every rig from here to the gateway prefab listens for a `Boss ...` engine
-  // event, which only a boss actor makes the game fire. In a survival arena
-  // they would each emit a trigger nothing ever pulls, so none of them run —
+  // Every rig from here to the gateway prefab hangs off a `Boss ...` trigger
+  // over the boss actors. In a survival arena there are none, so each would
+  // emit a trigger nothing ever pulls, and none of them run —
   // `src/generator/survival/` re-keys the same jobs to the clock instead.
   if (bossActor !== undefined) {
     buildWaveRig(
@@ -503,9 +503,10 @@ export function buildBossArena(
       arenaUsesBodyguards(arena)
     )
 
-  // --- invulnerability windows: skipped outright for a multi-boss fight — the
-  // engine's `Boss 75/50/25%` events cannot tell which boss crossed a
-  // threshold, so a window keyed to one of them is meaningless with several.
+  // --- invulnerability windows: skipped outright for a multi-boss fight — a
+  // window makes one boss immortal off the shared `Boss 75/50/25%` trigger,
+  // which fires for whichever boss crosses first, so it is meaningless with
+  // several (per-boss tiers are out of scope).
   // Independent of the wave tiers, but built after them so turning the
   // feature on only ever APPENDS nodes — every wave-rig id stays where it
   // was. Draws no random values. ---

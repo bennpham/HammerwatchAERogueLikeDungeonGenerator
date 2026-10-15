@@ -136,7 +136,7 @@ function emptyWave(): BossWave {
  * leaving 75/50/25% empty. Every monster is anchored (never scattered), which
  * sidesteps the blocking-wreck scatter restriction entirely — see
  * actorCollision.ts. Used for every multi-boss arena/floor below (mandatory —
- * the engine cannot tell one boss's threshold from another's) and, for
+ * multi-boss fights skip 75/50/25%, see boss/tierSource.ts) and, for
  * simplicity, for most single-boss ones too.
  */
 function tierAndDeathWaves(

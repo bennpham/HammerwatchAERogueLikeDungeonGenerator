@@ -24,7 +24,7 @@ import { NodeAnnounceText, NodeDestroyObject, NodeGlobalEventTrigger } from '../
 import { ScriptNode } from '../objects/scriptNode'
 import { buildCountdown } from '../boss/tierSource'
 
-/** The engine event a boss actor fires on death. Shared with boss/waves.ts's tier names. */
+/** The boss-death trigger's name (a `UnitDestroyedTrigger` over the boss actors). Shared with boss/waves.ts's tier names. */
 export const BOSS_DIED_EVENT = 'Boss Died'
 
 /** What the party is told when the wall comes down. */

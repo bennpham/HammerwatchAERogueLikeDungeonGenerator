@@ -1,11 +1,11 @@
 /**
- * Engine global-event names, shared by every rig that fires off a
- * `GlobalEventTrigger` rather than an `AreaTrigger`.
+ * Trigger names shared by every rig that fires off a `GlobalEventTrigger`
+ * rather than an `AreaTrigger`.
  */
 
 /**
- * The engine event that fires once the floor is loaded. [VERIFIED 2026-09-24]
- * by a user-played survival arena, whose whole clock hangs off it — first
- * taken from the authored test_damage_player_timer.xml; see DISCOVERY-LOG.md.
+ * Fires once when the level loads: `NodeGlobalEventTrigger` emits it as a
+ * `ScriptLink` with `ExecuteOnStart`. [VERIFIED] in game by survival arenas,
+ * whose whole clock hangs off it (checklist #49).
  */
 export const LEVEL_LOADED_EVENT = 'LevelLoaded'

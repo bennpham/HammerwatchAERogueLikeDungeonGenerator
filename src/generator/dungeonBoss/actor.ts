@@ -1,10 +1,9 @@
 /**
  * The boss actor on a dungeon floor.
  *
- * A bare actor placement with no rig of its own — the engine fires the
- * `Boss 75% / 50% / 25% / Died` global events for any actor in the
- * `actors/boss_*` folders, which is what lets every tier-keyed rig in `boss/`
- * be reused here unchanged. A one-off `MonsterTypeDef` (never added to
+ * A bare actor placement with no rig of its own — the `Boss 75% / 50% / 25% /
+ * Died` triggers watch it by id once it is in `ctx.bossActors`, which is what
+ * lets every tier-keyed rig in `boss/` be reused here unchanged. A one-off `MonsterTypeDef` (never added to
  * `MONSTER_TYPES`) lets `Monster`'s existing `getXML()` emit the usual
  * `{id, type, x, y}` shape. This is `boss/arena.ts`'s own trick, on a floor.
  *
