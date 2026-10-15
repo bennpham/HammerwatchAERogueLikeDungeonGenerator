@@ -575,3 +575,11 @@ crypt tiles.
   upgrade (`mana-drain` 0) removes the aura's drain, not the regen block. Fully upgraded
   owns the aura from the start, which is how a "no mana regen" priest showed up (user
   report). Stock AE, not a generator bug. `docs/discovery/priest-mana-regen.md`.
+
+### Every boot-checklist row verified (2026-10-14)
+
+- `[VERIFIED]` (user, #28) Per-class move speed works: each class's own copy of the speed
+  skill, pointed to through the scenario's `classes.sval`, is read.
+- `[VERIFIED]` (user, #38) The original beam mana cost (`castpoint` 200) halves the priest
+  beam's drain, judged with cripple aura off.
+- No row of `docs/BOOT-CHECKLIST.md` is left UNCONFIRMED.
