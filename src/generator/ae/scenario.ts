@@ -16,8 +16,8 @@ import { escapeXml } from './sval'
  * HW1A.exe reads, next to `default-on`) — the game then defines
  * `MOD_NO_LIVES`, which PartyRecord.as starts at 0 lives, the HUD hides the
  * counter and extra-life pickups honour. INFINITE_LIVES and DOUBLE_LIVES
- * would hand lives back, so they are not offered. [UNVERIFIED] in game that
- * `forced="true"` is the value the engine expects — docs/BOOT-CHECKLIST.md.
+ * would hand lives back, so they are not offered. [VERIFIED] in game
+ * (checklist #2): `forced="true"` locks "No lives" on.
  */
 
 export interface ModifierDef {

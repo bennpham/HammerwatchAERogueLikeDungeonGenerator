@@ -15,8 +15,8 @@
  *   [VERIFIED] the ten `Traps` entries are what AE's own levels put in their
  *              ProjectileSpewers and ProjectileShooters (Castle, Shaftlocke and
  *              Temple of the Sun use 668 of them between them).
- *   [UNVERIFIED] the monster and boss projectiles have not been fired from a
- *              wall spewer yet — docs/BOOT-CHECKLIST.md "traps".
+ *   [VERIFIED] the monster and boss projectiles fire from wall spewers
+ *              (checklist #51).
  */
 
 export interface ProjectileDef {

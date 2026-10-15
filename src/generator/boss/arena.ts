@@ -452,9 +452,9 @@ export function buildBossArena(
   entranceShape.width = ENTRANCE_WIDTH
   entranceShape.height = ENTRANCE_DEPTH
 
-  // No arrival-revive rig: AE has no RespawnPlayers. Dead players come back
-  // through AE's lives at the respawn point the previous level's exit set
-  // (SetRespawnPoint to this arena's stem).
+  // No arrival-revive rig: AE has no RespawnPlayers. A player still dead at
+  // the previous exit arrives as a gravestone at the respawn point it set
+  // (SetRespawnPoint to this arena's stem), and a living player revives them.
 
   // --- scattered spawn points: the last ctx.bossRand draws of the arena, and
   // none at all while every monster is on the default `anchors` mode. The rig

@@ -10,8 +10,7 @@
  * - Temple of the Sun [VERIFIED usage]: 12 on boss levels 1–2, 13 on boss 3,
  *   14 on the hub;
  * - Shaftlocke Tower: 20 on its boss levels and several regular ones, 21 on
- *   the dragon. The NAMES of 20/21 are a guess [UNVERIFIED] — see
- *   docs/discovery/MUSIC-MODES.md.
+ *   the dragon. The NAMES of 20/21 are a guess [UNVERIFIED].
  */
 
 export interface MusicTrack {

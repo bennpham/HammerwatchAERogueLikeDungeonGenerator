@@ -613,3 +613,18 @@ crypt tiles.
   top-wall slot, so they would spawn on top of each other). Random picks never roll both.
 - `[VERIFIED]` (user) The frost dragon's 16 px seat (#46), Bonus Gauntlet without wall
   torches (#47), and the both-dragons lineup error (#48).
+
+### Post-port sweep: open entries closed (2026-10-15)
+
+- `[VERIFIED]` (checklist #2) Forcing lives: `forced="true"` on `NO_LIVES` is the value the
+  engine accepts; "No lives" is locked on. Closes "Lives ... forcing them [UNVERIFIED in game]".
+- `[VERIFIED]` (user, #49) `LevelLoaded` (a `ScriptLink` with `ExecuteOnStart`) fires on
+  arrival: Colosseum survival rounds run, played several times in co-op.
+- `[VERIFIED]` (user, #50) A floor boss's tier 0 wave arms on `LevelLoaded`.
+- `[VERIFIED]` (user, #51) Monster and boss projectiles fire from wall spewers, not only
+  the ten stock trap projectiles.
+- `[VERIFIED]` (user, #52) Mystery plates spawn `valuable_diamond_small`,
+  `valuable_diamond_small_red` and `valuable_diamond` through `SpawnObject`.
+- `[VERIFIED]` (#25) Dead players are not respawned: they arrive as gravestones and a
+  living player revives them (AE's revive system).
+- Still `[UNVERIFIED]`: the names given to music modes 20/21 (`music/tracks.ts`).

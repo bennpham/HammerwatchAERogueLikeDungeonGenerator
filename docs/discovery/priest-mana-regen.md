@@ -21,8 +21,7 @@ Hammerwatch boxes touches mana regen (`players/original.ts`).
 - No player preset lowers the priest's regen (stock 1.75/s; the HW2 presets raise it).
 - Mana shield only spends mana when the priest is hit (`ManaShield.as`).
 
-## To confirm
+## Resolved
 
-As the priest with Fully upgraded: with cripple aura off, mana rises; switch the aura on
-and regen stops; switch it off and regen returns. Then checklist #38 (beam mana cost) can
-be judged with the aura off.
+Checklist #38 (beam mana cost) was judged with the aura off and is VERIFIED. Nothing to
+change: the regen block is stock AE behaviour.
