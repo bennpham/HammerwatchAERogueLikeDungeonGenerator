@@ -583,3 +583,15 @@ crypt tiles.
 - `[VERIFIED]` (user, #38) The original beam mana cost (`castpoint` 200) halves the priest
   beam's drain, judged with cripple aura off.
 - No row of `docs/BOOT-CHECKLIST.md` is left UNCONFIRMED.
+
+### AE bosses take trap damage; no trap lane aims at a stationary boss (2026-10-14)
+
+- `[VERIFIED]` (user) In AE, bosses take damage from trap projectiles; in the original
+  Hammerwatch they never did. A trap aimed at the queen or a dragon, which can't move,
+  wears it down on its own for the whole fight.
+- `[EMITTED]` `boss/traps.ts` `wallSlots` drops every slot whose straight lane (through the
+  tile centre) passes within a stationary boss's collision circle plus 0.5 tile, with the
+  boss ahead of the spewer. The circles come from `arena.ts` (actor position, art nudge
+  and collision offsets; the queen's circle sits 15 px left, `collisionOffsetX`). Spread
+  may still clip a stationary boss now and then; mobile bosses are fair game. Validation's
+  over-asked-wall warning says a queen or dragon takes lanes too.

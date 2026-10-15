@@ -26,7 +26,10 @@ import { BOSS_TRAP_DIRECTIONS, MAX_TRAP_COUNT, TRAP_SPREAD_MAX } from '../src/ge
 import { validateParameters } from '../src/generator/config/validation'
 import { PROJECTILE_DEFS, PROJECTILE_GROUPS, projectileById } from '../src/generator/objects/projectileTypes'
 import { buildBossArena } from '../src/generator/boss/arena'
-import { TRAP_MIN_SPACING, TRAP_WALL_MARGIN, buildTrapRig, wallCapacity } from '../src/generator/boss/traps'
+import { BOSS_LANE_MARGIN, TRAP_MIN_SPACING, TRAP_WALL_MARGIN, buildTrapRig, wallCapacity, wallSlots } from '../src/generator/boss/traps'
+import { BOSS_DEFS } from '../src/generator/boss/bosses'
+import type { BossId } from '../src/generator/boss/bosses'
+import { TILE_CENTRE } from '../src/generator/traps/slots'
 import type { TrapArena } from '../src/generator/boss/traps'
 import { TIER_EVENT_NAMES } from '../src/generator/boss/waves'
 import type { ScriptNode } from '../src/generator/objects/scriptNode'
@@ -575,6 +578,19 @@ describe('boss traps — validation', () => {
     expect(errorsFor({})).toEqual([])
   })
 
+  it('says a stationary boss takes lanes when a wall is over-asked, and only then', () => {
+    const overAsked = (lineup: Partial<Record<BossId, number>>) => {
+      const params = paramsWithTrap({ count: MAX_TRAP_COUNT })
+      const arena = params.boss.fights[0].arena
+      arena.bossSelection = 'lineup'
+      arena.bossLineup = lineup
+      return validateParameters(params).warnings.find((w) => w.message.includes('spewers across all tiers'))?.message ?? ''
+    }
+    expect(overAsked({ boss_queen: 1 })).toContain('aimed straight at the queen')
+    expect(overAsked({ boss_dragon: 1 })).toContain('aimed straight at a dragon')
+    expect(overAsked({ boss_lich: 1 })).not.toContain('aimed straight')
+  })
+
   it('rejects an unknown projectile', () => {
     expect(errorsFor({ projectile: 'nope' })[0].field).toContain('.projectile')
   })
@@ -624,4 +640,87 @@ describe('boss traps — validation', () => {
     expect(result.errors.filter((e) => e.field.includes('trap'))).toEqual([])
     expect(result.warnings.filter((w) => w.field.includes('trap'))).toEqual([])
   })
+})
+
+describe('boss traps — never aimed at a stationary boss', () => {
+  // AE bosses take trap damage (HW1's never did). The queen and the dragons
+  // cannot move, so no trap lane may run straight into them; spread may
+  // still clip them now and then. Mobile bosses are fair game.
+  const DIRS: BossTrapDirection[] = ['up', 'down', 'left', 'right']
+
+  /** Whether a straight lane from (x, y) firing `dir` runs into a circle ahead of it. */
+  function hits(dir: BossTrapDirection, x: number, y: number, c: { x: number; y: number; radius: number }): boolean {
+    const reach = c.radius + BOSS_LANE_MARGIN
+    if (dir === 'up') return Math.abs(x - c.x) < reach && c.y - c.radius < y
+    if (dir === 'down') return Math.abs(x - c.x) < reach && c.y + c.radius > y
+    if (dir === 'left') return Math.abs(y - c.y) < reach && c.x - c.radius < x
+    return Math.abs(y - c.y) < reach && c.x + c.radius > x
+  }
+
+  it('offers no slot whose lane runs into the circle, and keeps the rest', () => {
+    const boss = { x: ARENA_W / 2, y: ARENA_H / 2, radius: 3.6 }
+    for (const dir of DIRS) {
+      const open = wallSlots(arenaOf(), dir)
+      const kept = wallSlots(arenaOf({ stationaryBosses: [boss] }), dir)
+      expect(kept.length, dir).toBeGreaterThan(0)
+      expect(kept.length, dir).toBeLessThan(open.length)
+      for (const s of kept) expect(hits(dir, s.x + TILE_CENTRE, s.y + TILE_CENTRE, boss), `${dir} ${s.x},${s.y}`).toBe(false)
+      // everything not aimed at the boss is still there
+      expect(kept).toEqual(open.filter((s) => !hits(dir, s.x + TILE_CENTRE, s.y + TILE_CENTRE, boss)))
+    }
+  })
+
+  it('changes nothing without a stationary boss', () => {
+    for (const dir of DIRS) expect(wallSlots(arenaOf({ stationaryBosses: [] }), dir)).toEqual(wallSlots(arenaOf(), dir))
+  })
+
+  it('drops only lanes that fire toward the boss, not away from it', () => {
+    // a circle west of the west wall: east-firing traps point away from it,
+    // west-firing ones on the far wall point straight at it
+    const behind = { x: -6, y: ARENA_H / 2, radius: 2 }
+    const arena = arenaOf({ stationaryBosses: [behind] })
+    expect(wallSlots(arena, 'right')).toEqual(wallSlots(arenaOf(), 'right'))
+    expect(wallSlots(arena, 'left').length).toBeLessThan(wallSlots(arenaOf(), 'left').length)
+  })
+
+  /** A fight with exactly this lineup and traps on all four walls in every tier. */
+  function trappedFight(lineup: Partial<Record<BossId, number>>, seed: number) {
+    const base = defaultParameters().boss.fights[0].arena
+    const arena = {
+      ...base,
+      bossSelection: 'lineup' as const,
+      bossLineup: lineup,
+      waves: base.waves.map((w) => ({ ...w, traps: DIRS.map((d) => trap(d, 6)) }))
+    }
+    const ctx = freshCtx(seed)
+    buildBossArena(ctx, arena, 0)
+    return ctx
+  }
+
+  for (const [label, lineup] of [
+    ['queen', { boss_queen: 1 }],
+    ['dragon', { boss_dragon: 1 }],
+    ['frost dragon', { boss_dragon_hwr: 1 }],
+    ['queen and dragon', { boss_queen: 1, boss_dragon: 1 }]
+  ] as const) {
+    it(`${label}: no emitted spewer fires straight into a stationary boss`, () => {
+      for (const seed of [1, 2, 3]) {
+        const ctx = trappedFight(lineup, seed)
+        const actors = ctx.bossActors as unknown as Array<{ x: number; y: number; type: { id: BossId } }>
+        const circles = actors.flatMap((m) => {
+          const def = BOSS_DEFS[m.type.id]
+          if (def === undefined || def.mobile) return []
+          return [{ x: m.x + (def.collisionOffsetX ?? 0), y: m.y + (def.collisionOffsetY ?? 0), radius: def.footprintWidth / 2 }]
+        })
+        expect(circles.length, `${label} seed ${seed}: stationary bosses`).toBe(Object.keys(lineup).length)
+        const placed = spewers(ctx)
+        expect(placed.length, `${label} seed ${seed}: spewers`).toBeGreaterThan(0)
+        for (const s of placed) {
+          const dir = DIRS.find((d) => SPEWER_DIRECTION[d] === s.directionDeg)!
+          for (const c of circles) expect(hits(dir, s.x, s.y, c), `${label} seed ${seed}: ${dir} spewer at ${s.x},${s.y}`).toBe(false)
+        }
+      }
+    })
+  }
+
 })

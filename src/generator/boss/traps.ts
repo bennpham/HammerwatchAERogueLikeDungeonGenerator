@@ -52,6 +52,10 @@
  *     the walk to the orb is not down a firing lane.
  *   - A slot a cover pillar stands on is skipped — the mask is READ, never
  *     written, so cover placement is untouched.
+ *   - A slot whose straight lane runs into a STATIONARY boss (queen, dragons)
+ *     is skipped. AE bosses take trap damage, which HW1's never did, and a
+ *     boss that cannot move would be worn down by an aimed trap all fight.
+ *     Mobile bosses are fair game; spread may still clip a stationary one.
  *   - TRAP_MIN_SPACING tiles are kept between two spewers. The slot pool is per
  *     wall and carried across ALL tiers, so tier 3's traps cannot land on top
  *     of tier 1's.
@@ -139,10 +143,24 @@ export interface TrapArena {
    * can build the rig without a map; every slot counts as free then.
    */
   walkable?: Uint8Array
+  /**
+   * The collision circles of the bosses that never move (queen, dragons), in
+   * interior tiles. A slot whose straight lane runs into one is never offered:
+   * AE bosses take trap damage, so an aimed trap would wear a stationary boss
+   * down on its own all fight. Absent on a survival arena (no bosses).
+   */
+  stationaryBosses?: ReadonlyArray<{ x: number; y: number; radius: number }>
 }
 
 /** Half-width of the alcove mouth: it is three tiles, centred. */
 const ALCOVE_MOUTH_HALF = 1
+
+/**
+ * How far past a stationary boss's collision circle a trap lane must stay, in
+ * tiles: the projectile is not a line, so a lane that only just misses the
+ * circle would still graze it.
+ */
+export const BOSS_LANE_MARGIN = 0.5
 
 /**
  * Builds the arena's per-tier trap rig. Emits nothing at all — not one node,
@@ -284,10 +302,38 @@ export function wallSlots(arena: TrapArena, direction: BossTrapDirection): Slot[
 
     if (!isFreeFloor(arena, x, y)) continue
 
+    // never aimed straight at a boss that cannot step out of the way
+    if (lanesIntoStationaryBoss(arena, direction, x, y)) continue
+
     slots.push({ x, y })
   }
 
   return slots
+}
+
+/**
+ * Whether a spewer on `(x, y)` firing `direction` sends its straight,
+ * zero-spread lane into a stationary boss: the lane (through the tile centre)
+ * passes within the boss's radius plus `BOSS_LANE_MARGIN` of its centre, with
+ * the boss ahead of the spewer. Spread is not considered; an occasional stray
+ * is fine, a lane aimed at the boss is not.
+ */
+export function lanesIntoStationaryBoss(arena: TrapArena, direction: BossTrapDirection, x: number, y: number): boolean {
+  const lx = x + TILE_CENTRE
+  const ly = y + TILE_CENTRE
+  return (arena.stationaryBosses ?? []).some((b) => {
+    const reach = b.radius + BOSS_LANE_MARGIN
+    switch (direction) {
+      case 'up':
+        return Math.abs(lx - b.x) < reach && b.y - b.radius < ly
+      case 'down':
+        return Math.abs(lx - b.x) < reach && b.y + b.radius > ly
+      case 'left':
+        return Math.abs(ly - b.y) < reach && b.x - b.radius < lx
+      case 'right':
+        return Math.abs(ly - b.y) < reach && b.x + b.radius > lx
+    }
+  })
 }
 
 /**

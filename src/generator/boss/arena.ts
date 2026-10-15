@@ -612,7 +612,16 @@ export function buildBossArena(
     alcoveWall,
     midX,
     midY,
-    walkable
+    walkable,
+    // the queen and dragons never move: no trap lane may run into them. The
+    // circle is the actor's, where Monster.create put it (art nudge included).
+    stationaryBosses: bossPlacements
+      .filter((p) => !p.def.mobile)
+      .map((p) => ({
+        x: p.x + (p.def.collisionOffsetX ?? 0),
+        y: p.y + (p.def.placement === 'topWall' ? (p.def.artNudgeY ?? 0) : 0) + (p.def.collisionOffsetY ?? 0),
+        radius: p.def.footprintWidth / 2
+      }))
   }
 
   if (survival !== undefined) {

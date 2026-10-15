@@ -1359,12 +1359,25 @@ function validateBossFight(
       perWall.set(row.direction, (perWall.get(row.direction) ?? 0) + row.count)
     }
   }
+  // A queen or dragon takes lanes too: boss/traps.ts never aims a trap
+  // straight at a boss that cannot move, so the count above is optimistic.
+  const possibleBosses: readonly string[] =
+    selection === 'lineup'
+      ? Object.entries(arena.bossLineup ?? {})
+          .filter(([, n]) => (n ?? 0) > 0)
+          .map(([id]) => id)
+      : arena.bossPool
+  const stationary = possibleBosses.filter((id) => id in BOSS_DEFS && !isMobileBoss(id))
+  const blockedNote =
+    stationary.length > 0
+      ? ` No trap is ever aimed straight at ${stationary.some((id) => id === 'boss_queen') ? 'the queen' : 'a dragon'}${stationary.length > 1 ? ' or the other stationary bosses' : ''}, so even fewer may fit.`
+      : ''
   for (const [direction, wanted] of perWall) {
     const capacity = wallCapacity(arena.minWidth, arena.minHeight, direction)
     if (wanted > capacity) {
       bossWarnings.push({
         field: af('waves'),
-        message: `The ${direction === 'up' ? 'south' : direction === 'down' ? 'north' : direction === 'left' ? 'east' : 'west'} wall is asked for ${wanted} ${direction}-firing spewers across all tiers, but an arena ${arena.minWidth}×${arena.minHeight} only has room for about ${capacity} spaced along it. The extra ones will be skipped.`
+        message: `The ${direction === 'up' ? 'south' : direction === 'down' ? 'north' : direction === 'left' ? 'east' : 'west'} wall is asked for ${wanted} ${direction}-firing spewers across all tiers, but an arena ${arena.minWidth}×${arena.minHeight} only has room for about ${capacity} spaced along it. The extra ones will be skipped.${blockedNote}`
       })
     }
   }

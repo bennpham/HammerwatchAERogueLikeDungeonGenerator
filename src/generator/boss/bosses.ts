@@ -25,6 +25,12 @@ export interface BossDef {
    * `topWallBossY` and the comment block below.
    */
   collisionOffsetY?: number
+  /**
+   * The collision shape's horizontal offset, in tiles, negative = left.
+   * Optional (0). Read only by the trap rig, which keeps its lanes off a
+   * stationary boss's real circle (the queen's sits 15 px left of her).
+   */
+  collisionOffsetX?: number
   /** where the arena places this boss */
   placement: 'centre' | 'topWall'
   /**
@@ -103,7 +109,7 @@ const BOSS_DEFS_LIST: Omit<BossDef, 'mobile' | 'unique'>[] = [
   { id: 'boss_krilith', actorPath: 'actors/bosses/boss_krilith/boss_krilith.unit', footprintWidth: 16 / 16, footprintHeight: 16 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.d.ig.boss_2' },
   { id: 'boss_lich', actorPath: 'actors/bosses/boss_lich/boss_lich.unit', footprintWidth: 24 / 16, footprintHeight: 24 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.boss3' },
   // <circle offset="-15 9" radius="58"> static — the largest by far
-  { id: 'boss_queen', actorPath: 'actors/bosses/boss_queen/boss_queen.unit', footprintWidth: 116 / 16, footprintHeight: 116 / 16, collisionOffsetY: 9 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.boss1' },
+  { id: 'boss_queen', actorPath: 'actors/bosses/boss_queen/boss_queen.unit', footprintWidth: 116 / 16, footprintHeight: 116 / 16, collisionOffsetX: -15 / 16, collisionOffsetY: 9 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.boss1' },
   { id: 'boss_worm', actorPath: 'actors/bosses/boss_worm/boss_worm.unit', footprintWidth: 36 / 16, footprintHeight: 36 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.d.ig.boss_1' },
   { id: 'boss_golem', actorPath: 'actors/bosses/boss_golem/golem_rock.unit', footprintWidth: 30 / 16, footprintHeight: 30 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss1' },
   { id: 'boss_warden', actorPath: 'actors/bosses/boss_warden/warden.unit', footprintWidth: 52 / 16, footprintHeight: 52 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss2' },
