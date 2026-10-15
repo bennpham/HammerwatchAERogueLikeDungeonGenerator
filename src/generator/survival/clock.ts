@@ -2,11 +2,12 @@
  * The survival arena's clock — the one node everything else in
  * `src/generator/survival/` hangs off.
  *
- * A boss arena is driven by engine events: the game fires `Boss 75%`,
- * `Boss 50%`, `Boss 25%` and `Boss Died` for any actor in the `actors/boss_*`
- * folders, and every optional rig in `boss/` listens for one of them. A
- * survival arena has no boss actor, so none of those events ever fire and none
- * of those rigs would do anything. What it has instead is elapsed time.
+ * A boss arena is driven by the boss's health: `Boss 75%`, `Boss 50%`,
+ * `Boss 25%` and `Boss Died` become `ActorHealthTrigger` /
+ * `UnitDestroyedTrigger` over the boss units (`NodeGlobalEventTrigger`), and
+ * every optional rig in `boss/` hangs off one of them. A survival arena has no
+ * boss actor, so none of those rigs would do anything. What it has instead is
+ * elapsed time.
  *
  * So one `GlobalEventTrigger(LevelLoaded)` is created per arena and every
  * survival event hangs off it with its own per-connection delay:
@@ -19,14 +20,14 @@
  *
  * `ScriptNode.connectTo(node, delayMs)` is what makes that work: passing a
  * delay opts the connection into writing true milliseconds under both `delays`
- * and `connection-delays`, the same mechanism `timer/hazard.ts` and
- * `boss/checkpoints.ts` already use. Without a delay argument a connection
- * keeps the Java original's verbatim `delays` copy, which is not a time at all.
+ * and `connection-delays`, the same mechanism `timer/hazard.ts` already uses.
+ * Without a delay argument a connection keeps the Java original's verbatim
+ * `delays` copy, which is not a time at all.
  *
  * Everything here is RNG-free: not one draw from any stream.
  *
- * [UNVERIFIED] `LEVEL_LOADED_EVENT` itself — the whole feature rests on it. See
- * the modding skill's DISCOVERY-LOG.
+ * [VERIFIED] in game (checklist #49): `LEVEL_LOADED_EVENT` fires and the
+ * survival round runs.
  */
 
 import type { GenerationContext } from '../core/context'

@@ -21,8 +21,9 @@
  *                (`behavior="money"`, `amount`); the metal is the sprite's
  *                colour on items.png (see DISCOVERY-LOG 2026-09-26)
  *   [VERIFIED]   valuable_diamond_red — the lobbies' 500-gold diamond
- *   [UNVERIFIED] valuable_diamond_small / _small_red / valuable_diamond via
- *                SpawnObject — amounts read from their asset files
+ *   [VERIFIED]   valuable_diamond_small / _small_red / valuable_diamond via
+ *                SpawnObject — amounts read from their asset files; seen in
+ *                game (checklist #52)
  */
 import { PICKUP_DEFS } from './pickupTypes'
 import type { PickupDef } from './pickupTypes'

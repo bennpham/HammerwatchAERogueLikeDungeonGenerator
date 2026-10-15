@@ -12,20 +12,21 @@
  *                                   SpawnObject × (monster, anchor)
  *
  * Tier 0 (100%) is triggered by an AreaTrigger over the arena's entrance
- * shape; tiers 1-3 (75/50/25%) are triggered by a GlobalEventTrigger the
- * engine fires at that health threshold. A tier with two distinct spawn
+ * shape; tiers 1-3 (75/50/25%) are triggered by a GlobalEventTrigger, which
+ * emits an AE `ActorHealthTrigger` on the boss at that health fraction. A
+ * tier with two distinct spawn
  * intervals gets two independent ToggleElement -> TimerTrigger chains, both
  * fed by the same tier trigger — NodeToggleElement can only enable a single
  * downstream element (`element` is one id, not an array), so "one toggle per
  * timer" is the only way to switch on more than one timer per tier.
  *
  * Tier 4 is the boss-death tier: same rig, but its GlobalEventTrigger listens
- * for `Boss Died` rather than a health threshold. The fight is not over at that
- * point — arena.ts's win chain hangs its own separate `Boss Died` trigger off
- * the same event to open the alcove seals, and the campaign only ends when the
- * player reaches the orb behind them, so this tier spawns into that walk. Two
- * GlobalEventTrigger nodes on one event is ordinary (the shipped campaign
- * levels do it); nothing here needs to know about the win chain's node.
+ * for `Boss Died` (an AE `UnitDestroyedTrigger`) rather than a health
+ * threshold. The fight is not over at that point — arena.ts's win chain builds
+ * its own separate `Boss Died` trigger to open the alcove seals, and the
+ * campaign only ends when the player reaches the orb behind them, so this tier
+ * spawns into that walk. Two triggers on the same boss is ordinary; nothing
+ * here needs to know about the win chain's node.
  *
  * Nothing ever disables a timer: once a tier's trigger fires, its timers run
  * until their SpawnObject budgets are exhausted, and lower tiers keep firing
@@ -95,8 +96,9 @@ import { singleBossTierSource } from './tierSource'
  * GlobalEventTrigger names for tiers 75/50/25 and the boss-death tier — index 0
  * (the 100% tier) is triggered by the entrance AreaTrigger instead, so this
  * array is offset by one from the tier index (`TIER_EVENT_NAMES[tier - 1]`).
- * Every string here is an engine event verified to fire for a bare boss actor;
- * see the modding skill's DISCOVERY-LOG.
+ * These are our labels, not engine events: `NodeGlobalEventTrigger` turns each
+ * into an `ActorHealthTrigger` / `UnitDestroyedTrigger` over `ctx.bossActors`
+ * (AE has no boss events; see the modding skill's DISCOVERY-LOG).
  */
 export const TIER_EVENT_NAMES = ['Boss 75%', 'Boss 50%', 'Boss 25%', 'Boss Died'] as const
 

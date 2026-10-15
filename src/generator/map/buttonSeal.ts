@@ -19,7 +19,7 @@ import type { GenerationContext } from '../core/context'
 
 /**
  * The cue the button plays — the AE FMOD event hw2ae paired with HW1's
- * `sound/misc.xml:button_hatch`. [UNVERIFIED] in a generated level.
+ * `sound/misc.xml:button_hatch`. [VERIFIED] in game (checklist #13).
  */
 export const SEAL_SOUND = 'event:/SFX/Objects/Buttons/button_generic'
 

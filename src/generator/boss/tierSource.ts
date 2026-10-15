@@ -2,31 +2,33 @@
  * What fires a boss wave tier's trigger — issue #64 part 1 (multiple bosses in
  * one arena or on one dungeon floor).
  *
- * A single-boss fight or floor gets the engine's own `Boss 75%/50%/25%/Died`
- * events, one `GlobalEventTrigger` per threshold, created at the exact call
- * site every tier-keyed rig (`waves.ts`, `waveBuffs.ts`, `wavePickups.ts`,
- * `traps.ts`, and their `dungeonBoss/` counterparts) has always built it from
- * — so a single-boss fight or floor's node ids and order never move.
+ * A single-boss fight or floor gets one `NodeGlobalEventTrigger` per
+ * threshold (`Boss 75%/50%/25%/Died`, our labels for an AE
+ * `ActorHealthTrigger` / `UnitDestroyedTrigger` over `ctx.bossActors`),
+ * created at the exact call site every tier-keyed rig (`waves.ts`,
+ * `waveBuffs.ts`, `wavePickups.ts`, `traps.ts`, and their `dungeonBoss/`
+ * counterparts) has always built it from — so a single-boss fight or floor's
+ * node ids and order never move.
  *
- * With two or more bosses the engine still fires those events, but for the
- * FIRST boss actor to cross each threshold or die — no rig can tell whose 75%
- * it just saw. So a multi-boss fight or floor:
+ * With two or more bosses, that one trigger lists every boss and fires once,
+ * for the FIRST boss to cross the threshold or die. AE's triggers could watch
+ * each boss separately (one trigger per boss), but per-boss tiers are out of
+ * scope by choice, so a multi-boss fight or floor:
  *
  *   - skips tiers 1-3 (75/50/25%) ENTIRELY, before allocating so much as one
  *     node for them (`skipTier`) — not "fires them for nobody in particular",
  *     skipped;
  *   - re-keys the death tier (tier 4, `Boss Died`) to "every boss's own
  *     death": a shared `Variable` starts at the boss count, and each boss's
- *     `ObjectEventTrigger(Destroyed)` subtracts one from it and then checks it
+ *     `UnitDestroyedTrigger` subtracts one from it and then checks it
  *     for 0. Every death-tier rig — and the alcove/seal opener — connects off
  *     that check exactly as it would off a single boss's
  *     `GlobalEventTrigger` (`buildAllBossesDied`).
  *
- * Invulnerability and checkpoints are not threaded through this at all: they
- * are skipped outright for a multi-boss fight or floor (their settings stay on
- * the object, unread — the same losslessness `arenaMode` already promises for
- * survival's boss-only fields), because both genuinely need to know "the
- * boss", not "a boss".
+ * Invulnerability is not threaded through this at all: it is skipped outright
+ * for a multi-boss fight or floor (its settings stay on the object, unread —
+ * the same losslessness `arenaMode` already promises for survival's boss-only
+ * fields), because it needs to know "the boss", not "a boss".
  */
 
 import type { GenerationContext } from '../core/context'

@@ -820,7 +820,7 @@ function validateBossFight(
   const af = (suffix: string): string => `boss.fights.${index}.arena.${suffix}`
 
   // A SURVIVAL arena has no boss, so none of the boss-only rules below apply to
-  // it: its bossPool, waves, invulnerability, checkpoints and scatter-spawn
+  // it: its bossPool, waves, invulnerability and scatter-spawn
   // settings stay on the object precisely so flipping the mode is lossless, but
   // the generator never reads them — and blocking generation over a field
   // nothing reads would be wrong.

@@ -18,7 +18,7 @@
  * `AreaTrigger` over the entrance mouth, because the party walks into an arena
  * through one door; a dungeon floor has no such choke point — the party arrives
  * on the stairs and the boss may be anywhere — so tier 0 arms on `LevelLoaded`
- * instead. [UNVERIFIED], same as everywhere else that event is used.
+ * instead. [VERIFIED] in game (checklist #50).
  *
  * Points come from `placement.ts`'s floor-wide interior pool, which means a
  * tier's monsters arrive from every eligible room rather than from one place.

@@ -992,9 +992,10 @@ export interface BossArenaOptions {
    * keeps every parameter object and `parameters.txt` written before this
    * feature byte-identical. 1..MAX_BOSS_COUNT.
    *
-   * The engine fires `Boss 75%/50%/25%/Died` for the FIRST boss actor to cross
-   * a threshold or die, and for nothing else — with two or more bosses no rig
-   * can tell whose threshold it saw. So above 1, every tier-keyed rig (waves,
+   * The `Boss 75%/50%/25%/Died` triggers are one AE trigger over every boss,
+   * which fires once, for the FIRST boss to cross a threshold or die — with two
+   * or more bosses no rig can tell whose threshold it saw (per-boss triggers are
+   * out of scope by choice). So above 1, every tier-keyed rig (waves,
    * wave buffs, wave pickups, traps) skips the 75/50/25% tiers entirely and
    * re-keys the death tier and the alcove opener to "every boss's own death",
    * counted down on a shared Variable — see `boss/tierSource.ts`.
@@ -1128,9 +1129,9 @@ export const SURVIVAL_COUNTDOWN_NODE_WARN = TIMER_COUNTDOWN_NODE_WARN
  * An arena cleared by outlasting a clock instead of by killing something.
  *
  * Everything in it is keyed to elapsed time rather than to a boss's health,
- * because there is no boss: the engine fires `Boss 75%`/`Boss Died` for any
- * actor in the `actors/boss_*` folders and for nothing else, so with no boss actor none
- * of the tier events ever fire. A survival arena therefore runs its own clock —
+ * because there is no boss: the `Boss 75%`/`Boss Died` triggers watch the boss
+ * units, so with no boss actor none of the tiers ever fire. A survival arena
+ * therefore runs its own clock —
  * one `LevelLoaded` trigger with a per-connection millisecond delay per event
  * (see `src/generator/survival/clock.ts`).
  *
@@ -1579,7 +1580,7 @@ export function arenaUsesBodyguards(arena: BossArenaOptions): boolean {
 }
 
 /**
- * Whether `count` bosses means the engine's `Boss 75%/50%/25%/Died` events can
+ * Whether `count` bosses means the shared `Boss 75%/50%/25%/Died` triggers can
  * no longer be trusted to mean any one particular boss — the single gate every
  * multi-boss rig and validation rule reads, so "more than one" is decided in
  * exactly one place.
@@ -1770,8 +1771,8 @@ export const MAX_BOSS_INVULN_SECONDS = 300
  */
 
 /**
- * Index of the boss-death tier — the last one. It is keyed to the engine's
- * `Boss Died` event rather than a health threshold, which is the only thing
+ * Index of the boss-death tier — the last one. It is keyed to the boss's
+ * death (`Boss Died`) rather than a health threshold, which is the only thing
  * that distinguishes it from the four tiers above: every other mechanism
  * (max counts, intervals, spawn modes, scatter points) treats it identically.
  *

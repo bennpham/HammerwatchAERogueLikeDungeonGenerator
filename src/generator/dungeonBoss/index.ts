@@ -4,9 +4,9 @@
  * the same health-tier rigs the arena runs.
  *
  * Why this is a thinner module than `survival/`. Survival's problem was that
- * the engine fires `Boss 75% / 50% / 25% / Died` ONLY for an actor in the
- * `actors/boss_*` folders, so an arena with no boss had to re-key every rig to
- * a clock. A dungeon floor WITH a boss actor gets those events for free, so
+ * the `Boss 75% / 50% / 25% / Died` triggers watch boss actors, so an arena
+ * with no boss had to re-key every rig to a clock. A dungeon floor WITH a boss
+ * actor has something for them to watch, so
  * `boss/invulnerability.ts` is called here verbatim
  * and the tier wiring of `boss/waves.ts` and `boss/traps.ts` is reused as-is.
  * What is genuinely new is PLACEMENT — an arena is one open rectangle and a
@@ -25,7 +25,7 @@
  *
  * Every step from 2 on returns before allocating an id when its own config is
  * empty, which is what keeps one from moving another's ids. Steps 1, 2, 4 and
- * 8 are the only ones that draw, and they draw only from `ctx.floorBossRand`.
+ * 7 are the only ones that draw, and they draw only from `ctx.floorBossRand`.
  * Pickups come last on purpose: they were added after the rest, and running
  * last is what lets turning them on move nothing already on the floor.
  */
@@ -87,8 +87,8 @@ export function buildFloorBossRig(
   const actors = placeFloorBosses(ctx, boss.bossPool, level.bossSpots, count, lineup)
   if (actors.length === 0) return
 
-  // AE has no engine-wide boss events: every tier, death, invulnerability and
-  // checkpoint trigger below is built over these actors (NodeGlobalEventTrigger
+  // AE has no engine-wide boss events: every tier, death and invulnerability
+  // trigger below is built over these actors (NodeGlobalEventTrigger
   // reads them when it is constructed), so register them first — as the
   // arena does — or the seal never opens.
   ctx.bossActors = actors

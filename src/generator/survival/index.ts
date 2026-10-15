@@ -2,11 +2,10 @@
  * The survival arena's rig — everything `boss/`'s tier rigs do, re-keyed from
  * boss health to elapsed time.
  *
- * Why it cannot simply reuse them: the engine fires `Boss 75%`, `Boss 50%`,
- * `Boss 25%` and `Boss Died` for any actor in the `actors/boss_*` folders and
- * for nothing else. Nothing in this repo sends those events. A survival arena
- * places no boss actor, so none of the four ever fire, and every rig listening
- * for one — waves 1-4, the per-tier buffs, traps, drops, checkpoints, the
+ * Why it cannot simply reuse them: `Boss 75%`, `Boss 50%`, `Boss 25%` and
+ * `Boss Died` are health and death triggers over the boss actors. A survival
+ * arena places no boss actor, so none of the four ever fire, and every rig
+ * hanging off one — waves 1-4, the per-tier buffs, traps, drops, the
  * invulnerability windows and the alcove opener — would simply never run.
  * Elapsed time is what a survival arena has instead, so one
  * `GlobalEventTrigger(LevelLoaded)` drives all of it through per-connection

@@ -479,8 +479,8 @@ export class NodeAnnounceText extends ScriptNode {
 
 /**
  * `ShowGameOver` — ends the run (HW1 GameEnd). With no slideshow `Filename`
- * it pauses, fades out and stops the scenario. [UNVERIFIED] in game for a
- * generated scenario — see docs/BOOT-CHECKLIST.md "victory".
+ * it pauses, fades out and stops the scenario. [VERIFIED] in game
+ * (checklist #22).
  */
 export class NodeGameEnd extends ScriptNode {
   showCredits = false

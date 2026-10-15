@@ -58,3 +58,7 @@ A confirmed row goes into the discovery log as `[VERIFIED]`.
 | 46 | Frost dragon seat | In a frost dragon arena, the dragon sits flush under the north wall, 16 px higher than before, as in the hand-edited `04_arena_boss3.lvl`, with no gap between its shoulders and the wall. | VERIFIED |
 | 47 | Bonus Gauntlet torches | The Bonus Gauntlet preset has wall torches off, and the bonus floors are still bright enough to play. | VERIFIED |
 | 48 | One dragon per lineup | A boss lineup naming both the dragon and the frost dragon shows an error and won't generate. | VERIFIED |
+| 49 | Survival arenas | In a Colosseum survival round, the clock starts on arrival (`LevelLoaded`), the timed rows spawn, and the alcove opens when time runs out. | VERIFIED |
+| 50 | Floor boss first wave | On a boss floor, the first wave (tier 0) spawns on arrival; there's no entrance trigger to walk through. | VERIFIED |
+| 51 | Monster projectiles in traps | Wall spewers set to monster and boss projectiles (not only the ten stock trap ones) fire them. Checked with 18+ arrow spewers. | VERIFIED |
+| 52 | Mystery-plate diamonds | A loot plate's small, small red and regular diamonds spawn and can be picked up. | VERIFIED |
