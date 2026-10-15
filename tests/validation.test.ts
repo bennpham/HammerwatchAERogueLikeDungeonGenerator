@@ -985,6 +985,18 @@ describe('boss lineup validation (issue #64 follow-up)', () => {
     expect(result.errors).toEqual([])
   })
 
+  it('rejects both dragons in one lineup: the arena has one top-wall slot', () => {
+    const slot = (lineup: Record<string, number>) =>
+      withBoss({ arena: { ...arena, bossSelection: 'lineup', bossLineup: lineup } }).errors.filter((e) =>
+        e.message.includes('top-wall slot')
+      )
+    expect(slot({ boss_dragon: 1, boss_dragon_hwr: 1 }).map((e) => e.field)).toEqual(['boss.fights.0.arena.bossLineup'])
+    expect(slot({ boss_dragon: 1 })).toEqual([])
+    expect(slot({ boss_dragon_hwr: 1, boss_queen: 1 })).toEqual([])
+    // a 0 count names no boss
+    expect(slot({ boss_dragon: 1, boss_dragon_hwr: 0 })).toEqual([])
+  })
+
   it('rejects an unknown boss id in the lineup', () => {
     const result = withBoss({
       arena: { ...arena, bossSelection: 'lineup', bossLineup: { not_a_boss: 1 } as never }

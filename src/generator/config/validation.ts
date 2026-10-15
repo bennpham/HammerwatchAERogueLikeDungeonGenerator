@@ -741,6 +741,17 @@ function validateBossLineup(
       errors.push({ field, message: `${subject}: "${id}" is unique — at most 1 in a lineup, not ${count}.` })
     }
   }
+  // the arena has one top-wall slot: two dragons would spawn on top of each
+  // other (a random pick already never rolls both; see pickBosses)
+  const topWall = Object.entries(lineup).filter(
+    ([id, n]) => (n ?? 0) >= 1 && BOSS_DEFS[id as keyof typeof BOSS_DEFS]?.placement === 'topWall'
+  )
+  if (topWall.length > 1) {
+    errors.push({
+      field,
+      message: `${subject}: the dragon and the frost dragon both sit on the arena's one top-wall slot. Pick at most one of them.`
+    })
+  }
 }
 
 /**

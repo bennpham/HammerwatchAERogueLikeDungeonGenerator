@@ -609,3 +609,5 @@ crypt tiles.
 - `[EMITTED]` The frost dragon (`boss_dragon_hwr`) gets `artNudgeY` −16 px, from the user's
   hand edit of `04_arena_boss3.lvl` (y 32 against the generator's 48: north wall line at
   y −16, `topWallBossY` row 3). Art only, like the red dragon's −24 px. In game: checklist #46.
+- `[EMITTED]` Validation: a boss lineup naming both dragons is an error (the arena has one
+  top-wall slot, so they would spawn on top of each other). Random picks never roll both.
