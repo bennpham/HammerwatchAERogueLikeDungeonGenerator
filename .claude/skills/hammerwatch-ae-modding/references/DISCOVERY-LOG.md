@@ -611,3 +611,5 @@ crypt tiles.
   y −16, `topWallBossY` row 3). Art only, like the red dragon's −24 px. In game: checklist #46.
 - `[EMITTED]` Validation: a boss lineup naming both dragons is an error (the arena has one
   top-wall slot, so they would spawn on top of each other). Random picks never roll both.
+- `[VERIFIED]` (user) The frost dragon's 16 px seat (#46), Bonus Gauntlet without wall
+  torches (#47), and the both-dragons lineup error (#48).
