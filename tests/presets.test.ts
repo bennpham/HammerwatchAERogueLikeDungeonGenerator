@@ -595,6 +595,12 @@ describe('campaign presets', () => {
   })
 
   // The dungeon master's own all-arena parameters.txt, shipped as a preset.
+  it('turns wall torches off for Bonus Gauntlet only; the bonus lighting is bright enough', () => {
+    for (const preset of CAMPAIGN_PRESETS) {
+      expect(preset.build().torches, preset.id).toBe(preset.id === 'bonus' ? 'none' : 'normal')
+    }
+  })
+
   describe('Colosseum', () => {
     const params = campaignPresetById('colosseum')!.build()
     const fights = bossFights(params.boss)

@@ -622,6 +622,8 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
       floorMusic: ['bonus', 'bonus', 'bonus', 'bonus', 'bonus', 'bonus'],
       // bonus5 twice: the escape floor after the boss stays on the last tileset
       themes: ['bonus1', 'bonus2', 'bonus3', 'bonus4', 'bonus5', 'bonus5'],
+      // the bonus lighting is bright enough without wall torches
+      torches: 'none',
       levelOrder: shippedOrder(6),
       ...bonusMystery(),
       boss: withBoss(
