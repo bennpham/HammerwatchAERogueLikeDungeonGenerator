@@ -566,3 +566,12 @@ crypt tiles.
 - `[VERIFIED]` (user, #44) Combo owned from the start works with the patched `Player.as` and
   `GiveCombo.as`, so a scenario copy of a core player script is read.
 - `[VERIFIED]` (user, #17) Buff fields apply to the targets they name, players and monsters.
+
+### Priest cripple aura stops mana regen (2026-10-14)
+
+- `[VERIFIED]` (stock files) `priest_cripple_aura` is a `ToggleableSkill` with a
+  `ConvertStat ManaRegen→ManaRegen mul 0` modifier, active only while the aura is on
+  (`ToggleableSkill.GetModifiers`): the priest regenerates no mana while it runs. The top
+  upgrade (`mana-drain` 0) removes the aura's drain, not the regen block. Fully upgraded
+  owns the aura from the start, which is how a "no mana regen" priest showed up (user
+  report). Stock AE, not a generator bug. `docs/discovery/priest-mana-regen.md`.

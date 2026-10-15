@@ -1,33 +1,28 @@
-# Priest gets no mana regen (open, needs a retest)
+# Priest gets no mana regen (explained: cripple aura, stock AE)
 
-**Report (2026-10-14):** with one of the player presets, the priest regenerated no mana at
-all; the only way to get mana back was to pick up mana. Which preset, and which other
-settings (Fully upgraded, Original Hammerwatch toggles), isn't known yet. This also blocks
-checklist #38 (priest beam mana), which can't be judged while regen is 0.
+**Report (2026-10-14):** with the Original Hammerwatch boxes ticked and **Fully upgraded**,
+the priest regenerated no mana at all; the only way to get mana back was to pick up mana.
 
-## What's ruled out
+## Cause `[VERIFIED]` (stock files)
 
-- **No preset writes the priest's regen down.** None of the presets touches
-  `class.priest.base-mana-regen` (stock 1.75/s) or `priest_misc_mana`'s
-  `player-mana-regen-set` (2 → 4/s), except the HW2 presets, which raise them
-  (HW2 level 10 is 3.49/s, level 50 is 11.15/s). Checked by building every preset in
-  `PLAYER_PRESETS`.
-- **Mana shield doesn't stop regen.** `Skills::ManaShield` (`ManaShield.as`) only spends
-  mana when the priest takes damage (`dmg-per-mana`). The Dungeon Rebalanced and Original
-  Rebalanced presets raise `dmg-per-mana`, which makes each hit cost *less* mana.
+`players/priest/skills/priest_cripple_aura.sval` is a `Skills::ToggleableSkill` whose
+modifiers include `Modifiers::ConvertStat` from `ManaRegen` to `ManaRegen` with `mul` 0:
+**while the aura is on, the priest's mana regen is 0.** `ToggleableSkill.GetModifiers`
+returns its modifiers only while it is active, so regen comes back when the aura is
+switched off. The aura also drains 1 mana every 500 ms while on; the top upgrade
+(`priest_cripple_aura_drain`, `mana-drain` 0) removes the drain but not the regen block.
 
-## Still possible
+A priest normally meets this only after buying the aura (3500 gold). **Fully upgraded**
+owns it from the start, so it is on the bar from the first floor. None of the Original
+Hammerwatch boxes touches mana regen (`players/original.ts`).
 
-- A channelled skill (the beam) holding regen off while it runs, or the
-  **Original beam mana cost** toggle changing more than the cost.
-- **Fully upgraded** owning a priest skill whose top level costs mana over time, such as a
-  drain or aura, so regen looks like 0.
-- Another class's file being read for the priest, e.g. a forked shared file.
+## Also ruled out
 
-## To retest
+- No player preset lowers the priest's regen (stock 1.75/s; the HW2 presets raise it).
+- Mana shield only spends mana when the priest is hit (`ManaShield.as`).
 
-1. Note the player preset, whether **Fully upgraded** is on, and which **Original
-   Hammerwatch feel** boxes are ticked.
-2. Start as the priest, use no skills, and watch the mana bar for 10 seconds. Does it rise?
-3. If it rises, hold the beam and release it. Does regen come back after you release?
-4. Send the `parameters.txt` / `playersettings.txt` from that run, if you can.
+## To confirm
+
+As the priest with Fully upgraded: with cripple aura off, mana rises; switch the aura on
+and regen stops; switch it off and regen returns. Then checklist #38 (beam mana cost) can
+be judged with the aura off.
