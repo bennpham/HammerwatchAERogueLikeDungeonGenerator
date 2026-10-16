@@ -21,7 +21,9 @@ import {
   floorLockButtons,
   floorLockDisguised,
   mysteryStarterPool,
-  MOBILE_BOSS_IDS
+  MOBILE_BOSS_IDS,
+  BOSS_CAMPAIGNS,
+  getTheme
 } from '../src/generator'
 import type { BossWave, DungeonParameters } from '../src/generator'
 import {
@@ -75,7 +77,7 @@ describe('campaign presets', () => {
   it('has unique ids, the castle preset first, and every preset in a known group', () => {
     const ids = CAMPAIGN_PRESETS.map((p) => p.id)
     expect(new Set(ids).size).toBe(ids.length)
-    expect(ids.slice(0, 3)).toEqual(['castle', 'desert', 'bonus'])
+    expect(ids.slice(0, 4)).toEqual(['castle', 'desert', 'shaftlocke', 'bonus'])
     expect(ids[0]).toBe(DEFAULT_PRESET_ID)
 
     const groupIds = PRESET_GROUPS.map((g) => g.id)
@@ -591,6 +593,38 @@ describe('campaign presets', () => {
       const finalArena = levels.get('boss1')!
       expect(endsGame(finalArena)).toBe(false)
       expect(exitsTo(finalArena)).toContain('floor12')
+    })
+  })
+
+  describe('Shaftlocke Tower', () => {
+    const params = campaignPresetById('shaftlocke')!.build()
+    const arena = params.boss.fights[0].arena
+
+    it('climbs Shaftlocke tilesets only, to the tower music', () => {
+      for (const id of params.themes) expect(getTheme(id)?.group, id).toBe('Shaftlocke Tower')
+      expect(params.floorMusic).toEqual(Array.from({ length: params.levels }, () => 'shaftlocke_20'))
+      for (const lobby of params.lobbies) expect(lobby.music).toBe('shaftlocke_20')
+    })
+
+    it("rolls any Shaftlocke boss in the arena, to the dragon's music", () => {
+      expect(arena.bossPool).toEqual(BOSS_CAMPAIGNS.find((c) => c.id === 'shaftlocke')!.bosses)
+      expect(arena.music).toBe('shaftlocke_21')
+    })
+
+    it("keeps Castle's shape: gold beetles in the mines on floor 5, mini-bosses from there on", () => {
+      expect(params.themes[4]).toBe('mine_granite')
+      expect(params.levelMonsters[4]).toContain('tick_gold')
+      for (const pool of params.levelMonsters.slice(0, 4)) {
+        for (const key of pool) expect(key.startsWith('mb_'), key).toBe(false)
+      }
+    })
+
+    it('generates its monsters from the Shaftlocke roster on the act floors', () => {
+      const result = generateDungeon(params, 4242)
+      expect(result.ok, result.ok ? '' : result.errors.join(' ')).toBe(true)
+      if (!result.ok) return
+      expect(lvlText(result, 'floor1')).toContain('actors/undead/skeletons/shaftlocke/')
+      expect(lvlText(result, 'floor4')).toContain('actors/beasts/ticks/tick_gold')
     })
   })
 
