@@ -647,3 +647,35 @@ checked against the roster.
 - Not roster material: NPCs, boss parts and effects, the eye boss's `add_eye_*_boss`
   (they suicide without the boss), the golem arena's map-aggro bats, the armory ghost-key
   statues (`ghosts/statue_*`), and razed spawners.
+
+### Shaftlocke campaign census and the Shaftlocke Tower preset (2026-10-15)
+
+Read from `scenarios/shaftlocke_tower/levels/hwr/*.lvl`. Units are grouped by path in a
+level (`<array name="actors/...unit">` then `<vec2>`/`<int>` pairs per instance, sometimes
+all on one line), so instance counts are the pairs, not the path's occurrences. Scripted
+spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all scripted).
+
+- `[VERIFIED]` (level files) Act order from the `LevelExit` targets: Prison 1–3 → Warden →
+  Armory 1–3 (crypt tilesets) → Wraith → Archives 1–3 → Eye → Chambers 1–2 → Vampire →
+  Battlements 1–2 → bridge → frost Dragon. The Mines branch off Prison 1 and end at the Golem.
+- `[VERIFIED]` (level files) No gold beetles anywhere; the mines' treasure is ore deposits.
+  The mines carry almost no traps (2–8 spikes and arrow shooters per level, against 250+
+  fire traps in Chambers 1).
+- `[VERIFIED]` (level files) Every music cue is `PlayMusic` mode 20, the dragon's level
+  adds 21. The battlements also write `Music` = `event:/music/battlements`, a string in
+  `PlayMusic`'s int field (`scripts/WorldScript/Sound/PlayMusic.as`), so it is dead data.
+- `[VERIFIED]` (unit files, resolved with `scripts/lib/aeunit.mjs`; melee damage is the
+  `DMG` argument of `%block SkillMelee CD CP DMG`) Stat twins: prison and armory warriors =
+  castle warriors (10/40/120 hp, 15/20/25), their archers = castle archers, footmen = soldiers
+  (20/40/210 hp, 15/25/40), Shaftlocke maggots = castle maggots. The sentry is the ranger
+  (40 hp) firing every 450 ms instead of 750. The Shaftlocke lich ladder starts at
+  `spawner_lich` and its sorcerer has 250 hp (castle 75). Shaftlocke-only: lancer 45 hp
+  (40/30), defender 210 hp (35/25), guardian 150 hp (30 + charge-jump), battlemage 275 hp
+  (40-damage seeking bolts), trapper 70 hp (root bolas), crawler 15 hp (explodes for 40).
+- `[EMITTED]` The **Shaftlocke Tower** classic preset: Castle's shape on prison2, crypt,
+  mine_granite (the gold-beetle floor), archives2, chambers2 and a battlement escape floor;
+  music 20 everywhere but the arena (21); a random Shaftlocke boss in a chambers2 arena.
+  Caps lowered from the stats above: footman 100, sentry 20, lancer 30, defender 12,
+  Shaftlocke lich 20. In game: checklist #53–#55.
+- A bare `spider` in `parameters.txt` is read as the HW1 id (the poison spider, `spider#0`),
+  so a preset that means the white one writes `spider#1`.
