@@ -144,15 +144,21 @@ export const MONSTER_TYPES: MonsterTypeDef[] = [
   t('flower_bloodrose', 'Towers', 4, 1.0, ['actors/aberrations/flowers/flower_bloodrose.unit'], ['castle']),
 
   // --- Shaftlocke Tower --------------------------------------------------------
+  // Caps follow the castle twin's where the stats match (warriors, archers,
+  // maggots; the footman is the soldier and takes Castle's tuned 100). Lower
+  // where a unit hits harder than its twin: the sentry is the ranger firing
+  // every 450ms instead of 750, the lancer hits twice as hard as a warrior,
+  // the defender is a 210 hp elite, and the lich ladder's sorcerer has 250 hp
+  // to the castle's 75 (Castle tunes its liches to 20).
   t('prison_warrior', 'Shaftlocke', 100, 0.3, [`${SP}/shaftlocke/spawner_skeleton_prison_warrior.unit`, `${SK}/shaftlocke/skeleton_prison_warrior_weak.unit`, `${SK}/shaftlocke/skeleton_prison_warrior.unit`, `${SK}/shaftlocke/skeleton_prison_warrior_elite.unit`], ['shaftlocke']),
   t('prison_archer', 'Shaftlocke', 40, 0.2, [`${SP}/shaftlocke/spawner_skeleton_prison_archer.unit`, `${SK}/shaftlocke/skeleton_prison_archer.unit`], ['shaftlocke']),
   t('armory_warrior', 'Shaftlocke', 100, 0.3, [`${SP}/shaftlocke/spawner_skeleton_armory_warrior.unit`, `${SK}/shaftlocke/skeleton_armory_warrior_weak.unit`, `${SK}/shaftlocke/skeleton_armory_warrior.unit`, `${SK}/shaftlocke/skeleton_armory_warrior_elite.unit`], ['shaftlocke']),
   t('armory_archer', 'Shaftlocke', 40, 0.2, [`${SP}/shaftlocke/spawner_skeleton_armory_archer.unit`, `${SK}/shaftlocke/skeleton_armory_archer.unit`], ['shaftlocke']),
-  t('skeleton_footman', 'Shaftlocke', 80, 0.3, [`${SP}/shaftlocke/spawner_skeleton_footman.unit`, `${SK}/shaftlocke/skeleton_footman_weak.unit`, `${SK}/shaftlocke/skeleton_footman.unit`, `${SK}/shaftlocke/skeleton_footman_elite.unit`], ['shaftlocke']),
-  t('skeleton_sentry', 'Shaftlocke', 30, 0.2, [`${SP}/shaftlocke/spawner_skeleton_sentry.unit`, `${SK}/shaftlocke/skeleton_sentry.unit`], ['shaftlocke']),
-  t('skeleton_lancer', 'Shaftlocke', 40, 1.0, [`${SK}/shaftlocke/skeleton_lancer.unit`], ['shaftlocke']),
-  t('skeleton_defender', 'Shaftlocke', 15, 1.0, [`${SK}/shaftlocke/skeleton_defender.unit`], ['shaftlocke']),
-  t('shaftlocke_lich', 'Shaftlocke', 30, 0.2, [`${SP}/shaftlocke/spawner_lich.unit`, `${SK}/shaftlocke/skeleton_lich.unit`, `${SK}/shaftlocke/skeleton_lich_elite.unit`, `${SK}/shaftlocke/skeleton_sorcerer.unit`, `${SK}/shaftlocke/skeleton_necromancer.unit`], ['shaftlocke']),
+  t('skeleton_footman', 'Shaftlocke', 100, 0.3, [`${SP}/shaftlocke/spawner_skeleton_footman.unit`, `${SK}/shaftlocke/skeleton_footman_weak.unit`, `${SK}/shaftlocke/skeleton_footman.unit`, `${SK}/shaftlocke/skeleton_footman_elite.unit`], ['shaftlocke']),
+  t('skeleton_sentry', 'Shaftlocke', 20, 0.2, [`${SP}/shaftlocke/spawner_skeleton_sentry.unit`, `${SK}/shaftlocke/skeleton_sentry.unit`], ['shaftlocke']),
+  t('skeleton_lancer', 'Shaftlocke', 30, 1.0, [`${SK}/shaftlocke/skeleton_lancer.unit`], ['shaftlocke']),
+  t('skeleton_defender', 'Shaftlocke', 12, 1.0, [`${SK}/shaftlocke/skeleton_defender.unit`], ['shaftlocke']),
+  t('shaftlocke_lich', 'Shaftlocke', 20, 0.2, [`${SP}/shaftlocke/spawner_lich.unit`, `${SK}/shaftlocke/skeleton_lich.unit`, `${SK}/shaftlocke/skeleton_lich_elite.unit`, `${SK}/shaftlocke/skeleton_sorcerer.unit`, `${SK}/shaftlocke/skeleton_necromancer.unit`], ['shaftlocke']),
   t('battlemage', 'Shaftlocke', 6, 1.0, [`${SK}/shaftlocke/battlemage.unit`], ['shaftlocke']),
   t('trapper', 'Shaftlocke', 10, 1.0, [`${SK}/shaftlocke/trapper.unit`], ['shaftlocke']),
   t('crawler', 'Shaftlocke', 40, 1.0, [`${SK}/shaftlocke/crawler.unit`], ['shaftlocke']),
