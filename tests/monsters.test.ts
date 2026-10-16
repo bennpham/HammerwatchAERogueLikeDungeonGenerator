@@ -149,6 +149,7 @@ describe('campaign categories', () => {
     expect(categoriesOf('mb_mummy')).toEqual(['Temple of the Sun'])
     expect(categoriesOf('prison_warrior')).toEqual(['Shaftlocke Tower'])
     expect(categoriesOf('vampire_bat')).toEqual(['Shaftlocke Tower'])
+    expect(categoriesOf('mb_shaftlocke_wizard')).toEqual(['Shaftlocke Tower'])
     // untagged by design: no stock campaign level places them
     expect(categoriesOf('tower_battlement_empty')).toEqual(['Other'])
   })
@@ -160,6 +161,27 @@ describe('campaign categories', () => {
     expect(parseParametersTxt(text).unknownKeys).toHaveLength(0)
     expect(parseParametersTxt(text).params.levelMonsters).toEqual(params.levelMonsters)
   })
+})
+
+describe('Shaftlocke mini-bosses', () => {
+  // Shaftlocke's own copies, separate from the castle mini-bosses they resemble
+  // (the wizard is a different fight: 1750 hp against the castle's 1200).
+  const COPIES: Record<string, [string, string]> = {
+    mb_shaftlocke_wizard: ['actors/undead/skeletons/shaftlocke/skeleton_wizard.unit', 'mb_wizard'],
+    mb_shaftlocke_guard: ['actors/undead/skeletons/shaftlocke/skeleton_guard.unit', 'mb_skeleton_guard'],
+    mb_shaftlocke_maggot: ['actors/beasts/maggots/shaftlocke/maggot_mb.unit', 'mb_maggot']
+  }
+  for (const [id, [path, castle]] of Object.entries(COPIES)) {
+    it(`places ${id} on a floor as its own Shaftlocke mini-boss`, () => {
+      const type = monsterTypeById(id)
+      expect(type.id).toBe(id)
+      expect(type.group).toBe('Mini-bosses')
+      expect(type.tiers).toEqual([path])
+      expect(monsterCategories(type)).toEqual(['Shaftlocke Tower'])
+      expect(monsterTypeById(castle).tiers).not.toContain(path)
+      expect(lvlText(generateWithOnly(id, 4242, 4), 'floor0')).toContain(path)
+    })
+  }
 })
 
 describe('single-tier monsters', () => {

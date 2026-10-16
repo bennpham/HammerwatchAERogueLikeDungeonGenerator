@@ -98,7 +98,8 @@ export const PROJECTILE_DEFS: readonly ProjectileDef[] = [
   p('enemy_mummy_ranged_2', 'actors/undead/mummies/mummy_wizard_projectile.unit', 'Mummy wizard bolt', MONSTERS, 15, 2, 'RayProjectile', '15 damage and burning.', { buff: 'burning' }),
   p('enemy_mummy_1_mb', 'actors/undead/mummies/mummy_royal_projectile.unit', 'Royal mummy flies', MONSTERS, 5, 2, 'RayProjectile', '5 damage and a swarm of flies.', { buff: 'trap_flies' }),
   p('enemy_maggot_1_mb', 'actors/beasts/maggots/maggot_1_mb_projectile.unit', 'Maggot spit', MONSTERS, 20, 3.75, 'Projectile', '20 damage and poison.', { buff: 'maggot_poison' }),
-  p('battlemage_fireball', 'actors/undead/skeletons/shaftlocke/skeleton_wizard_fireball.unit', 'Battlemage fireball', MONSTERS, 60, 2.85, 'Projectile', '60 damage. Shaftlocke\'s battlemage.'),
+  // the id is a misnomer kept for saved files: only the Shaftlocke wizard fires it
+  p('battlemage_fireball','actors/undead/skeletons/shaftlocke/skeleton_wizard_fireball.unit', 'Shaftlocke wizard fireball', MONSTERS, 60, 2.85, 'Projectile', '60 damage. Shaftlocke\'s wizard mini-boss.'),
   p('lich_frost_shard', 'actors/undead/skeletons/shaftlocke/lich_frost_shard.unit', 'Frost shard', MONSTERS, 30, 4.5, 'RayProjectile', '30 damage and freezing.', { buff: 'freezing' }),
 
   // --- Towers ------------------------------------------------------------------

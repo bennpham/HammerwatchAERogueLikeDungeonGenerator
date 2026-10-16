@@ -229,7 +229,16 @@ export const MONSTER_TYPES: MonsterTypeDef[] = [
 
   // --- Bonus levels ------------------------------------------------------------
   t('bonus_ghost', 'Bonus', 300, 1.0, [`${SP}/hammerwatch/spawner_bonus_ghost.unit`, 'actors/special/bonus/bonus_ghost.unit']),
-  t('bonus_demon', 'Bonus', 60, 1.0, [`${SP}/hammerwatch/spawner_bonus_demon.unit`, 'actors/special/bonus/bonus_demon.unit'])
+  t('bonus_demon', 'Bonus', 60, 1.0, [`${SP}/hammerwatch/spawner_bonus_demon.unit`, 'actors/special/bonus/bonus_demon.unit']),
+
+  // --- Mini-bosses: Shaftlocke's own copies (appended) -------------------------
+  // Shaftlocke's wizard is its own fight, not the castle one: 1750 hp, 25%
+  // magic evade, fireball bursts, glyph traps and a blink.
+  t('mb_shaftlocke_wizard', 'Mini-bosses', 2, 1.0, [`${SK}/shaftlocke/skeleton_wizard.unit`], ['shaftlocke']),
+  // the castle guard in a blue coat — identical otherwise
+  t('mb_shaftlocke_guard', 'Mini-bosses', 12, 1.0, [`${SK}/shaftlocke/skeleton_guard.unit`], ['shaftlocke']),
+  // the castle maggot mini-boss, spawning Shaftlocke grubs
+  t('mb_shaftlocke_maggot', 'Mini-bosses', 4, 1.0, ['actors/beasts/maggots/shaftlocke/maggot_mb.unit'], ['shaftlocke'])
 ]
 
 /**
@@ -507,7 +516,10 @@ export const MONSTER_NOTES: Record<string, string> = {
   krilith_frost_guard: "Krilith's 400 hp frost guard",
   vampire_thrall: "the Vampire's 400 hp thralls",
   eye_add: "the Eye's coloured adds",
-  mb_doomspawner: '2500 hp spawner that pours out undead'
+  mb_doomspawner: '2500 hp spawner that pours out undead',
+  mb_shaftlocke_wizard: "Shaftlocke's 1750 hp wizard — fireball bursts, glyph traps, blinks",
+  mb_shaftlocke_guard: 'the castle skeleton guard in a blue coat',
+  mb_shaftlocke_maggot: 'the maggot mini-boss, spawning Shaftlocke grubs'
 }
 
 export function monsterNote(key: string): string | undefined {

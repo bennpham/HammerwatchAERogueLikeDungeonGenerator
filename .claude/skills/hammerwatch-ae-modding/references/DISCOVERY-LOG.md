@@ -628,3 +628,22 @@ crypt tiles.
 - `[VERIFIED]` (#25) Dead players are not respawned: they arrive as gravestones and a
   living player revives them (AE's revive system).
 - Still `[UNVERIFIED]`: the names given to music modes 20/21 (`music/tracks.ts`).
+
+### Shaftlocke roster sweep against the stock levels (2026-10-15)
+
+Every `actors/...unit` placed in `scenarios/shaftlocke_tower/levels/hwr/*.lvl` (219 paths)
+checked against the roster.
+
+- `[VERIFIED]` (unit files) `shaftlocke/skeleton_wizard.unit` is not the castle wizard:
+  `Miniboss` behaviour, 1750 hp (castle 1200), `evade-magical` 0.25, a `BossScatterBurstSkill`
+  of `skeleton_wizard_fireball`, glyph traps and a `BlinkSkill`. Only it fires that fireball;
+  the battlemage throws `battlemage_lurker(_seeking)`. Added as `mb_shaftlocke_wizard`.
+- `[VERIFIED]` (unit files) `shaftlocke/skeleton_guard.unit` differs from the castle guard only
+  in its coat colours (blue); `beasts/maggots/shaftlocke/maggot_mb.unit` spawns the Shaftlocke
+  grubs and halves `mp-scale-fact`. Added as `mb_shaftlocke_guard` / `mb_shaftlocke_maggot`.
+- `[VERIFIED]` (unit files) Every `challenge/` unit keeps its original's hp and skills; they
+  differ only in `loot` emptied, aggro range ×100 (map-wide) and a higher `mp-scale-fact`.
+  Not separate enemies.
+- Not roster material: NPCs, boss parts and effects, the eye boss's `add_eye_*_boss`
+  (they suicide without the boss), the golem arena's map-aggro bats, the armory ghost-key
+  statues (`ghosts/statue_*`), and razed spawners.
