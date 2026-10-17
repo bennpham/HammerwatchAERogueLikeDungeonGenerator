@@ -730,3 +730,22 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   `ID` for a named item (`Item::Get`, which ignores shop-blocking) or `Quality` for a random
   one, serialised like `prefabs/puzzles/bullsandcows.pfb`. A "random unique" is picked by the
   generator from `mysteryRand` and emitted by `ID`. In game: checklist #59.
+
+### Hidden lock buttons: the south wall's art covers a room's last two rows (2026-10-16)
+
+- `[VERIFIED]` (user, dungeon_336053618, Shaftlocke) Floor 7's lock button could not be found.
+  It stood at tile y 24.5 in a room whose floor ends on row 25. The south wall's pieces
+  (`chambers2/h.unit`, anchored at row 26) collide on their own row but draw 32 px up, over
+  rows 24–25. That floor is walkable (the party goes behind the wall) but nothing on it can
+  be seen. Reproduced byte-identically from the preset and seed.
+- Cause: lock buttons, keys and lock powerups drew y with the HW1 original's
+  `fRand(y + 2, y + height)`. In HW1 wall art hangs *down* over the north rows (hence the
+  `+ 2`), so the south end was safe; in AE it reaches *up* over the south rows.
+  `[EMITTED]` `room.ts visibleDropY` keeps a plate's whole tile above `y + height - 1`, with
+  the same single draw. Mystery plates skip tiles below `y + height - 3`. Test:
+  `tests/visiblePlates.test.ts` (failed on Castle and Shaftlocke seeds before the fix).
+  In game: checklist #60.
+- `[UNVERIFIED]` The earlier "Battlements snow tiles hide the lock buttons" (Shaftlocke
+  playtest, same day) was probably this bug, not the snow: `outlook_snow_16` draws at layer
+  −25 and `boss_door_button`'s sprites at −9/−1, so the snow cannot cover a button. The
+  Battlements theme may be fine for an escape floor after all.
