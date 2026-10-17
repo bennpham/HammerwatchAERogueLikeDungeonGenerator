@@ -699,3 +699,6 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   pool `tick_gold` 3 times in 9: over 60 seeds floor 5 averages 23 golden ticks (Castle 11)
   and 2 runs in 60 have none (Castle 8). At one entry in 6 both presets averaged 11–16 and
   about one run in eight had none, which is what playtested as "fewer beetles".
+- `[VERIFIED]` (user, 2026-10-16) After the second pass the Shaftlocke preset plays fair through
+  to the arena. The escape floor (chambers, slower fireballs, checklist #56) is still
+  unplayed: the run stopped at the Warden, which plays hard.
