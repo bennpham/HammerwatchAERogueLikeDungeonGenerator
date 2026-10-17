@@ -36,7 +36,8 @@ import { NodeSpawnObject } from '../src/generator/objects/nodes'
 import { buildMysteryButtonRig } from '../src/generator/mystery/rig'
 import { MYSTERY_BUTTON_SPACING, mysteryButtonSlots } from '../src/generator/mystery/placement'
 import { sealHolds } from '../src/generator/map/sealCheck'
-import { MYSTERY_LOOT_DEFS, MYSTERY_LOOT_GROUPS, mysteryLootById } from '../src/generator/objects/mysteryLoot'
+import { EQUIPMENT_PICKUP_PATH, MYSTERY_LOOT_DEFS, MYSTERY_LOOT_GROUPS, mysteryLootById } from '../src/generator/objects/mysteryLoot'
+import { ITEM_QUALITY, itemsOfQuality } from '../src/generator/objects/equipment'
 import { isKnownMonsterKey } from '../src/generator/objects/monsterTypes'
 import { projectileById } from '../src/generator/objects/projectileTypes'
 import { resolveActorPath } from '../src/generator/objects/monsterTypes'
@@ -439,7 +440,8 @@ describe('mystery buttons — parameters.txt', () => {
 
 describe('mystery buttons — the loot registry', () => {
   it('names every coin and diamond by its asset, once each', () => {
-    const paths = MYSTERY_LOOT_DEFS.map((d) => d.path)
+    // every item entry is the same equipment pickup; every unit entry is its own asset
+    const paths = MYSTERY_LOOT_DEFS.filter((d) => d.equipment === undefined).map((d) => d.path)
     expect(new Set(paths).size).toBe(paths.length)
     const money = MYSTERY_LOOT_DEFS.filter((d) => d.id.startsWith('valuable_'))
     for (const d of money) expect(d.path).toMatch(/^items\/pickups\/money\/[a-z_]+\.unit$/)
@@ -502,5 +504,64 @@ describe('mystery buttons — the starter set', () => {
     params.levelMystery = [0, 1, 2].map(() => ({ count: 12, pool: everyButton }))
     expect(validateParameters(params).errors).toEqual([])
     for (const seed of [1, SEED]) generateOk(params, seed)
+  })
+})
+
+describe('mystery buttons — items', () => {
+  const button = (item: string, count = 1): MysteryButton => ({ name: item, text: 'Lucky find!', loot: [{ item, count }], monsters: [], traps: [] })
+  const equipmentSpawns = (params: DungeonParameters, seed = SEED) =>
+    [...levelsOf(generateOk(params, seed))].flatMap(([, l]) => scriptsOf(l, 'SpawnEquipment'))
+
+  it('lists every unique by id, a random unique, and a random rare and epic', () => {
+    const uniques = itemsOfQuality('unique')
+    for (const item of uniques) expect(mysteryLootById(`unique_${item.id}`)?.equipment).toEqual({ id: item.id })
+    expect(mysteryLootById('random_unique_item')?.equipment).toEqual({ anyOf: uniques.map((i) => i.id) })
+    expect(mysteryLootById('random_rare_item')?.equipment).toEqual({ quality: ITEM_QUALITY.rare })
+    expect(mysteryLootById('random_epic_item')?.equipment).toEqual({ quality: ITEM_QUALITY.epic })
+    for (const def of MYSTERY_LOOT_DEFS.filter((d) => d.equipment !== undefined)) expect(def.path).toBe(EQUIPMENT_PICKUP_PATH)
+  })
+
+  it('drops a named unique with SpawnEquipment ID', () => {
+    const spawns = equipmentSpawns(armed(0, 2, [0], [button('unique_queen_braces')]))
+    expect(spawns.length).toBeGreaterThan(0)
+    for (const s of spawns) {
+      expect(strParam(s, 'ID')).toBe('queen_braces')
+      expect(intParam(s, 'Quality')).toBeUndefined()
+      expect(s.triggerTimes).toBe(1)
+    }
+  }, 60_000)
+
+  it('drops a random epic by Quality, and a random unique as one of the uniques by ID', () => {
+    for (const s of equipmentSpawns(armed(0, 2, [0], [button('random_epic_item')]))) {
+      expect(intParam(s, 'Quality')).toBe(ITEM_QUALITY.epic)
+      expect(strParam(s, 'ID')).toBeUndefined()
+    }
+    const ids = new Set(itemsOfQuality('unique').map((i) => i.id))
+    const spawns = equipmentSpawns(armed(0, 6, [0], [button('random_unique_item', 2)]))
+    expect(spawns.length).toBeGreaterThan(0)
+    for (const s of spawns) expect(ids.has(strParam(s, 'ID') ?? '')).toBe(true)
+  }, 60_000)
+
+  it('draws a random unique from mysteryRand alone: the floor layout does not move', () => {
+    const base = armed(0, 2, [0], [button('unique_queen_braces')])
+    const lucky = armed(0, 2, [0], [button('random_unique_item')])
+    const units = (p: DungeonParameters) => placements(floor(generateOk(p, SEED), 0))
+    expect(units(lucky)).toEqual(units(base))
+  }, 60_000)
+
+  it('round-trips item loot through parameters.txt and validates it', () => {
+    const params = armed(0, 1, [0], [button('random_unique_item'), button('unique_yeti_scrotum', 2)])
+    params.levelMystery![0] = { count: 1, pool: [0, 1] }
+    expect(validateParameters(params).errors).toEqual([])
+    const parsed = parseParametersTxt(serializeParametersTxt(params))
+    expect(parsed.unknownKeys).toEqual([])
+    expect(parsed.params.mysteryButtons?.map((b) => b.loot)).toEqual([
+      [{ item: 'random_unique_item', count: 1 }],
+      [{ item: 'unique_yeti_scrotum', count: 2 }]
+    ])
+  })
+
+  it('puts the lucky plate in the starter set', () => {
+    expect(mysteryStarterPool().find((b) => b.name === 'Lucky find')?.loot).toEqual([{ item: 'random_unique_item', count: 1 }])
   })
 })

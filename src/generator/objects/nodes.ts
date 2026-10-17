@@ -575,6 +575,28 @@ export class NodeSpawnObject extends ScriptNode {
   }
 }
 
+/**
+ * `SpawnEquipment` — drops one equipment pickup where the script stands
+ * (scripts/WorldScript/SpawnEquipment.as). With `ID` set it is that item;
+ * otherwise a random item of `Quality` (equipment.ts ITEM_QUALITY), which skips shop-blocked items, so a
+ * specific unique must be named by id. Serialised like the stock
+ * prefabs/puzzles/bullsandcows.pfb. [EMITTED]
+ */
+export class NodeSpawnEquipment extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public item: { id: string } | { quality: number }
+  ) {
+    super(ctx, x, y, 'SpawnEquipment')
+  }
+
+  params(): Param[] {
+    return 'id' in this.item ? [P.str('ID', this.item.id)] : [P.int('Quality', this.item.quality)]
+  }
+}
+
 /** `DestroyUnits` (HW1 DestroyObject) — removes units (seal walls, props). */
 export class NodeDestroyObject extends ScriptNode {
   targets: HasId[] = []

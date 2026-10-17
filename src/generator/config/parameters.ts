@@ -560,6 +560,9 @@ export function mysteryStarterPool(): MysteryButton[] {
     loot('Defense upgrade II', 'A great upgrade', [['upgrade_defense_2', 1]]),
     loot('Health upgrade II', 'A great upgrade', [['upgrade_health_2', 1]]),
     loot('Mana upgrade II', 'A great upgrade', [['upgrade_mana_2', 1]]),
+    loot('Rare item', 'A rare item', [['random_rare_item', 1]]),
+    loot('Epic item', 'An epic item!', [['random_epic_item', 1]]),
+    loot('Lucky find', 'Lucky find!', [['random_unique_item', 1]]),
 
     squad('Tick nest', 'The floor is crawling', [['mb_tick', 1], ['tick#0', 1], ['tick', 24], ['tick#2', 12], ['tick#3', 3]]),
     squad('Gold beetles', 'Gold beetles!', [['tick_gold', 4], ['tick_gold#0', 6]]),

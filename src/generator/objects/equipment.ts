@@ -19,6 +19,12 @@ import type { PlayerTweaks } from '../players/fields'
 export type { EquipmentItem, EquipmentQuality, EquipmentSlot }
 export { EQUIPMENT_ITEMS, EQUIPMENT_TIERS, EQUIPMENT_TIER_IDS }
 
+/**
+ * AE's `Item::Quality` flags (scripts/Items/Item.as), as SpawnEquipment's
+ * `Quality` enum stores them. [VERIFIED] from the script source.
+ */
+export const ITEM_QUALITY: Readonly<Record<EquipmentQuality, number>> = { common: 1, uncommon: 2, rare: 4, epic: 8, unique: 64 }
+
 /** The qualities an item stall can sell, cheapest first. */
 export const SOLD_QUALITIES: readonly EquipmentQuality[] = ['common', 'uncommon', 'rare', 'epic']
 
