@@ -258,10 +258,12 @@ describe('parameters.txt round-trip', () => {
   it('weights a pinned entry by repetition, like the original tool did', () => {
     // Weight is how many slots an entry takes, because a lair picks with
     // iRand(0, pool.length). Three copies of one key means three slots.
-    const one = levelXML(floorWith(['skeleton_warrior#1', 'bat'], 77, 40))
-    const three = levelXML(
-      floorWith(['skeleton_warrior#1', 'skeleton_warrior#1', 'skeleton_warrior#1', 'bat'], 77, 40)
-    )
-    expect(actorCount(three, SKELETON1[1])).toBeGreaterThan(actorCount(one, SKELETON1[1]))
+    // Summed over a few seeds: one floor's count also moves with whatever
+    // else that floor rolled (a shop vendor's tier draw, say).
+    const total = (pool: string[]) =>
+      [77, 78, 79, 80, 81].reduce((n, seed) => n + actorCount(levelXML(floorWith(pool, seed, 40)), SKELETON1[1]), 0)
+    const one = total(['skeleton_warrior#1', 'bat'])
+    const three = total(['skeleton_warrior#1', 'skeleton_warrior#1', 'skeleton_warrior#1', 'bat'])
+    expect(three).toBeGreaterThan(one)
   })
 })

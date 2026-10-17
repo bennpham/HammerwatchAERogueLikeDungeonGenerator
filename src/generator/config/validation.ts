@@ -88,6 +88,7 @@ import { floorTrapCapacity } from '../traps/floor'
 import { scaledMax } from '../boss/waves'
 import { validatePlayerTweaks as checkPlayerTweaks } from '../players/validate'
 import { BRIGHTNESS_LEVELS, TORCH_DENSITIES, isBrightness, isTorchDensity } from '../lighting'
+import { MAX_ITEM_VENDOR_ODDS, SHOP_KIND_IDS, isShopKindId } from '../objects/vendorRoll'
 
 export interface ValidationIssue {
   /** parameter field the issue belongs to, for inline display in the GUI */
@@ -290,6 +291,28 @@ export function validateParameters(p: DungeonParameters): ValidationResult {
       })
     }
   })
+
+  if (p.shopKinds !== undefined) {
+    const unknown = p.shopKinds.filter((k) => !isShopKindId(k))
+    if (unknown.length > 0) {
+      errors.push({ field: 'shopKinds', message: `Unknown shop vendor(s): ${unknown.join(', ')}. Use: ${SHOP_KIND_IDS.join(', ')}.` })
+    } else if (p.shopKinds.length === 0) {
+      errors.push({ field: 'shopKinds', message: 'Pick at least one vendor for the shop rooms.' })
+    }
+  }
+  if (p.itemVendorOdds !== undefined) {
+    const odds = p.itemVendorOdds
+    if (
+      odds.length !== 3 ||
+      !odds.every((n) => Number.isInteger(n) && n >= 0 && n <= MAX_ITEM_VENDOR_ODDS) ||
+      odds.reduce((a, b) => a + b, 0) <= 0
+    ) {
+      errors.push({
+        field: 'itemVendorOdds',
+        message: `Item vendor odds must be three whole numbers from 0 to ${MAX_ITEM_VENDOR_ODDS}, not all 0.`
+      })
+    }
+  }
 
   if (p.torches !== undefined && !isTorchDensity(p.torches)) {
     errors.push({ field: 'torches', message: `Torches must be one of: ${TORCH_DENSITIES.join(', ')}.` })

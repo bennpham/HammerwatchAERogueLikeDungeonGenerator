@@ -1597,6 +1597,39 @@ button.danger:hover:not(:disabled) {
   font-size: 12px;
 }
 
+.item-vendor-odds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item-vendor-band {
+  display: grid;
+  grid-template-columns: minmax(120px, 160px) 44px 1fr;
+  align-items: end;
+  gap: 10px;
+}
+
+.item-vendor-share {
+  color: var(--accent);
+  padding-bottom: 6px;
+}
+
+.item-vendor-tiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding-bottom: 6px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.item-vendor-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .equipment-items summary {
   cursor: pointer;
   color: var(--accent);

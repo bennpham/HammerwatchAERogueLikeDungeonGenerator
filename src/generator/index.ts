@@ -120,6 +120,14 @@ export {
   tierSummary
 } from './objects/equipment'
 export type { EquipmentItem, EquipmentQuality, EquipmentSlot, TierSummary } from './objects/equipment'
+export {
+  DEFAULT_ITEM_VENDOR_ODDS,
+  DEFAULT_SHOP_KIND_IDS,
+  MAX_ITEM_VENDOR_ODDS,
+  SHOP_KIND_IDS,
+  SHOP_KIND_LABELS
+} from './objects/vendorRoll'
+export type { ItemVendorOdds, ShopKindId } from './objects/vendorRoll'
 export { BUFF_DEFS, BUFF_GROUPS, BUFF_HELPFUL_IDS, buffById } from './objects/buffTypes'
 export type { BuffDef } from './objects/buffTypes'
 export { PICKUP_DEFS, PICKUP_GROUPS, MAX_PICKUP_COUNT, pickupById } from './objects/pickupTypes'

@@ -2,6 +2,8 @@ import { Doodad, EXIT_PAD_CENTRE, exitDoorway, exitIsPad } from './doodad'
 import type { DoodadTypeName } from './doodad'
 import { Item } from './item'
 import { equipmentTier } from './equipment'
+import { DEFAULT_SHOP_KIND_IDS } from './vendorRoll'
+import type { ShopKindId } from './vendorRoll'
 import { ScriptNode } from './scriptNode'
 import {
   ICON_EXIT,
@@ -37,7 +39,7 @@ export const GATHER_PARTY_TEXT = '.meta.info.gatherparty'
  * sells it to a warlock.
  */
 export interface ShopKind {
-  id: 'offense' | 'defense' | 'combo' | 'misc' | 'power' | 'item'
+  id: ShopKindId
   vendor: DoodadTypeName
   categories: string
   type: number
@@ -286,13 +288,13 @@ export class ObjectSet {
   }
 }
 
-/** The four skill vendors HW1's generator rolled between — the default when a campaign names none. */
-export const DEFAULT_SHOP_KIND_IDS: ReadonlyArray<ShopKind['id']> = ['combo', 'offense', 'defense', 'misc']
+export * from './vendorRoll'
 
 /**
  * The shop stands a floor's shop room may roll, in SHOP_KINDS order. Unknown
- * ids are ignored and an empty selection falls back to the default four, so a
- * hand-edited parameters file can never leave the roll with nothing to draw.
+ * ids are ignored and an empty selection falls back to the defaults, so a
+ * hand-edited parameters file can never leave the roll with nothing to draw
+ * (validation reports both).
  */
 export function enabledShopKinds(ids?: readonly string[]): ShopKind[] {
   const wanted = new Set(ids === undefined || ids.length === 0 ? DEFAULT_SHOP_KIND_IDS : ids)

@@ -72,6 +72,7 @@ import { pickupById } from '../objects/pickupTypes'
 import { mysteryLootById } from '../objects/mysteryLoot'
 import { projectileById } from '../objects/projectileTypes'
 import { isLobbyCategory } from '../lobby/shops'
+import { DEFAULT_ITEM_VENDOR_ODDS, DEFAULT_SHOP_KIND_IDS, isShopKindId } from '../objects/vendorRoll'
 import { DEFAULT_LOBBY_PRESET_ID, LOBBY_PRESETS } from '../lobby/presets'
 import { campaignOrder, isDefaultOrder, normalizeOrder, parseSlotLabel, slotLabeller } from '../campaign'
 import type { CampaignSlot } from '../campaign'
@@ -116,6 +117,8 @@ export const PARAMETER_ORDER = [
   'goldMultiplier',
   'foodMultiplier',
   'shopChance',
+  'shopKinds',
+  'itemVendorOdds',
   'vaultChance',
   'lockChance',
   'keyChance',
@@ -1386,6 +1389,23 @@ export function parseParametersTxt(content: string, base?: DungeonParameters): P
       params.themes = value.split(',').map((t) => t.trim())
       continue
     }
+    // `shopKinds=combo offense item` — the vendors a shop room rolls between
+    if (keyLower === 'shopkinds') {
+      const kinds: string[] = []
+      for (const token of value.split(/[\s,]+/).filter((t) => t !== '')) {
+        if (isShopKindId(token)) kinds.push(token)
+        else result.unknownKeys.push(`${key} vendor "${token}"`)
+      }
+      params.shopKinds = kinds
+      continue
+    }
+    // `itemVendorOdds=70 20 10` — common/uncommon, rare, epic
+    if (keyLower === 'itemvendorodds') {
+      const odds = value.split(/[\s,]+/).filter((t) => t !== '').map(Number)
+      if (odds.length === 3 && odds.every((n) => Number.isFinite(n))) params.itemVendorOdds = [odds[0], odds[1], odds[2]]
+      else result.unknownKeys.push(`${key}=${value}`)
+      continue
+    }
     if (keyLower === 'torches') {
       if (isTorchDensity(value)) params.torches = value
       else result.unknownKeys.push(`${key}=${value}`)
@@ -2060,6 +2080,10 @@ export function serializeParametersTxt(params: DungeonParameters, path?: string,
       lines.push(`foodMultiplier=${params.foodMultiplier.toFixed(6)}`)
     } else if (key === 'shopChance') {
       lines.push(`shopChance=${params.shopChance.toFixed(6)}`)
+    } else if (key === 'shopKinds') {
+      lines.push(`shopKinds=${(params.shopKinds ?? DEFAULT_SHOP_KIND_IDS).join(' ')}`)
+    } else if (key === 'itemVendorOdds') {
+      lines.push(`itemVendorOdds=${(params.itemVendorOdds ?? DEFAULT_ITEM_VENDOR_ODDS).join(' ')}`)
     } else if (key === 'vaultChance') {
       lines.push(`vaultChance=${params.vaultChance.toFixed(6)}`)
     } else if (key === 'lockChance') {

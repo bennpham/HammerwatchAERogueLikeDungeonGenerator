@@ -2,6 +2,8 @@ import { MONSTER_FAMILIES, MONSTER_TYPES } from '../objects/monsterTypes'
 import { THEME_DEFS } from './themes'
 import { BOSS_PREP_LOBBY_CATEGORIES, DEFAULT_LOBBY_CATEGORIES } from '../lobby/shops'
 import type { PlayerTweaks } from '../players/fields'
+import { DEFAULT_ITEM_VENDOR_ODDS, DEFAULT_SHOP_KIND_IDS } from '../objects/vendorRoll'
+import type { ItemVendorOdds } from '../objects/vendorRoll'
 import type { Brightness, TorchDensity } from '../lighting'
 import { noUpgrades } from '../lobby/payout'
 import { DEFAULT_LOBBY_PRESET_ID } from '../lobby/presets'
@@ -715,10 +717,17 @@ export interface DungeonParameters {
   shopChance: number
   /**
    * Which vendor stands a floor's shop room may roll — any of `combo`,
-   * `offense`, `defense`, `misc` (skill shops) and `power` (potions). Absent
-   * or empty means the four skill vendors HW1's generator rolled between.
+   * `offense`, `defense`, `misc` (skill shops), `power` (potions) and `item`
+   * (equipment). Absent means DEFAULT_SHOP_KIND_IDS (the four skill vendors
+   * and the item vendor); validation refuses an empty list.
    */
   shopKinds?: string[]
+  /**
+   * How a dungeon item vendor picks its equipment tier: relative weights for
+   * the common/uncommon band (tiers 1-3), rare (tier 4) and epic (tier 5).
+   * Absent means DEFAULT_ITEM_VENDOR_ODDS.
+   */
+  itemVendorOdds?: ItemVendorOdds
   /**
    * Guarantee the Warlock can buy the gargoyle. In AE the gargoyle is a
    * purchasable skill in the `def2` shop category (players/warlock/skills/
@@ -2080,6 +2089,8 @@ export function defaultParameters(): DungeonParameters {
     goldMultiplier: 1.1,
     foodMultiplier: 1.2,
     shopChance: 1.0,
+    shopKinds: [...DEFAULT_SHOP_KIND_IDS],
+    itemVendorOdds: [...DEFAULT_ITEM_VENDOR_ODDS],
     torches: 'normal',
     brightness: 'brighter',
     vaultChance: 0.3,
