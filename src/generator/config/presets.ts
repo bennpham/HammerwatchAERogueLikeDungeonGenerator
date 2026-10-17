@@ -8,6 +8,7 @@ import {
   shippedOrder,
   withGatewayLocks,
   escapeFloorTimer,
+  escapeFloorTraps,
   scatterWave,
   stockWavePickups,
   SHOOTER_ARROW_TRAPS
@@ -189,7 +190,9 @@ function desertWaves(): BossWave[] {
  * - the guardian (150 hp) stands in for the knight's 150 hp guard, the
  *   Eye's adds and the Vampire's thralls and bats for the castle bosses'
  *   bodyguards, the battlemage for the elite battlements and imps for the
- *   flower beds.
+ *   flower beds;
+ * - a pair of bannermen rides with each tier from 75% to 25%, the stock
+ *   chambers' mobile banners.
  *
  * The anchored tail is the beamo tower, kept off the scatter like castle's novas.
  */
@@ -224,7 +227,8 @@ function shaftlockeWaves(): BossWave[] {
         ['prison_warrior#0', 2],
         ['prison_archer#0', 2],
         ['slime#0', 6],
-        ['guardian', 4]
+        ['guardian', 4],
+        ['bannerman_bloodlust', 2]
       ],
       [],
       3000
@@ -240,6 +244,8 @@ function shaftlockeWaves(): BossWave[] {
         ['gargoyle#0', 3],
         ['mb_shaftlocke_guard', 4],
         ['mb_eye', 1],
+        ['bannerman_protection', 2],
+        ['bannerman_healing', 2],
         // bodyguards — the Eye's own adds
         ['eye_add', 4]
       ],
@@ -259,6 +265,7 @@ function shaftlockeWaves(): BossWave[] {
         ['eye#0', 5],
         ['skeleton_sentry#0', 4],
         ['skeleton_footman#0', 4],
+        ['bannerman_drain', 2],
         // bodyguards — the Vampire's thrall and bats
         ['vampire_thrall', 1],
         ['vampire_bat', 4]
@@ -666,12 +673,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
           { projectile: 'shooter_fireball_2', direction: 'left', spread: 0, spawnRateMs: 1000, count: 3 },
           { projectile: 'shooter_fireball_2', direction: 'right', spread: 0, spawnRateMs: 1000, count: 3 }
         ],
-        [
-          { projectile: 'shooter_fireball', direction: 'down', spread: 0, spawnRateMs: 1000, count: 8 },
-          { projectile: 'shooter_fireball', direction: 'up', spread: 0, spawnRateMs: 1000, count: 8 },
-          { projectile: 'shooter_fireball', direction: 'left', spread: 0, spawnRateMs: 1000, count: 8 },
-          { projectile: 'shooter_fireball', direction: 'right', spread: 0, spawnRateMs: 1000, count: 8 }
-        ]
+        escapeFloorTraps()
       ] satisfies FloorTrap[][],
       levelTimers: escapeTimers(7),
       // floors 5-6 have no musicN line in the 070 parameter set, so 6 (the
@@ -784,19 +786,20 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
     id: 'shaftlocke',
     label: 'Shaftlocke Tower',
     description:
-      '7 floors up Shaftlocke Tower — prison, crypt, the gold-beetle mines, archives and chambers — then a random Shaftlocke boss and an escape across the battlements, with two mystery buttons hidden on every floor.',
+      '7 floors up Shaftlocke Tower — prison, crypt, the gold-beetle mines, archives and chambers — then a random Shaftlocke boss and an escape back through the chambers, with two mystery buttons hidden on every floor.',
     group: 'classic',
     // Castle's shape on Shaftlocke's own tilesets, music and roster: the same
     // 8 levels, order, escape-floor timer and fireball rig (inherited from
     // defaultParameters()), two act floors each for the prison and the crypt
     // (the stock armory), the mines as Castle's floor-5 gold-beetle breather,
     // then the archives and chambers as the mini-boss rushes. The escape floor
-    // crosses the battlements, as the stock tower does after the chambers.
+    // runs back through the chambers, as Castle's does: the battlements' snow
+    // tiles hid the lock buttons (playtest, 2026-10-16).
     // Every stock Shaftlocke level plays music mode 20; the arena gets the
     // dragon's mode 21 whichever Shaftlocke boss it rolls.
     build: () => withGatewayLocks({
       ...defaultParameters(),
-      themes: ['prison2', 'prison2', 'crypt', 'crypt', 'mine_granite', 'archives2', 'chambers2', 'battlement'],
+      themes: ['prison2', 'prison2', 'crypt', 'crypt', 'mine_granite', 'archives2', 'chambers2', 'chambers2'],
       floorMusic: Array.from({ length: 8 }, () => 'shaftlocke_20'),
       ...shaftlockeMystery(),
       boss: withBoss(
@@ -809,22 +812,27 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
         { ...defaultLobby('BETA-dungeon-prep'), music: 'shaftlocke_20' },
         { ...defaultLobby('BETA-boss-prep'), music: 'shaftlocke_20' }
       ],
-      // Castle's slot shape (see defaultParameters().levelMonsters): vermin,
-      // the first skeletons, two harder act floors, the breather, two
-      // mini-boss rushes, then the escape floor's battlement maze. `#n` pins
+      // Castle's slot shape (see defaultParameters().levelMonsters): the
+      // prison's maggots and skeletons, then its cells, two harder act floors,
+      // the breather, two mini-boss rushes, then the escape floor's battlement
+      // maze. The prison floors carry the stock prison's skeletons from the
+      // start and an elite warrior on the second (the vermin-only opening
+      // playtested too easy), and the bannermen — buff carriers like the
+      // static banners, but mobile — march with the crypt, archives and
+      // chambers packs. `#n` pins
       // the stock actor where the roll would land elsewhere: the imp gargoyle
       // the archives use, and the fast weak footman as the escape's chaser.
       // `spider#1` is the white spider the stock mines use, spelled pinned
       // because a bare `spider` reads back from parameters.txt as the HW1
       // id (catalog/substitutions.ts), the poison one.
       levelMonsters: [
-        ['bat', 'shaftlocke_maggot', 'shaftlocke_maggot_spiky', 'slime', 'flower_eater'],
-        ['prison_warrior', 'prison_archer', 'trapper', 'maggot_cyst', 'tick_exploding'],
-        ['armory_warrior', 'armory_archer', 'skeleton_lancer', 'ghost', 'crawler'],
+        ['bat', 'shaftlocke_maggot', 'shaftlocke_maggot_spiky', 'slime', 'flower_eater', 'prison_warrior', 'prison_archer'],
+        ['prison_warrior', 'prison_warrior#3', 'prison_archer', 'trapper', 'maggot_cyst', 'tick_exploding', 'bannerman_bloodlust'],
+        ['armory_warrior', 'armory_archer', 'skeleton_lancer', 'ghost', 'crawler', 'bannerman'],
         ['armory_warrior', 'guardian', 'skeleton_lancer', 'ancient_ghost', 'shaftlocke_lich', 'bannerman_bloodlust'],
         ['mb_tick', 'mb_shaftlocke_maggot', 'bat', 'tick_gold', 'tick', 'spider#1'],
-        ['mb_shaftlocke_guard', 'mb_eye', 'eye', 'wisp', 'gargoyle#0', 'tower_beamo'],
-        ['mb_shaftlocke_wizard', 'mb_templar', 'skeleton_footman', 'skeleton_sentry', 'shaftlocke_lich', 'battlemage'],
+        ['mb_shaftlocke_guard', 'mb_eye', 'eye', 'wisp', 'gargoyle#0', 'tower_beamo', 'bannerman'],
+        ['mb_shaftlocke_wizard', 'mb_templar', 'skeleton_footman', 'skeleton_sentry', 'shaftlocke_lich', 'battlemage', 'bannerman'],
         // the escape floor — 8 battlements in 19 hold it at ~4 lairs in 9,
         // like castle's; see the castle escape pool in parameters.ts
         [
@@ -842,7 +850,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
           'skeleton_sentry',
           'troll_ice',
           'crawler',
-          // the battlements' ice-troll champion and the tower's turret line
+          // the ice-troll champion and the tower's turret line
           'mb_ice_troll',
           'tower_static_frost',
           'tower_static_frost',
@@ -869,12 +877,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
         defaultFloorTraps(),
         defaultFloorTraps(),
         defaultFloorTraps(),
-        [
-          { projectile: 'shooter_fireball', direction: 'up', spread: 0, spawnRateMs: 1000, count: 8 },
-          { projectile: 'shooter_fireball', direction: 'down', spread: 0, spawnRateMs: 1000, count: 8 },
-          { projectile: 'shooter_fireball', direction: 'left', spread: 0, spawnRateMs: 1000, count: 8 },
-          { projectile: 'shooter_fireball', direction: 'right', spread: 0, spawnRateMs: 1000, count: 8 }
-        ]
+        escapeFloorTraps()
       ] satisfies FloorTrap[][],
       levelTimers: escapeTimers(6),
       floorMusic: ['bonus', 'bonus', 'bonus', 'bonus', 'bonus', 'bonus'],

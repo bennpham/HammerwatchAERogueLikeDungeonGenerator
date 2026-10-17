@@ -43,6 +43,8 @@ const endsGame = (l: AeLevel) => scriptsOf(l, 'ShowGameOver').length > 0
 /** The StartIDs a level's exits lead to. */
 const exitsTo = (l: AeLevel) => scriptsOf(l, 'LevelExit').map((s) => strParam(s, 'StartID'))
 import {
+  ESCAPE_TRAP_RATE_MS,
+  escapeFloorTraps,
   isScatterMode,
   survivalPickups,
   wavePickups,
@@ -160,6 +162,11 @@ describe('campaign presets', () => {
             countdown: true
           })
           for (const timer of timers.slice(0, last)) expect(timer.enabled).toBe(false)
+        })
+
+        it(`${preset.id}: arms the shared fireball rig there at the slowed rate`, () => {
+          expect(params.levelTraps![last]).toEqual(escapeFloorTraps())
+          for (const row of params.levelTraps![last]) expect(row.spawnRateMs).toBe(ESCAPE_TRAP_RATE_MS)
         })
 
         it(`${preset.id}: fills it with breakable battlements, pooled nowhere else`, () => {
@@ -609,6 +616,15 @@ describe('campaign presets', () => {
     it("rolls any Shaftlocke boss in the arena, to the dragon's music", () => {
       expect(arena.bossPool).toEqual(BOSS_CAMPAIGNS.find((c) => c.id === 'shaftlocke')!.bosses)
       expect(arena.music).toBe('shaftlocke_21')
+    })
+
+    it('escapes through the chambers, not the battlements whose snow hides the lock buttons', () => {
+      expect(params.themes.at(-1)).toBe('chambers2')
+      expect(params.themes).not.toContain('battlement')
+    })
+
+    it('marches bannermen with the crypt, archives and chambers packs', () => {
+      for (const floor of [2, 5, 6]) expect(params.levelMonsters[floor], `floor ${floor + 1}`).toContain('bannerman')
     })
 
     it("keeps Castle's shape: gold beetles in the mines on floor 5, mini-bosses from there on", () => {

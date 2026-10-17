@@ -149,7 +149,9 @@ export const MONSTER_TYPES: MonsterTypeDef[] = [
   // where a unit hits harder than its twin: the sentry is the ranger firing
   // every 450ms instead of 750, the lancer hits twice as hard as a warrior,
   // the defender is a 210 hp elite, and the lich ladder's sorcerer has 250 hp
-  // to the castle's 75 (Castle tunes its liches to 20).
+  // to the castle's 75 (Castle tunes its liches to 20). The bannermen carry a
+  // banner's buff and no attack of their own, so they cap at 10, above the
+  // static banners' 4 — more of them playtested fine (2026-10-16).
   t('prison_warrior', 'Shaftlocke', 100, 0.3, [`${SP}/shaftlocke/spawner_skeleton_prison_warrior.unit`, `${SK}/shaftlocke/skeleton_prison_warrior_weak.unit`, `${SK}/shaftlocke/skeleton_prison_warrior.unit`, `${SK}/shaftlocke/skeleton_prison_warrior_elite.unit`], ['shaftlocke']),
   t('prison_archer', 'Shaftlocke', 40, 0.2, [`${SP}/shaftlocke/spawner_skeleton_prison_archer.unit`, `${SK}/shaftlocke/skeleton_prison_archer.unit`], ['shaftlocke']),
   t('armory_warrior', 'Shaftlocke', 100, 0.3, [`${SP}/shaftlocke/spawner_skeleton_armory_warrior.unit`, `${SK}/shaftlocke/skeleton_armory_warrior_weak.unit`, `${SK}/shaftlocke/skeleton_armory_warrior.unit`, `${SK}/shaftlocke/skeleton_armory_warrior_elite.unit`], ['shaftlocke']),
@@ -163,10 +165,10 @@ export const MONSTER_TYPES: MonsterTypeDef[] = [
   t('trapper', 'Shaftlocke', 10, 1.0, [`${SK}/shaftlocke/trapper.unit`], ['shaftlocke']),
   t('crawler', 'Shaftlocke', 40, 1.0, [`${SK}/shaftlocke/crawler.unit`], ['shaftlocke']),
   t('guardian', 'Shaftlocke', 20, 1.0, [`${SK}/shaftlocke/guardian.unit`], ['shaftlocke']),
-  t('bannerman_bloodlust', 'Shaftlocke', 6, 1.0, [`${SK}/shaftlocke/bannerman_bloodlust.unit`], ['shaftlocke']),
-  t('bannerman_drain', 'Shaftlocke', 6, 1.0, [`${SK}/shaftlocke/bannerman_drain.unit`], ['shaftlocke']),
-  t('bannerman_healing', 'Shaftlocke', 6, 1.0, [`${SK}/shaftlocke/bannerman_healing.unit`], ['shaftlocke']),
-  t('bannerman_protection', 'Shaftlocke', 6, 1.0, [`${SK}/shaftlocke/bannerman_protection.unit`], ['shaftlocke']),
+  t('bannerman_bloodlust', 'Shaftlocke', 10, 1.0, [`${SK}/shaftlocke/bannerman_bloodlust.unit`], ['shaftlocke']),
+  t('bannerman_drain', 'Shaftlocke', 10, 1.0, [`${SK}/shaftlocke/bannerman_drain.unit`], ['shaftlocke']),
+  t('bannerman_healing', 'Shaftlocke', 10, 1.0, [`${SK}/shaftlocke/bannerman_healing.unit`], ['shaftlocke']),
+  t('bannerman_protection', 'Shaftlocke', 10, 1.0, [`${SK}/shaftlocke/bannerman_protection.unit`], ['shaftlocke']),
   t('shaftlocke_maggot', 'Shaftlocke', 80, 0.2, [`${SP}/shaftlocke/spawner_maggot.unit`, 'actors/beasts/maggots/shaftlocke/maggot_grub.unit', 'actors/beasts/maggots/shaftlocke/maggot_giant.unit', 'actors/beasts/maggots/shaftlocke/maggot_devour.unit'], ['shaftlocke']),
   t('shaftlocke_maggot_spiky', 'Shaftlocke', 20, 1.0, ['actors/beasts/maggots/shaftlocke/maggot_spiky.unit'], ['shaftlocke']),
   // a spawner-only type: the cyst is the only actor, so a roll always lands on it
@@ -391,7 +393,7 @@ export const MONSTER_FAMILIES: MonsterFamilyDef[] = [
   f('tower_ballista', 'Towers', 3, ['tower_ballista_javelin', 'tower_ballista_splitshot', 'tower_ballista_trapper']),
   f('flower', 'Towers', 6, ['flower_small', 'flower_eater', 'flower_blood', 'flower_bloodrose']),
   f('banner', 'Towers', 4, ['banner_bloodlust', 'banner_drain', 'banner_healing', 'banner_protection']),
-  f('bannerman', 'Shaftlocke', 6, ['bannerman_bloodlust', 'bannerman_drain', 'bannerman_healing', 'bannerman_protection'])
+  f('bannerman', 'Shaftlocke', 10, ['bannerman_bloodlust', 'bannerman_drain', 'bannerman_healing', 'bannerman_protection'])
 ]
 
 const familyById = new Map(MONSTER_FAMILIES.map((fam) => [fam.id, fam]))

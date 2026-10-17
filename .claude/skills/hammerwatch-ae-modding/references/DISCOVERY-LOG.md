@@ -679,3 +679,17 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   Shaftlocke lich 20. In game: checklist #53–#55.
 - A bare `spider` in `parameters.txt` is read as the HW1 id (the poison spider, `spider#0`),
   so a preset that means the white one writes `spider#1`.
+
+### Shaftlocke Tower playtest: escape floor and bannermen (2026-10-16)
+
+- `[VERIFIED]` (user) The Shaftlocke Tower preset plays balanced from floor 3 on; floors 1–2
+  played too easy with a vermin-only opening.
+- `[VERIFIED]` (user) The Battlements theme's snow tiles (`outlook_snow_16`) hide the lock
+  buttons. The Shaftlocke escape floor moved to `chambers2`; the theme itself is unchanged.
+- `[VERIFIED]` (user) The classic escape rig (`shooter_fireball` ×8 per wall at 1000 ms, the
+  HW1 070 set's) is far too dense in AE. Stock AE never runs an always-on fireball spewer, so
+  there is no stock rate to copy. `[EMITTED]` Every classic preset now fires it at 2000 ms
+  (`ESCAPE_TRAP_RATE_MS`), still 8 per wall. In game: checklist #56.
+- `[VERIFIED]` (user) Bannermen are welcome in numbers: they carry a banner's buff and have
+  no attack. `[EMITTED]` Caps 6 → 10 (each and the family). They now join the crypt, archives
+  and chambers pools and one pair rides each arena tier from 75% to 25%.
