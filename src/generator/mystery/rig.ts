@@ -32,13 +32,14 @@
  *
  *   Phase A: for each ordinary mystery plate in turn, one `iRand` for its tile
  *            and one for which pool button it is.
- *   Phase B: for each plate in the same order, one `iRand` per spewer its
- *            traps place (`emitPayload`).
+ *   Phase B: for each plate in the same order, one `iRand` per "one of
+ *            these" item its loot drops (a random unique), then one per
+ *            spewer its traps place (`emitPayload`).
  *   Phase C: for each ENHANCED lock button in turn (the first `count` entries
  *            of `level.lockButtons`, in the order they were placed), one
  *            `iRand` for which pool button it is.
- *   Phase D: for each enhanced lock button in the same order, one `iRand` per
- *            spewer its traps place (`emitPayload` again).
+ *   Phase D: for each enhanced lock button in the same order, the same
+ *            loot and spewer draws as Phase B (`emitPayload` again).
  *
  * Phases C and D run strictly after A and B, so enabling the enhancement
  * never moves this floor's own plates — only a later floor's mysteryRand
@@ -61,6 +62,7 @@ import {
   NodePlaySound,
   NodeProjectileSpewer,
   NodeRectangleShape,
+  NodeSpawnEquipment,
   NodeSpawnObject,
   NodeToggleElement
 } from '../objects/nodes'
@@ -145,12 +147,26 @@ function emitPayload(
 
   // Loot: one SpawnObject per copy — a SpawnObject spawns once per incoming
   // trigger, so a count cannot live in trigger-times (boss/wavePickups.ts).
+  // An item (a unique, a random rare or epic) is a SpawnEquipment instead;
+  // a "one of these" item draws which, one mysteryRand iRand per copy, in
+  // loot order, before the traps' draws below.
   const loot = def.loot.flatMap((row) => {
     const item = mysteryLootById(row.item)
-    return item === undefined || !(row.count >= 1) ? [] : Array.from({ length: row.count }, () => item.path)
+    return item === undefined || !(row.count >= 1) ? [] : Array.from({ length: row.count }, () => item)
   })
   spawnTiles(room, tile, plateTiles, LOOT_GAP, loot.length).forEach((at, i) => {
-    const spawn = new NodeSpawnObject(ctx, at.x + TILE_CENTRE, at.y + TILE_CENTRE, loot[i])
+    const item = loot[i]
+    const x = at.x + TILE_CENTRE
+    const y = at.y + TILE_CENTRE
+    let spawn: ScriptNode
+    if (item.equipment === undefined) {
+      spawn = new NodeSpawnObject(ctx, x, y, item.path)
+    } else if ('anyOf' in item.equipment) {
+      const pick = item.equipment.anyOf[ctx.mysteryRand.iRand(0, item.equipment.anyOf.length)]
+      spawn = new NodeSpawnEquipment(ctx, x, y, { id: pick })
+    } else {
+      spawn = new NodeSpawnEquipment(ctx, x, y, item.equipment)
+    }
     spawn.triggerTimes = 1
     trigger.connectTo(spawn)
   })

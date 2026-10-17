@@ -27,9 +27,69 @@
  */
 import { PICKUP_DEFS } from './pickupTypes'
 import type { PickupDef } from './pickupTypes'
+import { ITEM_QUALITY, itemsOfQuality } from './equipment'
 
-/** A mystery-button loot entry: a pickup without the arena's drop-pad lane. */
-export type LootDef = Omit<PickupDef, 'lane'>
+/**
+ * A mystery-button loot entry: a pickup without the arena's drop-pad lane.
+ * An `equipment` entry is spawned with SpawnEquipment instead of SpawnUnit —
+ * a named item, or a random one of a quality; its `path` is the pickup unit
+ * SpawnEquipment produces.
+ */
+export type LootDef = Omit<PickupDef, 'lane'> & {
+  equipment?: LootEquipment
+}
+
+/**
+ * What a SpawnEquipment loot entry drops: a named item, a random item of a
+ * quality (rolled by the game, which skips shop-blocked items), or one of a
+ * list of named items (rolled by the generator from mysteryRand, so a
+ * shop-blocked unique can still come up).
+ */
+export type LootEquipment = { id: string } | { quality: number } | { anyOf: readonly string[] }
+
+/** What SpawnEquipment produces, whichever item it carries. */
+export const EQUIPMENT_PICKUP_PATH = 'items/equipment/base_equipment.unit'
+
+/**
+ * The lucky plate's prizes: a random unique, every unique item by id (four of
+ * the five are shop-blocked, which a random-by-quality spawn would skip), then
+ * a random rare and a random epic.
+ */
+const UNIQUES = itemsOfQuality('unique')
+const EQUIPMENT_LOOT: readonly LootDef[] = [
+  {
+    id: 'random_unique_item',
+    path: EQUIPMENT_PICKUP_PATH,
+    label: 'Random unique item',
+    group: 'Items',
+    description: `One of the ${UNIQUES.length} unique items, picked when the dungeon is generated: ${UNIQUES.map((i) => i.name).join(', ')}.`,
+    equipment: { anyOf: UNIQUES.map((i) => i.id) }
+  },
+  ...UNIQUES.map((item) => ({
+    id: `unique_${item.id}`,
+    path: EQUIPMENT_PICKUP_PATH,
+    label: `${item.name} (unique)`,
+    group: 'Items',
+    description: `${item.name}: ${item.effect}`,
+    equipment: { id: item.id }
+  })),
+  {
+    id: 'random_rare_item',
+    path: EQUIPMENT_PICKUP_PATH,
+    label: 'Random rare item',
+    group: 'Items',
+    description: 'One random rare item, rolled by the game when the plate is pressed.',
+    equipment: { quality: ITEM_QUALITY.rare }
+  },
+  {
+    id: 'random_epic_item',
+    path: EQUIPMENT_PICKUP_PATH,
+    label: 'Random epic item',
+    group: 'Items',
+    description: 'One random epic item, rolled by the game when the plate is pressed.',
+    equipment: { quality: ITEM_QUALITY.epic }
+  }
+]
 
 const CHESTS: readonly LootDef[] = (['wood', 'blue', 'red', 'green'] as const).map((colour) => ({
   id: `chest_${colour}`,
@@ -95,6 +155,7 @@ export const MYSTERY_LOOT_DEFS: readonly LootDef[] = [
   ...CHESTS,
   ...money('Coins', COINS),
   ...money('Diamonds', DIAMONDS),
+  ...EQUIPMENT_LOOT,
   ...PICKUP_DEFS.map(({ lane: _lane, ...def }) => def)
 ]
 

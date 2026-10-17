@@ -1,7 +1,9 @@
 import { MONSTER_FAMILIES, MONSTER_TYPES } from '../objects/monsterTypes'
 import { THEME_DEFS } from './themes'
-import { DEFAULT_LOBBY_CATEGORIES } from '../lobby/shops'
+import { BOSS_PREP_LOBBY_CATEGORIES, DEFAULT_LOBBY_CATEGORIES } from '../lobby/shops'
 import type { PlayerTweaks } from '../players/fields'
+import { DEFAULT_ITEM_VENDOR_ODDS, DEFAULT_SHOP_KIND_IDS } from '../objects/vendorRoll'
+import type { ItemVendorOdds } from '../objects/vendorRoll'
 import type { Brightness, TorchDensity } from '../lighting'
 import { noUpgrades } from '../lobby/payout'
 import { DEFAULT_LOBBY_PRESET_ID } from '../lobby/presets'
@@ -558,6 +560,9 @@ export function mysteryStarterPool(): MysteryButton[] {
     loot('Defense upgrade II', 'A great upgrade', [['upgrade_defense_2', 1]]),
     loot('Health upgrade II', 'A great upgrade', [['upgrade_health_2', 1]]),
     loot('Mana upgrade II', 'A great upgrade', [['upgrade_mana_2', 1]]),
+    loot('Rare item', 'A rare item', [['random_rare_item', 1]]),
+    loot('Epic item', 'An epic item!', [['random_epic_item', 1]]),
+    loot('Lucky find', 'Lucky find!', [['random_unique_item', 1]]),
 
     squad('Tick nest', 'The floor is crawling', [['mb_tick', 1], ['tick#0', 1], ['tick', 24], ['tick#2', 12], ['tick#3', 3]]),
     squad('Gold beetles', 'Gold beetles!', [['tick_gold', 4], ['tick_gold#0', 6]]),
@@ -715,10 +720,17 @@ export interface DungeonParameters {
   shopChance: number
   /**
    * Which vendor stands a floor's shop room may roll — any of `combo`,
-   * `offense`, `defense`, `misc` (skill shops) and `power` (potions). Absent
-   * or empty means the four skill vendors HW1's generator rolled between.
+   * `offense`, `defense`, `misc` (skill shops), `power` (potions) and `item`
+   * (equipment). Absent means DEFAULT_SHOP_KIND_IDS (the four skill vendors
+   * and the item vendor); validation refuses an empty list.
    */
   shopKinds?: string[]
+  /**
+   * How a dungeon item vendor picks its equipment tier: relative weights for
+   * the common/uncommon band (tiers 1-3), rare (tier 4) and epic (tier 5).
+   * Absent means DEFAULT_ITEM_VENDOR_ODDS.
+   */
+  itemVendorOdds?: ItemVendorOdds
   /**
    * Guarantee the Warlock can buy the gargoyle. In AE the gargoyle is a
    * purchasable skill in the `def2` shop category (players/warlock/skills/
@@ -1629,7 +1641,7 @@ export function defaultLobby(presetId: string = DEFAULT_LOBBY_PRESET_ID): LobbyO
   return {
     preset: legacy ? DEFAULT_LOBBY_PRESET_ID : presetId,
     startingGold: presetId === 'BETA-boss-prep' ? 20000 : 10000,
-    shopCategories: [...DEFAULT_LOBBY_CATEGORIES],
+    shopCategories: [...(presetId === 'BETA-boss-prep' ? BOSS_PREP_LOBBY_CATEGORIES : DEFAULT_LOBBY_CATEGORIES)],
     // no free upgrades by default: the vendors are the intended way to get
     // them, so handing eight out on the floor is opt-in per kind
     upgrades: noUpgrades()
@@ -2080,6 +2092,8 @@ export function defaultParameters(): DungeonParameters {
     goldMultiplier: 1.1,
     foodMultiplier: 1.2,
     shopChance: 1.0,
+    shopKinds: [...DEFAULT_SHOP_KIND_IDS],
+    itemVendorOdds: [...DEFAULT_ITEM_VENDOR_ODDS],
     torches: 'normal',
     brightness: 'brighter',
     vaultChance: 0.3,

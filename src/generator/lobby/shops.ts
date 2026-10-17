@@ -30,8 +30,9 @@ export const LOBBY_VENDORS: readonly LobbyVendorDef[] = [
   // three potions). One column, so this stall is on/off and wears no badge.
   { id: 'power', label: 'Power', categories: ['power'] },
   // the item vendor (AE ShopArea Type 2, the equipment shop). Its columns are
-  // AE's equipment loot tables (tweak/shops/equipment.sval): each is a handful
-  // of random items, 1 all common up to 5 with rares and an epic.
+  // AE's equipment loot tables (tweak/shops/equipment.sval): five random items
+  // each, tier 1 all common, 2-3 common and uncommon, 4 up to rare, 5 with one
+  // epic (objects/equipment.ts)
   { id: 'item', label: 'Items', categories: ['equipment_1', 'equipment_2', 'equipment_3', 'equipment_4', 'equipment_5'] }
 ]
 
@@ -44,12 +45,27 @@ export function isEquipmentCategory(id: string): boolean {
 }
 
 /**
- * A new lobby's columns: every skill column, power, and one equipment tier —
- * the item vendor lists every item of every selected tier, so all five at once
- * would be a wall of 25 items.
+ * The equipment tiers a lobby's item stall sells by default: common and
+ * uncommon (tiers 2 and 3, ten items). The item vendor lists every item of
+ * every selected tier, so all five at once would be a wall of 25 items.
  */
+export const DEFAULT_LOBBY_EQUIPMENT: readonly string[] = ['equipment_2', 'equipment_3']
+
+/**
+ * What a boss-prep lobby adds on top: tier 4, the first with rares — the
+ * last shop before a fight is where the good stock is (the owner's call,
+ * 2026-10-16).
+ */
+export const BOSS_PREP_EQUIPMENT: readonly string[] = ['equipment_4']
+
+/** A new lobby's columns: every skill column, power, and the default equipment tiers. */
 export const DEFAULT_LOBBY_CATEGORIES: readonly string[] = ALL_LOBBY_CATEGORIES.filter(
-  (c) => !isEquipmentCategory(c) || c === 'equipment_2'
+  (c) => !isEquipmentCategory(c) || DEFAULT_LOBBY_EQUIPMENT.includes(c)
+)
+
+/** A boss-prep lobby's columns: the defaults plus the rare tier, in canonical order. */
+export const BOSS_PREP_LOBBY_CATEGORIES: readonly string[] = ALL_LOBBY_CATEGORIES.filter(
+  (c) => DEFAULT_LOBBY_CATEGORIES.includes(c) || BOSS_PREP_EQUIPMENT.includes(c)
 )
 
 const CATEGORY_SET = new Set(ALL_LOBBY_CATEGORIES)

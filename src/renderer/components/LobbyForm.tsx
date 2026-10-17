@@ -22,6 +22,7 @@ import type {
 import { BoolField, NumberField, Section } from './fields'
 import { MusicPicker } from './MusicPicker'
 import { UpgradeCountFields } from './UpgradeCountFields'
+import { EquipmentTierRows } from './EquipmentTierRows'
 
 interface LobbyFormProps {
   params: DungeonParameters
@@ -213,9 +214,10 @@ export function LobbyForm({ params, issues, onChange }: LobbyFormProps) {
 
           <Section title="Shops" defaultOpen badge={`${lobby.shopCategories.length}/21`}>
             <p className="hint">
-              Each stall sells whichever shop columns you tick — they are independent columns, not
-              tiers, so any subset is legal. A stall with nothing ticked is left out of the level
-              entirely. Dungeon shop rooms are unaffected and keep rolling their own random set.
+              Each skill stall sells whichever shop columns you tick. They are independent
+              columns, so any subset works. The Items stall sells AE's equipment tiers: each
+              tier adds 5 random items, so ticking two tiers gives 10. A stall with nothing
+              ticked is left out of the level. Dungeon shop rooms are set on the Dungeon tab.
             </p>
 
             {LOBBY_VENDORS.map((vendor) => {
@@ -245,6 +247,9 @@ export function LobbyForm({ params, issues, onChange }: LobbyFormProps) {
                       </button>
                     </span>
                   </div>
+                  {vendor.id === 'item' ? (
+                    <EquipmentTierRows selected={selected} onToggle={toggle} tweaks={params.playerTweaks} />
+                  ) : (
                   <div className="lobby-columns">
                     {vendor.categories.map((category) => (
                       <BoolField
@@ -256,6 +261,7 @@ export function LobbyForm({ params, issues, onChange }: LobbyFormProps) {
                       />
                     ))}
                   </div>
+                  )}
                 </div>
               )
             })}

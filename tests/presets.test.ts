@@ -687,10 +687,13 @@ describe('campaign presets', () => {
       )
     })
 
-    it('opens the potion vendor in every lobby, and an item tier that climbs with the run', () => {
+    it('opens the potion vendor in every lobby, an item tier that climbs to 3, and rares before each boss', () => {
       params.lobbies.forEach((lobby, i) => {
         expect(lobby.shopCategories, `lobby ${i}`).toContain('power')
-        expect(lobby.shopCategories.filter((c) => c.startsWith('equipment_')), `lobby ${i}`).toEqual([`equipment_${Math.floor(i / 2) + 1}`])
+        const ramp = `equipment_${Math.min(3, Math.floor(i / 2) + 1)}`
+        // the odd lobbies are the boss-prep rooms
+        const expected = i % 2 === 1 ? [ramp, 'equipment_4'] : [ramp]
+        expect(lobby.shopCategories.filter((c) => c.startsWith('equipment_')), `lobby ${i}`).toEqual(expected)
       })
     })
 

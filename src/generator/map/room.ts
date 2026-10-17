@@ -1,7 +1,7 @@
 import { Monster } from '../objects/monster'
 import type { HordeSource } from '../objects/monster'
 import { Item, ItemType, hasWideDoors } from '../objects/item'
-import { ObjectSet, SHOP_KINDS, enabledShopKinds } from '../objects/objectSet'
+import { DEFAULT_ITEM_VENDOR_ODDS, ObjectSet, SHOP_KINDS, enabledShopKinds, itemTierOf, itemTierWeights } from '../objects/objectSet'
 import { KEY_COLLECTABLES } from '../objects/item'
 import { NodeDoorController } from '../objects/nodes'
 import type { MonsterTypeDef } from '../objects/monsterTypes'
@@ -227,6 +227,13 @@ export class Room {
         // until one has shipped (the draw above still happens either way)
         if (params.ensureGargoyleShop === true && !ctx.gargoyleShopPlaced) kind = SHOP_KINDS.find((k) => k.id === 'defense') ?? kind
         if (kind.categories.split(' ').includes('def2')) ctx.levelGargoyleShop = true
+        // an item vendor rolls which equipment tier it sells — one more draw,
+        // taken only by a room that got the item vendor
+        if (kind.id === 'item') {
+          const weights = itemTierWeights(params.itemVendorOdds ?? DEFAULT_ITEM_VENDOR_ODDS)
+          const tier = itemTierOf(weights, rand.iRand(0, weights.reduce((n, w) => n + w, 0)))
+          kind = { ...kind, categories: `equipment_${tier}` }
+        }
         ObjectSet.create(
           ctx,
           this.x + Math.trunc(this.width / 2),

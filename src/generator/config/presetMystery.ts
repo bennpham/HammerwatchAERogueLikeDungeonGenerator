@@ -115,13 +115,15 @@ export function midLoot(): MysteryPicks {
     ['Damage upgrade', 1],
     ['Defense upgrade', 1],
     ['Health upgrade', 1],
-    ['Mana upgrade', 1]
+    ['Mana upgrade', 1],
+    ['Rare item', 1]
   ]
 }
 
 /**
- * Deep floors: gold, diamonds and chests, plus the tier-II upgrades a preset
- * names — at most a couple, so a late floor can still roll a dud.
+ * Deep floors: gold, diamonds and chests, an epic item, the lucky plate's
+ * unique, plus the tier-II upgrades a preset names — at most a couple, so a
+ * late floor can still roll a dud.
  */
 export function deepLoot(tierTwo: readonly string[] = []): MysteryPicks {
   return [
@@ -140,6 +142,8 @@ export function deepLoot(tierTwo: readonly string[] = []): MysteryPicks {
     ['Defense upgrade', 1],
     ['Health upgrade', 1],
     ['Mana upgrade', 1],
+    ['Epic item', 1],
+    ['Lucky find', 1],
     ...tierTwo.map((name) => [name, 1] as const)
   ]
 }

@@ -12,7 +12,7 @@ import { emitObjects, emitWalls } from '../ae/emit'
 import { isLineCell } from '../map/aeWalls'
 import type { WallGrid } from '../map/aeWalls'
 import { tilesetSize } from '../catalog/assets'
-import { ObjectSet, SHOP_KINDS, addArrival, buildExitRig } from '../objects/objectSet'
+import { ObjectSet, SHOP_KINDS, addArrival, buildExitRig, itemStandBadge } from '../objects/objectSet'
 import type { ShopKind } from '../objects/objectSet'
 import { SensorShape } from '../objects/nodes'
 import { buildMusicRig } from '../music/rig'
@@ -235,6 +235,14 @@ function buildFromTemplate(
         shops.splice(shops.indexOf(sign), 1)
       }
       continue
+    }
+    // the item stand wears the highest tier it sells, as the stock tiered stands do
+    if (vendor.id === 'item') {
+      const badge = itemStandBadge(selected.join(' '))
+      const stand = nearest(shops, use.x, use.y)
+      if (badge !== undefined && stand?.path === 'doodads/generic/shop_item.unit') {
+        stand.state = { ...stand.state, start: { kind: 'string', value: badge } }
+      }
     }
     if (use.params.some((p) => p.name === 'Areas')) continue
     // no use area yet: a circle on the nearest stand, as floor shops have

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { BRIGHTNESS_LABELS, BRIGHTNESS_LEVELS, MUSIC_DEFAULT, THEME_DEFS, TORCH_DENSITIES, TORCH_LABELS, defaultDungeonBoss, defaultFloorLock, defaultFloorLockMystery, defaultFloorMystery, defaultFloorTimer, floorMystery, isDefaultOrder, normalizeOrder } from '../../generator'
-import type { CampaignCounts, DungeonParameters, FloorLockMystery, ValidationIssue } from '../../generator'
+import { BRIGHTNESS_LABELS, BRIGHTNESS_LEVELS, DEFAULT_SHOP_KIND_IDS, MUSIC_DEFAULT, SHOP_KIND_LABELS, THEME_DEFS, TORCH_DENSITIES, TORCH_LABELS, defaultDungeonBoss, defaultFloorLock, defaultFloorLockMystery, defaultFloorMystery, defaultFloorTimer, floorMystery, isDefaultOrder, normalizeOrder } from '../../generator'
+import type { CampaignCounts, DungeonParameters, FloorLockMystery, ShopKindId, ValidationIssue } from '../../generator'
 import { NumberField, Section, ToggleGroup } from './fields'
 import { MusicPicker } from './MusicPicker'
 import { MonsterPoolsEditor } from './MonsterPoolsEditor'
@@ -11,6 +11,7 @@ import { FloorBuffEditor } from './FloorBuffEditor'
 import { FloorTrapEditor } from './FloorTrapEditor'
 import { DungeonBossEditor } from './DungeonBossEditor'
 import { MysteryButtonsEditor } from './MysteryButtonsEditor'
+import { ShopRoomVendorsEditor } from './ShopRoomVendorsEditor'
 
 /** Themes bucketed by their registry group, in registry order. */
 const THEME_GROUPS = THEME_DEFS.reduce<[string, (typeof THEME_DEFS)[number][]][]>((groups, def) => {
@@ -228,6 +229,10 @@ export function ParameterForm({ params, issues, onChange }: ParameterFormProps) 
               <NumberField label="Gold ×" field="goldMultiplier" value={params.goldMultiplier} onChange={(v) => set('goldMultiplier', v)} issues={issues} min={0} step={0.1} title="Scales treasure amounts" />
               <NumberField label="Food ×" field="foodMultiplier" value={params.foodMultiplier} onChange={(v) => set('foodMultiplier', v)} issues={issues} min={0} step={0.1} title="Scales health/mana drops" />
             </div>
+          </Section>
+
+          <Section title="Shop room vendors" badge={(params.shopKinds ?? DEFAULT_SHOP_KIND_IDS).map((k) => SHOP_KIND_LABELS[k as ShopKindId] ?? k).join(', ')}>
+            <ShopRoomVendorsEditor params={params} issues={issues} onChange={onChange} />
           </Section>
 
           <Section title="Locked rooms" badge={(params.levelLock ?? []).slice(0, params.levels).some((l) => l.enabled) ? 'on' : undefined}>

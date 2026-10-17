@@ -262,6 +262,9 @@ describe('the escape floor', () => {
       params.levelTraps = undefined
       params.floorMusic = undefined
       params.lobbies = []
+      // the item vendor's tier draw is an optional layer too: off, the shop
+      // roll is the four skill vendors the hash was taken with
+      params.shopKinds = ['combo', 'offense', 'defense', 'misc']
       delete params.levelOrder
       params.levels = 8
       params.themes = ['prison', 'prison', 'armory', 'armory', 'archives', 'archives', 'chambers', 'chambers']
