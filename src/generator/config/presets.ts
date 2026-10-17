@@ -572,7 +572,7 @@ function shaftlockeMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'levelM
       ]),
       // the mines: the gold-beetle breather before the mini-boss floors
       kit.pick(2, midLoot(), [
-        ['Gold beetles', 4], ['Tick nest', 3], ['Bat swarm', 3], ['Spider nest', 2], ['Cyst bloom', 2],
+        ['Gold beetles', 6], ['Tick nest', 3], ['Bat swarm', 3], ['Spider nest', 2], ['Cyst bloom', 2],
         ['Arrow storm', 3], ['Spike gauntlet', 2], ['Boulder run', 2]
       ]),
       kit.pick(2, deepLoot(['Defense upgrade II']), [
@@ -819,20 +819,44 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
       // start and an elite warrior on the second (the vermin-only opening
       // playtested too easy), and the bannermen — buff carriers like the
       // static banners, but mobile — march with the crypt, archives and
-      // chambers packs. `#n` pins
-      // the stock actor where the roll would land elsewhere: the imp gargoyle
-      // the archives use, and the fast weak footman as the escape's chaser.
+      // chambers packs.
+      //
+      // Every enemy stock Shaftlocke places on these acts is pooled: the
+      // castle elite archer in the prison and crypt, the bat mini-boss in the
+      // mines, the sharpshooter, the Eye's adds and the ghosts in the
+      // archives, and the thralls and doomspawners in the chambers.
+      // Mini-bosses still wait for floor 5, as Castle's do. The mines pool
+      // tick_gold three times (the pool weights by repetition), so the
+      // beetles fill about a third of its lairs: one in six left one run in
+      // eight with none (2026-10-16).
+      //
+      // `#n` pins the stock actor where the roll would land elsewhere: the
+      // imp gargoyle the archives use, the plain 800 hp sharpshooter in the
+      // archives (its 1200 hp twin rolls in the chambers), and the fast weak
+      // footman as the escape's chaser.
       // `spider#1` is the white spider the stock mines use, spelled pinned
       // because a bare `spider` reads back from parameters.txt as the HW1
       // id (catalog/substitutions.ts), the poison one.
       levelMonsters: [
         ['bat', 'shaftlocke_maggot', 'shaftlocke_maggot_spiky', 'slime', 'flower_eater', 'prison_warrior', 'prison_archer'],
-        ['prison_warrior', 'prison_warrior#3', 'prison_archer', 'trapper', 'maggot_cyst', 'tick_exploding', 'bannerman_bloodlust'],
+        ['prison_warrior', 'prison_warrior#3', 'prison_archer', 'skeleton_archer#2', 'trapper', 'maggot_cyst', 'tick_exploding', 'bannerman_bloodlust'],
         ['armory_warrior', 'armory_archer', 'skeleton_lancer', 'ghost', 'crawler', 'bannerman'],
-        ['armory_warrior', 'guardian', 'skeleton_lancer', 'ancient_ghost', 'shaftlocke_lich', 'bannerman_bloodlust'],
-        ['mb_tick', 'mb_shaftlocke_maggot', 'bat', 'tick_gold', 'tick', 'spider#1'],
-        ['mb_shaftlocke_guard', 'mb_eye', 'eye', 'wisp', 'gargoyle#0', 'tower_beamo', 'bannerman'],
-        ['mb_shaftlocke_wizard', 'mb_templar', 'skeleton_footman', 'skeleton_sentry', 'shaftlocke_lich', 'battlemage', 'bannerman'],
+        ['armory_warrior', 'guardian', 'skeleton_lancer', 'ancient_ghost', 'shaftlocke_lich', 'skeleton_archer#2', 'bannerman_bloodlust'],
+        ['mb_tick', 'mb_shaftlocke_maggot', 'mb_bat', 'bat', 'tick_gold', 'tick_gold', 'tick_gold', 'tick', 'spider#1'],
+        ['mb_shaftlocke_guard', 'mb_eye', 'mb_sharpshooter#0', 'eye', 'eye_add', 'wisp', 'ghost', 'gargoyle#0', 'tower_beamo', 'bannerman'],
+        [
+          'mb_shaftlocke_wizard',
+          'mb_templar',
+          'mb_sharpshooter',
+          'mb_doomspawner',
+          'skeleton_footman',
+          'skeleton_sentry',
+          'skeleton_archer#2',
+          'shaftlocke_lich',
+          'battlemage',
+          'vampire_thrall',
+          'bannerman'
+        ],
         // the escape floor — 8 battlements in 19 hold it at ~4 lairs in 9,
         // like castle's; see the castle escape pool in parameters.ts
         [

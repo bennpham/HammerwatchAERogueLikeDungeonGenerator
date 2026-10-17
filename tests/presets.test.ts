@@ -627,9 +627,24 @@ describe('campaign presets', () => {
       for (const floor of [2, 5, 6]) expect(params.levelMonsters[floor], `floor ${floor + 1}`).toContain('bannerman')
     })
 
+    it('pools every enemy stock Shaftlocke places on its acts', () => {
+      const floors: Array<[number, string[]]> = [
+        [1, ['skeleton_archer#2']],
+        [3, ['skeleton_archer#2']],
+        [4, ['mb_bat']],
+        [5, ['mb_sharpshooter#0', 'eye_add', 'ghost']],
+        [6, ['mb_sharpshooter', 'mb_doomspawner', 'skeleton_archer#2', 'vampire_thrall']]
+      ]
+      for (const [floor, keys] of floors) {
+        for (const key of keys) expect(params.levelMonsters[floor], `floor ${floor + 1}: ${key}`).toContain(key)
+      }
+    })
+
     it("keeps Castle's shape: gold beetles in the mines on floor 5, mini-bosses from there on", () => {
       expect(params.themes[4]).toBe('mine_granite')
-      expect(params.levelMonsters[4]).toContain('tick_gold')
+      // a third of the mines' lairs — one in six left too many runs beetle-less
+      const pool = params.levelMonsters[4]
+      expect(pool.filter((key) => key === 'tick_gold').length / pool.length).toBeCloseTo(1 / 3)
       for (const pool of params.levelMonsters.slice(0, 4)) {
         for (const key of pool) expect(key.startsWith('mb_'), key).toBe(false)
       }

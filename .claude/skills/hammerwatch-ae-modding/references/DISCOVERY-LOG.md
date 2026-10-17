@@ -693,3 +693,9 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
 - `[VERIFIED]` (user) Bannermen are welcome in numbers: they carry a banner's buff and have
   no attack. `[EMITTED]` Caps 6 → 10 (each and the family). They now join the crypt, archives
   and chambers pools and one pair rides each arena tier from 75% to 25%.
+- `[EMITTED]` (2026-10-16, second pass) The Shaftlocke preset pools every enemy the stock acts
+  place: castle elite archer (prison, crypt), bat mini-boss (mines), sharpshooter, the Eye's
+  adds and ghosts (archives), sharpshooter t2, thralls and doomspawners (chambers). The mines
+  pool `tick_gold` 3 times in 9: over 60 seeds floor 5 averages 23 golden ticks (Castle 11)
+  and 2 runs in 60 have none (Castle 8). At one entry in 6 both presets averaged 11–16 and
+  about one run in eight had none, which is what playtested as "fewer beetles".
