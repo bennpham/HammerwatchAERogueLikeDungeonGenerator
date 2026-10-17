@@ -628,3 +628,77 @@ crypt tiles.
 - `[VERIFIED]` (#25) Dead players are not respawned: they arrive as gravestones and a
   living player revives them (AE's revive system).
 - Still `[UNVERIFIED]`: the names given to music modes 20/21 (`music/tracks.ts`).
+
+### Shaftlocke roster sweep against the stock levels (2026-10-15)
+
+Every `actors/...unit` placed in `scenarios/shaftlocke_tower/levels/hwr/*.lvl` (219 paths)
+checked against the roster.
+
+- `[VERIFIED]` (unit files) `shaftlocke/skeleton_wizard.unit` is not the castle wizard:
+  `Miniboss` behaviour, 1750 hp (castle 1200), `evade-magical` 0.25, a `BossScatterBurstSkill`
+  of `skeleton_wizard_fireball`, glyph traps and a `BlinkSkill`. Only it fires that fireball;
+  the battlemage throws `battlemage_lurker(_seeking)`. Added as `mb_shaftlocke_wizard`.
+- `[VERIFIED]` (unit files) `shaftlocke/skeleton_guard.unit` differs from the castle guard only
+  in its coat colours (blue); `beasts/maggots/shaftlocke/maggot_mb.unit` spawns the Shaftlocke
+  grubs and halves `mp-scale-fact`. Added as `mb_shaftlocke_guard` / `mb_shaftlocke_maggot`.
+- `[VERIFIED]` (unit files) Every `challenge/` unit keeps its original's hp and skills; they
+  differ only in `loot` emptied, aggro range ×100 (map-wide) and a higher `mp-scale-fact`.
+  Not separate enemies.
+- Not roster material: NPCs, boss parts and effects, the eye boss's `add_eye_*_boss`
+  (they suicide without the boss), the golem arena's map-aggro bats, the armory ghost-key
+  statues (`ghosts/statue_*`), and razed spawners.
+
+### Shaftlocke campaign census and the Shaftlocke Tower preset (2026-10-15)
+
+Read from `scenarios/shaftlocke_tower/levels/hwr/*.lvl`. Units are grouped by path in a
+level (`<array name="actors/...unit">` then `<vec2>`/`<int>` pairs per instance, sometimes
+all on one line), so instance counts are the pairs, not the path's occurrences. Scripted
+spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all scripted).
+
+- `[VERIFIED]` (level files) Act order from the `LevelExit` targets: Prison 1–3 → Warden →
+  Armory 1–3 (crypt tilesets) → Wraith → Archives 1–3 → Eye → Chambers 1–2 → Vampire →
+  Battlements 1–2 → bridge → frost Dragon. The Mines branch off Prison 1 and end at the Golem.
+- `[VERIFIED]` (level files) No gold beetles anywhere; the mines' treasure is ore deposits.
+  The mines carry almost no traps (2–8 spikes and arrow shooters per level, against 250+
+  fire traps in Chambers 1).
+- `[VERIFIED]` (level files) Every music cue is `PlayMusic` mode 20, the dragon's level
+  adds 21. The battlements also write `Music` = `event:/music/battlements`, a string in
+  `PlayMusic`'s int field (`scripts/WorldScript/Sound/PlayMusic.as`), so it is dead data.
+- `[VERIFIED]` (unit files, resolved with `scripts/lib/aeunit.mjs`; melee damage is the
+  `DMG` argument of `%block SkillMelee CD CP DMG`) Stat twins: prison and armory warriors =
+  castle warriors (10/40/120 hp, 15/20/25), their archers = castle archers, footmen = soldiers
+  (20/40/210 hp, 15/25/40), Shaftlocke maggots = castle maggots. The sentry is the ranger
+  (40 hp) firing every 450 ms instead of 750. The Shaftlocke lich ladder starts at
+  `spawner_lich` and its sorcerer has 250 hp (castle 75). Shaftlocke-only: lancer 45 hp
+  (40/30), defender 210 hp (35/25), guardian 150 hp (30 + charge-jump), battlemage 275 hp
+  (40-damage seeking bolts), trapper 70 hp (root bolas), crawler 15 hp (explodes for 40).
+- `[EMITTED]` The **Shaftlocke Tower** classic preset: Castle's shape on prison2, crypt,
+  mine_granite (the gold-beetle floor), archives2, chambers2 and a battlement escape floor;
+  music 20 everywhere but the arena (21); a random Shaftlocke boss in a chambers2 arena.
+  Caps lowered from the stats above: footman 100, sentry 20, lancer 30, defender 12,
+  Shaftlocke lich 20. In game: checklist #53–#55.
+- A bare `spider` in `parameters.txt` is read as the HW1 id (the poison spider, `spider#0`),
+  so a preset that means the white one writes `spider#1`.
+
+### Shaftlocke Tower playtest: escape floor and bannermen (2026-10-16)
+
+- `[VERIFIED]` (user) The Shaftlocke Tower preset plays balanced from floor 3 on; floors 1–2
+  played too easy with a vermin-only opening.
+- `[VERIFIED]` (user) The Battlements theme's snow tiles (`outlook_snow_16`) hide the lock
+  buttons. The Shaftlocke escape floor moved to `chambers2`; the theme itself is unchanged.
+- `[VERIFIED]` (user) The classic escape rig (`shooter_fireball` ×8 per wall at 1000 ms, the
+  HW1 070 set's) is far too dense in AE. Stock AE never runs an always-on fireball spewer, so
+  there is no stock rate to copy. `[EMITTED]` Every classic preset now fires it at 2000 ms
+  (`ESCAPE_TRAP_RATE_MS`), still 8 per wall. In game: checklist #56.
+- `[VERIFIED]` (user) Bannermen are welcome in numbers: they carry a banner's buff and have
+  no attack. `[EMITTED]` Caps 6 → 10 (each and the family). They now join the crypt, archives
+  and chambers pools and one pair rides each arena tier from 75% to 25%.
+- `[EMITTED]` (2026-10-16, second pass) The Shaftlocke preset pools every enemy the stock acts
+  place: castle elite archer (prison, crypt), bat mini-boss (mines), sharpshooter, the Eye's
+  adds and ghosts (archives), sharpshooter t2, thralls and doomspawners (chambers). The mines
+  pool `tick_gold` 3 times in 9: over 60 seeds floor 5 averages 23 golden ticks (Castle 11)
+  and 2 runs in 60 have none (Castle 8). At one entry in 6 both presets averaged 11–16 and
+  about one run in eight had none, which is what playtested as "fewer beetles".
+- `[VERIFIED]` (user, 2026-10-16) After the second pass the Shaftlocke preset plays fair through
+  to the arena. The escape floor (chambers, slower fireballs, checklist #56) is still
+  unplayed: the run stopped at the Warden, which plays hard.

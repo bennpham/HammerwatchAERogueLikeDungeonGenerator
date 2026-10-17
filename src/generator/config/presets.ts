@@ -8,6 +8,7 @@ import {
   shippedOrder,
   withGatewayLocks,
   escapeFloorTimer,
+  escapeFloorTraps,
   scatterWave,
   stockWavePickups,
   SHOOTER_ARROW_TRAPS
@@ -15,6 +16,7 @@ import {
 import { oneOfEachUpgrade } from '../lobby/payout'
 import type { BossTrap, BossWave, DungeonParameters, FloorTrap } from './parameters'
 import { MUSIC_DEFAULT } from '../music/tracks'
+import { BOSS_CAMPAIGNS } from '../boss/bosses'
 import { CLAUDE_PRESETS } from './claudePresets'
 import { COLOSSEUM_PRESETS } from './colosseumPreset'
 import { deepLoot, escapePicks, midLoot, mysteryButton, mysteryKit, shallowLoot } from './presetMystery'
@@ -67,11 +69,15 @@ export interface CampaignPreset {
  *
  * A preset ships a single fight. The count is a campaign-shaping choice rather
  * than a flavour one, so it is left to the dungeon master.
+ *
+ * `music` replaces the stock final-boss cue when given.
  */
-function withBoss(theme: string, bossPool: string[], waves: BossWave[]): DungeonParameters['boss'] {
+function withBoss(theme: string, bossPool: string[], waves: BossWave[], music?: string): DungeonParameters['boss'] {
   const boss = defaultParameters().boss
   const fight = boss.fights[0]
-  return { ...boss, fights: [{ ...fight, arena: { ...fight.arena, theme, bossPool, waves } }] }
+  const arena = { ...fight.arena, theme, bossPool, waves }
+  if (music !== undefined) arena.music = music
+  return { ...boss, fights: [{ ...fight, arena }] }
 }
 
 /**
@@ -163,6 +169,125 @@ function desertWaves(): BossWave[] {
         ['mummy_lich#2', 6]
       ],
       [],
+      1000,
+      bossDeathBuffs(),
+      drops.death,
+      SHOOTER_ARROW_TRAPS
+    )
+  ]
+}
+
+/**
+ * Shaftlocke's wave tiers: castleWaves() entry for entry. A Shaftlocke unit
+ * with the castle one's stats keeps its count (the prison warriors and
+ * archers, the footmen, the maggots); anything else is swapped for a
+ * Shaftlocke unit of similar hp and role, scaled where it hits harder:
+ *
+ * - the sentry is the ranger firing every 450ms instead of 750, so 0.6× the count;
+ * - the lich ladder starts at its spawner (`#0`, whose wreck blocks — never
+ *   in a wave), so castle `skeleton_lich#n` is `shaftlocke_lich#(n+1)`, and
+ *   its sorcerer has 250 hp to the castle's 75, so a third of the count;
+ * - the guardian (150 hp) stands in for the knight's 150 hp guard, the
+ *   Eye's adds and the Vampire's thralls and bats for the castle bosses'
+ *   bodyguards, the battlemage for the elite battlements and imps for the
+ *   flower beds;
+ * - a pair of bannermen rides with each tier from 75% to 25%, the stock
+ *   chambers' mobile banners.
+ *
+ * The anchored tail is the beamo tower, kept off the scatter like castle's novas.
+ */
+function shaftlockeWaves(): BossWave[] {
+  const drops = stockWavePickups()
+  return [
+    scatterWave(
+      [
+        ['bat', 42],
+        ['bat', 24],
+        ['shaftlocke_maggot', 20],
+        ['shaftlocke_maggot#2', 12],
+        ['shaftlocke_maggot#3', 6],
+        ['tick', 24],
+        ['tick#2', 16],
+        ['tick#0', 2],
+        ['flower_small', 6]
+      ],
+      [],
+      4000
+    ),
+    scatterWave(
+      [
+        ['prison_archer', 14],
+        ['skeleton_sentry', 4],
+        ['prison_warrior', 24],
+        ['prison_warrior#2', 28],
+        ['slime', 44],
+        ['trapper', 4],
+        ['mb_tick', 3],
+        ['mb_shaftlocke_maggot', 1],
+        ['prison_warrior#0', 2],
+        ['prison_archer#0', 2],
+        ['slime#0', 6],
+        ['guardian', 4],
+        ['bannerman_bloodlust', 2]
+      ],
+      [],
+      3000
+    ),
+    scatterWave(
+      [
+        ['eye', 44],
+        ['eye#2', 30],
+        ['wisp', 12],
+        ['wisp#2', 4],
+        ['wisp#3', 8],
+        ['shaftlocke_lich#4', 8],
+        ['gargoyle#0', 3],
+        ['mb_shaftlocke_guard', 4],
+        ['mb_eye', 1],
+        ['bannerman_protection', 2],
+        ['bannerman_healing', 2],
+        // bodyguards — the Eye's own adds
+        ['eye_add', 4]
+      ],
+      [],
+      2000,
+      [],
+      drops.half
+    ),
+    scatterWave(
+      [
+        ['shaftlocke_lich#2', 4],
+        ['shaftlocke_lich', 4],
+        ['shaftlocke_lich#3', 2],
+        ['mb_eye', 2],
+        ['mb_shaftlocke_wizard', 1],
+        ['battlemage', 3],
+        ['eye#0', 5],
+        ['skeleton_sentry#0', 4],
+        ['skeleton_footman#0', 4],
+        ['bannerman_drain', 2],
+        // bodyguards — the Vampire's thrall and bats
+        ['vampire_thrall', 1],
+        ['vampire_bat', 4]
+      ],
+      [['tower_beamo', 3]],
+      1000,
+      [],
+      drops.quarter,
+      SHOOTER_ARROW_TRAPS
+    ),
+    // boss death — the arena keeps fighting after the kill, bloodlusted, see
+    // BOSS_DEATH_WAVE and bossDeathBuffs()
+    scatterWave(
+      [
+        ['shaftlocke_lich#3', 2],
+        ['shaftlocke_lich#2', 2],
+        ['shaftlocke_lich', 2],
+        ['mb_shaftlocke_wizard', 1],
+        ['mb_doomspawner', 2],
+        ['vampire_thrall', 1]
+      ],
+      [['tower_beamo', 2]],
       1000,
       bossDeathBuffs(),
       drops.death,
@@ -399,6 +524,73 @@ function desertMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'levelMyste
 }
 
 /**
+ * Shaftlocke's plates climb the tower with the floors: the prison's cells and
+ * maggot cysts, the crypt's guards and ghosts, the gold beetles and arrow and
+ * spike traps of the mines (the stock mines have few traps, all of those
+ * kinds), then the archives' eyes and confusion traps and the chambers'
+ * footman phalanx and the tower's own lich council.
+ */
+function shaftlockeMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'levelMystery'> {
+  const kit = mysteryKit([
+    mysteryButton('Prison break', 'The cells open', {
+      monsters: [['prison_warrior#3', 2], ['prison_warrior#2', 8], ['prison_warrior', 4], ['trapper', 3]]
+    }),
+    mysteryButton('Crypt guard', 'The crypt stirs', {
+      monsters: [['skeleton_lancer', 4], ['guardian', 2], ['armory_archer', 6]]
+    }),
+    mysteryButton('Haunting', 'Ghosts!', {
+      monsters: [['ghost#0', 2], ['ghost#2', 2], ['ghost#4', 2], ['ancient_ghost', 2]]
+    }),
+    mysteryButton('Phalanx', 'Form ranks!', {
+      monsters: [['skeleton_footman#2', 12], ['skeleton_defender', 2], ['skeleton_sentry', 4]]
+    }),
+    mysteryButton('Cyst bloom', 'Maggots!', {
+      monsters: [['maggot_cyst', 2], ['shaftlocke_maggot', 10]]
+    }),
+    mysteryButton('Tower council', 'The council convenes', {
+      monsters: [['mb_shaftlocke_wizard', 1], ['shaftlocke_lich#2', 4], ['shaftlocke_lich', 2], ['shaftlocke_lich#3', 1]]
+    })
+  ])
+  return {
+    mysteryButtons: kit.buttons,
+    levelMystery: [
+      kit.pick(2, shallowLoot(), [
+        ['Cyst bloom', 5], ['Bat swarm', 4], ['Prison break', 3], ['Slime pit', 3],
+        ['Arrow storm', 3], ['Fireball ring', 3]
+      ]),
+      kit.pick(2, shallowLoot(), [
+        ['Prison break', 5], ['Cyst bloom', 3], ['Slime pit', 3], ['Bat swarm', 2],
+        ['Arrow storm', 3], ['Axe mill', 3]
+      ]),
+      kit.pick(2, midLoot(), [
+        ['Crypt guard', 4], ['Haunting', 4], ['Prison break', 2], ['Bat swarm', 2],
+        ['Purple drift', 3], ['Fireball ring', 3]
+      ]),
+      kit.pick(2, midLoot(), [
+        ['Crypt guard', 4], ['Haunting', 3], ['Phalanx', 2], ['Drain tracking', 1],
+        ['Axe mill', 3], ['Spike gauntlet', 2], ['Big fireball cross', 2]
+      ]),
+      // the mines: the gold-beetle breather before the mini-boss floors
+      kit.pick(2, midLoot(), [
+        ['Gold beetles', 6], ['Tick nest', 3], ['Bat swarm', 3], ['Spider nest', 2], ['Cyst bloom', 2],
+        ['Arrow storm', 3], ['Spike gauntlet', 2], ['Boulder run', 2]
+      ]),
+      kit.pick(2, deepLoot(['Defense upgrade II']), [
+        ['Eye cluster', 4], ['Wisps', 4], ['Haunting', 3], ['Phalanx', 2],
+        ['Fire and frost tracking', 2], ['Tower council', 1],
+        ['Death orbs', 2], ['Confusion', 2], ['Purple drift', 3]
+      ]),
+      kit.pick(2, deepLoot(['Damage upgrade II', 'Health upgrade II']), [
+        ['Phalanx', 4], ['Tower council', 3], ['Eye cluster', 2], ['Wisps', 2],
+        ['Kamikazes', 1], ['Drain tracking', 1],
+        ['Death orbs', 3], ["Dragon's breath", 1], ['Fireball ring', 2], ['Big fireball cross', 1]
+      ]),
+      kit.pick(1, escapePicks('Bat swarm'))
+    ]
+  }
+}
+
+/**
  * Bonus's plates stay in the bonus tilesets' castle: an ambush of its own
  * skeletons and archers early, the crypt and the arcane floors after, and the
  * lich council waiting on the last floor before the boss.
@@ -481,12 +673,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
           { projectile: 'shooter_fireball_2', direction: 'left', spread: 0, spawnRateMs: 1000, count: 3 },
           { projectile: 'shooter_fireball_2', direction: 'right', spread: 0, spawnRateMs: 1000, count: 3 }
         ],
-        [
-          { projectile: 'shooter_fireball', direction: 'down', spread: 0, spawnRateMs: 1000, count: 8 },
-          { projectile: 'shooter_fireball', direction: 'up', spread: 0, spawnRateMs: 1000, count: 8 },
-          { projectile: 'shooter_fireball', direction: 'left', spread: 0, spawnRateMs: 1000, count: 8 },
-          { projectile: 'shooter_fireball', direction: 'right', spread: 0, spawnRateMs: 1000, count: 8 }
-        ]
+        escapeFloorTraps()
       ] satisfies FloorTrap[][],
       levelTimers: escapeTimers(7),
       // floors 5-6 have no musicN line in the 070 parameter set, so 6 (the
@@ -596,6 +783,109 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
     })
   },
   {
+    id: 'shaftlocke',
+    label: 'Shaftlocke Tower',
+    description:
+      '7 floors up Shaftlocke Tower — prison, crypt, the gold-beetle mines, archives and chambers — then a random Shaftlocke boss and an escape back through the chambers, with two mystery buttons hidden on every floor.',
+    group: 'classic',
+    // Castle's shape on Shaftlocke's own tilesets, music and roster: the same
+    // 8 levels, order, escape-floor timer and fireball rig (inherited from
+    // defaultParameters()), two act floors each for the prison and the crypt
+    // (the stock armory), the mines as Castle's floor-5 gold-beetle breather,
+    // then the archives and chambers as the mini-boss rushes. The escape floor
+    // runs back through the chambers, as Castle's does: the battlements' snow
+    // tiles hid the lock buttons (playtest, 2026-10-16).
+    // Every stock Shaftlocke level plays music mode 20; the arena gets the
+    // dragon's mode 21 whichever Shaftlocke boss it rolls.
+    build: () => withGatewayLocks({
+      ...defaultParameters(),
+      themes: ['prison2', 'prison2', 'crypt', 'crypt', 'mine_granite', 'archives2', 'chambers2', 'chambers2'],
+      floorMusic: Array.from({ length: 8 }, () => 'shaftlocke_20'),
+      ...shaftlockeMystery(),
+      boss: withBoss(
+        'chambers2',
+        [...(BOSS_CAMPAIGNS.find((c) => c.id === 'shaftlocke')?.bosses ?? [])],
+        shaftlockeWaves(),
+        'shaftlocke_21'
+      ),
+      lobbies: [
+        { ...defaultLobby('BETA-dungeon-prep'), music: 'shaftlocke_20' },
+        { ...defaultLobby('BETA-boss-prep'), music: 'shaftlocke_20' }
+      ],
+      // Castle's slot shape (see defaultParameters().levelMonsters): the
+      // prison's maggots and skeletons, then its cells, two harder act floors,
+      // the breather, two mini-boss rushes, then the escape floor's battlement
+      // maze. The prison floors carry the stock prison's skeletons from the
+      // start and an elite warrior on the second (the vermin-only opening
+      // playtested too easy), and the bannermen — buff carriers like the
+      // static banners, but mobile — march with the crypt, archives and
+      // chambers packs.
+      //
+      // Every enemy stock Shaftlocke places on these acts is pooled: the
+      // castle elite archer in the prison and crypt, the bat mini-boss in the
+      // mines, the sharpshooter, the Eye's adds and the ghosts in the
+      // archives, and the thralls and doomspawners in the chambers.
+      // Mini-bosses still wait for floor 5, as Castle's do. The mines pool
+      // tick_gold three times (the pool weights by repetition), so the
+      // beetles fill about a third of its lairs: one in six left one run in
+      // eight with none (2026-10-16).
+      //
+      // `#n` pins the stock actor where the roll would land elsewhere: the
+      // imp gargoyle the archives use, the plain 800 hp sharpshooter in the
+      // archives (its 1200 hp twin rolls in the chambers), and the fast weak
+      // footman as the escape's chaser.
+      // `spider#1` is the white spider the stock mines use, spelled pinned
+      // because a bare `spider` reads back from parameters.txt as the HW1
+      // id (catalog/substitutions.ts), the poison one.
+      levelMonsters: [
+        ['bat', 'shaftlocke_maggot', 'shaftlocke_maggot_spiky', 'slime', 'flower_eater', 'prison_warrior', 'prison_archer'],
+        ['prison_warrior', 'prison_warrior#3', 'prison_archer', 'skeleton_archer#2', 'trapper', 'maggot_cyst', 'tick_exploding', 'bannerman_bloodlust'],
+        ['armory_warrior', 'armory_archer', 'skeleton_lancer', 'ghost', 'crawler', 'bannerman'],
+        ['armory_warrior', 'guardian', 'skeleton_lancer', 'ancient_ghost', 'shaftlocke_lich', 'skeleton_archer#2', 'bannerman_bloodlust'],
+        ['mb_tick', 'mb_shaftlocke_maggot', 'mb_bat', 'bat', 'tick_gold', 'tick_gold', 'tick_gold', 'tick', 'spider#1'],
+        ['mb_shaftlocke_guard', 'mb_eye', 'mb_sharpshooter#0', 'eye', 'eye_add', 'wisp', 'ghost', 'gargoyle#0', 'tower_beamo', 'bannerman'],
+        [
+          'mb_shaftlocke_wizard',
+          'mb_templar',
+          'mb_sharpshooter',
+          'mb_doomspawner',
+          'skeleton_footman',
+          'skeleton_sentry',
+          'skeleton_archer#2',
+          'shaftlocke_lich',
+          'battlemage',
+          'vampire_thrall',
+          'bannerman'
+        ],
+        // the escape floor — 8 battlements in 19 hold it at ~4 lairs in 9,
+        // like castle's; see the castle escape pool in parameters.ts
+        [
+          'tower_battlement_empty',
+          'tower_battlement_empty',
+          'tower_battlement_empty',
+          'tower_battlement_empty',
+          'tower_battlement_empty',
+          'tower_battlement_empty',
+          'tower_battlement_empty',
+          'tower_battlement_empty',
+          // the chasers and ranged pressure that punish standing still
+          'skeleton_footman#1',
+          'bat',
+          'skeleton_sentry',
+          'troll_ice',
+          'crawler',
+          // the ice-troll champion and the tower's turret line
+          'mb_ice_troll',
+          'tower_static_frost',
+          'tower_static_frost',
+          'tower_static_frost',
+          'mb_shaftlocke_wizard',
+          'tower_beamo'
+        ]
+      ]
+    })
+  },
+  {
     id: 'bonus',
     label: 'Bonus Gauntlet',
     description:
@@ -611,12 +901,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
         defaultFloorTraps(),
         defaultFloorTraps(),
         defaultFloorTraps(),
-        [
-          { projectile: 'shooter_fireball', direction: 'up', spread: 0, spawnRateMs: 1000, count: 8 },
-          { projectile: 'shooter_fireball', direction: 'down', spread: 0, spawnRateMs: 1000, count: 8 },
-          { projectile: 'shooter_fireball', direction: 'left', spread: 0, spawnRateMs: 1000, count: 8 },
-          { projectile: 'shooter_fireball', direction: 'right', spread: 0, spawnRateMs: 1000, count: 8 }
-        ]
+        escapeFloorTraps()
       ] satisfies FloorTrap[][],
       levelTimers: escapeTimers(6),
       floorMusic: ['bonus', 'bonus', 'bonus', 'bonus', 'bonus', 'bonus'],

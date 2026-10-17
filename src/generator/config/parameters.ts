@@ -651,6 +651,25 @@ export function escapeFloorTimer(): FloorTimer {
 }
 
 /**
+ * How often each escape-floor fireball spewer fires. Every classic preset ran
+ * the HW1 070 set's 1000ms, which playtested far too dense in AE (2026-10-16:
+ * "the fire rate is just damn faster"), so the count stays at 8 per wall and
+ * each spewer fires half as often.
+ */
+export const ESCAPE_TRAP_RATE_MS = 2000
+
+/** The escape floor's rig: a fireball spewer line on all four walls, every classic preset's. */
+export function escapeFloorTraps(): FloorTrap[] {
+  return (['up', 'down', 'left', 'right'] as const).map((direction) => ({
+    projectile: 'shooter_fireball',
+    direction,
+    spread: 0,
+    spawnRateMs: ESCAPE_TRAP_RATE_MS,
+    count: 8
+  }))
+}
+
+/**
  * The shipped campaign order: the dungeon-prep lobby, every floor but the
  * last, the boss-prep lobby, the boss fight, then that last floor — the
  * escape floor.
@@ -2047,17 +2066,10 @@ export function defaultParameters(): DungeonParameters {
     themes: ['prison', 'prison', 'armory', 'armory', 'archives', 'archives', 'chambers', 'chambers2'],
     levelBuffs: Array.from({ length: 8 }, () => defaultFloorBuffs()),
     // Every floor but the escape floor stays unarmed; the escape floor (the
-    // last one, played after the boss) gets a fireball spewer on all four
-    // walls, matching the shipped 070 parameter set.
-    levelTraps: [
-      ...Array.from({ length: 7 }, () => defaultFloorTraps()),
-      [
-        { projectile: 'shooter_fireball', direction: 'up', spread: 0, spawnRateMs: 1000, count: 8 },
-        { projectile: 'shooter_fireball', direction: 'down', spread: 0, spawnRateMs: 1000, count: 8 },
-        { projectile: 'shooter_fireball', direction: 'left', spread: 0, spawnRateMs: 1000, count: 8 },
-        { projectile: 'shooter_fireball', direction: 'right', spread: 0, spawnRateMs: 1000, count: 8 }
-      ]
-    ],
+    // last one, played after the boss) gets a fireball spewer line on all
+    // four walls, the shipped 070 parameter set's, fired more slowly — see
+    // escapeFloorTraps().
+    levelTraps: [...Array.from({ length: 7 }, () => defaultFloorTraps()), escapeFloorTraps()],
     // every floor but the escape floor is untimed; that one is the whole point
     // of the timer feature — 90 seconds to find the way out, then 1 damage
     // every 100ms until the party leaves
