@@ -702,3 +702,31 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
 - `[VERIFIED]` (user, 2026-10-16) After the second pass the Shaftlocke preset plays fair through
   to the arena. The escape floor (chambers, slower fireballs, checklist #56) is still
   unplayed: the run stopped at the Warden, which plays hard.
+
+### Equipment: item tiers, the item stand's badge, SpawnEquipment (2026-10-16)
+
+- `[VERIFIED]` (files) An item vendor (`ShopArea` Type 2) sells AE's loot tables from
+  `tweak/shops/equipment.sval`. Each `equipment_<n>` table is 5 pools; each pool rolls a
+  quality, then an unsold item of it (`unique-in-pool`, `ignore-shop-blocked` false). Tier 1
+  is 5 common. Tier 2 is 3 common, 1 common/uncommon, 1 uncommon. Tier 3 is 3 common/uncommon
+  and 2 uncommon. Tier 4 is 2 common/uncommon, 1 uncommon, 1 uncommon/rare and 1 rare. Tier 5
+  is 2 common/uncommon/rare, 1 uncommon, 1 rare and 1 epic. No table rolls `unique`.
+  `specific_1` and `st_equipment_1..3` also exist and are unused here. Snapshot:
+  `catalog/equipment.generated.ts` (`scripts/scan-ae-equipment.ts`).
+- `[VERIFIED]` (files) The items: `tweak/items/{common,uncommon,rare,epic,unique}.sval`
+  (7/10/11/7/5). Names and effects come from `res/language/english/items.lang` (outside
+  `unpacked_assets`). Prices are per quality in `scripts/Data/Misc.as`: 200/350/750/1200/1500.
+  4 of the 5 uniques are `shop-blocked` (all but `summoner_book`).
+- `[VERIFIED]` (files) Stock dungeon vendors pair an item stand with a potion stand
+  (`prefabs/shops/shop_dungeonvendor_*.pfb`): mines t1, prison t2, armory t3, archives t4,
+  chambers t5.
+- `[EMITTED]` The item stand's tier badge: `shop_item.unit` has scenes `none` and `1`–`5`,
+  and the stock `prefabs/shop_item_t<n>.pfb` set `start="<n>"`. The generator sets `start` to
+  the highest tier a stand sells, in lobbies and floor shops. In game: checklist #57–#58.
+- `[VERIFIED]` (files) `Item::Quality` is a flag enum: Common 1, Uncommon 2, Rare 4, Epic 8,
+  Legendary 16, Quest 32, Unique 64 (`scripts/Items/Item.as`). `GetRandomQualityEquipment`
+  skips shop-blocked items, so a random unique by quality can only give `summoner_book`.
+- `[EMITTED]` `SpawnEquipment` (`scripts/WorldScript/SpawnEquipment.as`) on a mystery plate:
+  `ID` for a named item (`Item::Get`, which ignores shop-blocking) or `Quality` for a random
+  one, serialised like `prefabs/puzzles/bullsandcows.pfb`. A "random unique" is picked by the
+  generator from `mysteryRand` and emitted by `ID`. In game: checklist #59.
