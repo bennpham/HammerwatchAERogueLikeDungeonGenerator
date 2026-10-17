@@ -14,6 +14,7 @@ import {
 } from '../objects/nodes'
 import type { ScriptNode } from '../objects/scriptNode'
 import type { Room } from './room'
+import { visibleDropY } from './room'
 import type { Level } from './level'
 import type { GenerationContext } from '../core/context'
 
@@ -451,7 +452,8 @@ function buildButtonRig(
 /**
  * Where the button hides: a random spot in a random room, drawn exactly the way
  * `Room.spawnKey()` draws a key's — the same room roll the key loops in level.ts
- * run, and the same `fRand(x, x + width)` / `fRand(y + 2, y + height)` pair.
+ * run, and the same `fRand(x, x + width)` / `visibleDropY` pair, which keeps
+ * the plate clear of the south wall's art.
  *
  * Locked rooms are refused, which is the rule that keeps the button out of the
  * seal it opens (the caller marks that room locked first) and out of any
@@ -470,7 +472,7 @@ function pickButtonTile(
     if (r.locked) continue
     const tile = {
       x: ctx.rand.fRand(r.x, r.x + r.width),
-      y: ctx.rand.fRand(r.y + 2, r.y + r.height),
+      y: visibleDropY(ctx.rand, r),
       roomIndex
     }
     // Two plates overlapping would be one press for two buttons. The rule

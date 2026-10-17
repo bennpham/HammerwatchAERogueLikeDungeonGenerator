@@ -7,6 +7,7 @@ import { NodeDoorController } from '../objects/nodes'
 import type { MonsterTypeDef } from '../objects/monsterTypes'
 import type { Passage } from './passage'
 import type { GenerationContext } from '../core/context'
+import type { Rand } from '../core/rand'
 
 export type RoomType = 'None' | 'Entrance' | 'Exit' | 'Vault' | 'Lair' | 'Storage' | 'Shop' | 'Orb'
 
@@ -40,6 +41,27 @@ export function roomSpawnBox(room: { x: number; y: number; width: number; height
     y0: room.y + SPAWN_NORTH_INSET,
     y1: room.y + room.height - SPAWN_SIDE_INSET
   }
+}
+
+/**
+ * The y of something the party must find on the floor — a lock button, a key,
+ * a locked room's powerup — as one `fRand` draw, the original's
+ * `fRand(y + 2, y + height)` with its south end pulled in.
+ *
+ * A room's floor runs down to row `y + height`, and the south wall at
+ * `y + height + 1` draws its art 32 px up over the last two floor rows: the
+ * party can walk there, behind the wall, but cannot see what lies there. A
+ * one-tile plate at `y` covers `y .. y + 1`, so it must start above
+ * `y + height - 2` to clear both rows. [VERIFIED] dungeon_336053618
+ * (Shaftlocke, 2026-10-16): floor 7's lock button at row 24.5 of a room
+ * ending on row 25 was hidden under the chambers2 wall.
+ *
+ * The `max` keeps the range non-empty, so the draw is taken in every room the
+ * old range drew in (fRand draws nothing on an empty range) and the stream
+ * stays aligned.
+ */
+export function visibleDropY(rand: Rand, room: { y: number; height: number }): number {
+  return rand.fRand(room.y + 2, Math.max(room.y + 3, room.y + room.height - 2))
 }
 
 /**
@@ -521,7 +543,7 @@ export class Room {
     Item.create(
       ctx,
       ctx.rand.fRand(this.x, this.x + this.width),
-      ctx.rand.fRand(this.y + 2, this.y + this.height),
+      visibleDropY(ctx.rand, this),
       'Powerup'
     )
   }
@@ -537,7 +559,7 @@ export class Room {
     Item.create(
       ctx,
       ctx.rand.fRand(this.x, this.x + this.width),
-      ctx.rand.fRand(this.y + 2, this.y + this.height),
+      visibleDropY(ctx.rand, this),
       'Key',
       tier ?? ctx.lastLockType
     )
