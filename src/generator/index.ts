@@ -107,6 +107,19 @@ export {
 export type { BossSelection, MysteryButton, MysteryMonster, FloorMystery, FloorLockMystery } from './config/parameters'
 export { MYSTERY_LOOT_DEFS, MYSTERY_LOOT_GROUPS, mysteryLootById } from './objects/mysteryLoot'
 export type { LootDef } from './objects/mysteryLoot'
+export {
+  EQUIPMENT_ITEMS,
+  EQUIPMENT_TIER_IDS,
+  QUALITY_LABELS,
+  SOLD_QUALITIES,
+  TIER_NAMES,
+  equipmentById,
+  equipmentTier,
+  itemsOfQuality,
+  qualityPrice,
+  tierSummary
+} from './objects/equipment'
+export type { EquipmentItem, EquipmentQuality, EquipmentSlot, TierSummary } from './objects/equipment'
 export { BUFF_DEFS, BUFF_GROUPS, BUFF_HELPFUL_IDS, buffById } from './objects/buffTypes'
 export type { BuffDef } from './objects/buffTypes'
 export { PICKUP_DEFS, PICKUP_GROUPS, MAX_PICKUP_COUNT, pickupById } from './objects/pickupTypes'
