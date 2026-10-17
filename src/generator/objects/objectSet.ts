@@ -1,6 +1,7 @@
 import { Doodad, EXIT_PAD_CENTRE, exitDoorway, exitIsPad } from './doodad'
 import type { DoodadTypeName } from './doodad'
 import { Item } from './item'
+import { equipmentTier } from './equipment'
 import { ScriptNode } from './scriptNode'
 import {
   ICON_EXIT,
@@ -48,9 +49,22 @@ export const SHOP_KINDS: readonly ShopKind[] = [
   { id: 'defense', vendor: 'VendorDefense', categories: 'def1 def2 def3 def4 def5', type: SHOP_SKILLS },
   { id: 'misc', vendor: 'VendorMisc', categories: 'misc1 misc2 misc3 misc4 misc5', type: SHOP_SKILLS },
   { id: 'power', vendor: 'VendorPower', categories: 'power', type: SHOP_POWER },
-  // AE's mid equipment table: common and uncommon items
+  // the equipment shop (Type 2). equipment_3 is only the fallback: a dungeon
+  // shop room rolls its own tier (map/room.ts) and a lobby stall sells the
+  // tiers its options tick
   { id: 'item', vendor: 'VendorItem', categories: 'equipment_3', type: SHOP_ITEMS }
 ]
+
+/**
+ * The tier badge an item stand wears: `shop_item.unit`'s scenes `1`…`5` add
+ * a numeral over the vendor, as the stock `prefabs/shop_item_t<n>.pfb` set
+ * with `start="<n>"`. A stall selling several tiers shows the highest; one
+ * selling none of them (never emitted) keeps the plain `none` scene.
+ */
+export function itemStandBadge(categories: string): string | undefined {
+  const top = Math.max(0, ...categories.split(' ').map(equipmentTier))
+  return top > 0 ? String(top) : undefined
+}
 
 /**
  * The press-F way out of a level, exactly as Castle Hammerwatch AE wires every
@@ -198,7 +212,10 @@ export class ObjectSet {
 
       case 'Shop': {
         const kind = shop ?? SHOP_KINDS[0]
-        this.doodads.push(Doodad.create(ctx, x, y, kind.vendor, theme))
+        const stand = Doodad.create(ctx, x, y, kind.vendor, theme)
+        const badge = kind.type === SHOP_ITEMS ? itemStandBadge(kind.categories) : undefined
+        if (badge !== undefined) stand.state = { start: { kind: 'string', value: badge } }
+        this.doodads.push(stand)
         // a use circle around the stand, as stock shops have [VERIFIED r16]
         const sensor = new SensorShape(ctx, x, y + 0.5)
         sensor.radius = 1.25

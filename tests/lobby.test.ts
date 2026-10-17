@@ -117,8 +117,14 @@ describe('lobby — shop columns', () => {
     ])
   })
 
-  it('opens a new lobby with every skill column, power and one equipment tier', () => {
-    expect(defaultLobby().shopCategories).toEqual(ALL_LOBBY_CATEGORIES.filter((c) => !c.startsWith('equipment_') || c === 'equipment_2'))
+  it('opens a new lobby with every skill column, power and the common/uncommon equipment tiers', () => {
+    const plain = ALL_LOBBY_CATEGORIES.filter((c) => !c.startsWith('equipment_'))
+    expect(defaultLobby().shopCategories).toEqual([...plain, 'equipment_2', 'equipment_3'])
+  })
+
+  it('adds the rare tier to a boss-prep lobby', () => {
+    const plain = ALL_LOBBY_CATEGORIES.filter((c) => !c.startsWith('equipment_'))
+    expect(defaultLobby('BETA-boss-prep').shopCategories).toEqual([...plain, 'equipment_2', 'equipment_3', 'equipment_4'])
   })
 
   it('maps every column back to its vendor', () => {
@@ -196,10 +202,17 @@ for (const preset of LOBBY_PRESETS) {
     describe('vendor stalls', () => {
       it('sells every stall by default: the five skill and power vendors and the items', () => {
         const open = stalls(lobbyOf(preset)).map((s) => s.categories).sort()
-        const expected = LOBBY_VENDORS.map((v) => (v.id === 'item' ? 'equipment_2' : v.categories.join(' '))).sort()
+        const expected = LOBBY_VENDORS.map((v) => (v.id === 'item' ? 'equipment_2 equipment_3' : v.categories.join(' '))).sort()
         expect(open).toEqual(expected)
-        const items = stalls(lobbyOf(preset)).find((s) => s.categories === 'equipment_2')
+        const items = stalls(lobbyOf(preset)).find((s) => s.categories === 'equipment_2 equipment_3')
         expect(items?.type, 'the item vendor is ShopArea Type 2').toBe(2)
+      }, 60_000)
+
+      it('badges the item stand with the highest tier it sells', () => {
+        const badgeOf = (level: AeLevel) =>
+          level.units.filter((u) => u.path === 'doodads/generic/shop_item.unit').map((u) => u.state?.start)
+        expect(badgeOf(lobbyOf(preset))).toEqual([{ kind: 'string', value: '3' }])
+        expect(badgeOf(lobbyOf(preset, { shopCategories: ['equipment_1', 'equipment_5'] }))).toEqual([{ kind: 'string', value: '5' }])
       }, 60_000)
 
       it('sells exactly the selected columns, in canonical order', () => {

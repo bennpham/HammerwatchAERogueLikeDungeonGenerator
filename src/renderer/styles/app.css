@@ -11,6 +11,12 @@
   --error: #e06c5d;
   --warning: #d0a53f;
   --ok: #3fae6a;
+  /* item rarities */
+  --q-common: #c9c9c9;
+  --q-uncommon: #4fbf5a;
+  --q-rare: #4a8fe0;
+  --q-epic: #b05ce0;
+  --q-unique: #e0913a;
 }
 
 * {
@@ -1539,6 +1545,80 @@ button.danger:hover:not(:disabled) {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 14px;
+}
+
+/* The Items stall's equipment tiers: five slot pips per tier, coloured by
+   the rarity each slot can roll (split when a slot can roll two or three). */
+
+.equipment-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.equipment-tier {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto minmax(90px, auto);
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.equipment-tier-name .dim,
+.equipment-tier-price {
+  color: var(--text-dim);
+}
+
+.equipment-tier-price {
+  font-size: 12px;
+  text-align: right;
+}
+
+.tier-pips {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.tier-pip {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  vertical-align: -2px;
+}
+
+.rarity-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 4px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.equipment-items summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.equipment-quality h4 {
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+
+.equipment-quality ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.equipment-quality li strong {
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* A static picture of the room — the lobby is hand-authored, so it has no
