@@ -150,6 +150,9 @@ function readState(dict: SvalNode): Record<string, StateValue> {
         out[n.name] = { kind: 'vec2', value: [a, b] }
         break
       }
+      case 'array':
+        out[n.name] = { kind: 'strings', value: n.children.map((c) => c.text) }
+        break
       default:
         out[n.name] = { kind: 'string', value: n.text }
     }

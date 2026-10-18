@@ -53,6 +53,14 @@ describe('Shaftlocke town — the embedded template', () => {
     expect(unit(town, 'doodads/generic/shop_potion.unit')).toBeDefined()
   })
 
+  it('loses no unit scene: the windowed walls keep their start-scene lists', () => {
+    const town = embedded()
+    const empty = town.units.filter((u) => u.state?.start?.kind === 'string' && u.state.start.value === '')
+    expect(empty.map((u) => `${u.id} ${u.path}`)).toEqual([])
+    const windows = town.units.filter((u) => u.state?.start?.kind === 'strings')
+    expect(windows.length).toBe(13)
+  })
+
   it('carries no townsfolk, portal selectors, pickups or editor labels', () => {
     const paths = embedded().units.map((u) => u.path)
     for (const re of [/^actors\//, /exit_teleport_switch/, /^items\//, /^gui\//]) {

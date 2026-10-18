@@ -13,12 +13,16 @@
 /** AE pixels per generator tile. */
 export const TILE = 16
 
-/** One typed value in a unit's per-instance state dict. */
+/**
+ * One typed value in a unit's per-instance state dict. `strings` is a list of
+ * scenes shown at once: a stock `start` can be `[body, icon, tier]`.
+ */
 export type StateValue =
   | { kind: 'bool'; value: boolean }
   | { kind: 'int'; value: number }
   | { kind: 'float'; value: number }
   | { kind: 'string'; value: string }
+  | { kind: 'strings'; value: string[] }
   | { kind: 'vec2'; value: [number, number] }
 
 /**
