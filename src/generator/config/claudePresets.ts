@@ -46,7 +46,7 @@ import { MUSIC_DEFAULT } from '../music/tracks'
 import type { CampaignPreset } from './presets'
 
 /**
- * Ten hand-built presets that show off everything added since the beta
+ * Eleven hand-built presets that show off everything added since the beta
  * classics: floor bosses, multi-boss arenas and lineups, survival arenas,
  * chained arenas, per-floor traps/timers/buffs, and mystery buttons and
  * enhanced/disguised lock buttons. Grouped separately from

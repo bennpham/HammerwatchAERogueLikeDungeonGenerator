@@ -789,3 +789,33 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   builder lays its press-F exit on `teleport_mt`. The importer is
   `scripts/import-shaftlocke-town.ts`, and it's the `shaftlocke_town` lobby option
   (479 KB). In game: checklist #61–#63.
+
+### Boss hp, attack speed and the clock presets' hunts (2026-10-18)
+
+- `[VERIFIED]` (unit files and their `.inc`s) Boss `hp` / `mp-scale-fact`: Krilith 850 / 0.5,
+  worm 750 and 1000 / 0.5, wraith 1200 / 1.25, golem 1600 / 1.25, knight 2500 / 0.65, queen
+  2500 / 0.5, warden 3000 / 1.25, seeress (`bat_mb_boss`) 3750 / 0.85, lich 4000 / 0.65, eye
+  8000 / 1.5, Anubis 12000 and 9000 / 0.5, vampire 14000 / 1.25, both dragons 15000 / 0.65
+  and 1.35. The Shaftlocke bosses scale up per extra co-op player about twice as hard as the
+  Castle and Temple ones.
+- `[VERIFIED]` (user) In AE, stock attacks are slower than the original's: the archer and
+  paladin can't rapid-fire or rapid-slash the way they did. A paladin and archer party (the
+  paladin built for tanking) couldn't kill a plain knight inside the old 180 s hunt. The
+  Original Hammerwatch attack switches or a mage make it easier, but the presets are tuned
+  for stock.
+- `[EMITTED]` The clock presets hunt for 300 s and draw the boss from `HUNT_BOSS_IDS`
+  (claudePresets.ts): every mobile boss with 2500 hp or less. The floor timer's countdown
+  warning moved from 200 s to 300 s. Measured on Beat the Clock seed 4242, 300 ticks cost
+  about 35 KB more than 180 on a 105 KB floor. In game: checklist #65.
+- `[VERIFIED]` (`PartyRecord.GiveLife`, see the Lives entry) An extra-life pickup is a no-op
+  under forced No Lives, so Double or Nothing's top prize is now the Heirloom (random unique
+  plus a red diamond). A preset test holds every Claude preset to no life drops.
+- `[VERIFIED]` (unit files) AE-only pickups: `upgrade_speed(_2)` and
+  `upgrade_attackspeed(_2)` give `speed_1/2` and `attackspeed_1/2`, shown as +5 % and
+  +10 %. `powerup_potion_4_spd` is the `potion_speed` usable potion: `tweak/buffs/buffs.sval`
+  gives it `speed-mul`, `cast-speed` and `attack-speed` 2 for 10000 ms. `[EMITTED]` as pickups
+  `upgrade_speed(_2)`, `upgrade_attackspeed(_2)` and `potion_4`, and as five starter plate
+  buttons appended last. In game: checklist #64.
+- `[VERIFIED]` (unit files) The wraith is a `TransferDamageActor` with `immortal` true and
+  the golem a `CompositeActorBehavior`. Both died to the party in an arena (checklist #54),
+  so both are hunt bosses.

@@ -23,6 +23,8 @@ The first release. This is a port of the [Hammerwatch 1 remake](https://github.c
 - **The house lobby.** The default lobby is a hand-made AE editor level, the **house**. Its diamonds and upgrades lie where they were placed in the editor. More lobbies can be imported from the AE editor (`docs/LOBBY-AUTHORING.md`); a generated room is still an option.
 - **Item vendor.** A sixth vendor sells AE equipment from AE's five item tiers. Each tier is 5 random items: tier 1 is all common, tiers 2–3 are common and uncommon, tier 4 adds rares, and tier 5 always has one epic. The Lobby tab shows each tier as five slot pips coloured by rarity, with its price range and a list of every item by rarity. A new lobby sells tiers 2–3, and a boss-prep lobby also sells tier 4. Floor shop rooms roll the item vendor along with the skill vendors (the **Shop room vendors** section on the Dungeon tab). Its tier is random: common/uncommon 70, rare 20, epic 10 by default. The stand shows its tier number. A lobby vendor with no columns ticked is removed from the room.
 - **Items on mystery plates.** A plate can drop a unique item by name, a **random unique** (the *Lucky find* button), or a random rare or epic item. Uniques are never sold in shops.
+- **Speed pickups.** AE's speed and attack-speed upgrades (I and II) and the speed potion (double move, attack and cast speed for 10 seconds) can drop from boss wave tiers, survival rounds and mystery plates. The starter plate set has a button for each.
+- **Shaftlocke Siege**, a Claude preset built only from Shaftlocke's own content: six floors from the prison to the chambers, the town lobby and the tower music. The Wraith holds the crypt and the Golem the mines. Light bolts, dark beams and ballista bolts fire from the walls, bannermen, trappers and battlemages fill the upper floors, and the campaign ends on the Eye, the Vampire, the frost dragon or the Seeress.
 - **Players tab for AE.** It edits AE's `players/` data: each class's base stats, and every skill's prices and numbers tier by tier (binds, cooldowns, cast speed, move speed while attacking, the ranger bow's heat).
   - **Quick setup:** multipliers for prices, damage, health, mana and armor.
   - **Move speed:** set for everyone, for melee and ranged separately, or per class.
@@ -45,6 +47,12 @@ The first release. This is a port of the [Hammerwatch 1 remake](https://github.c
 - **One dragon per fight.** A boss lineup naming both the dragon and the frost dragon shows an error; random picks never roll both.
 - **Announcements keep their place.** A timed floor's countdown no longer wipes the "final room opened" and "N buttons remain" lines.
 - **Colosseum lobbies** each have a potion vendor and an item vendor, with the item tier rising over the run.
+- **Claude presets retuned for AE.** They were tuned in the HW1 remake.
+  - **Boss hunts:** Beat the Clock and Shell Game give five minutes instead of three. The boss is drawn from the ones with 2500 HP or less (the Knight, Krilith, the Worm, the Wraith and the Golem), because AE attacks are slower than the original's.
+  - **Fixes:** Double or Nothing's extra-life prize did nothing under *No lives*; it's now the *Heirloom*, a unique item and a red diamond. The Long Haul escape floor fires at the classic presets' AE rate (1.5 s).
+  - **Boss pools:** Pandemonium's first two floors draw from the lighter bosses.
+  - **New content:** Shaftlocke, Temple of the Sun and AE-only monsters, traps and plates in the presets they suit. Boss Rush meets the Warden, Trap Gauntlet fires poison darts, light bolts, flame jets, dark beams and ballista bolts, and Frozen Descent ends on the frost dragon after Krilith. The Long Haul's desert act has scorpions, the temple skeletons and the desert archers.
+- **Long countdowns warn later.** A floor timer's countdown warns about file size past 5 minutes instead of 200 seconds.
 
 ### Removed
 

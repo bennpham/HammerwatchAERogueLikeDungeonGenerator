@@ -1072,7 +1072,7 @@ const PRE_ALPHA_PRESETS: readonly CampaignPreset[] = [
 /**
  * Every campaign preset the preset dialog offers: the three classics first (castle
  * is the app's default and stays at index 0), then Colosseum — see
- * `colosseumPreset.ts` — then the ten Claude-generated ones — see
+ * `colosseumPreset.ts` — then the eleven Claude-generated ones — see
  * `claudePresets.ts` — then Pre-Alpha. `PRESET_GROUPS` is what the renderer
  * groups and orders them by; this array's order is the fallback within each
  * group.
