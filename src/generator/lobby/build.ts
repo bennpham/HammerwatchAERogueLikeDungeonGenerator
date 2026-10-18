@@ -1,4 +1,4 @@
-import { LOBBY_VENDORS, categoriesFor } from './shops'
+import { LOBBY_VENDORS, categoriesFor, vendorIdOfShopArea } from './shops'
 import type { LobbyPresetDef } from './presets'
 import { DIAMOND_UNIT, UPGRADE_KINDS, diamondCount, upgradeItemPath } from './payout'
 import type { LobbyOptions } from '../config/parameters'
@@ -208,12 +208,13 @@ function buildFromTemplate(
   }
 
   // --- vendors -------------------------------------------------------------
-  const shops = level.units.filter((u) => /^doodads\/generic\/shop_[a-z]+\.unit$/.test(u.path))
+  // stands, Castle's and Shaftlocke's (`shop_item_hwr`) alike
+  const shops = level.units.filter((u) => /^doodads\/generic\/shop_[a-z_]+\.unit$/.test(u.path))
   for (const s of level.scripts) {
     if (s.cls !== 'ShopArea') continue
     const label = s.label ?? ''
     const categories = (s.params.find((p) => p.name === 'Categories')?.value as string | undefined) ?? ''
-    const vendorId = label.startsWith('lobby:vendor:') ? label.slice('lobby:vendor:'.length) : vendorIdOf(categories)
+    const vendorId = label.startsWith('lobby:vendor:') ? label.slice('lobby:vendor:'.length) : vendorIdOfShopArea(categories)
     const vendor = LOBBY_VENDORS.find((v) => v.id === vendorId)
     if (vendor === undefined) continue
     const selected = categoriesFor(vendor, options.shopCategories)
@@ -240,7 +241,8 @@ function buildFromTemplate(
     if (vendor.id === 'item') {
       const badge = itemStandBadge(selected.join(' '))
       const stand = nearest(shops, use.x, use.y)
-      if (badge !== undefined && stand?.path === 'doodads/generic/shop_item.unit') {
+      // Shaftlocke's item stand has the same `1`…`5` scenes
+      if (badge !== undefined && stand !== undefined && ITEM_STANDS.has(stand.path)) {
         stand.state = { ...stand.state, start: { kind: 'string', value: badge } }
       }
     }
@@ -269,20 +271,10 @@ function buildFromTemplate(
 }
 
 const TILE = 16
+/** item stands whose scenes `1`…`5` are tier badges */
+const ITEM_STANDS = new Set(['doodads/generic/shop_item.unit', 'doodads/generic/shop_item_hwr.unit'])
 /** a floor shop's use radius, tiles */
 const SHOP_USE_RADIUS = 1.25
-
-/** Which vendor a ShopArea is, by the categories it sells. */
-function vendorIdOf(categories: string): string | undefined {
-  const first = categories.trim().split(/\s+/)[0] ?? ''
-  if (first.startsWith('combo')) return 'combo'
-  if (first.startsWith('def')) return 'defense'
-  if (first.startsWith('off')) return 'offense'
-  if (first.startsWith('misc')) return 'misc'
-  if (first === 'power') return 'power'
-  if (first === 'item' || first.startsWith('equipment_')) return 'item'
-  return undefined
-}
 
 /** Whether any script names `id`, by connection or in an id or target parameter. */
 function isReferenced(level: AeLevel, id: number): boolean {

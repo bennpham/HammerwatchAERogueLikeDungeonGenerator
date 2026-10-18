@@ -10,6 +10,16 @@ node scripts/import-ae-lobby.mjs "<AE root>/editor/lobbies/lobby.lvl" --id house
 
 This embeds the level in `src/generator/lobby/templates.generated.ts`. Re-running the command with the same `--id` replaces that lobby. A template with the id `house` becomes the default lobby (`DEFAULT_LOBBY_PRESET_ID`).
 
+### Stock levels
+
+A stock level isn't a lobby as it stands: it carries its campaign's exits, quests and flags. Shaftlocke's town has its own importer, which cleans it first (`src/generator/lobby/stockTown.ts`):
+
+```sh
+node scripts/run-ts.mjs scripts/import-shaftlocke-town.ts
+```
+
+It reads `town.lvl` from the install (`HWAE_ROOT`, or the default Steam path). It keeps the map, the vendors and the arrival, and adds the result as the `shaftlocke_town` lobby. Re-run it after changing the cleanup: `tests/stockTown.test.ts` fails while the embedded copy is out of date.
+
 ## What the generator looks for
 
 Each part is found by its script **label** first. If there is no label, the generator recognises the part by its **structure**. You never have to add a label, but a label always wins.
