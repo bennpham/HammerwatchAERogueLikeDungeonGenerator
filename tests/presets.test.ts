@@ -538,7 +538,7 @@ describe('campaign presets', () => {
 
     it('Double or Nothing: visible locks, and more plates with worse odds the deeper you go', () => {
       const params = campaignPresetById('claude-double-or-nothing')!.build()
-      const harsh = new Set(['Lich council', 'Double trouble', 'Kamikazes', 'Death trap', 'Inferno', "Dragon's breath", "Anubis' wrath", 'Death orbs'])
+      const harsh = new Set(['Lich council', 'Double trouble', "Wizard's gambit", 'Kamikazes', 'Death trap', 'Inferno', "Dragon's breath", "Anubis' wrath", 'Death orbs'])
       let lastCount = 0
       let lastShare = 0
       for (let level = 0; level < params.levels; level++) {
@@ -598,6 +598,27 @@ describe('campaign presets', () => {
         expect(floorBossAt(params, level)!.bossPool, `floor ${level + 1}`).not.toContain('boss_vampire')
       }
       for (const level of [2, 3]) expect(floorBossAt(params, level)!.bossPool).toEqual([...MOBILE_BOSS_IDS])
+    })
+
+    it('Boss Rush: one floor boss from each campaign', () => {
+      const params = campaignPresetById('claude-boss-rush')!.build()
+      const bosses = Array.from({ length: params.levels }, (_, i) => Object.keys(floorBossAt(params, i)!.bossLineup ?? {}))
+      expect(bosses).toEqual([['boss_knight'], ['boss_warden'], ['boss_krilith'], ['boss_anubis']])
+      expect(params.themes[1]).toBe('prison2')
+    })
+
+    it("Trap Gauntlet: fires AE's own trap ammunition from the walls", () => {
+      const params = campaignPresetById('claude-trap-gauntlet')!.build()
+      const fired = new Set(params.levelTraps!.flat().map((row) => row.projectile))
+      for (const id of ['shooter_arrow_poison', 'shooter_light_bolt', 'shooter_flame_long', 'shooter_dark_beam', 'tower_ballista_bolt']) {
+        expect(fired, id).toContain(id)
+      }
+    })
+
+    it('Frozen Descent: Krilith on the last floor, then the frost dragon', () => {
+      const params = campaignPresetById('claude-frozen-descent')!.build()
+      expect(floorBossAt(params, params.levels - 1)!.bossLineup).toEqual({ boss_krilith: 1 })
+      expect(params.boss.fights[0].arena.bossLineup).toEqual({ boss_dragon_hwr: 1 })
     })
 
     it('Long Haul: the escape floor fires the classic rig at its AE rate', () => {
