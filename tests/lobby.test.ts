@@ -210,7 +210,7 @@ for (const preset of LOBBY_PRESETS) {
 
       it('badges the item stand with the highest tier it sells', () => {
         const badgeOf = (level: AeLevel) =>
-          level.units.filter((u) => u.path === 'doodads/generic/shop_item.unit').map((u) => u.state?.start)
+          level.units.filter((u) => /^doodads\/generic\/shop_item(_hwr)?\.unit$/.test(u.path)).map((u) => u.state?.start)
         expect(badgeOf(lobbyOf(preset))).toEqual([{ kind: 'string', value: '3' }])
         expect(badgeOf(lobbyOf(preset, { shopCategories: ['equipment_1', 'equipment_5'] }))).toEqual([{ kind: 'string', value: '5' }])
       }, 60_000)

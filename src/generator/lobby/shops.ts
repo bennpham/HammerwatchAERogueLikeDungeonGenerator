@@ -80,6 +80,22 @@ export function vendorOfCategory(category: string): LobbyVendorDef | undefined {
 }
 
 /**
+ * Which stall an authored `ShopArea` is, by the categories it sells (its
+ * first column: `def*` -> defense, `off*` -> offense, `item` or
+ * `equipment_*` -> item...). Undefined for a shop no lobby stall stands for.
+ */
+export function vendorIdOfShopArea(categories: string): string | undefined {
+  const first = categories.trim().split(/\s+/)[0] ?? ''
+  if (first.startsWith('combo')) return 'combo'
+  if (first.startsWith('def')) return 'defense'
+  if (first.startsWith('off')) return 'offense'
+  if (first.startsWith('misc')) return 'misc'
+  if (first === 'power') return 'power'
+  if (first === 'item' || first.startsWith('equipment_')) return 'item'
+  return undefined
+}
+
+/**
  * Selected columns for one stall, in canonical order.
  *
  * Canonical rather than selection order so the emitted `cats` string — and
