@@ -13,7 +13,7 @@
  * on a few paths and that is fine — they answer different questions.
  *
  * `description` is what the form's tooltips show, so the difference between
- * the three potions is visible without opening the game's files.
+ * the four potions is visible without opening the game's files.
  *
  * `lane` is which column of the entrance drop pad the item lands in — see
  * boss/pickupPad.ts. Kept here rather than derived from `group` because the
@@ -37,7 +37,10 @@
  *                2026-08-27. See DISCOVERY-LOG.md. Note health_4 (50 HP)
  *                heals less than health_3 (75 HP) despite the label order.
  *
- * Nothing in this roster is [UNVERIFIED] any more.
+ *   [EMITTED]    potion_4 and the four speed / attack-speed upgrades — AE-only
+ *                pickups (no HW1 counterpart). Amounts read off each unit's
+ *                ShowFloatingText and, for the potion, `tweak/buffs/buffs.sval`
+ *                `potion_speed` (2026-10-18). In game: boot checklist.
  */
 
 /**
@@ -149,6 +152,14 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
     lane: 'potion',
     description: 'Damage potion.'
   },
+  {
+    id: 'potion_4',
+    path: 'items/pickups/powerup_potion_4_spd.unit',
+    label: 'Potion — speed',
+    group: 'Potions',
+    lane: 'potion',
+    description: 'Speed potion — double move, attack and cast speed for 10 seconds.'
+  },
   // --- Upgrades I ----------------------------------------------------------
   {
     id: 'upgrade_damage',
@@ -182,6 +193,22 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
     lane: 'upgrade',
     description: 'A free +10 max-mana upgrade.'
   },
+  {
+    id: 'upgrade_speed',
+    path: 'items/pickups/upgrade_speed.unit',
+    label: 'Speed upgrade I',
+    group: 'Upgrades I',
+    lane: 'upgrade',
+    description: 'A free +5% move-speed upgrade.'
+  },
+  {
+    id: 'upgrade_attackspeed',
+    path: 'items/pickups/upgrade_attackspeed.unit',
+    label: 'Attack speed upgrade I',
+    group: 'Upgrades I',
+    lane: 'upgrade',
+    description: 'A free +5% attack-speed upgrade.'
+  },
   // --- Upgrades II ---------------------------------------------------------
   {
     id: 'upgrade_damage_2',
@@ -214,6 +241,22 @@ export const PICKUP_DEFS: readonly PickupDef[] = [
     group: 'Upgrades II',
     lane: 'upgrade',
     description: 'A free +20 max-mana upgrade.'
+  },
+  {
+    id: 'upgrade_speed_2',
+    path: 'items/pickups/upgrade_speed_2.unit',
+    label: 'Speed upgrade II',
+    group: 'Upgrades II',
+    lane: 'upgrade',
+    description: 'A free +10% move-speed upgrade.'
+  },
+  {
+    id: 'upgrade_attackspeed_2',
+    path: 'items/pickups/upgrade_attackspeed_2.unit',
+    label: 'Attack speed upgrade II',
+    group: 'Upgrades II',
+    lane: 'upgrade',
+    description: 'A free +10% attack-speed upgrade.'
   },
   // --- Lives ---------------------------------------------------------------
   // Never in the stock table: an extra life is a real swing in a fight the

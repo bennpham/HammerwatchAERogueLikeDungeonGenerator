@@ -11,6 +11,7 @@ import {
   defaultParameters,
   defaultSurvivalOptions,
   escapeFloorTimer,
+  escapeFloorTraps,
   MYSTERY_STARTER_TRAP_SECONDS,
   scatterWave,
   stockWavePickups,
@@ -26,6 +27,7 @@ import type {
   DungeonParameters,
   FloorBuff,
   FloorLock,
+  MysteryButton,
   SurvivalBuff,
   SurvivalOptions,
   SurvivalPickup,
@@ -44,7 +46,7 @@ import { MUSIC_DEFAULT } from '../music/tracks'
 import type { CampaignPreset } from './presets'
 
 /**
- * Ten hand-built presets that show off everything added since the beta
+ * Eleven hand-built presets that show off everything added since the beta
  * classics: floor bosses, multi-boss arenas and lineups, survival arenas,
  * chained arenas, per-floor traps/timers/buffs, and mystery buttons and
  * enhanced/disguised lock buttons. Grouped separately from
@@ -281,6 +283,24 @@ function survivalTrapRow(row: BossTrap, startSeconds: number, endSeconds: number
   return { ...row, startSeconds, endSeconds }
 }
 
+/**
+ * A mystery trap room: `projectile` from each wall, [up, down, left, right]
+ * spewers (a zero leaves that wall bare), switching off after the starter
+ * set's timer like every starter trap room.
+ */
+function wallTrapRoom(
+  name: string,
+  projectile: string,
+  counts: readonly [number, number, number, number],
+  spawnRateMs: number,
+  spread: number
+): MysteryButton {
+  const traps = (['up', 'down', 'left', 'right'] as const)
+    .map((direction, i) => ({ projectile, direction, spread, spawnRateMs, count: counts[i] }))
+    .filter((row) => row.count > 0)
+  return mysteryButton(name, 'Traps activated', { traps, trapSeconds: MYSTERY_STARTER_TRAP_SECONDS })
+}
+
 // --- Lunch Break -------------------------------------------------------------
 
 /** One friendly plate a floor — mostly a treat, with a small squad or an arrow room as the catch. */
@@ -291,7 +311,7 @@ function lunchBreakMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'levelM
     levelMystery: [
       kit.pick(1, shallowLoot(), [['Bat swarm', 3], ['Tick nest', 3], ['Arrow storm', 2]]),
       kit.pick(1, shallowLoot(), [['Skeleton squad', 3], ['Slime pit', 2], ['Archer volley', 2], ['Arrow storm', 2]]),
-      kit.pick(1, midLoot(), [['Skeleton squad', 2], ['Wisps', 3], ['Archer volley', 2], ['Axe mill', 2]])
+      kit.pick(1, midLoot(), [['Attack speed upgrade', 1], ['Skeleton squad', 2], ['Wisps', 3], ['Archer volley', 2], ['Axe mill', 2]])
     ]
   }
 }
@@ -336,8 +356,8 @@ function lunchBreak(): DungeonParameters {
 
 /**
  * Monsters at +50% damage and speed — the clock presets' late-fight spike.
- * A boss actor does NOT catch a monsters-only field (owner playtest,
- * 2026-10-01, DISCOVERY-LOG), so every enrage below lands together with fresh
+ * A boss actor does NOT catch a monsters-only field (HW1-remake playtest,
+ * 2026-10-01, docs/reference/hw1-remake), so every enrage below lands together with fresh
  * minions — they are what it actually reaches.
  */
 function enrage(): FloorBuff[] {
@@ -345,12 +365,26 @@ function enrage(): FloorBuff[] {
 }
 
 /**
- * The clock presets' last floor: one random mobile boss, no lock buttons, so
- * the seal opens on its death alone and the clock is spent hunting it, not
- * plates. Invulnerability stays off — it may not share a floor with a timer.
- * At 25% the boss is cornered: `cornered` joins it, enraged. Sized to the last
- * floor (`levels` long), the only enabled entry — see the comment on
- * `campaign()`.
+ * The bosses a party can kill against a hazard clock: every mobile boss with
+ * 2500 hp or less — Krilith 850, the worm 1000, the wraith 1200, the golem
+ * 1600, the knight 2500 (unit files, 2026-10-18). Picked for stock AE attack
+ * speed, not the original's: AE swings slower, and a paladin and an archer
+ * could not finish a plain knight in the old 180 s hunt (user, 2026-10-18).
+ * The lich (4000), seeress (3750), warden (3000), eye (8000), Anubis (12000)
+ * and vampire (14000) stay out; untimed floors and arenas still roll them.
+ */
+const HUNT_BOSS_IDS = ['boss_knight', 'boss_krilith', 'boss_worm', 'boss_wraith', 'boss_golem'] as const
+
+/** The clock presets' hunt: five minutes to find and kill the boss. */
+const HUNT_SECONDS = 300
+
+/**
+ * The clock presets' last floor: one random boss from `HUNT_BOSS_IDS`, no
+ * lock buttons, so the seal opens on its death alone and the clock is spent
+ * hunting it, not plates. Invulnerability stays off — it may not share a floor
+ * with a timer. At 25% the boss is cornered: `cornered` joins it, enraged.
+ * Sized to the last floor (`levels` long), the only enabled entry — see the
+ * comment on `campaign()`.
  */
 function huntFloorBoss(
   levels: number,
@@ -364,9 +398,32 @@ function huntFloorBoss(
   waves[3] = { ...scatterWave([], cornered, 1500, enrage()), traps: [] }
   // `bossCount` left absent (= 1): `parameters.txt` writes no count for a
   // single boss, so an explicit 1 would not round-trip
-  const { bossCount: _single, ...boss } = floorBossRandom(MOBILE_BOSS_IDS, 1, waves)
+  const { bossCount: _single, ...boss } = floorBossRandom(HUNT_BOSS_IDS, 1, waves)
   bosses[levels - 1] = boss
   return bosses
+}
+
+/**
+ * What a hunt floor's plate may hold: mostly something that speeds the kill —
+ * AE's attack-speed upgrade, or the speed potion (double attack speed for 10 s).
+ */
+function huntPicks(): MysteryPicks {
+  return [
+    ['Nothing', 2],
+    ['Attack speed upgrade', 3],
+    ['Haste', 3],
+    ['Fury', 2],
+    ['Rejuvenation', 2]
+  ]
+}
+
+/** Beat the Clock's only plate: one on the hunt floor, none before it. */
+function huntPlate(levels: number): Pick<DungeonParameters, 'mysteryButtons' | 'levelMystery'> {
+  const kit = mysteryKit()
+  return {
+    mysteryButtons: kit.buttons,
+    levelMystery: Array.from({ length: levels }, (_, i) => (i === levels - 1 ? kit.pick(1, huntPicks()) : { count: 0, pool: [] }))
+  }
 }
 
 /** A boss arena's invulnerability, switched off — the seconds stay on the object, unread. */
@@ -428,16 +485,20 @@ function beatTheClock(): DungeonParameters {
     minRoomCount: 8,
     maxRoomCount: 10,
     themes: ['prison', 'armory', 'archives', 'chambers', 'cave_desert'],
+    // Fast things, to match the clock: bats, runners and, from floor 3, the
+    // Shaftlocke crawlers (15 hp, quick, and they burst for 40). Floor 1 has
+    // skeletons too — a vermin-only opening played too easy in AE.
     levelMonsters: [
-      ['bat', 'bat'],
+      ['bat', 'bat', 'skeleton_warrior'],
       ['tick', 'tick_gold'],
-      ['skeleton_runner', 'bat'],
-      ['skeleton_runner', 'tick_gold'],
-      ['skeleton_runner', 'bat', 'tick']
+      ['skeleton_runner', 'bat', 'crawler'],
+      ['skeleton_runner', 'tick_gold', 'crawler'],
+      ['skeleton_runner', 'bat', 'tick', 'crawler']
     ],
     floorMusic: ['act1', 'act1', 'act2', 'act2', 'act3'],
     // the last floor is the hunt: kill its boss before the clock does
     levelBoss: huntFloorBoss(levels, [['skeleton_runner', 6]], [['skeleton_runner', 4]], [['skeleton_runner', 4]]),
+    ...huntPlate(levels),
     lobbies: [lobby('BETA-dungeon-prep'), lobby('BETA-boss-prep', { music: 'boss_1' })],
     // L0 -> F0-F4 -> L1 -> AS0: the lobby is the reward for the hunt, and
     // the campaign ends on one more clock instead of a boss
@@ -445,8 +506,8 @@ function beatTheClock(): DungeonParameters {
     boss: { enabled: true, fights: [beatTheClockArena()] }
   })
   // every floor timed, clock shrinking as the damage rate ramps — except the
-  // hunt, which gets three minutes because a boss fight eats the clock
-  const seconds = [150, 120, 100, 80, 180]
+  // hunt, which gets five minutes because a boss fight eats the clock
+  const seconds = [150, 120, 100, 80, HUNT_SECONDS]
   const freqMs = [250, 212, 175, 137, 100]
   params.levelTimers = seconds.map((s, i) => ({ enabled: true, seconds: s, damage: 2, freqMs: freqMs[i], countdown: true }))
   // No sprinting for the stairs: the middle floors hide two buttons each. The
@@ -472,7 +533,8 @@ function bossRushMystery(levels: number): Pick<DungeonParameters, 'mysteryButton
     ['Refreshments', 3],
     ['Rejuvenation', 2],
     ['Invincibility', 1],
-    ['Fury', 1]
+    ['Fury', 1],
+    ['Attack speed upgrade', 1]
   ]
   return {
     mysteryButtons: kit.buttons,
@@ -483,16 +545,19 @@ function bossRushMystery(levels: number): Pick<DungeonParameters, 'mysteryButton
 function bossRush(): DungeonParameters {
   const levels = 4
   return campaign(levels, {
-    themes: ['cave_desert', 'bonus3', 'cave_crystal', 'pyramid_fancy'],
+    // one boss from each campaign: the knight (Castle), the warden
+    // (Shaftlocke), Krilith and Anubis (Temple of the Sun). No clock, so the
+    // warden's 3000 hp is a fight, not a race.
+    themes: ['cave_desert', 'prison2', 'cave_crystal', 'pyramid_fancy'],
     levelMonsters: [
       ['skeleton_warrior', 'skeleton_archer'],
-      ['bonus_demon', 'bonus_ghost'],
+      ['prison_warrior', 'prison_archer'],
       ['wisp', 'tick_gold'],
       ['mummy_guard', 'mummy']
     ],
     levelBoss: [
       floorBoss({ boss_knight: 1 }, floorTierAndDeathWaves([['skeleton_warrior', 10]], [['skeleton_warrior', 5]])),
-      floorBoss({ boss_lich: 1 }, floorTierAndDeathWaves([['bonus_ghost', 10]], [['bonus_ghost', 5]])),
+      floorBoss({ boss_warden: 1 }, floorTierAndDeathWaves([['prison_warrior', 10]], [['prison_warrior', 5]])),
       floorBoss({ boss_krilith: 1 }, floorTierAndDeathWaves([['wisp', 8]], [['wisp', 4]])),
       floorBoss({ boss_anubis: 1 }, floorTierAndDeathWaves([['mummy', 10]], [['mummy', 5]]))
     ],
@@ -500,7 +565,7 @@ function bossRush(): DungeonParameters {
     // the floor searched — the boss stays the main event
     levelLock: buttonLocks([1, 1, 1, 1]),
     ...bossRushMystery(levels),
-    floorMusic: ['act2', 'bonus', 'act3', 'temple_hub'],
+    floorMusic: ['act2', 'shaftlocke_20', 'act3', 'temple_hub'],
     lobbies: [lobby('BETA-dungeon-prep'), lobby('BETA-boss-prep', { startingGold: 25000, upgrades: oneOfEachUpgrade(), music: 'boss_1' })],
     levelOrder: actOrder(levels),
     boss: {
@@ -552,7 +617,7 @@ function arenaMarathon(): DungeonParameters {
         // gold: four 30-second phases of floor-1 monsters, about 2 a second,
         // and one miniboss in the last phase. The first cut (bat1 ×60, then skeleton1 ×20) died
         // on arrival; the second (elites, ~4.4 a second, three minibosses)
-        // wiped the party (owner playtests, 2026-10-05). The room is
+        // wiped the party (HW1-remake playtests, 2026-10-05). The room is
         // Colosseum-sized, so every anchor sits inside aggro range and nothing
         // piles up idle. Intervals divide each phase into whole rounds of 9.
         survivalFight(
@@ -579,7 +644,7 @@ function arenaMarathon(): DungeonParameters {
         ),
         // AB1 — a single random boss, knight or lich. Every health tier
         // spawns adds, so each invulnerability window has something to fight
-        // (with empty 75/50/25% tiers it was only a wait — owner playtest,
+        // (with empty 75/50/25% tiers it was only a wait — HW1-remake playtest,
         // 2026-10-05). Floor 2-3 strength for a party carrying the 20 000-gold
         // lobby's gear: no liches until the boss is dead.
         bossFight({
@@ -600,7 +665,7 @@ function arenaMarathon(): DungeonParameters {
         // AS2 — six 30-second phases on floor 2-3 monsters, about 1.8 spawns
         // a second, against the 20 000-gold lobby's gear. The first cut
         // (skeleton3, frost-spitting lich#2, lich#0, bloodlust, five
-        // minibosses, ~4 a second) overran the party (owner playtest,
+        // minibosses, ~4 a second) overran the party (HW1-remake playtest,
         // 2026-10-05): no liches now, no bloodlust, one miniboss per half and
         // never alongside archers, arrows only in the last phase.
         survivalFight(
@@ -632,7 +697,9 @@ function arenaMarathon(): DungeonParameters {
             ]
           }
         ),
-        // AB3 — the finale: 3 random bosses from the full roster
+        // AB3 — the finale: 3 random bosses from the full roster, the
+        // Shaftlocke heavyweights included. Untimed, and the last fight, so
+        // it keeps them; the timed hunts and early floors elsewhere do not.
         bossFight({
           theme: 'pyramid_inside',
           bossPool: [...BOSS_IDS],
@@ -654,14 +721,23 @@ function arenaMarathon(): DungeonParameters {
  * Trapped lock buttons grow with depth: one, then two on the last two floors.
  */
 function trapGauntletMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'levelMystery' | 'levelLockMystery'> {
-  const kit = mysteryKit()
+  // AE's own trap ammunition, as plate trap rooms: poison darts, Shaftlocke's
+  // light bolts, flame jets, the dark beam (50, darkness) and the ballista
+  // bolt (70). The two heavy ones fire straight, one per wall, slowly.
+  const kit = mysteryKit([
+    wallTrapRoom('Poison darts', 'shooter_arrow_poison', [4, 4, 2, 2], 500, 0.5),
+    wallTrapRoom('Light bolts', 'shooter_light_bolt', [2, 2, 2, 2], 600, 0.5),
+    wallTrapRoom('Flame jets', 'shooter_flame_long', [2, 2, 2, 2], 500, 0.5),
+    wallTrapRoom('Darkness', 'shooter_dark_beam', [1, 1, 1, 1], 1500, 0),
+    wallTrapRoom('Ballista volley', 'tower_ballista_bolt', [1, 1, 1, 1], 2000, 0)
+  ])
   // each floor's trap rooms, matching that floor's wall rig in levelTraps
   const rooms: MysteryPicks[] = [
-    [['Arrow storm', 12]],
-    [['Arrow storm', 6], ['Spike gauntlet', 6]],
-    [['Axe mill', 6], ['Fireball ring', 6]],
-    [['Boulder run', 6], ['Big fireball cross', 6]],
-    [['Arrow storm', 3], ['Spike gauntlet', 3], ['Fireball ring', 3], ["Dragon's breath", 3]]
+    [['Arrow storm', 6], ['Poison darts', 6]],
+    [['Light bolts', 6], ['Spike gauntlet', 6]],
+    [['Axe mill', 4], ['Fireball ring', 4], ['Flame jets', 4]],
+    [['Boulder run', 4], ['Big fireball cross', 4], ['Darkness', 4]],
+    [['Poison darts', 2], ['Spike gauntlet', 2], ['Fireball ring', 2], ["Dragon's breath", 3], ['Ballista volley', 3]]
   ]
   const loot = [shallowLoot(), shallowLoot(), midLoot(), midLoot(), deepLoot(['Defense upgrade II'])]
   const squads: MysteryPicks[] = [
@@ -688,21 +764,23 @@ function trapGauntlet(): DungeonParameters {
   return campaign(levels, {
     monsterMultiplier: 0.6,
     themes: ['prison', 'armory', 'archives', 'chambers', 'cave_desert'],
+    // the monsters lean on the trap theme from floor 3: trappers throw root
+    // nets into the crossfire, and ballista towers join the walls on floor 4
     levelMonsters: [
       ['bat', 'tick'],
       ['maggot', 'slime'],
-      ['skeleton_warrior', 'skeleton_archer'],
-      ['skeleton_soldier', 'skeleton_ranger'],
+      ['skeleton_warrior', 'skeleton_archer', 'trapper'],
+      ['skeleton_soldier', 'skeleton_ranger', 'tower_ballista'],
       ['eye', 'wisp', 'skeleton_lich']
     ],
     levelTraps: [
       [
         { projectile: 'shooter_arrow', direction: 'up', spread: 0, spawnRateMs: 1200, count: 2 },
-        { projectile: 'shooter_arrow', direction: 'down', spread: 0, spawnRateMs: 1200, count: 2 }
+        { projectile: 'shooter_arrow_poison', direction: 'down', spread: 0, spawnRateMs: 1200, count: 2 }
       ],
       [
-        { projectile: 'shooter_arrow', direction: 'up', spread: 0, spawnRateMs: 1000, count: 2 },
-        { projectile: 'shooter_arrow', direction: 'down', spread: 0, spawnRateMs: 1000, count: 2 },
+        { projectile: 'shooter_light_bolt', direction: 'up', spread: 0, spawnRateMs: 1000, count: 2 },
+        { projectile: 'shooter_light_bolt', direction: 'down', spread: 0, spawnRateMs: 1000, count: 2 },
         { projectile: 'shooter_spike', direction: 'left', spread: 0, spawnRateMs: 1000, count: 2 },
         { projectile: 'shooter_spike', direction: 'right', spread: 0, spawnRateMs: 1000, count: 2 }
       ],
@@ -710,23 +788,23 @@ function trapGauntlet(): DungeonParameters {
         { projectile: 'enemy_axe', direction: 'up', spread: 0.5, spawnRateMs: 900, count: 3 },
         { projectile: 'enemy_axe', direction: 'down', spread: 0.5, spawnRateMs: 900, count: 3 },
         { projectile: 'shooter_fireball', direction: 'left', spread: 0, spawnRateMs: 900, count: 3 },
-        { projectile: 'shooter_fireball', direction: 'right', spread: 0, spawnRateMs: 900, count: 3 }
+        { projectile: 'shooter_flame_long', direction: 'right', spread: 0, spawnRateMs: 900, count: 3 }
       ],
       // Floors 4-5 carry the lethal ammunition (damage >= 50: boulders,
-      // large fireballs, spikes). An always-on trap may fire it only in
+      // large fireballs, spikes, dark beams, ballista bolts). An always-on trap may fire it only in
       // straight, timeable lanes, never fanned out — a sprayed boulder or
       // spike cannot be dodged, and a lock button or the last corridor can
-      // land inside it (playtest, 2026-09-28). tests/presets.test.ts holds
+      // land inside it (HW1-remake playtest, 2026-09-28). tests/presets.test.ts holds
       // every preset to this; mystery buttons are exempt.
       [
         { projectile: 'shooter_stone_ball', direction: 'up', spread: 0, spawnRateMs: 2500, count: 1 },
         { projectile: 'shooter_stone_ball', direction: 'down', spread: 0, spawnRateMs: 2500, count: 1 },
         { projectile: 'shooter_fireball_2', direction: 'left', spread: 0, spawnRateMs: 1000, count: 2 },
-        { projectile: 'shooter_fireball_2', direction: 'right', spread: 0, spawnRateMs: 1000, count: 2 }
+        { projectile: 'shooter_dark_beam', direction: 'right', spread: 0, spawnRateMs: 1500, count: 2 }
       ],
       [
         { projectile: 'shooter_arrow', direction: 'up', spread: 0.5, spawnRateMs: 700, count: 4 },
-        { projectile: 'shooter_spike', direction: 'down', spread: 0, spawnRateMs: 1200, count: 3 },
+        { projectile: 'tower_ballista_bolt', direction: 'down', spread: 0, spawnRateMs: 1500, count: 3 },
         { projectile: 'shooter_fireball', direction: 'left', spread: 0.5, spawnRateMs: 700, count: 4 },
         { projectile: 'enemy_boss_dragon_fireball', direction: 'right', spread: 0.5, spawnRateMs: 900, count: 2 }
       ]
@@ -772,8 +850,8 @@ function trapGauntlet(): DungeonParameters {
 // --- Frozen Descent --------------------------------------------------------------
 
 /**
- * Frost-themed plates: chests frozen into the caves, Krilith's own dead, and
- * rooms that fill with frost or confusion. One plate on the first floor and on
+ * Frost-themed plates: chests frozen into the caves, Krilith's own dead, ice trolls, and
+ * rooms that fill with frost, frost shards or confusion. One plate on the first floor and on
  * Krilith's, two in between.
  */
 function frozenDescentMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'levelMystery'> {
@@ -783,7 +861,12 @@ function frozenDescentMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'lev
     }),
     mysteryButton('Frozen dead', 'The frozen dead rise', {
       monsters: [['krilith_frost_guard', 2], ['skeleton_soldier', 6]]
-    })
+    }),
+    mysteryButton('Ice trolls', 'Something stirs in the ice', {
+      monsters: [['mb_ice_troll', 1], ['troll_ice', 2]]
+    }),
+    // the Shaftlocke lich's frost shard: 30 damage and freezing
+    wallTrapRoom('Frost shards', 'lich_frost_shard', [2, 2, 2, 2], 700, 0.5)
   ])
   return {
     mysteryButtons: kit.buttons,
@@ -799,15 +882,15 @@ function frozenDescentMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'lev
       // the Regeneration floor — a breather, so the treasure leans richer
       kit.pick(2, midLoot(), [
         ['Eye cluster', 3], ['Wisps', 3], ['Frozen chest', 3],
-        ['Frost wall', 2], ['Confusion', 2]
+        ['Frost wall', 2], ['Frost shards', 2], ['Confusion', 2]
       ]),
       kit.pick(2, deepLoot(['Defense upgrade II']), [
-        ['Necromancer', 3], ['Frozen dead', 3], ['Lich council', 1], ['Frozen chest', 2],
-        ['Frost wall', 3], ['Confusion', 2], ['Death orbs', 1]
+        ['Necromancer', 3], ['Frozen dead', 3], ['Ice trolls', 2], ['Lich council', 1], ['Frozen chest', 2],
+        ['Frost wall', 3], ['Frost shards', 2], ['Confusion', 2], ['Death orbs', 1]
       ]),
       kit.pick(1, deepLoot(['Health upgrade II']), [
-        ['Frozen chest', 3], ['Wisps', 2], ['Frozen dead', 2],
-        ['Frost wall', 2]
+        ['Frozen chest', 3], ['Wisps', 2], ['Frozen dead', 2], ['Ice trolls', 2],
+        ['Frost wall', 2], ['Frost shards', 1]
       ])
     ]
   }
@@ -817,11 +900,13 @@ function frozenDescent(): DungeonParameters {
   const levels = 5
   return campaign(levels, {
     themes: ['cave_crystal', 'cave_crystal', 'cave_crystal', 'cave_crystal', 'cave_crystal'],
+    // AE's ice creatures join the descent: ice elementals from floor 2, the
+    // ice trolls on floor 4
     levelMonsters: [
       ['wisp#3', 'tick_gold'],
-      ['skeleton_soldier', 'wisp'],
+      ['skeleton_soldier', 'wisp', 'elemental_ice'],
       ['eye', 'wisp#3'],
-      ['skeleton_lich', 'skeleton_soldier'],
+      ['skeleton_lich', 'skeleton_soldier', 'troll_ice'],
       ['wisp#3', 'tower_static_frost']
     ],
     floorMusic: ['act3', 'act3', 'act4', 'act4', 'act4'],
@@ -865,15 +950,17 @@ function frozenDescent(): DungeonParameters {
     boss: {
       enabled: true,
       fights: [
+        // Krilith falls on floor 5; what waits below her is Shaftlocke's
+        // frost dragon, to its own music
         bossFight({
           theme: 'cave_crystal',
           bossSelection: 'lineup',
-          bossLineup: { boss_krilith: 1 },
+          bossLineup: { boss_dragon_hwr: 1 },
           waves: tierAndDeathWaves(
-            [['krilith_frost_guard', 6], ['tower_static_frost', 3]],
+            [['krilith_frost_guard', 6], ['tower_static_frost', 3], ['elemental_ice', 4]],
             [['krilith_frost_guard', 4]]
           ),
-          music: 'boss_final'
+          music: 'shaftlocke_21'
         })
       ]
     }
@@ -893,9 +980,13 @@ function pandemonium(): DungeonParameters {
       ['eye', 'wisp'],
       ['skeleton_soldier', 'skeleton_ranger']
     ],
+    // Two bosses on each of the first two floors, from the light end of the
+    // roster (the hunt pool and the lich) — two of the Shaftlocke heavyweights
+    // together on floor 1 is a wall, not an opener. Floors 3-4 roll any mobile
+    // boss, the finale any boss at all.
     levelBoss: [2, 2, 3, 3].map((count, i) =>
       floorBossRandom(
-        MOBILE_BOSS_IDS,
+        i < 2 ? [...HUNT_BOSS_IDS, 'boss_lich'] : MOBILE_BOSS_IDS,
         count,
         floorTierAndDeathWaves([['skeleton_warrior', 6 + i * 2]], [['skeleton_warrior', 4]])
       )
@@ -928,15 +1019,6 @@ function escapeFloorPool(): string[] {
     'skeleton_runner', 'bat', 'wisp#3', 'skeleton_lich', 'mb_eye',
     'wisp', 'tower_static_frost', 'tower_static_frost', 'tower_static_frost',
     'mb_wizard', 'tower_nova'
-  ]
-}
-
-function escapeFloorTraps(): BossTrap[] {
-  return [
-    { projectile: 'shooter_fireball', direction: 'up', spread: 0, spawnRateMs: 1000, count: 8 },
-    { projectile: 'shooter_fireball', direction: 'down', spread: 0, spawnRateMs: 1000, count: 8 },
-    { projectile: 'shooter_fireball', direction: 'left', spread: 0, spawnRateMs: 1000, count: 8 },
-    { projectile: 'shooter_fireball', direction: 'right', spread: 0, spawnRateMs: 1000, count: 8 }
   ]
 }
 
@@ -984,11 +1066,11 @@ function longHaulMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'levelMys
         ["Anubis' wrath", 2], ['Death orbs', 2]
       ]),
       // bonus act
-      kit.pick(2, deepLoot(['Damage upgrade II']), [
+      kit.pick(2, deepLoot(['Damage upgrade II', 'Attack speed upgrade II']), [
         ['Skeleton squad', 4], ['Archer volley', 3], ['Necromancer', 3],
         ['Purple drift', 3], ['Axe mill', 2], ['Death orbs', 1]
       ]),
-      kit.pick(2, deepLoot(['Health upgrade II']), [
+      kit.pick(2, deepLoot(['Health upgrade II', 'Speed upgrade II']), [
         ['Wisps', 3], ['Necromancer', 3], ['Eye cluster', 3], ['Lich council', 2],
         ['Death orbs', 2], ['Frost wall', 2], ['Spike gauntlet', 1]
       ]),
@@ -1025,16 +1107,19 @@ function longHaul(): DungeonParameters {
       'bonus2', 'bonus4', 'pyramid_inside', // bonus act
       'cave_crystal' // escape floor
     ],
+    // Skeletons from floor 1 (a vermin-only opening played too easy in AE).
+    // The desert act draws on the whole Temple of the Sun roster: scorpions,
+    // the temple's own skeletons and the desert battlement archers.
     levelMonsters: [
-      ['bat', 'tick'],
+      ['bat', 'tick', 'skeleton_warrior'],
       ['maggot', 'slime'],
       ['skeleton_warrior', 'skeleton_archer'],
       ['skeleton_soldier', 'skeleton_ranger'],
       ['eye', 'wisp'],
       ['wisp#3', 'tower_static_frost'],
-      ['mummy_guard', 'tick'],
-      ['mummy', 'mummy_mage'],
-      ['mummy_lich', 'spider#0'],
+      ['mummy_guard', 'scorpion', 'temple_warrior'],
+      ['mummy', 'mummy_mage', 'temple_soldier'],
+      ['mummy_lich', 'spider#0', 'tower_battlement_archer_desert'],
       ['bonus_demon', 'bonus_ghost'],
       ['wisp#3', 'skeleton_soldier'],
       ['mb_wizard', 'mb_doomspawner'],
@@ -1056,7 +1141,7 @@ function longHaul(): DungeonParameters {
       const bosses = Array.from({ length: 9 }, () => defaultDungeonBoss())
       bosses[2] = floorBoss({ boss_knight: 1 }, floorTierAndDeathWaves([['skeleton_warrior', 10]], [['skeleton_warrior', 5]]))
       bosses[5] = floorBoss({ boss_krilith: 1 }, floorTierAndDeathWaves([['wisp#3', 6]], [['wisp#3', 4]]))
-      bosses[8] = floorBoss({ boss_anubis: 1 }, floorTierAndDeathWaves([['mummy', 10]], [['mummy', 6]]))
+      bosses[8] = floorBoss({ boss_anubis: 1 }, floorTierAndDeathWaves([['mummy', 10], ['anubis_mummy_wizard', 4]], [['mummy', 6]]))
       return bosses
     })(),
     // lobby index 1 is given music explicitly (not left on the `default`
@@ -1104,8 +1189,9 @@ function longHaul(): DungeonParameters {
     { projectile: 'shooter_arrow', direction: 'up', spread: 0, spawnRateMs: 1200, count: 2 },
     { projectile: 'shooter_arrow', direction: 'down', spread: 0, spawnRateMs: 1200, count: 2 }
   ]
-  // The escape floor (last): the classic pattern — a 90s hazard clock, a
-  // fireball rig on all four walls, and nowhere else in the campaign pools
+  // The escape floor (last): the classic pattern — a 90s hazard clock, the
+  // classic presets' fireball rig on all four walls at its AE rate (1000 ms
+  // played far too dense in AE), and nowhere else in the campaign pools
   // tower_empty.
   params.levelTimers![levels - 1] = escapeFloorTimer()
   params.levelTraps![levels - 1] = escapeFloorTraps()
@@ -1126,7 +1212,7 @@ function fourWalls(projectile: string, spawnRateMs: number, spread: number): Bos
 /**
  * The red lock buttons are in plain sight and always safe: find them and the
  * floor opens. Everything else is a wager. The plates draw from a high-stakes
- * pool — tier-II upgrades, a jackpot and an extra life against lich councils,
+ * pool — tier-II upgrades, a jackpot and a unique heirloom against lich councils,
  * kamikaze packs and rooms of death orbs — and the odds tilt toward the house
  * with every floor. Ignore them and walk into the boss with what you brought;
  * gamble and walk in a giant, or not at all.
@@ -1141,11 +1227,18 @@ function doubleOrNothingMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'l
     mysteryButton('Arcane well', 'Arcane power floods in', { loot: [['upgrade_mana_2', 1], ['mana_2', 2]] }),
     mysteryButton('Jackpot', 'JACKPOT!', { loot: [['chest_blue', 1], ['chest_green', 1], ['valuable_diamond', 1]] }),
     mysteryButton('Diamond rain', 'Diamonds!', { loot: [['valuable_diamond', 2], ['valuable_diamond_small_red', 2]] }),
-    mysteryButton('Extra life', 'An extra life!', { loot: [['powerup_1up', 1]] }),
+    // the top prize: a unique and a red diamond. It was an extra life, which AE's
+    // forced No Lives modifier turns into nothing (PartyRecord.GiveLife)
+    mysteryButton('Heirloom', 'An heirloom!', { loot: [['random_unique_item', 1], ['valuable_diamond_red', 1]] }),
+    mysteryButton('Quickening', 'Time slows around you', { loot: [['upgrade_attackspeed_2', 1], ['potion_4', 1]] }),
     // the house collects
     mysteryButton('Bone pit', 'The pit opens', { monsters: [['mb_skeleton_guard#0', 2], ['skeleton_soldier', 12], ['skeleton_ranger', 6]] }),
     mysteryButton('Double trouble', 'Double or nothing... nothing', {
       monsters: [['mb_wizard', 1], ['skeleton_lich#0', 3], ['beheaded_kamikaze', 3]]
+    }),
+    // Shaftlocke's wizard (1750 hp, fireball bursts, glyph traps) and its battlemages
+    mysteryButton("Wizard's gambit", 'The house calls its wizard', {
+      monsters: [['mb_shaftlocke_wizard', 1], ['battlemage', 2]]
     }),
     mysteryButton('Death trap', 'You lose', {
       monsters: [['beheaded_kamikaze', 2]],
@@ -1176,22 +1269,22 @@ function doubleOrNothingMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'l
       kit.pick(4, [
         ['Nothing', 6], ['Safe bet', 4],
         ['Power surge', 3], ['Iron skin', 3], ['Vitality', 2], ['Arcane well', 2], ['Jackpot', 2], ['Diamond rain', 2],
-        ['Three chests', 1],
+        ['Three chests', 1], ['Quickening', 2],
         ['Lich council', 3], ['Bone pit', 4], ['Kamikazes', 2],
         ['Death orbs', 3], ['Death trap', 2], ['Boulder run', 2], ["Dragon's breath", 1]
       ]),
       kit.pick(5, [
         ['Nothing', 5], ['Safe bet', 3],
         ['Power surge', 3], ['Iron skin', 3], ['Vitality', 3], ['Arcane well', 2], ['Jackpot', 3], ['Diamond rain', 2],
-        ['Extra life', 1],
-        ['Lich council', 4], ['Double trouble', 3], ['Kamikazes', 3], ['Mummy tomb', 2],
+        ['Heirloom', 1], ['Quickening', 2],
+        ['Lich council', 4], ['Double trouble', 3], ["Wizard's gambit", 2], ['Kamikazes', 3], ['Mummy tomb', 2],
         ['Death trap', 3], ['Inferno', 2], ["Dragon's breath", 2], ["Anubis' wrath", 2]
       ]),
       kit.pick(5, [
         ['Nothing', 4],
         ['Power surge', 3], ['Iron skin', 3], ['Vitality', 3], ['Arcane well', 2], ['Jackpot', 4], ['Diamond rain', 2],
-        ['Extra life', 2],
-        ['Double trouble', 5], ['Lich council', 4], ['Kamikazes', 3],
+        ['Heirloom', 2], ['Quickening', 2],
+        ['Double trouble', 5], ["Wizard's gambit", 3], ['Lich council', 4], ['Kamikazes', 3],
         ['Death trap', 4], ['Inferno', 3], ["Dragon's breath", 2], ["Anubis' wrath", 2]
       ])
     ]
@@ -1248,7 +1341,8 @@ function shellGameMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'levelMy
     [...shallowLoot(), ['Tick nest', 4], ['Gold beetles', 3], ['Slime pit', 3], ['Arrow storm', 3], ['Axe mill', 3]],
     [...midLoot(), ['Skeleton squad', 4], ['Bat swarm', 3], ['Archer volley', 3], ['Axe mill', 3], ['Spike gauntlet', 2]],
     [...midLoot(), ['Skeleton squad', 4], ['Necromancer', 3], ['Gold beetles', 3], ['Spike gauntlet', 3], ['Boulder run', 2]],
-    [...deepLoot(['Damage upgrade II']), ['Necromancer', 3], ['Bat swarm', 3], ['Kamikazes', 1], ['Death orbs', 3], ['Spike gauntlet', 2]]
+    // the hunt floor's decoys can also hand over what speeds the kill
+    [...deepLoot(['Damage upgrade II']), ['Attack speed upgrade', 2], ['Haste', 2], ['Necromancer', 3], ['Bat swarm', 3], ['Kamikazes', 1], ['Death orbs', 3], ['Spike gauntlet', 2]]
   ]
   const decoyCounts = [2, 2, 3, 3, 4]
   // the hunt floor has no lock to disguise — its decoys just waste the clock
@@ -1335,11 +1429,128 @@ function shellGame(): DungeonParameters {
   })
   // Beat the Clock on steroids: each locked floor has less time per button
   // (150 s for one, then down to 35 s each for three), and a floor that runs
-  // out hurts harder and faster. The hunt gets three minutes for its boss.
-  const seconds = [150, 135, 120, 105, 180]
+  // out hurts harder and faster. The hunt gets five minutes for its boss.
+  const seconds = [150, 135, 120, 105, HUNT_SECONDS]
   const freqMs = [200, 175, 150, 125, 100]
   params.levelTimers = seconds.map((s, i) => ({ enabled: true, seconds: s, damage: 3, freqMs: freqMs[i], countdown: true }))
   return params
+}
+
+// --- Shaftlocke Siege -------------------------------------------------------------
+
+/**
+ * The tower's own plates: its regiments, the crawlers and cysts, a ballista
+ * nest, and the wizard as the deep floors' worst draw — against coins, chests
+ * and AE's speed pickups, ramping with depth like every other preset.
+ */
+function shaftlockeSiegeMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'levelMystery'> {
+  const kit = mysteryKit([
+    mysteryButton('Crawler swarm', 'Something skitters', { monsters: [['crawler', 24]] }),
+    mysteryButton('Cyst bloom', 'Maggots!', { monsters: [['maggot_cyst', 2], ['shaftlocke_maggot', 10]] }),
+    mysteryButton('Trapper ambush', 'Nets!', { monsters: [['trapper', 4], ['skeleton_sentry', 4]] }),
+    mysteryButton('Bannermen rally', 'Rally to the banner!', {
+      monsters: [['bannerman_bloodlust', 2], ['bannerman_protection', 2], ['skeleton_footman#2', 8]]
+    }),
+    mysteryButton('Ballista nest', 'Ballistas!', { monsters: [['tower_ballista_javelin', 1], ['tower_ballista_splitshot', 1]] }),
+    mysteryButton("Wizard's gambit", 'The tower calls its wizard', {
+      monsters: [['mb_shaftlocke_wizard', 1], ['battlemage', 2]]
+    }),
+    wallTrapRoom('Light bolts', 'shooter_light_bolt', [2, 2, 2, 2], 600, 0.5),
+    wallTrapRoom('Ballista volley', 'tower_ballista_bolt', [1, 1, 1, 1], 2000, 0)
+  ])
+  return {
+    mysteryButtons: kit.buttons,
+    levelMystery: [
+      kit.pick(1, shallowLoot(), [['Crawler swarm', 4], ['Cyst bloom', 3], ['Light bolts', 3], ['Arrow storm', 2], ['Speed upgrade', 1]]),
+      kit.pick(2, shallowLoot(), [['Trapper ambush', 3], ['Crawler swarm', 3], ['Light bolts', 3], ['Spike gauntlet', 2], ['Attack speed upgrade', 1]]),
+      // the mines: the golem's floor, and the one that pays
+      kit.pick(2, midLoot(), [['Gold beetles', 4], ['Cyst bloom', 3], ['Crawler swarm', 2], ['Speed upgrade', 1], ['Haste', 1]]),
+      kit.pick(2, midLoot(), [['Bannermen rally', 3], ['Trapper ambush', 3], ['Ballista nest', 2], ['Light bolts', 3], ['Attack speed upgrade', 1]]),
+      kit.pick(2, deepLoot(['Defense upgrade II']), [
+        ['Bannermen rally', 3], ['Ballista nest', 3], ["Wizard's gambit", 2], ['Ballista volley', 2], ['Light bolts', 2],
+        ['Attack speed upgrade II', 1]
+      ]),
+      kit.pick(2, deepLoot(['Damage upgrade II', 'Speed upgrade II']), [
+        ["Wizard's gambit", 3], ['Bannermen rally', 3], ['Ballista nest', 2], ['Ballista volley', 3], ['Lich council', 1]
+      ])
+    ]
+  }
+}
+
+/** The tower's great bosses — the ones its acts end on above the mines and crypt. */
+function shaftlockeSiegeArena(): BossFight {
+  const drops = stockWavePickups()
+  return bossFight({
+    theme: 'chambers2',
+    bossPool: ['boss_eye', 'boss_vampire', 'boss_dragon_hwr', 'boss_seeress'],
+    waves: [
+      scatterWave([], [['skeleton_footman', 12], ['skeleton_sentry', 4]], 2000),
+      scatterWave([], [['skeleton_lancer', 6], ['bannerman_protection', 2]], 2000),
+      scatterWave([], [['battlemage', 2], ['skeleton_defender', 3]], 2000, [], drops.half),
+      scatterWave([], [['shaftlocke_lich', 4], ['bannerman_bloodlust', 2]], 2000, [], drops.quarter),
+      scatterWave([], [['shaftlocke_lich', 3]], 1500, bossDeathBuffs(), drops.death)
+    ],
+    music: 'shaftlocke_21'
+  })
+}
+
+/**
+ * Shaftlocke on AE's own content and nothing else: its tilesets, music,
+ * roster and the town lobby, its light-bolt, dark-beam and ballista traps, two
+ * of its bosses as floor bosses where stock places them (the wraith in the
+ * crypt, the golem in the mines) and one of its four great bosses to finish.
+ */
+function shaftlockeSiege(): DungeonParameters {
+  const levels = 6
+  const bolt = (direction: BossTrap['direction'], spawnRateMs: number, count: number, projectile = 'shooter_light_bolt'): BossTrap => ({
+    projectile,
+    direction,
+    spread: 0,
+    spawnRateMs,
+    count
+  })
+  return campaign(levels, {
+    themes: ['prison2', 'crypt', 'mine_granite', 'archives2', 'chambers2', 'chambers2'],
+    // the prison's skeletons and grubs, the crypt's lancers and guardians, the
+    // mines' gold beetles and cysts, then the archives' and chambers' footman
+    // regiments with their bannermen, trappers, battlemages and ballistas
+    levelMonsters: [
+      ['prison_warrior', 'prison_archer', 'shaftlocke_maggot', 'crawler'],
+      ['armory_warrior', 'armory_archer', 'skeleton_lancer', 'guardian'],
+      ['tick_gold', 'tick_gold', 'tick', 'shaftlocke_maggot', 'maggot_cyst'],
+      ['skeleton_footman', 'skeleton_sentry', 'trapper', 'bannerman', 'shaftlocke_lich'],
+      ['skeleton_footman', 'skeleton_defender', 'battlemage', 'bannerman', 'tower_ballista'],
+      ['skeleton_defender', 'battlemage', 'shaftlocke_lich', 'bannerman', 'mb_shaftlocke_guard', 'tower_beamo']
+    ],
+    floorMusic: Array.from({ length: levels }, () => 'shaftlocke_20'),
+    // Light bolts from the start; the strong bolt, dark beams (50) and
+    // ballista bolts (70) deeper in, the heavy two in straight lanes. The
+    // mines carry no wall traps, as stock's barely do.
+    levelTraps: [
+      [bolt('up', 1200, 2), bolt('down', 1200, 2)],
+      [bolt('left', 1000, 2), bolt('right', 1000, 2), bolt('up', 1200, 2, 'shooter_arrow'), bolt('down', 1200, 2, 'shooter_arrow')],
+      [],
+      [bolt('up', 900, 2, 'shooter_light_bolt_queen'), bolt('down', 900, 2, 'shooter_light_bolt_queen'), bolt('left', 1500, 2, 'shooter_dark_beam')],
+      [bolt('up', 1500, 2, 'tower_ballista_bolt'), bolt('down', 1500, 2, 'tower_ballista_bolt'), bolt('left', 800, 3, 'shooter_light_bolt_queen'), bolt('right', 800, 3, 'shooter_light_bolt_queen')],
+      [bolt('up', 1500, 2, 'tower_ballista_bolt'), bolt('down', 1500, 2, 'shooter_dark_beam'), bolt('left', 700, 3, 'shooter_light_bolt_queen'), bolt('right', 700, 3, 'shooter_light_bolt_queen')]
+    ],
+    // Sized to the golem's floor, the last enabled one — see `campaign()`.
+    // The golem drops a clutch of gold beetles when it falls.
+    levelBoss: [
+      defaultDungeonBoss(),
+      floorBoss({ boss_wraith: 1 }, floorTierAndDeathWaves([['armory_warrior', 8], ['guardian', 2]], [['armory_warrior', 4]])),
+      floorBoss({ boss_golem: 1 }, floorTierAndDeathWaves([['shaftlocke_maggot', 8]], [['tick_gold', 4]]))
+    ],
+    // the boss floors open on their boss alone; buttons everywhere else
+    levelLock: buttonLocks([1, 0, 0, 2, 2, 2]),
+    ...shaftlockeSiegeMystery(),
+    lobbies: [
+      lobby('shaftlocke_town', { music: 'shaftlocke_20' }),
+      { ...defaultLobby('BETA-boss-prep'), preset: 'shaftlocke_town', music: 'shaftlocke_20' }
+    ],
+    levelOrder: actOrder(levels),
+    boss: { enabled: true, fights: [shaftlockeSiegeArena()] }
+  })
 }
 
 // --- registry ----------------------------------------------------------------
@@ -1357,14 +1568,14 @@ export const CLAUDE_PRESETS: readonly CampaignPreset[] = [
   {
     id: 'claude-beat-the-clock',
     label: 'Beat the Clock',
-    description: 'Every floor runs on a shrinking hazard timer with hidden buttons to find, the last one hides a boss to kill before it hits, then two minutes in a miniboss-led survival arena — about 30 minutes.',
+    description: 'Every floor runs on a shrinking hazard timer with hidden buttons to find, the last gives five minutes to hunt down a boss, then two minutes in a miniboss-led survival arena — about 35 minutes.',
     group: 'claude',
     build: beatTheClock
   },
   {
     id: 'claude-boss-rush',
     label: 'Boss Rush',
-    description: 'A mobile boss and a hidden button seal the way out of every floor, and each button drops supplies for the fight, then a two-boss finale — about 40 minutes.',
+    description: 'A boss from each campaign — the knight, the warden, Krilith and Anubis — and a hidden button seal the way out of every floor, and each button drops supplies for the fight, then a two-boss finale — about 40 minutes.',
     group: 'claude',
     build: bossRush
   },
@@ -1372,14 +1583,14 @@ export const CLAUDE_PRESETS: readonly CampaignPreset[] = [
     id: 'claude-double-or-nothing',
     label: 'Double or Nothing',
     description:
-      'The red buttons are safe; every other plate is a wager of tier-II upgrades and extra lives against lich councils and death traps. The odds get worse the deeper you go — about 40 minutes.',
+      'The red buttons are safe; every other plate is a wager of tier-II upgrades and unique items against lich councils and death traps. The odds get worse the deeper you go — about 40 minutes.',
     group: 'claude',
     build: doubleOrNothing
   },
   {
     id: 'claude-frozen-descent',
     label: 'Frozen Descent',
-    description: 'A five-floor descent through the ice caves, hunting buttons and frozen mystery plates, ending on Krilith — about 45 minutes.',
+    description: 'A five-floor descent through the ice caves, hunting buttons and frozen mystery plates, ending on Krilith, then the frost dragon beneath her — about 45 minutes.',
     group: 'claude',
     build: frozenDescent
   },
@@ -1398,10 +1609,18 @@ export const CLAUDE_PRESETS: readonly CampaignPreset[] = [
     build: () => withGatewayLocks(pandemonium())
   },
   {
+    id: 'claude-shaftlocke-siege',
+    label: 'Shaftlocke Siege',
+    description:
+      "Six floors up Shaftlocke on the tower's own roster and traps — the Wraith in the crypt, the Golem in the mines, bannermen, trappers and ballistas above — then one of its four great bosses — about 45 minutes.",
+    group: 'claude',
+    build: shaftlockeSiege
+  },
+  {
     id: 'claude-shell-game',
     label: 'Shell Game',
     description:
-      'Lock buttons look just like the decoy plates around them, and a steep clock gives time to check only a few. Then hunt a boss against the clock, finish a boss with no invulnerability, and outlast a survival arena — about 35 minutes.',
+      'Lock buttons look just like the decoy plates around them, and a steep clock gives time to check only a few. Then five minutes to hunt a boss, finish a boss with no invulnerability, and outlast a survival arena — about 40 minutes.',
     group: 'claude',
     build: shellGame
   },
@@ -1415,7 +1634,7 @@ export const CLAUDE_PRESETS: readonly CampaignPreset[] = [
   {
     id: 'claude-trap-gauntlet',
     label: 'Trap Gauntlet',
-    description: 'Wall traps escalate every floor, from arrows to dragonfire, and so do the buttons hidden under them — some of which are trapped too — about 45 minutes.',
+    description: 'Wall traps escalate every floor, from arrows and poison darts to dark beams, ballista bolts and dragonfire, and so do the buttons hidden under them — some of which are trapped too — about 45 minutes.',
     group: 'claude',
     build: trapGauntlet
   }

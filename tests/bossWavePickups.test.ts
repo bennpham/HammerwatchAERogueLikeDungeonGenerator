@@ -224,18 +224,18 @@ describe('boss wave pickups — a count is copies', () => {
     expect(byPath.get(itemPath('upgrade_damage'))).toBe(tileOf(PAD.upgrade[0]))
   })
 
-  it('lays the eight upgrades out as the two-wide block of the reference layout', () => {
+  it('lays the twelve upgrades out as the two-wide block of the reference layout', () => {
     const ctx = freshCtx()
     const upgrades = PICKUP_DEFS.filter((d) => d.lane === 'upgrade')
-    expect(upgrades).toHaveLength(8)
+    expect(upgrades).toHaveLength(12)
     buildRig(ctx, [wave(...upgrades.map((d): [string, number] => [d.id, 1]))])
 
     const tiles = spawns(ctx).map(tileOf)
-    expect(new Set(tiles).size).toBe(8)
-    expect(tiles).toEqual(PAD.upgrade.slice(0, 8).map(tileOf))
-    // two columns, four rows
+    expect(new Set(tiles).size).toBe(12)
+    expect(tiles).toEqual(PAD.upgrade.slice(0, 12).map(tileOf))
+    // two columns, six rows
     expect(new Set(spawns(ctx).map((s) => s.x)).size).toBe(2)
-    expect(new Set(spawns(ctx).map((s) => s.y)).size).toBe(4)
+    expect(new Set(spawns(ctx).map((s) => s.y)).size).toBe(6)
   })
 
   it('drops an extra life in the consumables row alongside the potions', () => {

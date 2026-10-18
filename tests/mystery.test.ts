@@ -485,8 +485,21 @@ describe('mystery buttons — the starter set', () => {
     for (const rich of ['chest_red', 'valuable_diamond_red', 'powerup_1up', 'powerup_7up']) expect(items).not.toContain(rich)
     // A tier-II upgrade is its own button, one copy and nothing else.
     const tierTwo = starter.filter((b) => b.loot.some((r) => /^upgrade_.*_2$/.test(r.item)))
-    expect(tierTwo).toHaveLength(4)
+    expect(tierTwo).toHaveLength(6)
     for (const b of tierTwo) expect(b.loot).toEqual([{ item: expect.stringMatching(/_2$/), count: 1 }])
+  })
+
+  it("appends AE's speed pickups last, so no older button changes index", () => {
+    // 'Poison nova' was the last button before them; a saved floor's pool indices stay put
+    const firstNew = starter.findIndex((b) => b.name === 'Speed upgrade')
+    expect(starter[firstNew - 1].name).toBe('Poison nova')
+    expect(starter.slice(firstNew).map((b) => b.loot[0].item)).toEqual([
+      'upgrade_speed',
+      'upgrade_attackspeed',
+      'upgrade_speed_2',
+      'upgrade_attackspeed_2',
+      'potion_4'
+    ])
   })
 
   it('arms every trap room on all four walls, switching off after the starter timer', () => {

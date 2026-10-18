@@ -207,9 +207,11 @@ export const MAX_TIMER_DAMAGE = 10_000
 /**
  * A countdown longer than this emits more than this many AnnounceText nodes on
  * that one floor, which bloats the level XML — warned about, not rejected.
- * Same threshold and same reasoning as BOSS_COUNTDOWN_NODE_WARN.
+ * Five minutes: the clock presets' boss hunts run that long on stock AE attack
+ * speed, and measured on Beat the Clock's hunt floor (seed 4242) 300 ticks
+ * against 180 cost about 35 KB on a 105 KB level (2026-10-18).
  */
-export const TIMER_COUNTDOWN_NODE_WARN = 200
+export const TIMER_COUNTDOWN_NODE_WARN = 300
 
 /** A fresh, disabled floor timer — the stock value for every floor. */
 export function defaultFloorTimer(): FloorTimer {
@@ -606,7 +608,15 @@ export function mysteryStarterPool(): MysteryButton[] {
     trapRoom("Anubis' wrath", 'Traps activated', 'enemy_boss_anubis_fireball', [1, 1, 1, 1], 1000, 0.25),
     trapRoom('Frost wall', 'Traps activated', 'enemy_boss_krilith_frostball', [2, 2, 2, 2], 900),
     trapRoom('Confusion', 'Traps activated', 'enemy_boss_krilith_confusion', [2, 2, 2, 2], 900),
-    trapRoom('Poison nova', 'Traps activated', 'boss_queen_spit', [1, 1, 1, 1], 700)
+    trapRoom('Poison nova', 'Traps activated', 'boss_queen_spit', [1, 1, 1, 1], 700),
+
+    // AE's own pickups, appended last: floors pick by index, so the buttons
+    // above keep theirs and a preset that picks none of these is unchanged
+    loot('Speed upgrade', 'An upgrade', [['upgrade_speed', 1]]),
+    loot('Attack speed upgrade', 'An upgrade', [['upgrade_attackspeed', 1]]),
+    loot('Speed upgrade II', 'A great upgrade', [['upgrade_speed_2', 1]]),
+    loot('Attack speed upgrade II', 'A great upgrade', [['upgrade_attackspeed_2', 1]]),
+    loot('Haste', 'A potion', [['potion_4', 1]])
   ]
 }
 
