@@ -246,13 +246,16 @@ describe('the escape floor', () => {
     // Baselined on the AE port; re-baselined 2026-10-10 for the shop's
     // UseTrigger→ShopArea connection and the AnnounceText Style lines, then
     // for the wall torches (appended after the walls) (no
-    // layout change: scripts/dev/layout-hash.ts, dump-floors.ts). Only the
+    // layout change: scripts/dev/layout-hash.ts, dump-floors.ts). Re-baselined
+    // 2026-10-16 for room.ts visibleDropY: keys and lock powerups sit higher in
+    // their rooms, clear of the south wall's art — same draws, only those
+    // items' y moved (dump-floors.ts diff). Only the
     // floor `.lvl` files are hashed, over a
     // fixed literal plan with every optional layer off, so a change to the
     // shipped default campaign does not move it.
     const expected: Record<number, string> = {
-      1234: '7f4c8938ada00329978cab1046b6797adb4d6379cde2ca2105c425a603ff9885',
-      987654: '183280d3168e5ac4525a5a548df992a3bb58db5e16f5d00171fd8a4233d1f874'
+      1234: '58f9f9de6b46c5dfcbe45b87b9c10440acc81d81fa8c5bd00f61ca2db073156c',
+      987654: 'c2cd27cb379944f222b1b7d9471ceaa69589e0446299accb211450460122c7df'
     }
     for (const [seed, hash] of Object.entries(expected)) {
       const params = defaultParameters()

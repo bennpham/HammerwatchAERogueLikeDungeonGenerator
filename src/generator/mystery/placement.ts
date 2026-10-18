@@ -24,6 +24,13 @@ export interface ButtonSlot extends Slot {
  */
 export const MYSTERY_BUTTON_SPACING = 4
 
+/**
+ * A plate's tile may be at most this many rows above the room's last floor
+ * row `room.y + height`: the south wall's art covers that row and the one
+ * above it, and the plate fills its own tile and the next.
+ */
+const VISIBLE_SOUTH_ROWS = 3
+
 /** Chebyshev distance a plate keeps from any item the floor already placed. */
 const ITEM_CLEARANCE = 1
 
@@ -80,6 +87,9 @@ export function mysteryButtonSlots(level: Level, ctx: GenerationContext): Button
   level.rooms.forEach((room, roomIndex) => {
     if (!plateRoom(room)) return
     for (const slot of roomInteriorSlots(level, ctx, room, roomIndex)) {
+      // the plate (tile slot.y .. slot.y + 1) clear of the south wall's art,
+      // which covers the room's last two floor rows (room.ts visibleDropY)
+      if (slot.y > room.y + room.height - VISIBLE_SOUTH_ROWS) continue
       if (!reach.visited[slot.x + slot.y * level.width]) continue
       if (avoid.some((a) => chebyshev(a.x, a.y, slot.x, slot.y) <= a.gap)) continue
       slots.push({ ...slot, roomIndex })
