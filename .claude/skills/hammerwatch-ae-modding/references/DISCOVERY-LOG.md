@@ -757,3 +757,35 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   escape floor down to the fast fireballs together with a hidden mystery plate.
 - `[VERIFIED]` (user) Escape fireballs at 2000 ms play fair but "a bit slow". `[EMITTED]`
   `ESCAPE_TRAP_RATE_MS` 2000 → 1500, still 8 per wall. In game: checklist #56.
+
+### Shaftlocke's town as a lobby (2026-10-17)
+
+- `[VERIFIED]` (read) `scenarios/shaftlocke_tower/levels/hwr/town.lvl` (The Outlook,
+  `outlook.env`): 6,941 units, 660 scripts, about 209×110 tiles. The game mode carries
+  `SlideShow intro_hwr`, which `readLevel` drops. Thirteen `LevelExit`s lead to
+  `levels/hwr/*.lvl`. The north gate (`UseTrigger "Exit"`) goes to `mines_1`, and the
+  central `teleport_mt` (start `closed`, opened by `SetUnitScene "open"`) goes to the other
+  twelve, which are chosen with `exit_teleport_switch_outlook_*` and `hub_teleport_*` flags.
+- `[VERIFIED]` (read) Its stalls are tiered. Each vendor `UseTrigger` names 4–6 `ShopArea`s
+  (`off0`, `off1`, `off1 off2`, … `off1..off5`), and town upgrades switch between them:
+  `GlobalEventTrigger shop_<kind>_<n>` → `SetFlag` + `SetUnitScene "<n>"` on the stand,
+  plus `CheckFlag` → `ToggleScripts` when the vendor is used. The stands' scenes are `1`–`5`
+  (`shop_offense`, `shop_health`, `shop_combo`, `shop_item_hwr`) and `hwr1`–`hwr5`
+  (`shop_defense`). `shop_item_hwr` has the same `none`/`1`–`5` badge scenes as
+  `shop_item`. `ShopArea Type 3`, category `shaftlocke`, is the town-upgrade shop. The
+  power stall (`shop_potion`) is only spawned by a quest (`SpawnUnit`). The defense, misc
+  and item stands start with an NPC actor standing on them, which a `TEMP` `AreaTrigger`
+  removes.
+- `[VERIFIED]` (read) The rest of the scripts are story: dialogs, tutorials, player voice
+  lines, guard rotations, prisoner and elevator counters, Steam stats (`PlatformStat`
+  `HWRShop`, `HWRElevator`, `HWRQuest*`), and five `gui/fonts/arial14.fnt` units (the
+  editor's debug labels, which aren't in the asset snapshot).
+- `[EMITTED]` `src/generator/lobby/stockTown.ts` keeps the map and these scripts: the
+  StartID-less `LevelStart`, each vendor `UseTrigger` with its widest `ShopArea` (labelled
+  `lobby:vendor:<id>`, moved onto its stand) and its `PlaySound`, `ExploreMinimap`, and
+  `RegionArea "town"`. It bakes every scripted scene at its top tier (stalls `5`/`hwr5`,
+  fountain `tier-2`, teleporter `open`) and places the quest-spawned power stand. It drops
+  actors, the portal selectors, pickups, the debug labels and orphaned sensors. The lobby
+  builder lays its press-F exit on `teleport_mt`. The importer is
+  `scripts/import-shaftlocke-town.ts`, and it's the `shaftlocke_town` lobby option
+  (479 KB). In game: checklist #61–#63.
