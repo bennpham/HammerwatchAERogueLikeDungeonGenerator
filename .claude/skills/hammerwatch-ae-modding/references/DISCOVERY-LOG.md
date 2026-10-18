@@ -853,3 +853,8 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   shopkeeper of a stall that sells nothing. `st_equipment_*` maps to the item vendor. The
   importer is now `scripts/import-stock-towns.ts`; the `sun_bazaar` lobby is 190 KB
   (3072 → 2982 units, 691 → 14 scripts). In game: checklist #68–#70.
+- `[VERIFIED]` (played, 2026-10-18, checklist #68–#70) The `sun_bazaar` lobby boots, and the
+  party walks from the south-east gate into the square. The shopkeepers show body, icon and
+  tier numeral, so AE accepts a `strings` start list written by our level writer, not just
+  stock's. Each stall sells the Lobby tab's columns, and press F on `teleport_mt` moves the
+  party to the first floor.
