@@ -11,6 +11,7 @@ import {
   defaultParameters,
   defaultSurvivalOptions,
   escapeFloorTimer,
+  escapeFloorTraps,
   MYSTERY_STARTER_TRAP_SECONDS,
   scatterWave,
   stockWavePickups,
@@ -345,12 +346,26 @@ function enrage(): FloorBuff[] {
 }
 
 /**
- * The clock presets' last floor: one random mobile boss, no lock buttons, so
- * the seal opens on its death alone and the clock is spent hunting it, not
- * plates. Invulnerability stays off — it may not share a floor with a timer.
- * At 25% the boss is cornered: `cornered` joins it, enraged. Sized to the last
- * floor (`levels` long), the only enabled entry — see the comment on
- * `campaign()`.
+ * The bosses a party can kill against a hazard clock: every mobile boss with
+ * 2500 hp or less — Krilith 850, the worm 1000, the wraith 1200, the golem
+ * 1600, the knight 2500 (unit files, 2026-10-18). Picked for stock AE attack
+ * speed, not the original's: AE swings slower, and a paladin and an archer
+ * could not finish a plain knight in the old 180 s hunt (user, 2026-10-18).
+ * The lich (4000), seeress (3750), warden (3000), eye (8000), Anubis (12000)
+ * and vampire (14000) stay out; untimed floors and arenas still roll them.
+ */
+const HUNT_BOSS_IDS = ['boss_knight', 'boss_krilith', 'boss_worm', 'boss_wraith', 'boss_golem'] as const
+
+/** The clock presets' hunt: five minutes to find and kill the boss. */
+const HUNT_SECONDS = 300
+
+/**
+ * The clock presets' last floor: one random boss from `HUNT_BOSS_IDS`, no
+ * lock buttons, so the seal opens on its death alone and the clock is spent
+ * hunting it, not plates. Invulnerability stays off — it may not share a floor
+ * with a timer. At 25% the boss is cornered: `cornered` joins it, enraged.
+ * Sized to the last floor (`levels` long), the only enabled entry — see the
+ * comment on `campaign()`.
  */
 function huntFloorBoss(
   levels: number,
@@ -364,7 +379,7 @@ function huntFloorBoss(
   waves[3] = { ...scatterWave([], cornered, 1500, enrage()), traps: [] }
   // `bossCount` left absent (= 1): `parameters.txt` writes no count for a
   // single boss, so an explicit 1 would not round-trip
-  const { bossCount: _single, ...boss } = floorBossRandom(MOBILE_BOSS_IDS, 1, waves)
+  const { bossCount: _single, ...boss } = floorBossRandom(HUNT_BOSS_IDS, 1, waves)
   bosses[levels - 1] = boss
   return bosses
 }
@@ -445,8 +460,8 @@ function beatTheClock(): DungeonParameters {
     boss: { enabled: true, fights: [beatTheClockArena()] }
   })
   // every floor timed, clock shrinking as the damage rate ramps — except the
-  // hunt, which gets three minutes because a boss fight eats the clock
-  const seconds = [150, 120, 100, 80, 180]
+  // hunt, which gets five minutes because a boss fight eats the clock
+  const seconds = [150, 120, 100, 80, HUNT_SECONDS]
   const freqMs = [250, 212, 175, 137, 100]
   params.levelTimers = seconds.map((s, i) => ({ enabled: true, seconds: s, damage: 2, freqMs: freqMs[i], countdown: true }))
   // No sprinting for the stairs: the middle floors hide two buttons each. The
@@ -893,9 +908,13 @@ function pandemonium(): DungeonParameters {
       ['eye', 'wisp'],
       ['skeleton_soldier', 'skeleton_ranger']
     ],
+    // Two bosses on each of the first two floors, from the light end of the
+    // roster (the hunt pool and the lich) — two of the Shaftlocke heavyweights
+    // together on floor 1 is a wall, not an opener. Floors 3-4 roll any mobile
+    // boss, the finale any boss at all.
     levelBoss: [2, 2, 3, 3].map((count, i) =>
       floorBossRandom(
-        MOBILE_BOSS_IDS,
+        i < 2 ? [...HUNT_BOSS_IDS, 'boss_lich'] : MOBILE_BOSS_IDS,
         count,
         floorTierAndDeathWaves([['skeleton_warrior', 6 + i * 2]], [['skeleton_warrior', 4]])
       )
@@ -928,15 +947,6 @@ function escapeFloorPool(): string[] {
     'skeleton_runner', 'bat', 'wisp#3', 'skeleton_lich', 'mb_eye',
     'wisp', 'tower_static_frost', 'tower_static_frost', 'tower_static_frost',
     'mb_wizard', 'tower_nova'
-  ]
-}
-
-function escapeFloorTraps(): BossTrap[] {
-  return [
-    { projectile: 'shooter_fireball', direction: 'up', spread: 0, spawnRateMs: 1000, count: 8 },
-    { projectile: 'shooter_fireball', direction: 'down', spread: 0, spawnRateMs: 1000, count: 8 },
-    { projectile: 'shooter_fireball', direction: 'left', spread: 0, spawnRateMs: 1000, count: 8 },
-    { projectile: 'shooter_fireball', direction: 'right', spread: 0, spawnRateMs: 1000, count: 8 }
   ]
 }
 
@@ -1104,8 +1114,9 @@ function longHaul(): DungeonParameters {
     { projectile: 'shooter_arrow', direction: 'up', spread: 0, spawnRateMs: 1200, count: 2 },
     { projectile: 'shooter_arrow', direction: 'down', spread: 0, spawnRateMs: 1200, count: 2 }
   ]
-  // The escape floor (last): the classic pattern — a 90s hazard clock, a
-  // fireball rig on all four walls, and nowhere else in the campaign pools
+  // The escape floor (last): the classic pattern — a 90s hazard clock, the
+  // classic presets' fireball rig on all four walls at its AE rate (1000 ms
+  // played far too dense in AE), and nowhere else in the campaign pools
   // tower_empty.
   params.levelTimers![levels - 1] = escapeFloorTimer()
   params.levelTraps![levels - 1] = escapeFloorTraps()
@@ -1126,7 +1137,7 @@ function fourWalls(projectile: string, spawnRateMs: number, spread: number): Bos
 /**
  * The red lock buttons are in plain sight and always safe: find them and the
  * floor opens. Everything else is a wager. The plates draw from a high-stakes
- * pool — tier-II upgrades, a jackpot and an extra life against lich councils,
+ * pool — tier-II upgrades, a jackpot and a unique heirloom against lich councils,
  * kamikaze packs and rooms of death orbs — and the odds tilt toward the house
  * with every floor. Ignore them and walk into the boss with what you brought;
  * gamble and walk in a giant, or not at all.
@@ -1141,7 +1152,9 @@ function doubleOrNothingMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'l
     mysteryButton('Arcane well', 'Arcane power floods in', { loot: [['upgrade_mana_2', 1], ['mana_2', 2]] }),
     mysteryButton('Jackpot', 'JACKPOT!', { loot: [['chest_blue', 1], ['chest_green', 1], ['valuable_diamond', 1]] }),
     mysteryButton('Diamond rain', 'Diamonds!', { loot: [['valuable_diamond', 2], ['valuable_diamond_small_red', 2]] }),
-    mysteryButton('Extra life', 'An extra life!', { loot: [['powerup_1up', 1]] }),
+    // the top prize: a unique and a red diamond. It was an extra life, which AE's
+    // forced No Lives modifier turns into nothing (PartyRecord.GiveLife)
+    mysteryButton('Heirloom', 'An heirloom!', { loot: [['random_unique_item', 1], ['valuable_diamond_red', 1]] }),
     // the house collects
     mysteryButton('Bone pit', 'The pit opens', { monsters: [['mb_skeleton_guard#0', 2], ['skeleton_soldier', 12], ['skeleton_ranger', 6]] }),
     mysteryButton('Double trouble', 'Double or nothing... nothing', {
@@ -1183,14 +1196,14 @@ function doubleOrNothingMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'l
       kit.pick(5, [
         ['Nothing', 5], ['Safe bet', 3],
         ['Power surge', 3], ['Iron skin', 3], ['Vitality', 3], ['Arcane well', 2], ['Jackpot', 3], ['Diamond rain', 2],
-        ['Extra life', 1],
+        ['Heirloom', 1],
         ['Lich council', 4], ['Double trouble', 3], ['Kamikazes', 3], ['Mummy tomb', 2],
         ['Death trap', 3], ['Inferno', 2], ["Dragon's breath", 2], ["Anubis' wrath", 2]
       ]),
       kit.pick(5, [
         ['Nothing', 4],
         ['Power surge', 3], ['Iron skin', 3], ['Vitality', 3], ['Arcane well', 2], ['Jackpot', 4], ['Diamond rain', 2],
-        ['Extra life', 2],
+        ['Heirloom', 2],
         ['Double trouble', 5], ['Lich council', 4], ['Kamikazes', 3],
         ['Death trap', 4], ['Inferno', 3], ["Dragon's breath", 2], ["Anubis' wrath", 2]
       ])
@@ -1335,8 +1348,8 @@ function shellGame(): DungeonParameters {
   })
   // Beat the Clock on steroids: each locked floor has less time per button
   // (150 s for one, then down to 35 s each for three), and a floor that runs
-  // out hurts harder and faster. The hunt gets three minutes for its boss.
-  const seconds = [150, 135, 120, 105, 180]
+  // out hurts harder and faster. The hunt gets five minutes for its boss.
+  const seconds = [150, 135, 120, 105, HUNT_SECONDS]
   const freqMs = [200, 175, 150, 125, 100]
   params.levelTimers = seconds.map((s, i) => ({ enabled: true, seconds: s, damage: 3, freqMs: freqMs[i], countdown: true }))
   return params
@@ -1357,7 +1370,7 @@ export const CLAUDE_PRESETS: readonly CampaignPreset[] = [
   {
     id: 'claude-beat-the-clock',
     label: 'Beat the Clock',
-    description: 'Every floor runs on a shrinking hazard timer with hidden buttons to find, the last one hides a boss to kill before it hits, then two minutes in a miniboss-led survival arena — about 30 minutes.',
+    description: 'Every floor runs on a shrinking hazard timer with hidden buttons to find, the last gives five minutes to hunt down a boss, then two minutes in a miniboss-led survival arena — about 35 minutes.',
     group: 'claude',
     build: beatTheClock
   },
@@ -1372,7 +1385,7 @@ export const CLAUDE_PRESETS: readonly CampaignPreset[] = [
     id: 'claude-double-or-nothing',
     label: 'Double or Nothing',
     description:
-      'The red buttons are safe; every other plate is a wager of tier-II upgrades and extra lives against lich councils and death traps. The odds get worse the deeper you go — about 40 minutes.',
+      'The red buttons are safe; every other plate is a wager of tier-II upgrades and unique items against lich councils and death traps. The odds get worse the deeper you go — about 40 minutes.',
     group: 'claude',
     build: doubleOrNothing
   },
@@ -1401,7 +1414,7 @@ export const CLAUDE_PRESETS: readonly CampaignPreset[] = [
     id: 'claude-shell-game',
     label: 'Shell Game',
     description:
-      'Lock buttons look just like the decoy plates around them, and a steep clock gives time to check only a few. Then hunt a boss against the clock, finish a boss with no invulnerability, and outlast a survival arena — about 35 minutes.',
+      'Lock buttons look just like the decoy plates around them, and a steep clock gives time to check only a few. Then five minutes to hunt a boss, finish a boss with no invulnerability, and outlast a survival arena — about 40 minutes.',
     group: 'claude',
     build: shellGame
   },

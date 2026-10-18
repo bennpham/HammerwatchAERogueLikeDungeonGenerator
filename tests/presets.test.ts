@@ -552,10 +552,58 @@ describe('campaign presets', () => {
         lastShare = share
       }
       // the top prize exists, and only on the last two floors
-      const extraLife = params.mysteryButtons!.findIndex((b) => b.name === 'Extra life')
+      const heirloom = params.mysteryButtons!.findIndex((b) => b.name === 'Heirloom')
       for (let level = 0; level < params.levels; level++) {
-        expect(floorMystery(params, level)!.pool.includes(extraLife), `floor ${level + 1}`).toBe(level >= 3)
+        expect(floorMystery(params, level)!.pool.includes(heirloom), `floor ${level + 1}`).toBe(level >= 3)
       }
+    })
+
+    // AE forces No Lives (info.xml), and PartyRecord.GiveLife is a no-op under
+    // it, so an extra-life pickup would be a plate or a drop that does nothing
+    it('never drops an extra life — AE forces No Lives', () => {
+      const lives = ['powerup_1up', 'powerup_7up']
+      for (const preset of CAMPAIGN_PRESETS.filter((p) => p.group === 'claude')) {
+        const params = preset.build()
+        for (const button of params.mysteryButtons ?? []) {
+          for (const row of button.loot) expect(lives, `${preset.id}: ${button.name}`).not.toContain(row.item)
+        }
+        const fights = bossFights(params.boss)
+        const waves = [
+          ...fights.flatMap((f) => f.arena.waves),
+          ...(params.levelBoss ?? []).flatMap((b) => (b.enabled ? b.waves : []))
+        ]
+        for (const wave of waves) for (const row of wavePickups(wave)) expect(lives, preset.id).not.toContain(row.item)
+        for (const fight of fights) for (const row of survivalPickups(fight.survival)) expect(lives, preset.id).not.toContain(row.item)
+      }
+    })
+
+    // A boss hunted against a hazard clock is picked for stock AE attack speed
+    it('hunts only the lighter bosses, for five minutes, on both clock presets', () => {
+      const hunt = ['boss_knight', 'boss_krilith', 'boss_worm', 'boss_wraith', 'boss_golem']
+      for (const id of ['claude-beat-the-clock', 'claude-shell-game']) {
+        const params = campaignPresetById(id)!.build()
+        const last = params.levels - 1
+        expect(floorBossAt(params, last)!.bossPool, id).toEqual(hunt)
+        expect(params.levelTimers![last].seconds, id).toBe(300)
+        // a five-minute countdown passes without the file-size warning
+        expect(validateParameters(params).warnings.map((w) => w.field), id).not.toContain(`levelTimers.${last}.countdown`)
+      }
+      for (const boss of hunt) expect(MOBILE_BOSS_IDS as readonly string[]).toContain(boss)
+    })
+
+    it('Pandemonium: opens on the lighter bosses, the whole mobile roster from floor 3', () => {
+      const params = campaignPresetById('claude-pandemonium')!.build()
+      for (const level of [0, 1]) {
+        expect(floorBossAt(params, level)!.bossPool, `floor ${level + 1}`).not.toContain('boss_warden')
+        expect(floorBossAt(params, level)!.bossPool, `floor ${level + 1}`).not.toContain('boss_vampire')
+      }
+      for (const level of [2, 3]) expect(floorBossAt(params, level)!.bossPool).toEqual([...MOBILE_BOSS_IDS])
+    })
+
+    it('Long Haul: the escape floor fires the classic rig at its AE rate', () => {
+      const params = campaignPresetById('claude-long-haul')!.build()
+      expect(params.levelTraps![params.levels - 1]).toEqual(escapeFloorTraps())
+      for (const row of params.levelTraps![params.levels - 1]) expect(row.spawnRateMs).toBe(ESCAPE_TRAP_RATE_MS)
     })
 
     it('Shell Game: every lock is disguised and partly enhanced, among decoys, against a clock', () => {

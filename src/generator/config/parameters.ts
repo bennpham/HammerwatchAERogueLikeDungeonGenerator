@@ -207,9 +207,11 @@ export const MAX_TIMER_DAMAGE = 10_000
 /**
  * A countdown longer than this emits more than this many AnnounceText nodes on
  * that one floor, which bloats the level XML — warned about, not rejected.
- * Same threshold and same reasoning as BOSS_COUNTDOWN_NODE_WARN.
+ * Five minutes: the clock presets' boss hunts run that long on stock AE attack
+ * speed, and measured on Beat the Clock's hunt floor (seed 4242) 300 ticks
+ * against 180 cost about 35 KB on a 105 KB level (2026-10-18).
  */
-export const TIMER_COUNTDOWN_NODE_WARN = 200
+export const TIMER_COUNTDOWN_NODE_WARN = 300
 
 /** A fresh, disabled floor timer — the stock value for every floor. */
 export function defaultFloorTimer(): FloorTimer {
