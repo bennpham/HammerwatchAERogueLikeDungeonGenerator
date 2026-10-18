@@ -1436,6 +1436,123 @@ function shellGame(): DungeonParameters {
   return params
 }
 
+// --- Shaftlocke Siege -------------------------------------------------------------
+
+/**
+ * The tower's own plates: its regiments, the crawlers and cysts, a ballista
+ * nest, and the wizard as the deep floors' worst draw — against coins, chests
+ * and AE's speed pickups, ramping with depth like every other preset.
+ */
+function shaftlockeSiegeMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'levelMystery'> {
+  const kit = mysteryKit([
+    mysteryButton('Crawler swarm', 'Something skitters', { monsters: [['crawler', 24]] }),
+    mysteryButton('Cyst bloom', 'Maggots!', { monsters: [['maggot_cyst', 2], ['shaftlocke_maggot', 10]] }),
+    mysteryButton('Trapper ambush', 'Nets!', { monsters: [['trapper', 4], ['skeleton_sentry', 4]] }),
+    mysteryButton('Bannermen rally', 'Rally to the banner!', {
+      monsters: [['bannerman_bloodlust', 2], ['bannerman_protection', 2], ['skeleton_footman#2', 8]]
+    }),
+    mysteryButton('Ballista nest', 'Ballistas!', { monsters: [['tower_ballista_javelin', 1], ['tower_ballista_splitshot', 1]] }),
+    mysteryButton("Wizard's gambit", 'The tower calls its wizard', {
+      monsters: [['mb_shaftlocke_wizard', 1], ['battlemage', 2]]
+    }),
+    wallTrapRoom('Light bolts', 'shooter_light_bolt', [2, 2, 2, 2], 600, 0.5),
+    wallTrapRoom('Ballista volley', 'tower_ballista_bolt', [1, 1, 1, 1], 2000, 0)
+  ])
+  return {
+    mysteryButtons: kit.buttons,
+    levelMystery: [
+      kit.pick(1, shallowLoot(), [['Crawler swarm', 4], ['Cyst bloom', 3], ['Light bolts', 3], ['Arrow storm', 2], ['Speed upgrade', 1]]),
+      kit.pick(2, shallowLoot(), [['Trapper ambush', 3], ['Crawler swarm', 3], ['Light bolts', 3], ['Spike gauntlet', 2], ['Attack speed upgrade', 1]]),
+      // the mines: the golem's floor, and the one that pays
+      kit.pick(2, midLoot(), [['Gold beetles', 4], ['Cyst bloom', 3], ['Crawler swarm', 2], ['Speed upgrade', 1], ['Haste', 1]]),
+      kit.pick(2, midLoot(), [['Bannermen rally', 3], ['Trapper ambush', 3], ['Ballista nest', 2], ['Light bolts', 3], ['Attack speed upgrade', 1]]),
+      kit.pick(2, deepLoot(['Defense upgrade II']), [
+        ['Bannermen rally', 3], ['Ballista nest', 3], ["Wizard's gambit", 2], ['Ballista volley', 2], ['Light bolts', 2],
+        ['Attack speed upgrade II', 1]
+      ]),
+      kit.pick(2, deepLoot(['Damage upgrade II', 'Speed upgrade II']), [
+        ["Wizard's gambit", 3], ['Bannermen rally', 3], ['Ballista nest', 2], ['Ballista volley', 3], ['Lich council', 1]
+      ])
+    ]
+  }
+}
+
+/** The tower's great bosses — the ones its acts end on above the mines and crypt. */
+function shaftlockeSiegeArena(): BossFight {
+  const drops = stockWavePickups()
+  return bossFight({
+    theme: 'chambers2',
+    bossPool: ['boss_eye', 'boss_vampire', 'boss_dragon_hwr', 'boss_seeress'],
+    waves: [
+      scatterWave([], [['skeleton_footman', 12], ['skeleton_sentry', 4]], 2000),
+      scatterWave([], [['skeleton_lancer', 6], ['bannerman_protection', 2]], 2000),
+      scatterWave([], [['battlemage', 2], ['skeleton_defender', 3]], 2000, [], drops.half),
+      scatterWave([], [['shaftlocke_lich', 4], ['bannerman_bloodlust', 2]], 2000, [], drops.quarter),
+      scatterWave([], [['shaftlocke_lich', 3]], 1500, bossDeathBuffs(), drops.death)
+    ],
+    music: 'shaftlocke_21'
+  })
+}
+
+/**
+ * Shaftlocke on AE's own content and nothing else: its tilesets, music,
+ * roster and the town lobby, its light-bolt, dark-beam and ballista traps, two
+ * of its bosses as floor bosses where stock places them (the wraith in the
+ * crypt, the golem in the mines) and one of its four great bosses to finish.
+ */
+function shaftlockeSiege(): DungeonParameters {
+  const levels = 6
+  const bolt = (direction: BossTrap['direction'], spawnRateMs: number, count: number, projectile = 'shooter_light_bolt'): BossTrap => ({
+    projectile,
+    direction,
+    spread: 0,
+    spawnRateMs,
+    count
+  })
+  return campaign(levels, {
+    themes: ['prison2', 'crypt', 'mine_granite', 'archives2', 'chambers2', 'chambers2'],
+    // the prison's skeletons and grubs, the crypt's lancers and guardians, the
+    // mines' gold beetles and cysts, then the archives' and chambers' footman
+    // regiments with their bannermen, trappers, battlemages and ballistas
+    levelMonsters: [
+      ['prison_warrior', 'prison_archer', 'shaftlocke_maggot', 'crawler'],
+      ['armory_warrior', 'armory_archer', 'skeleton_lancer', 'guardian'],
+      ['tick_gold', 'tick_gold', 'tick', 'shaftlocke_maggot', 'maggot_cyst'],
+      ['skeleton_footman', 'skeleton_sentry', 'trapper', 'bannerman', 'shaftlocke_lich'],
+      ['skeleton_footman', 'skeleton_defender', 'battlemage', 'bannerman', 'tower_ballista'],
+      ['skeleton_defender', 'battlemage', 'shaftlocke_lich', 'bannerman', 'mb_shaftlocke_guard', 'tower_beamo']
+    ],
+    floorMusic: Array.from({ length: levels }, () => 'shaftlocke_20'),
+    // Light bolts from the start; the strong bolt, dark beams (50) and
+    // ballista bolts (70) deeper in, the heavy two in straight lanes. The
+    // mines carry no wall traps, as stock's barely do.
+    levelTraps: [
+      [bolt('up', 1200, 2), bolt('down', 1200, 2)],
+      [bolt('left', 1000, 2), bolt('right', 1000, 2), bolt('up', 1200, 2, 'shooter_arrow'), bolt('down', 1200, 2, 'shooter_arrow')],
+      [],
+      [bolt('up', 900, 2, 'shooter_light_bolt_queen'), bolt('down', 900, 2, 'shooter_light_bolt_queen'), bolt('left', 1500, 2, 'shooter_dark_beam')],
+      [bolt('up', 1500, 2, 'tower_ballista_bolt'), bolt('down', 1500, 2, 'tower_ballista_bolt'), bolt('left', 800, 3, 'shooter_light_bolt_queen'), bolt('right', 800, 3, 'shooter_light_bolt_queen')],
+      [bolt('up', 1500, 2, 'tower_ballista_bolt'), bolt('down', 1500, 2, 'shooter_dark_beam'), bolt('left', 700, 3, 'shooter_light_bolt_queen'), bolt('right', 700, 3, 'shooter_light_bolt_queen')]
+    ],
+    // Sized to the golem's floor, the last enabled one — see `campaign()`.
+    // The golem drops a clutch of gold beetles when it falls.
+    levelBoss: [
+      defaultDungeonBoss(),
+      floorBoss({ boss_wraith: 1 }, floorTierAndDeathWaves([['armory_warrior', 8], ['guardian', 2]], [['armory_warrior', 4]])),
+      floorBoss({ boss_golem: 1 }, floorTierAndDeathWaves([['shaftlocke_maggot', 8]], [['tick_gold', 4]]))
+    ],
+    // the boss floors open on their boss alone; buttons everywhere else
+    levelLock: buttonLocks([1, 0, 0, 2, 2, 2]),
+    ...shaftlockeSiegeMystery(),
+    lobbies: [
+      lobby('shaftlocke_town', { music: 'shaftlocke_20' }),
+      { ...defaultLobby('BETA-boss-prep'), preset: 'shaftlocke_town', music: 'shaftlocke_20' }
+    ],
+    levelOrder: actOrder(levels),
+    boss: { enabled: true, fights: [shaftlockeSiegeArena()] }
+  })
+}
+
 // --- registry ----------------------------------------------------------------
 
 /** In alphabetical order by label, which is the order the preset dialog lists them in. */
@@ -1490,6 +1607,14 @@ export const CLAUDE_PRESETS: readonly CampaignPreset[] = [
     description: 'Every floor hosts several roaming bosses at once, then a six-boss finale — about 50 minutes.',
     group: 'claude',
     build: () => withGatewayLocks(pandemonium())
+  },
+  {
+    id: 'claude-shaftlocke-siege',
+    label: 'Shaftlocke Siege',
+    description:
+      "Six floors up Shaftlocke on the tower's own roster and traps — the Wraith in the crypt, the Golem in the mines, bannermen, trappers and ballistas above — then one of its four great bosses — about 45 minutes.",
+    group: 'claude',
+    build: shaftlockeSiege
   },
   {
     id: 'claude-shell-game',

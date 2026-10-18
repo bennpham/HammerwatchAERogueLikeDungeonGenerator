@@ -621,6 +621,45 @@ describe('campaign presets', () => {
       expect(params.boss.fights[0].arena.bossLineup).toEqual({ boss_dragon_hwr: 1 })
     })
 
+    describe('Shaftlocke Siege', () => {
+      const params = campaignPresetById('claude-shaftlocke-siege')!.build()
+
+      it('climbs six Shaftlocke floors to the tower music, from the town lobby', () => {
+        expect(params.levels).toBe(6)
+        for (const id of params.themes) expect(getTheme(id)?.group, id).toBe('Shaftlocke Tower')
+        expect(params.floorMusic).toEqual(Array.from({ length: 6 }, () => 'shaftlocke_20'))
+        for (const lobby of params.lobbies) expect(lobby.preset).toBe('shaftlocke_town')
+      })
+
+      it('meets the wraith in the crypt and the golem in the mines, each its floor\'s only lock', () => {
+        expect(floorBossAt(params, 1)!.bossLineup).toEqual({ boss_wraith: 1 })
+        expect(floorBossAt(params, 2)!.bossLineup).toEqual({ boss_golem: 1 })
+        for (const level of [0, 3, 4, 5]) expect(floorBossAt(params, level), `floor ${level + 1}`).toBeUndefined()
+        expect(floorLockButtons(params, 1)).toBe(0)
+        expect(floorLockButtons(params, 2)).toBe(0)
+      })
+
+      it('pools only Shaftlocke enemies and fires its own trap ammunition', () => {
+        const keep = new Set(['tick', 'tick_gold'])
+        for (const pool of params.levelMonsters) {
+          for (const key of pool) {
+            const { id } = parseMonsterKey(key)
+            if (keep.has(id) || isKnownFamilyId(id)) continue
+            expect(monsterTypeById(id).campaigns ?? [], key).toContain('shaftlocke')
+          }
+        }
+        const fired = new Set(params.levelTraps!.flat().map((row) => row.projectile))
+        for (const id of ['shooter_light_bolt', 'shooter_light_bolt_queen', 'shooter_dark_beam', 'tower_ballista_bolt']) expect(fired, id).toContain(id)
+      })
+
+      it("ends on one of the tower's great bosses, to the dragon's music", () => {
+        const arena = params.boss.fights[0].arena
+        expect(arena.bossPool).toEqual(['boss_eye', 'boss_vampire', 'boss_dragon_hwr', 'boss_seeress'])
+        expect(arena.music).toBe('shaftlocke_21')
+        expect(params.levelOrder!.at(-1)).toEqual({ kind: 'boss', index: 0 })
+      })
+    })
+
     it('Long Haul: the escape floor fires the classic rig at its AE rate', () => {
       const params = campaignPresetById('claude-long-haul')!.build()
       expect(params.levelTraps![params.levels - 1]).toEqual(escapeFloorTraps())
