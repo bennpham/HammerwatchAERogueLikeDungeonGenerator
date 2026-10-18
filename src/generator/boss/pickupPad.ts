@@ -25,8 +25,8 @@
  *          p     p     p     p     p     p    p     p     padY + 1
  *                          [ the entrance mouth ]        padY + 2
  *
- * Health runs up the left, mana up the right, the eight upgrades fill the
- * two-wide block in the middle, and the consumables — the three potions and the
+ * Health runs up the left, mana up the right, the twelve upgrades fill the
+ * two-wide block in the middle, and the consumables — the four potions and the
  * two extra-life pickups — sit in the bottom row, nearest the door, where they
  * are the first thing seen on walking in. That is the
  * arrangement the owner laid out by hand in the game's own editor and asked
@@ -147,8 +147,9 @@ export function pickupPad(entranceCx: number, entranceTop: number, width: number
     return slots
   }
 
-  // Row-major instead: the eight upgrades fill this as a 2-wide, 4-tall block,
-  // which is how the owner's reference layout reads.
+  // Row-major instead: the twelve upgrades fill this as a 2-wide, 6-tall block.
+  // The owner's reference layout is its first four rows (the eight HW1
+  // upgrades); AE's speed and attack-speed upgrades extend it two rows north.
   const block: PadSlot[] = []
   for (let row = 1; row <= PAD_ROWS; row++) {
     for (const dx of UPGRADE_COLS) block.push(at(dx, row))

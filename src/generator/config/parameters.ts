@@ -606,7 +606,15 @@ export function mysteryStarterPool(): MysteryButton[] {
     trapRoom("Anubis' wrath", 'Traps activated', 'enemy_boss_anubis_fireball', [1, 1, 1, 1], 1000, 0.25),
     trapRoom('Frost wall', 'Traps activated', 'enemy_boss_krilith_frostball', [2, 2, 2, 2], 900),
     trapRoom('Confusion', 'Traps activated', 'enemy_boss_krilith_confusion', [2, 2, 2, 2], 900),
-    trapRoom('Poison nova', 'Traps activated', 'boss_queen_spit', [1, 1, 1, 1], 700)
+    trapRoom('Poison nova', 'Traps activated', 'boss_queen_spit', [1, 1, 1, 1], 700),
+
+    // AE's own pickups, appended last: floors pick by index, so the buttons
+    // above keep theirs and a preset that picks none of these is unchanged
+    loot('Speed upgrade', 'An upgrade', [['upgrade_speed', 1]]),
+    loot('Attack speed upgrade', 'An upgrade', [['upgrade_attackspeed', 1]]),
+    loot('Speed upgrade II', 'A great upgrade', [['upgrade_speed_2', 1]]),
+    loot('Attack speed upgrade II', 'A great upgrade', [['upgrade_attackspeed_2', 1]]),
+    loot('Haste', 'A potion', [['potion_4', 1]])
   ]
 }
 
