@@ -27,7 +27,7 @@ Both must pass before every commit. `HWAE_PACK=1 npm test -- tests/packer.test.t
 - `src/main/`: Electron main. `packer.ts` does the install and AE detection.
 - `src/renderer/`: React UI.
 - `tests/`: the suites read emitted levels back through `tests/ae.ts`. `sealProbe.ts` flood-fills levels.
-- `scripts/`: the lobby importers `import-ae-lobby.mjs` (hand-made levels) and `import-shaftlocke-town.ts` (the cleaned stock town), the asset scanner, and one-off probes in `scripts/dev/`.
+- `scripts/`: the lobby importers `import-ae-lobby.mjs` (hand-made levels) and `import-stock-towns.ts` (the cleaned stock towns: Shaftlocke's town, the Temple of the Sun bazaar), the asset scanner, and one-off probes in `scripts/dev/`.
 
 ## Invariants
 

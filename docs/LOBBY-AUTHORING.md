@@ -12,13 +12,14 @@ This embeds the level in `src/generator/lobby/templates.generated.ts`. Re-runnin
 
 ### Stock levels
 
-A stock level isn't a lobby as it stands: it carries its campaign's exits, quests and flags. Shaftlocke's town has its own importer, which cleans it first (`src/generator/lobby/stockTown.ts`):
+A stock level isn't a lobby as it stands: it carries its campaign's exits, quests and flags. The stock towns have their own importer, which cleans them first (`src/generator/lobby/stockTown.ts`):
 
 ```sh
-node scripts/run-ts.mjs scripts/import-shaftlocke-town.ts
+node scripts/run-ts.mjs scripts/import-stock-towns.ts            # both
+node scripts/run-ts.mjs scripts/import-stock-towns.ts sun_bazaar # one
 ```
 
-It reads `town.lvl` from the install (`HWAE_ROOT`, or the default Steam path). It keeps the map, the vendors and the arrival, and adds the result as the `shaftlocke_town` lobby. Re-run it after changing the cleanup: `tests/stockTown.test.ts` fails while the embedded copy is out of date.
+It reads each town from the install (`HWAE_ROOT`, or the default Steam path): Shaftlocke's `town.lvl` as the `shaftlocke_town` lobby and Temple of the Sun's `level_hub.lvl` as the `sun_bazaar` lobby. It keeps the map, the vendors and the arrival. Re-run it after changing the cleanup: `tests/stockTown.test.ts` fails while an embedded copy is out of date. To add another stock town, add a `StockTown` to `STOCK_TOWNS`.
 
 ## What the generator looks for
 
@@ -28,7 +29,7 @@ Each part is found by its script **label** first. If there is no label, the gene
 |---|---|---|---|
 | Arrival | `lobby:spawn` on a `LevelStart` | the `LevelStart` with no StartID | Gives it this slot's StartID. In the campaign's first slot, it also adds a default spawn at the same spot. |
 | Exit | `lobby:exit` on the `LevelExit` and `SetRespawnPoint` | a `doodads/generic/teleport_*` unit | With labels, it re-points those scripts at the next slot. Without them, it builds the floors' press-F, whole-party exit on a 3x3 sensor centred on the teleporter. |
-| Vendors | `lobby:vendor:<id>` on a `ShopArea` (`combo`, `defense`, `misc`, `offense`, `power`, `item`) | the `ShopArea`'s categories (`def*`, `off*`, `misc*`, `combo*`, `power`, `item`) | Sells only the columns the Lobby tab selects. A stall left with nothing to sell is switched off, along with its `UseTrigger`. A `UseTrigger` without `Areas` gets a circle sensor on its nearest `shop_*` stand. |
+| Vendors | `lobby:vendor:<id>` on a `ShopArea` (`combo`, `defense`, `misc`, `offense`, `power`, `item`) | the `ShopArea`'s categories (`def*`, `off*`, `misc*`, `combo*`, `power`, `item`, `equipment_*`, `st_equipment_*`) | Sells only the columns the Lobby tab selects. A stall left with nothing to sell is switched off, along with its `UseTrigger`, and its stand comes down. A `UseTrigger` without `Areas` gets a circle sensor on its nearest stand: a `shop_*` stall or a Sun `npc_dungeonvendor_desert` shopkeeper, whose tier numeral becomes the highest column it sells. |
 | Payout | `lobby:payout` on any script | the free floor around the arrival | Lays one red diamond per 500 starting gold and each free upgrade kind on its own cell. It searches outward from the spawn, at most 8 tiles, and stops at walls, doors and props. |
 
 The generator also:

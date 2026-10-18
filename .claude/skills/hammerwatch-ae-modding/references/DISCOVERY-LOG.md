@@ -819,3 +819,37 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
 - `[VERIFIED]` (unit files) The wraith is a `TransferDamageActor` with `immortal` true and
   the golem a `CompositeActorBehavior`. Both died to the party in an arena (checklist #54),
   so both are hunt bosses.
+
+### Start-scene lists; the Temple of the Sun bazaar as a lobby (2026-10-18)
+
+- `[VERIFIED]` (stock levels) A unit's `start` can be an array of scenes shown at once:
+  `<array name="start"><string>vendor7</string><string>icon-combo</string><string>1</string></array>`.
+  Shaftlocke's town has 13 single-scene lists (`window_1a-white`, `window_1a-white_inside`
+  on `stone_5/h_32` walls); the Sun hub's 8 shopkeepers are `[body, icon, tier]`. The level
+  reader used to turn these into an empty string, so the `shaftlocke_town` embed lost its
+  window scenes. `[EMITTED]` `StateValue` `strings` round-trips them; the town was re-imported
+  and the 13 walls are the only change. In game: checklist #71.
+- `[VERIFIED]` (`scripts/WorldScript/Units/SetUnitScene.as`) `SetUnitScene` *replaces* a
+  unit's scene (`SetUnitScene(set[id])`, one scene). Baking a scripted tier into a list start
+  must replace only the matching element, not the whole list.
+- `[VERIFIED]` (read) The Sun hub (`sun_temple/levels/sun_temple/level_hub.lvl`, the campaign's
+  start level; env `cityofstone.env`): the arrival is the StartID-less `LevelStart` at the SE
+  road gate (tile 34.5, 42.5). Vendors are `doodads/generic/npc_dungeonvendor_desert.unit`
+  shopkeepers, not `shop_*` stands; its scenes are bodies `vendor1`–`7`, icons `icon-off`,
+  `icon-def`, `icon-vit` (misc), `icon-combo`, `icon-item`, `icon-pow`, a quest `puzzle`
+  marker, tier numerals `0`–`5`, and empty `none*`. Each vendor's `UseTrigger` (Icon 4) has
+  its `Areas` circle on the shopkeeper. Tiers: `off0`/`def0`… to `…5`, `misc1..`, `combo1..`,
+  raised by depositing vendor coins (`collectable_2_vendor_coin`, key `ore`) in the
+  `deco_vendor_basket` beside each stall. The power vendor is `ShopArea Type 1` behind a
+  quest (`puzzle` → `icon-pow`). The equipment shop is `Type 2`, categories
+  `st_equipment_1/2/3`, reached from its `UseTrigger` only through `CheckFlag boss_2_killed`.
+  The square's `teleport_mt` (start `closed`) sits under the portal selector
+  `exit_teleport_switch_desert`; a `teleport_red` boss pad stands in the guard-boss courtyard.
+- `[EMITTED]` `stockTown.ts` now holds both towns (`STOCK_TOWNS`), cleaned by one routine:
+  it also wires each kept vendor `UseTrigger` straight to its `ShopArea`, and bakes a list
+  start by scene kind (tier numeral, `icon-*`/`puzzle`). The Sun bazaar drops `teleport_red`.
+  The builder treats `npc_dungeonvendor_desert` as a stand (`VENDOR_STAND`), sets a
+  shopkeeper's tier numeral to the highest column the stall sells, and removes the
+  shopkeeper of a stall that sells nothing. `st_equipment_*` maps to the item vendor. The
+  importer is now `scripts/import-stock-towns.ts`; the `sun_bazaar` lobby is 190 KB
+  (3072 → 2982 units, 691 → 14 scripts). In game: checklist #68–#70.
