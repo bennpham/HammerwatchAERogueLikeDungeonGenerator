@@ -749,3 +749,11 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   playtest, same day) was probably this bug, not the snow: `outlook_snow_16` draws at layer
   −25 and `boss_door_button`'s sprites at −9/−1, so the snow cannot cover a button. The
   Battlements theme may be fine for an escape floor after all.
+
+### Visible plates confirmed; escape fireballs at 1.5 s (2026-10-17)
+
+- `[VERIFIED]` (user) Reinstalled Shaftlocke seed 336053618: floor 7's lock button stands in
+  plain sight and the run finishes (checklist #60). The user puts the earlier "impossible"
+  escape floor down to the fast fireballs together with a hidden mystery plate.
+- `[VERIFIED]` (user) Escape fireballs at 2000 ms play fair but "a bit slow". `[EMITTED]`
+  `ESCAPE_TRAP_RATE_MS` 2000 → 1500, still 8 per wall. In game: checklist #56.

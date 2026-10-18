@@ -658,10 +658,10 @@ export function escapeFloorTimer(): FloorTimer {
 /**
  * How often each escape-floor fireball spewer fires. Every classic preset ran
  * the HW1 070 set's 1000ms, which playtested far too dense in AE (2026-10-16:
- * "the fire rate is just damn faster"), so the count stays at 8 per wall and
- * each spewer fires half as often.
+ * "the fire rate is just damn faster"), so the count stays at 8 per wall. 2000
+ * then played "a bit slow" (2026-10-17, Shaftlocke escape floor), so 1500.
  */
-export const ESCAPE_TRAP_RATE_MS = 2000
+export const ESCAPE_TRAP_RATE_MS = 1500
 
 /** The escape floor's rig: a fireball spewer line on all four walls, every classic preset's. */
 export function escapeFloorTraps(): FloorTrap[] {
