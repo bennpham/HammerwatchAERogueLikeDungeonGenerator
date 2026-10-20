@@ -36,7 +36,6 @@ export type DoodadTypeName =
   | 'Horizontal'
   | 'Vertical'
   | 'Pillar'
-  | 'Cover'
 
 interface Resolved {
   path: string
@@ -59,6 +58,28 @@ const NARROW_STAIRS: Readonly<Record<string, Partial<Record<'ExitUp' | 'ExitDn',
   cave_desert: { ExitUp: 1, ExitDn: 1 },
   cave_crystal: { ExitUp: 1, ExitDn: 1 },
   battlement: { ExitUp: 2 }
+}
+
+/**
+ * The px box a stair unit's art covers, from its anchor, so the wall-top
+ * cover (`map/aeCover.ts`, drawn over it at layer 10) can leave it clear.
+ * [VERIFIED from the unit files] the shared `exit_up.inc`/`exit_dn.inc` draw
+ * 64×72 at origin `0 72`; cave_desert/cave_crystal 32×48 at `0 32`;
+ * battlement's own `exit_up` 38×40 at `18 39`.
+ */
+const STAIR_ART: Readonly<Record<string, { x: number; y: number; w: number; h: number }>> = {
+  cave_desert: { x: 0, y: -32, w: 32, h: 48 },
+  cave_crystal: { x: 0, y: -32, w: 32, h: 48 },
+  battlement: { x: -18, y: -39, w: 38, h: 40 }
+}
+const SHARED_STAIR_ART = { x: 0, y: -72, w: 64, h: 72 }
+
+/** The level-px box a placed stair's art covers, or null for anything else (pads included). */
+export function stairArtRect(d: { path: string; x: number; y: number }): { x: number; y: number; w: number; h: number } | null {
+  const m = /^doodads\/walls\/([^/]+)\/exit_(?:up|dn)\.unit$/.exec(d.path)
+  if (m === null) return null
+  const a = STAIR_ART[m[1]] ?? SHARED_STAIR_ART
+  return { x: d.x * 16 + a.x, y: d.y * 16 + a.y, w: a.w, h: a.h }
 }
 
 function stairSet(type: 'ExitUp' | 'ExitDn', themeId: string): string {
@@ -160,8 +181,6 @@ export function resolveDoodad(type: DoodadTypeName, themeId: string): Resolved {
       const r = resolvePiece(walls, 'single', exists)
       return { path: r?.path ?? `doodads/walls/${walls}/x_x.unit`, dx: 0, dy: r?.dy ?? 0 }
     }
-    case 'Cover':
-      return { path: `doodads/walls/${walls}/__color_16.unit`, dx: 0, dy: 1 }
   }
 }
 

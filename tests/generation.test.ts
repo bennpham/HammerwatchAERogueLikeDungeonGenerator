@@ -10,7 +10,7 @@ import { plainParameters } from './params'
 import { SEAL_SOUND } from '../src/generator/map/buttonSeal'
 import { KEY_UNITS } from '../src/generator/objects/item'
 import type { AeLevel, AeScript } from '../src/generator/ae/model'
-import { allIds, idsParam, intParam, levelsOf, scriptById, scriptsOf, sensorSizePx, stemOfPath, stemsOf, strParam, unitById } from './ae'
+import { allIds, idsParam, intParam, isWallPiece, levelsOf, scriptById, scriptsOf, sensorSizePx, stemOfPath, stemsOf, strParam, unitById } from './ae'
 
 // The shipped campaign ends on an extra dungeon floor played AFTER the boss
 // arena (see presets.ts), which moves the orb off the last generated floor.
@@ -219,7 +219,7 @@ describe('locked floors (levelLock)', () => {
           Math.floor(u.x / TILE) + (Math.floor(u.y / TILE) + (vertical(u.path) ? 1 : 0)) * preview.mapWidth
         const onFloor = level.units
           // (the stairs art stands on its own reserved doorway cells, which read as open)
-          .filter((u) => u.path.startsWith('doodads/walls/') && !/\/exit_(up|dn)\.unit$/.test(u.path) && preview.walls[cellOf(u)] === '0')
+          .filter((u) => isWallPiece(u.path) && !/\/exit_(up|dn)\.unit$/.test(u.path) && preview.walls[cellOf(u)] === '0')
           .map((u) => u.id)
         const destroyed = idsParam(scriptsOf(level, 'DestroyUnits')[0], 'Units')
         expect(destroyed.length, `seed ${seed}`).toBeGreaterThan(0)

@@ -19,7 +19,7 @@ import { aeAssetExists } from '../src/generator/catalog/assets'
 import { generateDungeon } from '../src/generator'
 import type { DungeonParameters, DungeonResult, LevelPreview } from '../src/generator'
 import type { AeLevel, AeUnit } from '../src/generator/ae/model'
-import { allIds, idsParam, intParam, levelsOf, scriptsOf, strParam } from './ae'
+import { allIds, idsParam, intParam, isWallPiece, levelsOf, scriptsOf, strParam } from './ae'
 import { wallCells } from './sealProbe'
 
 const TILE = 16
@@ -86,7 +86,7 @@ function reachesGateway(level: AeLevel, preview: LevelPreview, open: boolean): b
   for (let i = 0; i < w * h; i++) solid[i] = preview.walls[i] === '1' ? 1 : 0
   const destroyed = new Set(open ? scriptsOf(level, 'DestroyUnits').flatMap((d) => idsParam(d, 'Units')) : [])
   for (const u of level.units) {
-    if (!u.path.startsWith('doodads/walls/') || destroyed.has(u.id)) continue
+    if (!isWallPiece(u.path) || destroyed.has(u.id)) continue
     for (const [cx, cy] of wallCells(u)) {
       const gx = cx + ox
       const gy = cy + oy

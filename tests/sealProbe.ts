@@ -16,6 +16,7 @@
  */
 import type { LevelPreview } from '../src/generator'
 import type { AeLevel, AeUnit } from '../src/generator/ae/model'
+import { isWallPiece } from './ae'
 
 /** What the probe reads of a level: its units and scripts. */
 type LevelData = Pick<AeLevel, 'units' | 'scripts'>
@@ -84,7 +85,7 @@ export function passabilityOf(preview: LevelPreview, level: LevelData): Passabil
     }
   }
   for (const u of level.units) {
-    if (u.path.startsWith('doodads/walls/')) {
+    if (isWallPiece(u.path)) {
       for (const [x, y] of wallCells(u)) pass.setSolid(x, y)
     } else if (/^doodads\/doors\/door_[hv]_32_bonus\.unit$/.test(u.path)) {
       // a bonus door: a 32-px bar at its anchor, 4 px into the cells it closes
@@ -162,7 +163,7 @@ const PORTALS = ['doodads/generic/teleport_red.unit', 'doodads/generic/teleport_
  */
 export function orbReachableWithoutButton(preview: LevelPreview, level: LevelData): SealProbe {
   const solidAt = (u: AeUnit) => preview.walls[Math.floor(u.x / TILE) + Math.floor(u.y / TILE) * preview.mapWidth] === '1'
-  const seals = level.units.filter((u) => u.path.startsWith('doodads/walls/') && !solidAt(u))
+  const seals = level.units.filter((u) => isWallPiece(u.path) && !solidAt(u))
   const doors = level.units.filter((u) => u.path.startsWith('doodads/doors/door_'))
   if (seals.length === 0 && doors.length === 0) return { reachable: null, why: 'nothing gates this floor' }
   return walkToTarget(preview, level)

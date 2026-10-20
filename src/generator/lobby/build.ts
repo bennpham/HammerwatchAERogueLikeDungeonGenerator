@@ -8,7 +8,7 @@ import { AeLevel, P } from '../ae/model'
 import type { AeUnit } from '../ae/model'
 import { readLevel } from '../ae/levelReader'
 import { TileLayers } from '../ae/tiles'
-import { emitObjects, emitWalls } from '../ae/emit'
+import { emitCover, emitObjects, emitWalls } from '../ae/emit'
 import { isLineCell } from '../map/aeWalls'
 import type { WallGrid } from '../map/aeWalls'
 import { tilesetSize } from '../catalog/assets'
@@ -123,6 +123,7 @@ function buildStandIn(
   level.tileCells = layers.cells()
   emitObjects(level, ctx)
   emitWalls(level, ctx, grid, theme)
+  emitCover(level, ctx, grid, theme)
   return level
 }
 

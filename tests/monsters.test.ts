@@ -249,13 +249,16 @@ describe('the escape floor', () => {
     // layout change: scripts/dev/layout-hash.ts, dump-floors.ts). Re-baselined
     // 2026-10-16 for room.ts visibleDropY: keys and lock powerups sit higher in
     // their rooms, clear of the south wall's art — same draws, only those
-    // items' y moved (dump-floors.ts diff). Only the
+    // items' y moved (dump-floors.ts diff). Re-baselined 2026-10-19 for the
+    // wall-top `__color_N` cover (appended after the walls, before the
+    // torches) — tiles, scripts and every other placement unchanged
+    // (dump-floors.ts diff with the cover stripped). Only the
     // floor `.lvl` files are hashed, over a
     // fixed literal plan with every optional layer off, so a change to the
     // shipped default campaign does not move it.
     const expected: Record<number, string> = {
-      1234: '58f9f9de6b46c5dfcbe45b87b9c10440acc81d81fa8c5bd00f61ca2db073156c',
-      987654: 'c2cd27cb379944f222b1b7d9471ceaa69589e0446299accb211450460122c7df'
+      1234: '06f0694f92b66457dd951faac7de814782890ffd3ccf6a42d5b43b8bd8b0c171',
+      987654: '266e48a7c56d8e4f63b61ce5e37985e4b0f80e8bd13fd8edd6237c98b17e8bec'
     }
     for (const [seed, hash] of Object.entries(expected)) {
       const params = defaultParameters()
