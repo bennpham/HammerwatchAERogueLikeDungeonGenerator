@@ -191,13 +191,13 @@ describe.skipIf(!HAS_AE || process.env.HWAE_PACK !== '1')('packer — real PACKA
     }
   }, 180_000)
 
-  it('packs the stock towns as lobbies', async () => {
+  it('packs the stock rooms as lobbies', async () => {
     const params = plainParameters()
-    params.levels = 2
-    params.themes = ['prison', 'prison']
-    params.levelMonsters = [['bat'], ['bat']]
+    params.levels = 3
+    params.themes = ['prison', 'prison', 'prison']
+    params.levelMonsters = [['bat'], ['bat'], ['bat']]
     params.boss = { ...params.boss, enabled: false }
-    params.lobbies = [defaultLobby('sun_bazaar'), defaultLobby('shaftlocke_town')]
+    params.lobbies = [defaultLobby('sun_bazaar'), defaultLobby('shaftlocke_town'), defaultLobby('castle_bridge')]
     const result = generateDungeon(params, 99002) as DungeonResult
     expect(result.ok).toBe(true)
     const packed = join(AE_ROOT, 'scenarios', `${result.campaignName}.h1c`)

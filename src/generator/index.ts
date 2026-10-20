@@ -448,11 +448,11 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
     const options = lobbies[slot.index]
     if (options === undefined) return
     const preset = lobbyPresetById(options.preset) ?? lobbyPresetById(DEFAULT_LOBBY_PRESET_ID)!
-    const next = order[position + 1]
-    const exitTarget = next === undefined ? slotEntryId(order[0]) : slotEntryId(next)
+    const next = order[position + 1] ?? order[0]
+    const exitTarget = slotEntryId(next)
     ctx.clearLevel()
     enter(slot)
-    const level = buildLobby(ctx, preset, options, exitTarget, position)
+    const level = buildLobby(ctx, preset, options, exitTarget, position, next.kind === 'boss')
     files.push({ path: ctx.levelPath(ctx.currentStem), content: renderLevel(level) })
   })
 

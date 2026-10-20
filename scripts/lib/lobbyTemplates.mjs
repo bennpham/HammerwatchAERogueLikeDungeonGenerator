@@ -13,7 +13,7 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 export const TEMPLATES_REL = 'src/generator/lobby/templates.generated.ts'
 
 /**
- * @param {{ id: string, label: string, description: string, lvl: string }} template
+ * @param {{ id: string, label: string, description: string, lvl: string, redBeforeFight?: boolean }} template
  * @returns {number} how many templates the file now holds
  */
 export function writeLobbyTemplate(template, root = ROOT) {
@@ -37,6 +37,8 @@ export interface LobbyTemplate {
   description: string
   /** the level text, verbatim */
   lvl: string
+  /** the room's teleporter turns red when a fight follows the lobby */
+  redBeforeFight?: boolean
 }
 
 export const LOBBY_TEMPLATES: readonly LobbyTemplate[] = ${JSON.stringify(templates, null, 2)}

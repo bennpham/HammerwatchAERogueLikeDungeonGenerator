@@ -1,6 +1,6 @@
 // Loads AE `.unit` files for the dev tools: runs the asset preprocessor
-// (%include / %define / %replace / %if-%elif-%else-%endif), then extracts the
-// default scene's sprites and collision rects. Not a full engine port — enough
+// (%include / %define / %replace / %if-%elif-%else-%endif), then extracts a
+// scene's sprites and collision rects. Not a full engine port — enough
 // to draw a level's doodads where the game would and to read their footprints.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -90,9 +90,15 @@ function scenes(xml) {
 
 const cache = new Map()
 
-/** { sprites:[{texture, ox, oy, frame:[x,y,w,h], layer}], rects:[[x,y,w,h]], unitLayer } */
-export function loadUnit(assets, unitPath) {
-  if (cache.has(unitPath)) return cache.get(unitPath)
+/**
+ * { sprites:[{texture, ox, oy, frame:[x,y,w,h], layer}], rects:[[x,y,w,h]], unitLayer }
+ *
+ * `scene` picks a named scene (a unit's `start` state); without one, or when
+ * the unit has no such scene, the default scene.
+ */
+export function loadUnit(assets, unitPath, scene) {
+  const key = scene === undefined ? unitPath : `${unitPath}#${scene}`
+  if (cache.has(key)) return cache.get(key)
   const xml = preprocess(assets, unitPath)
   const unitTag = /<unit\b([^>]*)>/.exec(xml)
   const unitLayer = unitTag ? Number(attrs(unitTag[1]).layer ?? 0) : 0
@@ -100,7 +106,7 @@ export function loadUnit(assets, unitPath) {
   const byName = new Map(all.map((s) => [s.name, s]))
   const scenesTag = /<scenes\b([^>]*)>/.exec(xml)
   const sa = scenesTag ? attrs(scenesTag[1]) : {}
-  let pick = all.find((s) => s.name === '') ?? byName.get(sa.on ?? '') ?? byName.get('default') ?? byName.get('default-1') ?? all.find((s) => s.name !== 'shared') ?? all[0]
+  let pick = (scene !== undefined ? byName.get(scene) : undefined) ?? all.find((s) => s.name === '') ?? byName.get(sa.on ?? '') ?? byName.get('default') ?? byName.get('default-1') ?? all.find((s) => s.name !== 'shared') ?? all[0]
   const expand = (body, depth = 0) => {
     if (depth > 4) return body
     return body.replace(/<scene\s+src="([^":]+)"\s*\/>/g, (_, n) => (byName.has(n) ? expand(byName.get(n).body, depth + 1) : ''))
@@ -118,10 +124,29 @@ export function loadUnit(assets, unitPath) {
     sprites.push({ texture: tex, ox, oy, frame: fr.slice(1, 5).map(Number), layer: Number(a.layer ?? 0) + Number(a.ulayer ?? 0) / 1000, material: a.material ?? '' })
   }
   const rects = []
+  // every solid collision shape as a rect [x, y, w, h]: polygons and circles by
+  // their bounding box; sensor shapes (a pickup's trigger circle) block nothing
+  const sensor = (tagAttrs) => attrs(tagAttrs).sensor === 'true'
   for (const m of body.matchAll(/<collision\b[^>]*>([\s\S]*?)<\/collision>/g)) {
-    for (const r of m[1].matchAll(/<rect>\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*<\/rect>/g)) rects.push(r.slice(1, 5).map(Number))
+    for (const r of m[1].matchAll(/<rect\b([^>]*)>\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*<\/rect>/g)) {
+      if (!sensor(r[1])) rects.push(r.slice(2, 6).map(Number))
+    }
+    for (const p of m[1].matchAll(/<polygon\b([^>]*)>([\s\S]*?)<\/polygon>/g)) {
+      if (sensor(p[1])) continue
+      const pts = [...p[2].matchAll(/<point>\s*([-\d.]+)\s+([-\d.]+)\s*<\/point>/g)].map((q) => [Number(q[1]), Number(q[2])])
+      if (pts.length === 0) continue
+      const xs = pts.map(([x]) => x), ys = pts.map(([, y]) => y)
+      rects.push([Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)])
+    }
+    for (const c of m[1].matchAll(/<circle\b([^>]*)\/?>/g)) {
+      const a = attrs(c[1])
+      if (a.sensor === 'true') continue
+      const r = Number(a.radius ?? 0)
+      const [ox, oy] = (a.offset ?? '0 0').split(/\s+/).map(Number)
+      if (r > 0) rects.push([ox - r, oy - r, 2 * r, 2 * r])
+    }
   }
   const res = { sprites, rects, unitLayer }
-  cache.set(unitPath, res)
+  cache.set(key, res)
   return res
 }

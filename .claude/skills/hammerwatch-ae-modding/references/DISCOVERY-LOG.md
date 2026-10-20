@@ -858,3 +858,66 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   tier numeral, so AE accepts a `strings` start list written by our level writer, not just
   stock's. Each stall sells the Lobby tab's columns, and press F on `teleport_mt` moves the
   party to the first floor.
+
+### Castle level_1's bridge; the castle bridge as a lobby (2026-10-20)
+
+- `[VERIFIED]` (read, `castle_hammerwatch/levels/level_1.lvl`, env `prison_1.env`) AE's opening
+  bridge doesn't keep HW1's layout or coordinates. The deck is a row of eight
+  `doodads/walls/prison/hw_bridge.unit` pieces at y 162, x −896…−448 px (floor material,
+  unit layer −29, no collider). The piece at −448 starts in scene `2`, the broken gap with a
+  stub east of it; scenes `1` and `3` are whole 64-px pieces. The planks are rows 0–37 of the
+  110-px frame (deck y 162–199); the rest is supports. The default spawn (no StartID) is on
+  the walkway east of the gap at (−320, 176). There is no separate collapse set piece: the
+  "collapse" on arrival is an `AreaTrigger` at the spawn firing dust effects, a screen shake
+  and the heroes' dialogs, and the heroes, campfire and fire are hidden and shown by
+  `HideUnit` scripts. The level is also the campaign's ending (`ShowGameOver`, the plank
+  puzzle spawning `glasswalk` across the gap).
+- `[VERIFIED]` (read) The rails are walls: a prison `h_32` line at y 144 (north) and y 240
+  (south), the north one broken by sealed one-tile alcoves and by two corridors north, one
+  at x −432…−400 over the gap and a 16-px one at −544…−528 between two `v_32` tower walls.
+  A row of `doodads/ledges/prison/_ext_*` ledges at y 152 collides over y 158–168; some
+  have `physics-active` false.
+- `[VERIFIED]` (read) AE takes collision from units alone: tiles block nothing. level_1
+  fences the deck's south edge over the void with an invisible solid `:Physics_Rectangle`
+  (`sensor` false, 264×16 at y 192–208) and walls off the cutscene stretch with more of them.
+  Without those, the void beside the deck would be walkable.
+- `[VERIFIED]` (read) Lights are units whose path is the light texture:
+  `effects/lights/light_L.png` with state `color` (`"r g b a"` floats), `size`,
+  `overbright`, `cast-shadows`, `overlay`. Two blue ones (`0.0144438 0.287441 0.55834 0`,
+  size 200/300) light the bridge's east end. The asset snapshot now lists
+  `effects/lights/*_L.png`.
+- `[VERIFIED]` (read) The castle has its own roof colour: `doodads/walls/prison/__color_N`
+  (`colors.mats:prison`, `#26333e`, layer 10, an N×N square above-right of its anchor).
+  level_1's only `PlayMusic` is mode 6 (the boss track, at the ending); Castle's act levels
+  use 2–5, so act 1 is 2.
+- `[VERIFIED]` (`players/player.inc`) The player's body is a 5.5-px circle.
+- `[EMITTED]` `castle_bridge` lobby (`lobby/castleBridge.ts`, a `StockTown`): crops to the
+  bridge and the walkway, mends the gap (scene `1`, plus a scene-`3` piece over the stub),
+  closes the room with a full-length south rail, a west stop, and a stone block plus a solid
+  rectangle in each north corridor and across the walkway's east end, stands six stalls
+  along the north rail, a `teleport_mt` with a blue `light_L` at the deck's west end, the
+  payout on the walkway, `PlayMusic` 2 labelled `lobby:music`, and the prison roof over the
+  crop outside the visible room. The importer flood-fills it (`tests/closure.ts`) and fails
+  on a leak. 4329 → 252 units, 603 → 15 scripts, 29 KB. The builder swaps its teleporter
+  for `teleport_red` when a fight follows (template flag `redBeforeFight`). In game:
+  checklist #72–#79.
+- `[VERIFIED]` (tooling) `scripts/render-level.mjs` used to misread stock levels: the editor
+  writes a one-unit group on a single line, and the group regex ran on into the next group,
+  so units got the wrong path (the castle's rail walls drew as bridge posts). It also drew
+  every unit in its default scene, sorted floor sprites without their unit layer (ledges
+  over the bridge), and missed `<rect shoot-through>`, polygon and circle colliders. All
+  fixed; it now honours `start`, `hidden` and `physics-active`, draws `:Physics_*` shapes
+  and `__color` roofs.
+- `[VERIFIED]` (stock levels; the AE editor, 2026-10-20) A light's colour is
+  `<vec4 name="color">r g b a</vec4>`, not a string. The level reader used to read any state
+  tag it didn't model as a string, so the `castle_bridge` embed wrote its three lights'
+  colours as `<string name="color">`. The editor read those as white (`1 1 1 0`) on re-save,
+  and the game likely does too. `[EMITTED]` `StateValue` `raw` keeps any other scalar with
+  its tag (`vec4` here) and writes it back verbatim; the two towns re-import byte-identical.
+- `[EMITTED]` (the user, in the editor, 2026-10-20) The bridge's background cover: the roof
+  now fills x −1344…352, y −288…568 outside the room, so the screen around it is the
+  castle's wall colour rather than black, and covers the south rail's face below y 224 (the
+  visible room is one box, x −896…−32, y 120…224). The user also deleted the rail stub west
+  of the deck and the barrel past the walkway; the cleanup's sideways unit margin is now
+  16 px, which leaves both out. The roof is now about 50 large squares (overlapping at the
+  rectangles' edges; the cover is opaque) instead of a mosaic.

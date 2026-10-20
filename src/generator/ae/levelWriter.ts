@@ -108,6 +108,9 @@ function writeState(w: SvalWriter, name: string, v: StateValue): void {
       for (const s of v.value) w.string(s)
       w.close('array')
       break
+    case 'raw':
+      w.scalar(v.tag, v.value, name)
+      break
     default:
       w.string(v.value, name)
   }

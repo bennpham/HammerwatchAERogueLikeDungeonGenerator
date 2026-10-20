@@ -101,6 +101,18 @@ describe('level writer', () => {
       value: ['vendor7', 'icon-combo', '1']
     })
   })
+
+  it("keeps a state value it doesn't model under its own tag (a light's vec4 colour)", () => {
+    const level = new AeLevel('effects/lighting/prison_1.env')
+    const light = level.addUnit('effects/lights/light_L.png', 0, 0, {
+      color: { kind: 'raw', tag: 'vec4', value: '0.0144438 0.287441 0.55834 0' }
+    })
+    const text = renderLevel(level)
+    expect(text).toContain('<vec4 name="color">0.0144438 0.287441 0.55834 0</vec4>')
+    const back = readLevel(text).level
+    expect(back.units.find((u) => u.id === light.id)?.state?.color).toEqual({ kind: 'raw', tag: 'vec4', value: '0.0144438 0.287441 0.55834 0' })
+    expect(renderLevel(back)).toBe(text)
+  })
 })
 
 describe('info.xml', () => {
@@ -147,6 +159,13 @@ describe.skipIf(!HAS_AE)('stock AE levels', () => {
       const again = readLevel(renderLevel(level)).level
       for (const u of lists) expect(again.units.find((v) => v.id === u.id)?.state?.start, rel).toEqual(u.state?.start)
     }
+  })
+
+  it("Castle level_1's light colours re-render as the vec4s they are", () => {
+    const text = readStockLevel('castle_hammerwatch/levels/level_1.lvl')
+    const stock = text.match(/<vec4 name="color">[^<]*<\/vec4>/g) ?? []
+    expect(stock.length).toBeGreaterThan(10)
+    expect(renderLevel(readLevel(text).level).match(/<vec4 name="color">[^<]*<\/vec4>/g)).toEqual(stock)
   })
 
   it('Castle exits are press-to-use: UseTrigger(Icon 6) -> AllPlayersArea -> LevelExit', () => {

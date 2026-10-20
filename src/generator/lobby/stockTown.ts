@@ -2,7 +2,10 @@
  * Stock towns turned into lobby templates:
  *
  * - Shaftlocke's town, The Outlook (`shaftlocke_tower/levels/hwr/town.lvl`);
- * - Temple of the Sun's bazaar (`sun_temple/levels/sun_temple/level_hub.lvl`).
+ * - Temple of the Sun's bazaar (`sun_temple/levels/sun_temple/level_hub.lvl`);
+ * - Castle Hammerwatch's opening bridge (`castle_hammerwatch/levels/level_1.lvl`),
+ *   which is no town: it's cut out of a dungeon level and built into a shop by
+ *   its own cleanup (castleBridge.ts). The rest of this file is the towns'.
  *
  * Each is its campaign's hub: portals or roads to its own levels, stalls whose
  * stock grows with upgrades bought between runs (Shaftlocke's town upgrades,
@@ -34,6 +37,8 @@
  */
 import type { AeLevel, AeScript, AeUnit } from '../ae/model'
 import { VENDOR_STAND, vendorIdOfShopArea } from './shops'
+import { CASTLE_BRIDGE_CROP, cleanCastleBridge } from './castleBridge'
+import type { Box } from './castleBridge'
 
 export interface StockTown {
   /** the template id and label the importer files it under */
@@ -43,6 +48,14 @@ export interface StockTown {
   /** the stock level, relative to the install's `scenarios/` folder */
   source: string
   clean(level: AeLevel): AeLevel
+  /** the room's teleporter turns red when a fight follows the lobby, as a floor's portal does */
+  redBeforeFight?: boolean
+  /**
+   * A room cut out of a bigger level: the box (px) the importer flood-fills
+   * from the arrival, failing when the fill reaches its edge or never reaches
+   * the exit (tests/closure.ts).
+   */
+  closedWithin?: Box
 }
 
 export const SHAFTLOCKE_TOWN: StockTown = {
@@ -64,7 +77,18 @@ export const SUN_BAZAAR: StockTown = {
   clean: (level) => cleanStockTown(level, [/^doodads\/generic\/teleport_red\.unit$/])
 }
 
-export const STOCK_TOWNS: readonly StockTown[] = [SHAFTLOCKE_TOWN, SUN_BAZAAR]
+export const CASTLE_BRIDGE: StockTown = {
+  id: 'castle_bridge',
+  label: 'Castle Hammerwatch bridge',
+  description:
+    "Castle Hammerwatch's opening bridge, mended and closed off as a shop: six stalls along the deck, the payout on the walkway, and the way on through the teleporter at the bridge's far end.",
+  source: 'castle_hammerwatch/levels/level_1.lvl',
+  clean: cleanCastleBridge,
+  redBeforeFight: true,
+  closedWithin: CASTLE_BRIDGE_CROP
+}
+
+export const STOCK_TOWNS: readonly StockTown[] = [SHAFTLOCKE_TOWN, SUN_BAZAAR, CASTLE_BRIDGE]
 
 /** `ShopArea.Type`: 1 power, 2 equipment, 3 Shaftlocke's town-upgrade shop, no vendor */
 const TOWN_UPGRADE_SHOP = 3

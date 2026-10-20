@@ -27,7 +27,7 @@ Both must pass before every commit. `HWAE_PACK=1 npm test -- tests/packer.test.t
 - `src/main/`: Electron main. `packer.ts` does the install and AE detection.
 - `src/renderer/`: React UI.
 - `tests/`: the suites read emitted levels back through `tests/ae.ts`. `sealProbe.ts` flood-fills levels.
-- `scripts/`: the lobby importers `import-ae-lobby.mjs` (hand-made levels) and `import-stock-towns.ts` (the cleaned stock towns: Shaftlocke's town, the Temple of the Sun bazaar), the asset scanner, and one-off probes in `scripts/dev/`.
+- `scripts/`: the lobby importers `import-ae-lobby.mjs` (hand-made levels) and `import-stock-towns.ts` (the cleaned stock rooms: Shaftlocke's town, the Temple of the Sun bazaar, the Castle Hammerwatch bridge), the asset scanner, `render-level.mjs` (a level to PNG, with `--collision`), and one-off probes in `scripts/dev/`.
 
 ## Invariants
 
@@ -51,6 +51,7 @@ The full record is `.claude/skills/hammerwatch-ae-modding/references/DISCOVERY-L
 - **Walls:** vertical pieces anchor one row above their cell, and `h_32`/`v_32` span two cells.
 - **`PACKAGER.exe`** exits 127 even on success; judge the install by the `.h1c` and its `HW1S` header.
 - **Lobbies** are hand-made AE editor levels: `docs/LOBBY-AUTHORING.md`. The user's `house` is the default.
+- **Collision comes from units alone.** Tiles block nothing, so a room cut out of a stock level must be closed by its own colliders; `tests/closure.ts` flood-fills it.
 
 ## Working here
 

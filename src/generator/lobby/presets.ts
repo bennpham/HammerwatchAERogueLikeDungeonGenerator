@@ -21,6 +21,8 @@ export interface LobbyPresetDef {
   description: string
   /** the imported AE level text, or undefined for the generated stand-in */
   lvl?: string
+  /** the template's teleporter turns red when a fight follows the lobby, as a floor's portal does */
+  redBeforeFight?: boolean
   /** where diamonds and upgrades lie, for the Lobby tab diagram */
   diamondSlots: ReadonlyArray<readonly [number, number]>
   upgradeSlots: Readonly<Record<UpgradeKind, readonly [number, number]>>
@@ -37,7 +39,14 @@ export const LOBBY_PRESETS: readonly LobbyPresetDef[] = [
   },
   // an imported lobby drops its payout at its own `lobby:payout` marker in the
   // same pattern, so the stand-in's slots describe it too
-  ...LOBBY_TEMPLATES.map((t) => ({ id: t.id, label: t.label, description: t.description, lvl: t.lvl, ...standinDiagramSlots() }))
+  ...LOBBY_TEMPLATES.map((t) => ({
+    id: t.id,
+    label: t.label,
+    description: t.description,
+    lvl: t.lvl,
+    redBeforeFight: t.redBeforeFight === true,
+    ...standinDiagramSlots()
+  }))
 ]
 
 /** The user's hand-made AE lobby, when it has been imported; else the generated room. */
