@@ -16,6 +16,7 @@ import { ObjectSet, SHOP_KINDS, addArrival, buildExitRig, itemStandBadge } from 
 import type { ShopKind } from '../objects/objectSet'
 import { SensorShape } from '../objects/nodes'
 import { buildMusicRig } from '../music/rig'
+import { musicSound } from '../music/tracks'
 import { STANDIN_GOLD_ORIGIN, STANDIN_MAP, STANDIN_ROOM, STANDIN_UPGRADE_ORIGIN, diamondSlot, upgradeSlot } from './layout'
 
 export { diamondCount }
@@ -32,8 +33,9 @@ const STANDIN_THEME = 'chambers'
  * Build a lobby level.
  *
  * `exitTarget` is the stem of whatever slot follows this lobby in the
- * campaign order; the exit is the same press-F, whole-party rig every floor
- * uses. No save point: AE saves on arriving at a level.
+ * campaign order, and `exitIsFight` whether that slot is a boss or survival
+ * fight; the exit is the same press-F, whole-party rig every floor uses. No
+ * save point: AE saves on arriving at a level.
  *
  * No RNG of any stream is read: a lobby's layout is a pure function of its
  * options, so adding or removing one never moves a dungeon seed.
@@ -43,11 +45,12 @@ export function buildLobby(
   preset: LobbyPresetDef,
   options: LobbyOptions,
   exitTarget: string,
-  levelIndex: number
+  levelIndex: number,
+  exitIsFight = false
 ): AeLevel {
   return preset.lvl === undefined
     ? buildStandIn(ctx, options, exitTarget, levelIndex)
-    : buildFromTemplate(ctx, preset, options, exitTarget)
+    : buildFromTemplate(ctx, preset, options, exitTarget, exitIsFight)
 }
 
 /** One shop kind per vendor stall the options switch on, selling only the selected columns. */
@@ -158,7 +161,12 @@ function placePayout(
  *   selected is switched off and its sign removed;
  * - payout: the diamonds and upgrade pickups the author placed (their spots are
  *   the payout slots, the placed units themselves removed), else a
- *   `lobby:payout` marker, else the free floor around the spawn.
+ *   `lobby:payout` marker, else the free floor around the spawn;
+ * - music: a `lobby:music` PlayMusic is the room's own track, which the
+ *   lobby's music choice rewrites; else that choice is a new rig at the spawn.
+ *
+ * A template that opts in (`redBeforeFight`) swaps its blue teleporter for
+ * the red one when a fight follows, the rule a floor's portal follows.
  *
  * Units and scripts the generator adds continue the template's own id
  * numbering, so nothing collides.
@@ -167,7 +175,8 @@ function buildFromTemplate(
   ctx: GenerationContext,
   preset: LobbyPresetDef,
   options: LobbyOptions,
-  exitTarget: string
+  exitTarget: string,
+  exitIsFight: boolean
 ): AeLevel {
   const { level } = readLevel(preset.lvl ?? '')
   // the editor saves a level opened from the main menu as MainMenu
@@ -199,6 +208,9 @@ function buildFromTemplate(
   }
   if (!labelledExit) {
     const portal = level.units.find((u) => u.path.startsWith('doodads/generic/teleport'))
+    if (portal !== undefined && preset.redBeforeFight === true && exitIsFight && portal.path === LOBBY_PORTAL) {
+      portal.path = BOSS_PORTAL
+    }
     if (portal !== undefined) {
       const sensor = new SensorShape(ctx, portal.x / TILE, portal.y / TILE)
       sensor.width = 3
@@ -275,13 +287,22 @@ function buildFromTemplate(
   } else if (spawn !== undefined) {
     placePayoutAround(ctx, options, level, spawn.x / TILE, spawn.y / TILE, authored)
   }
-  if (spawn !== undefined) buildMusicRig(ctx, options.music, spawn.x / TILE, spawn.y / TILE + 1)
+  const ownMusic = level.scripts.find((s) => s.label === 'lobby:music' && s.cls === 'PlayMusic')
+  if (ownMusic !== undefined) {
+    const mode = musicSound(options.music)
+    if (mode !== null) ownMusic.params = [P.int('Music', mode)]
+  } else if (spawn !== undefined) {
+    buildMusicRig(ctx, options.music, spawn.x / TILE, spawn.y / TILE + 1)
+  }
   emitObjects(level, ctx)
   ctx.currentTheme = ''
   return level
 }
 
 const TILE = 16
+/** a template's teleporter, blue, and the red one it becomes before a fight (objects/doodad.ts) */
+const LOBBY_PORTAL = 'doodads/generic/teleport_mt.unit'
+const BOSS_PORTAL = 'doodads/generic/teleport_red.unit'
 /** item stands whose scenes `1`…`5` are tier badges */
 const ITEM_STANDS = new Set(['doodads/generic/shop_item.unit', 'doodads/generic/shop_item_hwr.unit'])
 /** a floor shop's use radius, tiles */
