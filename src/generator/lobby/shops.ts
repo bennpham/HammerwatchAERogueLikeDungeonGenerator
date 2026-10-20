@@ -81,8 +81,9 @@ export function vendorOfCategory(category: string): LobbyVendorDef | undefined {
 
 /**
  * Which stall an authored `ShopArea` is, by the categories it sells (its
- * first column: `def*` -> defense, `off*` -> offense, `item` or
- * `equipment_*` -> item...). Undefined for a shop no lobby stall stands for.
+ * first column: `def*` -> defense, `off*` -> offense, `item`,
+ * `equipment_*` or the Sun's `st_equipment_*` -> item...). Undefined for a
+ * shop no lobby stall stands for.
  */
 export function vendorIdOfShopArea(categories: string): string | undefined {
   const first = categories.trim().split(/\s+/)[0] ?? ''
@@ -91,9 +92,15 @@ export function vendorIdOfShopArea(categories: string): string | undefined {
   if (first.startsWith('off')) return 'offense'
   if (first.startsWith('misc')) return 'misc'
   if (first === 'power') return 'power'
-  if (first === 'item' || first.startsWith('equipment_')) return 'item'
+  if (first === 'item' || /^(st_)?equipment_/.test(first)) return 'item'
   return undefined
 }
+
+/**
+ * A vendor's stand in an authored or stock lobby: Castle's and Shaftlocke's
+ * stalls (`shop_*`, `shop_item_hwr`), and the Sun bazaar's shopkeepers.
+ */
+export const VENDOR_STAND = /^doodads\/generic\/(shop_[a-z_]+|npc_dungeonvendor_desert)\.unit$/
 
 /**
  * Selected columns for one stall, in canonical order.

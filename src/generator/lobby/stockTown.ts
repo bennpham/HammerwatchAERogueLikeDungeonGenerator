@@ -1,44 +1,72 @@
 /**
- * Shaftlocke's town (The Outlook, `scenarios/shaftlocke_tower/levels/hwr/town.lvl`)
- * turned into a lobby template.
+ * Stock towns turned into lobby templates:
  *
- * The stock town is Shaftlocke's hub: thirteen portals to its own levels,
- * stalls whose stock grows with town upgrades bought between runs, and quest
- * givers, guards, signs and tutorials driven by save-game flags. None of that
- * means anything in a generated campaign, so the cleanup keeps the map
- * (tiles, walls, cliffs, buildings, props, doors, roofs) and a short list of
- * scripts, and drops the rest:
+ * - Shaftlocke's town, The Outlook (`shaftlocke_tower/levels/hwr/town.lvl`);
+ * - Temple of the Sun's bazaar (`sun_temple/levels/sun_temple/level_hub.lvl`).
+ *
+ * Each is its campaign's hub: portals or roads to its own levels, stalls whose
+ * stock grows with upgrades bought between runs (Shaftlocke's town upgrades,
+ * the Sun's vendor coins), and quest givers, guards, signs and tutorials driven
+ * by save-game flags. None of that means anything in a generated campaign, so
+ * the cleanup keeps the map (tiles, walls, cliffs, buildings, props, doors,
+ * roofs) and a short list of scripts, and drops the rest:
  *
  * - kept: the arrival (the `LevelStart` with no StartID); each vendor's
  *   `UseTrigger`, the widest of its tiered `ShopArea`s (labelled
- *   `lobby:vendor:<id>`) and the `PlaySound` greeting it fires; the minimap
- *   reveal (`ExploreMinimap`) and the town region (`RegionArea`);
+ *   `lobby:vendor:<id>`, and wired straight to the trigger) and the `PlaySound`
+ *   greeting it fires; the minimap reveal (`ExploreMinimap`) and the town
+ *   region (`RegionArea`);
  * - baked in: every scene a script would switch a unit to, at its top tier
- *   (the stalls fully upgraded, the fountain mended, the teleporter open);
+ *   (the stalls fully upgraded, the fountain mended, the teleporter open). A
+ *   unit shown in several scenes at once (`[body, icon, tier]`, the Sun's
+ *   vendors) has only the matching one replaced;
  * - stood up: a stall the stock town spawns on a quest (`SpawnUnit` of a
- *   `doodads/generic/shop_*` unit), the power vendor's;
+ *   `doodads/generic/shop_*` unit), Shaftlocke's power vendor's;
  * - dropped: every other script; actors (townsfolk, guards, the horse); the
  *   portal selectors (`exit_teleport_switch_*`); pickups; the editor's debug
- *   text labels; any sensor no kept script names.
+ *   text labels; any sensor no kept script names; and per town, a portal that
+ *   would pass for a second exit.
  *
  * The exit is left to the lobby builder, which lays its press-F rig on the
- * town's teleporter (`doodads/generic/teleport_mt.unit`).
+ * town's teleporter (`doodads/generic/teleport_mt.unit` in both).
  *
- * Every rule goes by class, path or parameter, never by a stock id.
+ * Every rule goes by class, path, parameter or scene name, never by a stock id.
  */
 import type { AeLevel, AeScript, AeUnit } from '../ae/model'
-import { vendorIdOfShopArea } from './shops'
+import { VENDOR_STAND, vendorIdOfShopArea } from './shops'
 
-/** The stock level, relative to the install's `scenarios/` folder. */
-export const SHAFTLOCKE_TOWN_SOURCE = 'shaftlocke_tower/levels/hwr/town.lvl'
+export interface StockTown {
+  /** the template id and label the importer files it under */
+  id: string
+  label: string
+  description: string
+  /** the stock level, relative to the install's `scenarios/` folder */
+  source: string
+  clean(level: AeLevel): AeLevel
+}
 
-/** The template id and label the importer files it under. */
-export const SHAFTLOCKE_TOWN_ID = 'shaftlocke_town'
-export const SHAFTLOCKE_TOWN_LABEL = 'Shaftlocke town'
-export const SHAFTLOCKE_TOWN_DESCRIPTION =
-  "Shaftlocke Tower's town, The Outlook, with every stall fully upgraded. Leave through the teleporter in the square."
+export const SHAFTLOCKE_TOWN: StockTown = {
+  id: 'shaftlocke_town',
+  label: 'Shaftlocke town',
+  description:
+    "Shaftlocke Tower's town, The Outlook, with every stall fully upgraded. Leave through the teleporter in the square.",
+  source: 'shaftlocke_tower/levels/hwr/town.lvl',
+  clean: (level) => cleanStockTown(level, [])
+}
 
-/** The equipment shop is `Type 2`; `Type 3` is Shaftlocke's town-upgrade shop. */
+export const SUN_BAZAAR: StockTown = {
+  id: 'sun_bazaar',
+  label: 'Temple of the Sun bazaar',
+  description:
+    "Temple of the Sun's desert bazaar, every vendor fully supplied. Walk up the road from the gate and leave through the teleporter in the square.",
+  source: 'sun_temple/levels/sun_temple/level_hub.lvl',
+  // the red pad in the guard-boss courtyard: baked open, it would pass for a second exit
+  clean: (level) => cleanStockTown(level, [/^doodads\/generic\/teleport_red\.unit$/])
+}
+
+export const STOCK_TOWNS: readonly StockTown[] = [SHAFTLOCKE_TOWN, SUN_BAZAAR]
+
+/** `ShopArea.Type`: 1 power, 2 equipment, 3 Shaftlocke's town-upgrade shop, no vendor */
 const TOWN_UPGRADE_SHOP = 3
 
 const DROPPED_UNIT = [
@@ -49,7 +77,8 @@ const DROPPED_UNIT = [
   /^gui\//
 ]
 
-export function cleanShaftlockeTown(level: AeLevel): AeLevel {
+function cleanStockTown(level: AeLevel, extraDrops: readonly RegExp[]): AeLevel {
+  const dropped = [...DROPPED_UNIT, ...extraDrops]
   bakeScenes(level)
   standUpSpawnedStalls(level)
 
@@ -74,9 +103,9 @@ export function cleanShaftlockeTown(level: AeLevel): AeLevel {
     }
   }
   level.units = level.units.filter(
-    (u) => !DROPPED_UNIT.some((re) => re.test(u.path)) && (!u.path.startsWith(':') || named.has(u.id))
+    (u) => !dropped.some((re) => re.test(u.path)) && (!u.path.startsWith(':') || named.has(u.id))
   )
-  level.statics = level.statics.filter((st) => !DROPPED_UNIT.some((re) => re.test(st.path)))
+  level.statics = level.statics.filter((st) => !dropped.some((re) => re.test(st.path)))
   return level
 }
 
@@ -84,7 +113,8 @@ export function cleanShaftlockeTown(level: AeLevel): AeLevel {
  * Each vendor: the `UseTrigger` the stall's `ShopArea`s name, switched on,
  * with the widest `ShopArea` (most columns; the lobby rewrites them anyway),
  * labelled for the builder and moved onto its stand, where the builder looks
- * for the stall's sign.
+ * for the stall's sign. The trigger is wired straight to that `ShopArea`: the
+ * Sun's equipment stall only reaches its own through a dropped flag check.
  */
 function keepVendors(level: AeLevel, keep: Set<AeScript>): void {
   const byUse = new Map<number, AeScript[]>()
@@ -96,7 +126,7 @@ function keepVendors(level: AeLevel, keep: Set<AeScript>): void {
     if (target?.kind !== 'target') continue
     byUse.set(target.value[0], [...(byUse.get(target.value[0]) ?? []), s])
   }
-  const stands = level.units.filter((u) => /^doodads\/generic\/shop_[a-z_]+\.unit$/.test(u.path))
+  const stands = level.units.filter((u) => VENDOR_STAND.test(u.path))
   for (const [useId, areas] of byUse) {
     const use = level.scripts.find((s) => s.id === useId)
     const widest = areas.reduce((best, s) => (columns(s) > columns(best) ? s : best))
@@ -105,6 +135,7 @@ function keepVendors(level: AeLevel, keep: Set<AeScript>): void {
     widest.enabled = true
     widest.label = `lobby:vendor:${vendorId}`
     use.enabled = true
+    if (!use.connections.some(([id]) => id === widest.id)) use.connections.push([widest.id, 0])
     keep.add(use)
     keep.add(widest)
     for (const [id] of use.connections) {
@@ -127,6 +158,10 @@ function keepVendors(level: AeLevel, keep: Set<AeScript>): void {
  * its top tier: the highest-numbered state (`5`, `hwr5`, `tier-2`), or the
  * only one when the states carry no number (`open`). A unit switched between
  * several unnumbered states (`activate` / `deactivate`) is left alone.
+ *
+ * A unit that starts in several scenes at once keeps the others: the baked
+ * scene replaces the one of its own kind (a tier numeral, an `icon-*` or quest
+ * marker), or the whole list when none matches.
  */
 function bakeScenes(level: AeLevel): void {
   const states = new Map<number, Set<string>>()
@@ -139,8 +174,24 @@ function bakeScenes(level: AeLevel): void {
   }
   for (const u of level.units) {
     const top = topState([...(states.get(u.id) ?? [])])
-    if (top !== undefined) u.state = { ...u.state, start: { kind: 'string', value: top } }
+    if (top === undefined) continue
+    const start = u.state?.start
+    if (start?.kind === 'strings') {
+      const i = start.value.findIndex((s) => sceneKind(s) !== undefined && sceneKind(s) === sceneKind(top))
+      if (i >= 0) {
+        u.state = { ...u.state, start: { kind: 'strings', value: start.value.map((s, j) => (j === i ? top : s)) } }
+        continue
+      }
+    }
+    u.state = { ...u.state, start: { kind: 'string', value: top } }
   }
+}
+
+/** The layer a scene draws in a several-scene start: a tier numeral, or an icon over the head. */
+function sceneKind(scene: string): 'tier' | 'icon' | undefined {
+  if (/^\d+$/.test(scene)) return 'tier'
+  if (/^icon-/.test(scene) || scene === 'puzzle') return 'icon'
+  return undefined
 }
 
 function topState(states: string[]): string | undefined {

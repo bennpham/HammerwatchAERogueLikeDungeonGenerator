@@ -86,6 +86,21 @@ describe('level writer', () => {
       value: [32, 64]
     })
   })
+
+  it('keeps a unit shown in several scenes at once (a start list)', () => {
+    const level = new AeLevel('effects/lighting/prison_1.env')
+    const vendor = level.addUnit('doodads/generic/npc_dungeonvendor_desert.unit', 0, 0, {
+      start: { kind: 'strings', value: ['vendor7', 'icon-combo', '1'] }
+    })
+    const text = renderLevel(level)
+    expect(text.replace(/\s+</g, '<')).toContain(
+      '<array name="start"><string>vendor7</string><string>icon-combo</string><string>1</string></array>'
+    )
+    expect(readLevel(text).level.units.find((u) => u.id === vendor.id)?.state?.start).toEqual({
+      kind: 'strings',
+      value: ['vendor7', 'icon-combo', '1']
+    })
+  })
 })
 
 describe('info.xml', () => {
@@ -121,6 +136,17 @@ describe.skipIf(!HAS_AE)('stock AE levels', () => {
     expect(again.units.length).toBe(level.units.length)
     expect(again.scripts.length).toBe(level.scripts.length)
     expect(again.scripts.map((s) => s.cls)).toEqual(level.scripts.map((s) => s.cls))
+  })
+
+  it('start-scene lists survive a read and re-render (Shaftlocke windows, Sun bazaar vendors)', () => {
+    for (const rel of ['shaftlocke_tower/levels/hwr/town.lvl', 'sun_temple/levels/sun_temple/level_hub.lvl']) {
+      const { level } = readLevel(readStockLevel(rel))
+      const lists = level.units.filter((u) => u.state?.start?.kind === 'strings')
+      expect(lists.length, rel).toBeGreaterThan(0)
+      expect(lists.every((u) => (u.state?.start?.value as string[]).every((s) => s !== '')), rel).toBe(true)
+      const again = readLevel(renderLevel(level)).level
+      for (const u of lists) expect(again.units.find((v) => v.id === u.id)?.state?.start, rel).toEqual(u.state?.start)
+    }
   })
 
   it('Castle exits are press-to-use: UseTrigger(Icon 6) -> AllPlayersArea -> LevelExit', () => {

@@ -27,7 +27,8 @@ import { GenerationContext } from '../src/generator/core/context'
 import { readLevel } from '../src/generator/ae/levelReader'
 import { renderLevel } from '../src/generator/ae/levelWriter'
 import { aeAssetExists } from '../src/generator/catalog/assets'
-import type { AeLevel } from '../src/generator/ae/model'
+import type { AeLevel, StateValue } from '../src/generator/ae/model'
+import { VENDOR_STAND } from '../src/generator/lobby/shops'
 import { allIds, idsParam, levelsOf, placements, scriptById, scriptsOf, stemsOf, strParam, unitById } from './ae'
 import { plainParameters } from './params'
 
@@ -69,6 +70,9 @@ function stalls(level: AeLevel): Array<{ categories: string; type?: number }> {
 }
 
 const count = (l: AeLevel, path: string) => l.units.filter((u) => u.path === path).length
+
+/** The Sun bazaar's item shopkeeper, by its icon: `[body, icon-item, tier]`. */
+const isItemKeeper = (start: StateValue | undefined): boolean => start?.kind === 'strings' && start.value.includes('icon-item')
 
 describe('lobby — presets', () => {
   it('has unique ids, and the user\'s hall is the default', () => {
@@ -209,10 +213,16 @@ for (const preset of LOBBY_PRESETS) {
       }, 60_000)
 
       it('badges the item stand with the highest tier it sells', () => {
+        // a tiered item stand's scene, or the tier numeral of a shopkeeper shown as [body, icon, tier]
         const badgeOf = (level: AeLevel) =>
-          level.units.filter((u) => /^doodads\/generic\/shop_item(_hwr)?\.unit$/.test(u.path)).map((u) => u.state?.start)
-        expect(badgeOf(lobbyOf(preset))).toEqual([{ kind: 'string', value: '3' }])
-        expect(badgeOf(lobbyOf(preset, { shopCategories: ['equipment_1', 'equipment_5'] }))).toEqual([{ kind: 'string', value: '5' }])
+          level.units
+            .filter((u) => /^doodads\/generic\/shop_item(_hwr)?\.unit$/.test(u.path) || isItemKeeper(u.state?.start))
+            .map((u) => {
+              const start = u.state?.start
+              return start?.kind === 'strings' ? start.value.find((s) => /^\d+$/.test(s)) : start?.value
+            })
+        expect(badgeOf(lobbyOf(preset))).toEqual(['3'])
+        expect(badgeOf(lobbyOf(preset, { shopCategories: ['equipment_1', 'equipment_5'] }))).toEqual(['5'])
       }, 60_000)
 
       it('sells exactly the selected columns, in canonical order', () => {
@@ -229,7 +239,8 @@ for (const preset of LOBBY_PRESETS) {
         const lobby = lobbyOf(preset, { shopCategories: skillsOnly })
         expect(count(lobby, 'doodads/generic/shop_potion.unit')).toBe(0)
         expect(count(lobby, 'doodads/generic/shop_item.unit')).toBe(0)
-        const signs = lobby.units.filter((u) => /^doodads\/generic\/shop_[a-z]+\.unit$/.test(u.path))
+        const signs = lobby.units.filter((u) => VENDOR_STAND.test(u.path))
+        expect(lobby.units.filter((u) => isItemKeeper(u.state?.start))).toEqual([])
         expect(signs.length).toBeGreaterThanOrEqual(4)
         expect(count(lobbyOf(preset, { shopCategories: [] }), 'doodads/generic/shop_combo.unit')).toBe(0)
       }, 60_000)

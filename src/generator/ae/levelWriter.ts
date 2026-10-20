@@ -103,6 +103,11 @@ function writeState(w: SvalWriter, name: string, v: StateValue): void {
     case 'vec2':
       w.vec2(v.value[0], v.value[1], name)
       break
+    case 'strings':
+      w.open('array', name)
+      for (const s of v.value) w.string(s)
+      w.close('array')
+      break
     default:
       w.string(v.value, name)
   }

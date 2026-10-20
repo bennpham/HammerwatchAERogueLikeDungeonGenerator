@@ -1,4 +1,4 @@
-import { LOBBY_VENDORS, categoriesFor, vendorIdOfShopArea } from './shops'
+import { LOBBY_VENDORS, VENDOR_STAND, categoriesFor, vendorIdOfShopArea } from './shops'
 import type { LobbyPresetDef } from './presets'
 import { DIAMOND_UNIT, UPGRADE_KINDS, diamondCount, upgradeItemPath } from './payout'
 import type { LobbyOptions } from '../config/parameters'
@@ -208,8 +208,8 @@ function buildFromTemplate(
   }
 
   // --- vendors -------------------------------------------------------------
-  // stands, Castle's and Shaftlocke's (`shop_item_hwr`) alike
-  const shops = level.units.filter((u) => /^doodads\/generic\/shop_[a-z_]+\.unit$/.test(u.path))
+  // stands: Castle's, Shaftlocke's (`shop_item_hwr`) and the Sun bazaar's shopkeepers
+  const shops = level.units.filter((u) => VENDOR_STAND.test(u.path))
   for (const s of level.scripts) {
     if (s.cls !== 'ShopArea') continue
     const label = s.label ?? ''
@@ -246,6 +246,17 @@ function buildFromTemplate(
         stand.state = { ...stand.state, start: { kind: 'string', value: badge } }
       }
     }
+    // a shopkeeper shown as [body, icon, tier] (the Sun bazaar's) wears the
+    // highest column it sells as its tier numeral
+    const keeper = nearest(shops, use.x, use.y)
+    const start = keeper?.state?.start
+    const tier = highestColumn(selected)
+    if (keeper !== undefined && start?.kind === 'strings' && tier !== undefined) {
+      const i = start.value.findIndex((s) => /^\d+$/.test(s))
+      if (i >= 0) {
+        keeper.state = { ...keeper.state, start: { kind: 'strings', value: start.value.map((s, j) => (j === i ? tier : s)) } }
+      }
+    }
     if (use.params.some((p) => p.name === 'Areas')) continue
     // no use area yet: a circle on the nearest stand, as floor shops have
     const stand = nearest(shops, use.x, use.y)
@@ -275,6 +286,12 @@ const TILE = 16
 const ITEM_STANDS = new Set(['doodads/generic/shop_item.unit', 'doodads/generic/shop_item_hwr.unit'])
 /** a floor shop's use radius, tiles */
 const SHOP_USE_RADIUS = 1.25
+
+/** The highest column number a stall sells (`def3` -> 3, `equipment_5` -> 5), as a scene name. */
+function highestColumn(categories: readonly string[]): string | undefined {
+  const top = Math.max(0, ...categories.map((c) => Number(/(\d+)$/.exec(c)?.[1] ?? 0)))
+  return top > 0 ? String(Math.min(top, 5)) : undefined
+}
 
 /** Whether any script names `id`, by connection or in an id or target parameter. */
 function isReferenced(level: AeLevel, id: number): boolean {
