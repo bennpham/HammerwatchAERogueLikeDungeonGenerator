@@ -15,11 +15,20 @@ This embeds the level in `src/generator/lobby/templates.generated.ts`. Re-runnin
 A stock level isn't a lobby as it stands: it carries its campaign's exits, quests and flags. The stock towns have their own importer, which cleans them first (`src/generator/lobby/stockTown.ts`):
 
 ```sh
-node scripts/run-ts.mjs scripts/import-stock-towns.ts            # both
+node scripts/run-ts.mjs scripts/import-stock-towns.ts            # all of them
 node scripts/run-ts.mjs scripts/import-stock-towns.ts sun_bazaar # one
 ```
 
-It reads each town from the install (`HWAE_ROOT`, or the default Steam path): Shaftlocke's `town.lvl` as the `shaftlocke_town` lobby and Temple of the Sun's `level_hub.lvl` as the `sun_bazaar` lobby. It keeps the map, the vendors and the arrival. Re-run it after changing the cleanup: `tests/stockTown.test.ts` fails while an embedded copy is out of date. To add another stock town, add a `StockTown` to `STOCK_TOWNS`.
+It reads each level from the install (`HWAE_ROOT`, or the default Steam path):
+- Shaftlocke's `town.lvl` as the `shaftlocke_town` lobby;
+- Temple of the Sun's `level_hub.lvl` as the `sun_bazaar` lobby;
+- Castle Hammerwatch's `level_1.lvl` as the `castle_bridge` lobby.
+
+The towns keep their map, vendors and arrival. The castle bridge is cut out of a dungeon level, so its cleanup (`src/generator/lobby/castleBridge.ts`) crops it, mends the bridge, closes the room and builds the shop. AE takes collision from units alone, so a room cut out of a bigger level must be closed by its own colliders: the importer flood-fills it from the arrival (`tests/closure.ts`) and writes nothing if the party could walk out or couldn't reach the exit.
+
+Re-run the importer after changing a cleanup: `tests/stockTown.test.ts` fails while an embedded copy is out of date. To add another stock room, add a `StockTown` to `STOCK_TOWNS`.
+
+To see a level, render it with `node scripts/render-level.mjs <level.lvl> <out.png> --crop x y w h [--collision] [--scale n]`.
 
 ## What the generator looks for
 
@@ -30,11 +39,13 @@ Each part is found by its script **label** first. If there is no label, the gene
 | Arrival | `lobby:spawn` on a `LevelStart` | the `LevelStart` with no StartID | Gives it this slot's StartID. In the campaign's first slot, it also adds a default spawn at the same spot. |
 | Exit | `lobby:exit` on the `LevelExit` and `SetRespawnPoint` | a `doodads/generic/teleport_*` unit | With labels, it re-points those scripts at the next slot. Without them, it builds the floors' press-F, whole-party exit on a 3x3 sensor centred on the teleporter. |
 | Vendors | `lobby:vendor:<id>` on a `ShopArea` (`combo`, `defense`, `misc`, `offense`, `power`, `item`) | the `ShopArea`'s categories (`def*`, `off*`, `misc*`, `combo*`, `power`, `item`, `equipment_*`, `st_equipment_*`) | Sells only the columns the Lobby tab selects. A stall left with nothing to sell is switched off, along with its `UseTrigger`, and its stand comes down. A `UseTrigger` without `Areas` gets a circle sensor on its nearest stand: a `shop_*` stall or a Sun `npc_dungeonvendor_desert` shopkeeper, whose tier numeral becomes the highest column it sells. |
-| Payout | `lobby:payout` on any script | the free floor around the arrival | Lays one red diamond per 500 starting gold and each free upgrade kind on its own cell. It searches outward from the spawn, at most 8 tiles, and stops at walls, doors and props. |
+| Payout | placed red diamonds and upgrade pickups, else `lobby:payout` on any script | the free floor around the arrival | Lays one red diamond per 500 starting gold and each free upgrade kind on its own cell. Placed pickups win: they're removed, and their spots become the slots (diamonds cycle over theirs and stack; each upgrade kind lands on its own pickup's spot). A marker lays rows of six diamonds and the upgrades beside them. Otherwise it searches outward from the spawn, at most 8 tiles, and stops at walls, doors and props. |
+| Music | `lobby:music` on a `PlayMusic` | (none) | The room's own track. The Lobby tab's music choice rewrites its value; without the label, a choice adds its own music rig at the arrival. |
 
 The generator also:
 - sets the game mode to `DungeonGameMode`, because the editor saves a level opened from the main menu as `MainMenu`;
-- adds the lobby's music at the arrival (no save point: AE saves on arriving at a level).
+- adds the lobby's music at the arrival, unless the room labels its own (no save point: AE saves on arriving at a level);
+- swaps the room's blue teleporter (`teleport_mt`) for the red one when a fight follows the lobby, the way a floor's portal works. Only the castle bridge opts in (`redBeforeFight` on its template); the other rooms keep their own teleporter.
 
 ## Checklist for a new lobby
 
