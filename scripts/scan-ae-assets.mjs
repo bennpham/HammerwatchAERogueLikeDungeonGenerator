@@ -7,8 +7,9 @@
 //   node scripts/scan-ae-assets.mjs --check    # exit 1 if the snapshot is stale
 //
 // Scope: every actor/item unit; the doodad folders the generator uses (walls'
-// structural pieces, doors, generic, traps, special, lamps); every tileset
-// with its tile size; every lighting environment. Set HWAE_ROOT to point at
+// structural pieces, doors, generic, traps, special, lamps); the light
+// textures a level places as units; every tileset with its tile size; every
+// lighting environment. Set HWAE_ROOT to point at
 // another install.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -39,6 +40,9 @@ for (const f of walk('actors')) if (f.endsWith('.unit')) units.add(f)
 for (const f of walk('items')) if (f.endsWith('.unit')) units.add(f)
 // every doodad: hand-made lobbies may use any prop or decorative wall piece
 for (const f of walk('doodads')) if (f.endsWith('.unit')) units.add(f)
+// free-standing lights: a level places the light texture itself as a unit
+// (`effects/lights/light_L.png` with colour/size state), as Castle's level_1 does
+for (const f of walk('effects/lights')) if (f.endsWith('_L.png')) units.add(f)
 
 const tilesets = {}
 for (const f of walk('tilesets')) {

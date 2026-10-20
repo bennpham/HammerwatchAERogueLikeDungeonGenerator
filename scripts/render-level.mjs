@@ -5,9 +5,11 @@
 //   node scripts/render-level.mjs <level.lvl> <out.png> [--crop x y w h] [--collision] [--scale n]
 //
 // Floors are flat colours per tileset (not textures); units are drawn from
-// their default scene's sprites, sorted by layer then y like the engine does.
-// --collision overlays every static collision rect in red so footprints can be
-// checked against the art.
+// their start scene's sprites (the default scene when they set none), sorted by
+// layer then y like the engine does, and hidden units are left out.
+// --collision overlays every active collision rect in red so footprints can be
+// checked against the art, plus `:Physics_*` shapes: solid in red, sensors in
+// blue (circles as their bounding square).
 import fs from 'node:fs'
 import path from 'node:path'
 import { decodePng, encodePng, blankImage, blit, fillRect } from './lib/png.mjs'
@@ -26,8 +28,31 @@ if (!assets) { console.error('AE assets not found; set HWAE_ROOT'); process.exit
 const text = fs.readFileSync(lvlPath, 'utf8')
 const units = []
 const usec = text.slice(text.indexOf('<dict name="units">'), text.indexOf('<array name="scripts">'))
-for (const g of usec.matchAll(/<array name="([^"]+)">([\s\S]*?)\n\t\t<\/array>/g)) {
-  for (const p of g[2].matchAll(/<vec2>(-?[\d.]+) (-?[\d.]+)<\/vec2>\s*<int>(\d+)<\/int>/g)) units.push({ path: g[1], x: +p[1], y: +p[2], id: +p[3] })
+// one group per path, from its `<array name>` to the next: the editor writes a
+// one-unit group on a single line, so a group can't be cut at its closing tag
+const groups = [...usec.matchAll(/\n\t\t<array name="([^"]+)">/g)]
+for (const [i, g] of groups.entries()) {
+  const body = usec.slice(g.index + g[0].length, i + 1 < groups.length ? groups[i + 1].index : usec.length)
+  for (const p of body.matchAll(/<vec2>(-?[\d.]+) (-?[\d.]+)<\/vec2>\s*<int>(\d+)<\/int>(\s*<dict>([\s\S]*?)<\/dict>)?/g)) {
+    units.push({ path: g[1], x: +p[1], y: +p[2], id: +p[3], state: unitState(p[5] ?? '') })
+  }
+}
+
+// the per-instance state the drawing honours: start scene(s), hidden, collider on/off, sensor shape
+function unitState(dict) {
+  const bool = (n) => new RegExp(`<bool name="${n}">([tf])</bool>`).exec(dict)?.[1]
+  const start = /<string name="start">([^<]*)<\/string>/.exec(dict)?.[1]
+  const starts = /<array name="start">([\s\S]*?)<\/array>/.exec(dict)?.[1]
+  const size = /<vec2 name="size">(-?[\d.]+) (-?[\d.]+)<\/vec2>/.exec(dict)
+  const radius = /<float name="radius">(-?[\d.]+)<\/float>/.exec(dict)
+  return {
+    scenes: starts !== undefined ? [...starts.matchAll(/<string>([^<]*)<\/string>/g)].map((m) => m[1]) : start !== undefined ? [start] : [undefined],
+    hidden: bool('hidden') === 't',
+    physics: bool('physics-active') !== 'f' && bool('active') !== 'f',
+    sensor: bool('sensor') === 't',
+    size: size ? [+size[1], +size[2]] : undefined,
+    radius: radius ? +radius[1] : undefined
+  }
 }
 const tiles = []
 const tsec = text.slice(text.indexOf('<array name="tiles">'), text.indexOf('<dict name="units">'))
@@ -80,13 +105,16 @@ const tex = (p) => {
 }
 const draws = []
 for (const u of units) {
-  if (u.path.startsWith(':') || u.path.startsWith('effects/')) continue
+  if (u.path.startsWith(':') || u.path.startsWith('effects/') || u.state.hidden) continue
   if (u.x < x0 - 128 || u.x > x0 + W + 128 || u.y < y0 - 128 || u.y > y0 + H + 160) continue
-  const def = loadUnit(assets, u.path)
-  for (const s of def.sprites) {
-    if (s.texture.includes('minimap') || s.texture.includes('light') || s.texture.includes('__guide') || s.material.includes('bright')) continue
-    const floorish = s.material.includes(':floor') || s.layer < 0
-    draws.push({ u, s, key: floorish ? -1e9 + s.layer : def.unitLayer * 1e6 + s.layer * 1e5 + u.y })
+  for (const scene of u.state.scenes) {
+    const def = loadUnit(assets, u.path, scene)
+    for (const s of def.sprites) {
+      if (s.texture.includes('minimap') || s.texture.includes('light') || s.texture.includes('__guide') || s.material.includes('bright')) continue
+      const floorish = s.material.includes(':floor') || s.layer < 0
+      // floor sprites under everything, by unit layer (a -60 ledge under a -29 bridge), then sprite layer
+      draws.push({ u, s, key: floorish ? -1e9 + def.unitLayer * 1e3 + s.layer : def.unitLayer * 1e6 + s.layer * 1e5 + u.y })
+    }
   }
 }
 draws.sort((a, b) => a.key - b.key)
@@ -96,10 +124,28 @@ for (const { u, s } of draws) {
   const [fx, fy, fw, fh] = s.frame
   blit(img, t, fx, fy, fw, fh, Math.round(u.x - s.ox - x0), Math.round(u.y - s.oy - y0))
 }
+// roof covers (`__color_N`): an empty texture tinted by material, drawn over the
+// walls (layer 10) as an N×N square above-right of the anchor; flat grey here
+for (const u of units) {
+  const n = /\/__color_(\d+)\.unit$/.exec(u.path)?.[1]
+  if (n !== undefined && !u.state.hidden) fillRect(img, Math.round(u.x - x0), Math.round(u.y - Number(n) - y0), Number(n), Number(n), [38, 51, 62, 255])
+}
 if (flag('--collision') >= 0) {
   for (const u of units) {
+    if (u.state.hidden || !u.state.physics) continue
+    if (u.path === ':Physics_Rectangle' && u.state.size) {
+      // centred; sensors (trigger areas) in blue, solid shapes in red
+      const [w, h] = u.state.size
+      fillRect(img, Math.round(u.x - w / 2 - x0), Math.round(u.y - h / 2 - y0), w, h, u.state.sensor ? [0, 120, 255, 50] : [255, 0, 0, 70])
+      continue
+    }
+    if (u.path === ':Physics_Circle' && u.state.radius) {
+      const r = u.state.radius
+      fillRect(img, Math.round(u.x - r - x0), Math.round(u.y - r - y0), 2 * r, 2 * r, u.state.sensor ? [0, 120, 255, 50] : [255, 0, 0, 70])
+      continue
+    }
     if (u.path.startsWith(':')) continue
-    for (const [rx, ry, rw, rh] of loadUnit(assets, u.path).rects) fillRect(img, Math.round(u.x + rx - x0), Math.round(u.y + ry - y0), rw, rh, [255, 0, 0, 70])
+    for (const [rx, ry, rw, rh] of loadUnit(assets, u.path, u.state.scenes[0]).rects) fillRect(img, Math.round(u.x + rx - x0), Math.round(u.y + ry - y0), rw, rh, [255, 0, 0, 70])
   }
 }
 let out = img
