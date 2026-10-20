@@ -921,3 +921,38 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   of the deck and the barrel past the walkway; the cleanup's sideways unit margin is now
   16 px, which leaves both out. The roof is now about 50 large squares (overlapping at the
   rectangles' edges; the cover is opaque) instead of a mosaic.
+
+### Wall-top cover: the `__color_N` squares (2026-10-19)
+
+- `[VERIFIED]` (read) Every wall set except the five flat `bonus*` sets ships square
+  `__color_{8,16,32,48,64,96,128,256,512,1024}.unit`: `%replace THEME <set>` over
+  `doodads/walls/color_N.inc`, a `special/empty.png` sprite drawn through
+  `doodads/walls/colors.mats:<set>` (prison `#26333e`, blend, lit, `xray-mask` true), unit
+  `layer="10"`, origin `0 N`. A unit at `(x, y)` covers `[x, x+N] × [y−N, y]`. There is no
+  collision. Stock bonus levels use none.
+- `[VERIFIED]` (stock, Castle levels 1/2/4/6/8/10) Stock fills the solid mass with them
+  (level 2: 673 squares, 16–512 px). 499 of the 673 anchor at (8, 8) mod 16, where walls
+  sit at (0, 0). Measured around every `h_16`/`h_32` at wall row `y` with floor on one side
+  and void on the other:
+  - a room's **south** wall (mass below): colour runs from `y − 24` down (142 cases, the
+    dominant pattern);
+  - a room's **north** wall (mass above): colour runs down to `y − 24` (155 cases).
+
+  One rule fits both. Take the solid mass, lift it 32 px (a wall's art is its footprint
+  drawn 32 px higher), and pull its edge in 8 px. In cells it is HW1's `Cover` rule two rows
+  up: the 16-px square on the corner of drawn cells `(x, y)` and `(x+1, y+1)` is coloured
+  when cells `(x, y+2)…(x+1, y+3)` are all solid. So a south wall's face is hidden under the
+  colour and only its cap edge shows, the mass above a north wall reads as wall top, and a
+  vertical wall keeps half its strip.
+- `[VERIFIED]` (read) The stair art the colour must not cover: the shared `exit_up.inc` /
+  `exit_dn.inc` draw 64×72 at origin `0 72`; cave_desert/cave_crystal 32×48 at `0 32`;
+  battlement's `exit_up` 38×40 at `18 39`. The shared art's top 40 px are opaque in its own
+  dark top colour. Its two outer doorway cells (bottom 32 px) are transparent, and stock
+  leaves them showing whatever is beneath.
+- `[EMITTED]` `map/aeCover.ts` places the cover by that rule on dungeon floors, boss arenas
+  and the stand-in lobby. The squares are greedy and may overlap, are anchored on the odd 8-px
+  phase (so 16 px and up, (8, 8) like stock), and reach 32 cells past the map. Each stair's
+  art rect is cut out. Cover takes its ids after the walls and before the torches: it is
+  always on, so an optional layer must not move it. That is about 450 squares a floor. The
+  imported stock rooms (the towns, the castle bridge) keep their own hand-placed roof and get
+  none. In game: checklist #80.

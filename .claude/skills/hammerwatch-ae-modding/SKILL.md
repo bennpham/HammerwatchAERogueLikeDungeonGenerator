@@ -11,6 +11,7 @@ The evidence for every line is in `references/DISCOVERY-LOG.md`. Add new finding
 
 - **`.lvl`** is SVAL text. The root keys, in order: `game-mode {Class=DungeonGameMode}`, `version` 1, `lighting {environment}`, `tiles`, `units`, `scripts`, `prefabs`. Positions are pixels; a tile is 16 px.
 - **Tiles** are 512-px chunks (`pos` is the centre) holding `datasets [{tileset, data-rle}]`. `__black` masks solid rock.
+- **Wall-top cover** is the wall set's `__color_N` squares (layer 10, over walls and actors): the solid mass lifted 32 px and pulled in 8 px, plus a margin past the map, with the stairs' art cut out (`map/aeCover.ts`, DISCOVERY-LOG "Wall-top cover"). The bonus sets have none.
 - **Units** are grouped by path: `[pos, id]` or `[pos, id, {state}]`.
 - **Scripts** are `[Class, id, vec3, enabled, triggerTimes, execOnStart, label?, {params}?, [targetId, delayMs]…]`.
 - **A scenario** is `scenarios/<id>/` holding `info.xml`, `logos.png` and `levels/<id>/*.lvl`. Never write `info.sval`; PACKAGER compiles it.
