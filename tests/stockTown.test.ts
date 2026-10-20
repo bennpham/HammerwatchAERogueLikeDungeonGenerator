@@ -13,7 +13,7 @@ import { renderLevel } from '../src/generator/ae/levelWriter'
 import type { AeLevel } from '../src/generator/ae/model'
 import type { CampaignSlot } from '../src/generator/campaign'
 import { LOBBY_TEMPLATES } from '../src/generator/lobby/templates.generated'
-import { CASTLE_BRIDGE_CROP, CASTLE_BRIDGE_VISIBLE } from '../src/generator/lobby/castleBridge'
+import { CASTLE_BRIDGE_CROP, CASTLE_BRIDGE_ROOF, CASTLE_BRIDGE_VISIBLE } from '../src/generator/lobby/castleBridge'
 import type { Box } from '../src/generator/lobby/castleBridge'
 import { DIAMOND_UNIT, UPGRADE_KINDS } from '../src/generator/lobby/payout'
 import { CASTLE_BRIDGE, SHAFTLOCKE_TOWN, STOCK_TOWNS, SUN_BAZAAR } from '../src/generator/lobby/stockTown'
@@ -272,24 +272,38 @@ describe('Castle Hammerwatch bridge: the room', () => {
     const portal = unit(room, PORTAL)!
     const lights = units(room, 'effects/lights/light_L.png').filter((u) => Math.hypot(u.x - portal.x, u.y - portal.y) <= 16)
     expect(lights).toHaveLength(1)
-    expect(lights[0].state?.color?.value).toBe('0.0144438 0.287441 0.55834 0')
+    expect(lights[0].state?.color).toEqual({ kind: 'raw', tag: 'vec4', value: '0.0144438 0.287441 0.55834 0' })
   })
 
-  it('roofs the crop outside the visible room, exactly', () => {
+  it("writes every light's colour as AE does, a vec4 (as a string the editor and game read it as white)", () => {
+    const text = renderLevel(lobbyOf(CASTLE_BRIDGE))
+    expect(text.match(/<vec4 name="color">0\.0144438 0\.287441 0\.55834 0<\/vec4>/g)).toHaveLength(3)
+    expect(text).not.toContain('<string name="color">')
+  }, 60_000)
+
+  it('roofs the whole roof box but the visible room, and nothing past it', () => {
     const room = embedded(CASTLE_BRIDGE)
     const squares = room.units.flatMap((u) => {
       const n = ROOF.exec(u.path)?.[1]
       return n === undefined ? [] : [{ x0: u.x, y0: u.y - Number(n), x1: u.x + Number(n), y1: u.y }]
     })
-    const area = (b: Box) => (b.x1 - b.x0) * (b.y1 - b.y0)
     const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1
+    const R = CASTLE_BRIDGE_ROOF
     for (const sq of squares) {
-      expect(sq.x0 >= CASTLE_BRIDGE_CROP.x0 && sq.x1 <= CASTLE_BRIDGE_CROP.x1 && sq.y0 >= CASTLE_BRIDGE_CROP.y0 && sq.y1 <= CASTLE_BRIDGE_CROP.y1).toBe(true)
-      expect(CASTLE_BRIDGE_VISIBLE.some((b) => overlaps(b, sq)), JSON.stringify(sq)).toBe(false)
+      expect(sq.x0 >= R.x0 && sq.x1 <= R.x1 && sq.y0 >= R.y0 && sq.y1 <= R.y1, JSON.stringify(sq)).toBe(true)
+      expect(overlaps(CASTLE_BRIDGE_VISIBLE, sq), JSON.stringify(sq)).toBe(false)
     }
-    // no two squares overlap, so their areas add up to the roof's
-    const roofArea = area(CASTLE_BRIDGE_CROP) - CASTLE_BRIDGE_VISIBLE.reduce((n, b) => n + area(b), 0)
-    expect(squares.reduce((n, b) => n + area(b), 0)).toBe(roofArea)
+    // every 8-px cell of the box outside the room is under some square
+    const bare: string[] = []
+    for (let y = R.y0; y < R.y1; y += 8) {
+      for (let x = R.x0; x < R.x1; x += 8) {
+        if (inBox(CASTLE_BRIDGE_VISIBLE, x, y)) continue
+        if (!squares.some((sq) => inBox(sq, x, y))) bare.push(`${x},${y}`)
+      }
+    }
+    expect(bare).toEqual([])
+    // a few big squares, not a mosaic
+    expect(squares.length).toBeLessThan(80)
   })
 
   it('pays out on the walkway, never on the deck', () => {

@@ -15,7 +15,9 @@ export const TILE = 16
 
 /**
  * One typed value in a unit's per-instance state dict. `strings` is a list of
- * scenes shown at once: a stock `start` can be `[body, icon, tier]`.
+ * scenes shown at once: a stock `start` can be `[body, icon, tier]`. `raw` is
+ * any other scalar, kept verbatim with its tag: a light's colour is
+ * `<vec4 name="color">`, and written back as a string AE reads it as white.
  */
 export type StateValue =
   | { kind: 'bool'; value: boolean }
@@ -24,6 +26,7 @@ export type StateValue =
   | { kind: 'string'; value: string }
   | { kind: 'strings'; value: string[] }
   | { kind: 'vec2'; value: [number, number] }
+  | { kind: 'raw'; tag: string; value: string }
 
 /**
  * One named value in a script's parameter dict.

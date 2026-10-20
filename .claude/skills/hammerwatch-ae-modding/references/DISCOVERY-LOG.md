@@ -908,3 +908,16 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   over the bridge), and missed `<rect shoot-through>`, polygon and circle colliders. All
   fixed; it now honours `start`, `hidden` and `physics-active`, draws `:Physics_*` shapes
   and `__color` roofs.
+- `[VERIFIED]` (stock levels; the AE editor, 2026-10-20) A light's colour is
+  `<vec4 name="color">r g b a</vec4>`, not a string. The level reader used to read any state
+  tag it didn't model as a string, so the `castle_bridge` embed wrote its three lights'
+  colours as `<string name="color">`. The editor read those as white (`1 1 1 0`) on re-save,
+  and the game likely does too. `[EMITTED]` `StateValue` `raw` keeps any other scalar with
+  its tag (`vec4` here) and writes it back verbatim; the two towns re-import byte-identical.
+- `[EMITTED]` (the user, in the editor, 2026-10-20) The bridge's background cover: the roof
+  now fills x −1344…352, y −288…568 outside the room, so the screen around it is the
+  castle's wall colour rather than black, and covers the south rail's face below y 224 (the
+  visible room is one box, x −896…−32, y 120…224). The user also deleted the rail stub west
+  of the deck and the barrel past the walkway; the cleanup's sideways unit margin is now
+  16 px, which leaves both out. The roof is now about 50 large squares (overlapping at the
+  rectangles' edges; the cover is opaque) instead of a mosaic.

@@ -153,8 +153,12 @@ function readState(dict: SvalNode): Record<string, StateValue> {
       case 'array':
         out[n.name] = { kind: 'strings', value: n.children.map((c) => c.text) }
         break
-      default:
+      case 'string':
         out[n.name] = { kind: 'string', value: n.text }
+        break
+      default:
+        // vec3/vec4/ivec*/color…: kept with its tag, so it's written back as AE wrote it
+        out[n.name] = { kind: 'raw', tag: n.tag, value: n.text.trim() }
     }
   }
   return out

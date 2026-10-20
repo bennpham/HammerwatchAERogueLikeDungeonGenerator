@@ -20,8 +20,8 @@
  * - **closure:** AE takes collision from units alone, so the void beside the
  *   deck is walkable: a solid rail along the deck's south edge, a stop past
  *   its west end, and stone blocks (each backed by a solid rectangle that
- *   closes the gap exactly) in the corridor north of the gap and across the
- *   walkway's east end;
+ *   closes the gap exactly) in the two corridors north off the deck and
+ *   across the walkway's east end;
  * - **stalls:** six along the deck's north rail, east to west combo,
  *   offense, defense, misc, power (HW1's five) and items, each with its use
  *   circle on the deck;
@@ -31,7 +31,7 @@
  * - **music:** the act-1 track (`PlayMusic` 2) on load, labelled
  *   `lobby:music` so a lobby's own music choice replaces it;
  * - **roof:** the castle's own wall colour (`doodads/walls/prison/__color_N`)
- *   over everything in the crop outside the visible room.
+ *   over a wide box around the room, everywhere but the visible room.
  *
  * Every anchor is found by unit path and position; a missing one throws, so a
  * changed stock level can't misplace a seal.
@@ -52,30 +52,40 @@ export interface Box {
 }
 
 /**
- * What the party sees: the bridge from just under the north wall's cap row
- * (the roof hides the caps and the arch tops, so wall meets roof in one
- * straight line) down to the south rail, and the walkway with two tiles of
- * chasm under its ledge.
+ * What the party sees: the bridge and the walkway, from just under the north
+ * wall's cap row (the roof hides the caps and the arch tops, so wall meets
+ * roof in one straight line) down to two tiles under the walkway's ledge. The
+ * roof hides the south rail's face below that, as the user set it in the
+ * editor (2026-10-20).
  */
-export const CASTLE_BRIDGE_VISIBLE: readonly Box[] = [
-  { x0: -896, y0: 120, x1: -448, y1: 256 },
-  { x0: -448, y0: 120, x1: -32, y1: 224 }
-]
+export const CASTLE_BRIDGE_VISIBLE: Box = { x0: -896, y0: 120, x1: -32, y1: 224 }
 
-/** Everything kept: the visible room and two tiles of roof around it. */
+/** The tiles kept, and the box the closure check fills: the visible room and two tiles around it. */
 export const CASTLE_BRIDGE_CROP: Box = { x0: -928, y0: 56, x1: 0, y1: 288 }
+
+/**
+ * The roof: the castle's colour over this box outside the visible room, so the
+ * screen around the room is the castle's own wall rather than black void. The
+ * user's background cover from the editor (2026-10-20).
+ */
+export const CASTLE_BRIDGE_ROOF: Box = { x0: -1344, y0: -288, x1: 352, y1: 568 }
 
 const BRIDGE = 'doodads/walls/prison/hw_bridge.unit'
 const BLOCK = 'doodads/generic/deco_block.unit'
 const PORTAL = 'doodads/generic/teleport_mt.unit'
 const LIGHT = 'effects/lights/light_L.png'
 const ROOF = (n: number): string => `doodads/walls/prison/__color_${n}.unit`
-const ROOF_SIZES = [256, 128, 64, 32, 16, 8]
-/** The roof's grid: half a tile, for the cap-row line. */
-const ROOF_GRID = 8
+/** Every `__color_N` the prison set ships, largest first. */
+const ROOF_SIZES = [1024, 512, 256, 128, 96, 64, 48, 32, 16, 8]
 const GRID = 16
-/** How far outside the visible room a unit may stand and still be kept: a wall anchored there draws into it. */
-const UNIT_MARGIN = 32
+/**
+ * How far outside the visible room a unit may stand and still be kept: a wall
+ * anchored above or below draws into it (the corridor walls at y 96). Sideways
+ * it's half that, which leaves out the stubs past the ends (a rail wall west
+ * of the deck, a barrel past the walkway).
+ */
+const UNIT_MARGIN_Y = 32
+const UNIT_MARGIN_X = 16
 
 /** The bridge pieces' row and their width in scene `1`/`3`. */
 const DECK_Y = 162
@@ -118,7 +128,7 @@ const ACT1_MUSIC = 2
 const PORTAL_LIGHT: Record<string, StateValue> = {
   'cast-shadows': { kind: 'int', value: 0 },
   size: { kind: 'float', value: 220 },
-  color: { kind: 'string', value: '0.0144438 0.287441 0.55834 0' },
+  color: { kind: 'raw', tag: 'vec4', value: '0.0144438 0.287441 0.55834 0' },
   overlay: { kind: 'bool', value: false },
   overbright: { kind: 'float', value: 1 }
 }
@@ -141,7 +151,7 @@ export function cleanCastleBridge(level: AeLevel): AeLevel {
   const broken = pieces.filter((u) => sceneOf(u) === '2')
   if (broken.length !== 1) throw new Error(`castle bridge: expected one broken bridge piece, found ${broken.length}`)
   const westEnd = Math.min(...pieces.map((u) => u.x))
-  if (westEnd !== CASTLE_BRIDGE_VISIBLE[0].x0) throw new Error(`castle bridge: the deck starts at x ${westEnd}, not ${CASTLE_BRIDGE_VISIBLE[0].x0}`)
+  if (westEnd !== CASTLE_BRIDGE_VISIBLE.x0) throw new Error(`castle bridge: the deck starts at x ${westEnd}, not ${CASTLE_BRIDGE_VISIBLE.x0}`)
   const spawn = level.scripts.find((s) => s.cls === 'LevelStart' && !s.params.some((p) => p.name === 'StartID'))
   if (spawn === undefined) throw new Error('castle bridge: no default LevelStart')
   // the corridor north of the gap, between its two wall junctions
@@ -163,9 +173,9 @@ export function cleanCastleBridge(level: AeLevel): AeLevel {
   level.scripts = [spawn]
   spawn.connections = []
   level.prefabs = []
-  const shown = CASTLE_BRIDGE_VISIBLE.map((b) => grow(b, UNIT_MARGIN))
+  const shown = grow(CASTLE_BRIDGE_VISIBLE, UNIT_MARGIN_X, UNIT_MARGIN_Y)
   const kept = (u: { path: string; x: number; y: number; state?: Record<string, StateValue> }) =>
-    shown.some((b) => inside(b, u.x, u.y)) && !DROPPED_UNIT.some((re) => re.test(u.path)) && u.state?.hidden?.value !== true
+    inside(shown, u.x, u.y) &&!DROPPED_UNIT.some((re) => re.test(u.path)) && u.state?.hidden?.value !== true
   level.units = level.units.filter((u) => kept(u) && !cast.has(u.id))
   level.statics = level.statics.filter(kept)
   cropTiles(level, CASTLE_BRIDGE_CROP)
@@ -243,8 +253,8 @@ function inside(b: Box, x: number, y: number): boolean {
   return x >= b.x0 && x < b.x1 && y >= b.y0 && y < b.y1
 }
 
-function grow(b: Box, by: number): Box {
-  return { x0: b.x0 - by, y0: b.y0 - by, x1: b.x1 + by, y1: b.y1 + by }
+function grow(b: Box, byX: number, byY: number): Box {
+  return { x0: b.x0 - byX, y0: b.y0 - byY, x1: b.x1 + byX, y1: b.y1 + byY }
 }
 
 /**
@@ -293,29 +303,26 @@ function cropTiles(level: AeLevel, crop: Box): void {
 }
 
 /**
- * Cover the crop outside the visible room with the castle's wall colour: on a
- * 16-px grid, reading order, each uncovered cell takes the largest square that
- * fits. A `__color_N` square is drawn above-right of its anchor.
+ * Cover the roof box outside the visible room with the castle's wall colour:
+ * the four rectangles around the room, each with the largest square that fits
+ * its short side, in rows and columns whose last one is pulled back to the
+ * rectangle's edge. Squares overlap there, which an opaque cover doesn't show.
+ * A `__color_N` square is drawn above-right of its anchor.
  */
 function roof(level: AeLevel): void {
-  const { x0, y0, x1, y1 } = CASTLE_BRIDGE_CROP
-  const w = (x1 - x0) / ROOF_GRID
-  const h = (y1 - y0) / ROOF_GRID
-  const open = (cx: number, cy: number) => CASTLE_BRIDGE_VISIBLE.some((b) => inside(b, x0 + cx * ROOF_GRID, y0 + cy * ROOF_GRID))
-  const done = new Uint8Array(w * h)
-  const free = (cx: number, cy: number) => cx < w && cy < h && done[cx + cy * w] === 0 && !open(cx, cy)
-  for (let cy = 0; cy < h; cy++) {
-    for (let cx = 0; cx < w; cx++) {
-      if (!free(cx, cy)) continue
-      const n = ROOF_SIZES.find((size) => fits(free, cx, cy, size / ROOF_GRID)) ?? ROOF_GRID
-      const k = n / ROOF_GRID
-      for (let dy = 0; dy < k; dy++) for (let dx = 0; dx < k; dx++) done[cx + dx + (cy + dy) * w] = 1
-      level.addUnit(ROOF(n), x0 + cx * ROOF_GRID, y0 + cy * ROOF_GRID + n)
+  const out = CASTLE_BRIDGE_ROOF
+  const room = CASTLE_BRIDGE_VISIBLE
+  const around: Box[] = [
+    { x0: out.x0, y0: out.y0, x1: out.x1, y1: room.y0 },
+    { x0: out.x0, y0: room.y1, x1: out.x1, y1: out.y1 },
+    { x0: out.x0, y0: room.y0, x1: room.x0, y1: room.y1 },
+    { x0: room.x1, y0: room.y0, x1: out.x1, y1: room.y1 }
+  ]
+  for (const r of around) {
+    const n = ROOF_SIZES.find((size) => size <= Math.min(r.x1 - r.x0, r.y1 - r.y0))
+    if (n === undefined) continue
+    for (let y = r.y0; y < r.y1; y += n) {
+      for (let x = r.x0; x < r.x1; x += n) level.addUnit(ROOF(n), Math.min(x, r.x1 - n), Math.min(y, r.y1 - n) + n)
     }
   }
-}
-
-function fits(free: (cx: number, cy: number) => boolean, cx: number, cy: number, k: number): boolean {
-  for (let dy = 0; dy < k; dy++) for (let dx = 0; dx < k; dx++) if (!free(cx + dx, cy + dy)) return false
-  return true
 }

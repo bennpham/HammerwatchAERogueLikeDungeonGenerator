@@ -57,6 +57,8 @@ The room is the `castle_bridge` lobby: `src/generator/lobby/castleBridge.ts`, re
   rewrites it rather than adding a second rig.
 - **Portal colour:** opt-in per template (`redBeforeFight`). Only this room opts in; the
   house and the towns keep their own teleporter.
+- **Roof:** after a look in the editor, the user widened the cover to fill the screen around
+  the room (x −1344…352, y −288…568) and to hide the south rail's face below y 224.
 
 ## The user's decisions
 
