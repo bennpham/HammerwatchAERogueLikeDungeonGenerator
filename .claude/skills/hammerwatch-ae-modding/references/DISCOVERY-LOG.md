@@ -1016,3 +1016,8 @@ death is the floor's only lock.
   across. The played seed's statue is unchanged. In game: checklist #82.
 - `[VERIFIED]` (user, 2026-10-21, checklist #56) The classic escape floor's fireball spewers at
   1500 ms (`ESCAPE_TRAP_RATE_MS`, 8 per wall) work as intended.
+- `[VERIFIED]` (user, 2026-10-21, checklist #66) Shaftlocke Siege played through (seed
+  1878922481, the first statue rig): both lobbies are the Shaftlocke town, the Wraith and the
+  Golem each open their floor on death alone, the Golem drops gold beetles, the light-bolt,
+  dark-beam and ballista traps never trap the party for good, and the arena rolls one of the
+  Eye, Vampire, frost dragon or Seeress.
