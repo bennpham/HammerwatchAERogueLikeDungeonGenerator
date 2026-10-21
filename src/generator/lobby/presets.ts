@@ -1,17 +1,14 @@
 /**
  * The rooms a lobby slot can be built from.
  *
- * `standin` is generated (a themed room with the selected vendor stands, the
- * starting gold and free upgrades on the floor, and a press-F exit).
- *
- * Hand-made lobbies are AE editor levels imported with
- * `scripts/import-ae-lobby.mjs` into `templates.generated.ts`; the generator
- * finds their exit, spawn, vendors and payout spot by script label or by
- * structure and rewrites them (docs/LOBBY-AUTHORING.md). The user's own
+ * Every lobby is an AE editor level imported with `scripts/import-ae-lobby.mjs`
+ * (or `scripts/import-stock-towns.ts`) into `templates.generated.ts`; the
+ * generator finds its exit, spawn, vendors and payout spot by script label or
+ * by structure and rewrites them (docs/LOBBY-AUTHORING.md). The user's own
  * `house` lobby is the default.
  */
 import { LOBBY_TEMPLATES } from './templates.generated'
-import { standinDiagramSlots } from './layout'
+import { payoutDiagramSlots } from './layout'
 import type { UpgradeKind } from './payout'
 
 export interface LobbyPresetDef {
@@ -19,8 +16,8 @@ export interface LobbyPresetDef {
   id: string
   label: string
   description: string
-  /** the imported AE level text, or undefined for the generated stand-in */
-  lvl?: string
+  /** the imported AE level text */
+  lvl: string
   /** the template's teleporter turns red when a fight follows the lobby, as a floor's portal does */
   redBeforeFight?: boolean
   /** where diamonds and upgrades lie, for the Lobby tab diagram */
@@ -28,30 +25,27 @@ export interface LobbyPresetDef {
   upgradeSlots: Readonly<Record<UpgradeKind, readonly [number, number]>>
 }
 
-export const STANDIN_LOBBY_ID = 'standin'
+// an imported lobby drops its payout at its own `lobby:payout` marker in the
+// payout pattern, so the pattern's slots describe it
+export const LOBBY_PRESETS: readonly LobbyPresetDef[] = LOBBY_TEMPLATES.map((t) => ({
+  id: t.id,
+  label: t.label,
+  description: t.description,
+  lvl: t.lvl,
+  redBeforeFight: t.redBeforeFight === true,
+  ...payoutDiagramSlots()
+}))
 
-export const LOBBY_PRESETS: readonly LobbyPresetDef[] = [
-  {
-    id: STANDIN_LOBBY_ID,
-    label: 'Generated room',
-    description: 'A generated shop room: the vendors you pick, your starting gold and upgrades, and a press-F exit.',
-    ...standinDiagramSlots()
-  },
-  // an imported lobby drops its payout at its own `lobby:payout` marker in the
-  // same pattern, so the stand-in's slots describe it too
-  ...LOBBY_TEMPLATES.map((t) => ({
-    id: t.id,
-    label: t.label,
-    description: t.description,
-    lvl: t.lvl,
-    redBeforeFight: t.redBeforeFight === true,
-    ...standinDiagramSlots()
-  }))
-]
-
-/** The user's hand-made AE lobby, when it has been imported; else the generated room. */
+/** The user's hand-made AE lobby. */
 export const HOUSE_LOBBY_ID = 'house'
-export const DEFAULT_LOBBY_PRESET_ID = LOBBY_TEMPLATES.some((t) => t.id === HOUSE_LOBBY_ID) ? HOUSE_LOBBY_ID : STANDIN_LOBBY_ID
+export const DEFAULT_LOBBY_PRESET_ID = HOUSE_LOBBY_ID
+
+/**
+ * Lobby ids that are gone: the HW1 remake's two placeholder rooms and the
+ * generated stand-in room. Older presets and files still name them; each
+ * becomes the default lobby.
+ */
+export const RETIRED_LOBBY_IDS: readonly string[] = ['BETA-dungeon-prep', 'BETA-boss-prep', 'standin']
 
 export function lobbyPresetById(id: string): LobbyPresetDef | undefined {
   return LOBBY_PRESETS.find((p) => p.id === id)

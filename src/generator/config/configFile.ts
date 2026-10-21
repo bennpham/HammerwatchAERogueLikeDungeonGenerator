@@ -73,7 +73,7 @@ import { mysteryLootById } from '../objects/mysteryLoot'
 import { projectileById } from '../objects/projectileTypes'
 import { isLobbyCategory } from '../lobby/shops'
 import { DEFAULT_ITEM_VENDOR_ODDS, DEFAULT_SHOP_KIND_IDS, isShopKindId } from '../objects/vendorRoll'
-import { DEFAULT_LOBBY_PRESET_ID, LOBBY_PRESETS } from '../lobby/presets'
+import { DEFAULT_LOBBY_PRESET_ID, LOBBY_PRESETS, RETIRED_LOBBY_IDS } from '../lobby/presets'
 import { campaignOrder, isDefaultOrder, normalizeOrder, parseSlotLabel, slotLabeller } from '../campaign'
 import type { CampaignSlot } from '../campaign'
 import { PLAYER_FIELD_MAP, formatPlayerLine, parsePlayerValue, prunePlayerTweaks } from '../players/fields'
@@ -1446,6 +1446,8 @@ export function parseParametersTxt(content: string, base?: DungeonParameters): P
 
       if (suffix === 'preset') {
         if (LOBBY_PRESETS.some((preset) => preset.id === value)) lobby.preset = value
+        // a retired room (the generated one, the HW1 placeholders) is the default lobby now
+        else if (RETIRED_LOBBY_IDS.includes(value)) lobby.preset = DEFAULT_LOBBY_PRESET_ID
         else result.unknownKeys.push(`${key} value "${value}"`)
         continue
       }

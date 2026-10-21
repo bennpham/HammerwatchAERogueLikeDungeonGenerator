@@ -20,7 +20,7 @@ The first release. This is a port of the [Hammerwatch 1 remake](https://github.c
   - Caves: desert, crystal, dark.
   - Bonus: bonus1–bonus5, with their own flat walls, entrance and exit pads, and keyed bars.
 - **AE monsters and bosses.** The roster covers AE's actors, including the Shaftlocke Tower and Temple of the Sun monsters, their bosses (golem, warden, wraith, eye, vampire, frost dragon, worm, Krilith, Anubis) and the boss adds. The boss pickers group bosses by campaign.
-- **The house lobby.** The default lobby is a hand-made AE editor level, the **house**. Its diamonds and upgrades lie where they were placed in the editor. More lobbies can be imported from the AE editor (`docs/LOBBY-AUTHORING.md`); a generated room is still an option.
+- **The house lobby.** The default lobby is a hand-made AE editor level, the **house**. Its diamonds and upgrades lie where they were placed in the editor. More lobbies can be imported from the AE editor (`docs/LOBBY-AUTHORING.md`). The classic presets shop in their own campaign's stock room: Castle on the Castle Hammerwatch bridge, Desert in the Temple of the Sun bazaar, Shaftlocke Tower in Shaftlocke's town.
 - **Item vendor.** A sixth vendor sells AE equipment from AE's five item tiers. Each tier is 5 random items: tier 1 is all common, tiers 2–3 are common and uncommon, tier 4 adds rares, and tier 5 always has one epic. The Lobby tab shows each tier as five slot pips coloured by rarity, with its price range and a list of every item by rarity. A new lobby sells tiers 2–3, and a boss-prep lobby also sells tier 4. Floor shop rooms roll the item vendor along with the skill vendors (the **Shop room vendors** section on the Dungeon tab). Its tier is random: common/uncommon 70, rare 20, epic 10 by default. The stand shows its tier number. A lobby vendor with no columns ticked is removed from the room.
 - **Items on mystery plates.** A plate can drop a unique item by name, a **random unique** (the *Lucky find* button), or a random rare or epic item. Uniques are never sold in shops.
 - **Speed pickups.** AE's speed and attack-speed upgrades (I and II) and the speed potion (double move, attack and cast speed for 10 seconds) can drop from boss wave tiers, survival rounds and mystery plates. The starter plate set has a button for each.
@@ -60,6 +60,7 @@ The first release. This is a port of the [Hammerwatch 1 remake](https://github.c
 - **Boss checkpoints.** AE doesn't need them: co-op players revive each other, and a dead party chooses to restart at the previous lobby or at the fight. Old `Checkpoints` lines are read and dropped.
 - **Lobby save points.** AE saves on arriving at a level. Old `lobbySaves` lines are read and dropped.
 - **The HW1 tweak editor**, replaced by the AE Players tab.
+- **The generated lobby room.** Every lobby is now an AE editor level. Old files that name it (`lobbyNPreset=standin`) load the house.
 - **The Anniversary Edition player preset**, which made the original game play like AE. *Original Hammerwatch* does the reverse here.
 
 ### Notes

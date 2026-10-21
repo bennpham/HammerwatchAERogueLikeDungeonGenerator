@@ -634,7 +634,8 @@ function bonusMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'levelMyster
 
 /**
  * The presets, in the order the preset dialog lists them. `castle` is `defaultParameters()` plus its
- * mystery plates; the app itself opens on the plate-free `defaultParameters()`.
+ * mystery plates and the bridge lobby; the app itself opens on the plate-free `defaultParameters()`,
+ * in the house. Each classic preset shops in its own campaign's stock lobby.
  */
 const CLASSIC_PRESETS: readonly CampaignPreset[] = [
   {
@@ -643,7 +644,15 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
     description:
       '7 floors through the mixed castle themes — four act floors, then three boss rushes, with two mystery buttons hidden on every floor.',
     group: 'classic',
-    build: () => ({ ...defaultParameters(), ...castleMystery() })
+    // shops on Castle Hammerwatch's own bridge; defaultParameters() keeps the house
+    build: () => ({
+      ...defaultParameters(),
+      ...castleMystery(),
+      lobbies: [
+        { ...defaultLobby('BETA-dungeon-prep'), preset: 'castle_bridge' },
+        { ...defaultLobby('BETA-boss-prep'), preset: 'castle_bridge', music: 'boss_1' }
+      ]
+    })
   },
   {
     id: 'desert',
@@ -695,8 +704,8 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
       ...desertMystery(),
       boss: withBoss('pyramid_fancy', ['boss_anubis', 'boss_worm'], desertWaves()),
       lobbies: [
-        { ...defaultLobby('BETA-dungeon-prep'), music: 'temple_hub' },
-        { ...defaultLobby('BETA-boss-prep'), music: 'boss_1' }
+        { ...defaultLobby('BETA-dungeon-prep'), preset: 'sun_bazaar', music: 'temple_hub' },
+        { ...defaultLobby('BETA-boss-prep'), preset: 'sun_bazaar', music: 'boss_1' }
       ],
       monsterMax: {
         ...defaultParameters().monsterMax,
@@ -809,8 +818,8 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
         'shaftlocke_21'
       ),
       lobbies: [
-        { ...defaultLobby('BETA-dungeon-prep'), music: 'shaftlocke_20' },
-        { ...defaultLobby('BETA-boss-prep'), music: 'shaftlocke_20' }
+        { ...defaultLobby('BETA-dungeon-prep'), preset: 'shaftlocke_town', music: 'shaftlocke_20' },
+        { ...defaultLobby('BETA-boss-prep'), preset: 'shaftlocke_town', music: 'shaftlocke_20' }
       ],
       // Castle's slot shape (see defaultParameters().levelMonsters): the
       // prison's maggots and skeletons, then its cells, two harder act floors,

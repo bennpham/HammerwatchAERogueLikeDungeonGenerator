@@ -186,7 +186,6 @@ export {
   LOBBY_DIAMOND_VALUE,
   LOBBY_PRESETS,
   LOBBY_VENDORS,
-  STANDIN_LOBBY_ID,
   buildLobby,
   categoriesFor,
   diamondCount,
@@ -452,7 +451,7 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
     const exitTarget = slotEntryId(next)
     ctx.clearLevel()
     enter(slot)
-    const level = buildLobby(ctx, preset, options, exitTarget, position, next.kind === 'boss')
+    const level = buildLobby(ctx, preset, options, exitTarget, next.kind === 'boss')
     files.push({ path: ctx.levelPath(ctx.currentStem), content: renderLevel(level) })
   })
 
