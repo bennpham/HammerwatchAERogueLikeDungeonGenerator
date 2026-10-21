@@ -1,6 +1,7 @@
 /**
  * The stock rooms as lobbies (src/generator/lobby/stockTown.ts): Shaftlocke's
- * town, the Temple of the Sun bazaar and the Castle Hammerwatch bridge. The
+ * town, the Temple of the Sun bazaar, the Castle Hammerwatch bridge and
+ * survival's crystal mines shop. The
  * per-preset contract (exit, arrival, vendors, payout, ids, assets) runs in
  * lobby.test.ts like every other lobby; this file checks what the cleanup
  * removes and keeps, against the stock levels when the install is present.
@@ -16,11 +17,13 @@ import { LOBBY_TEMPLATES } from '../src/generator/lobby/templates.generated'
 import { CASTLE_BRIDGE_CROP, CASTLE_BRIDGE_ROOF, CASTLE_BRIDGE_VISIBLE } from '../src/generator/lobby/castleBridge'
 import type { Box } from '../src/generator/lobby/castleBridge'
 import { DIAMOND_UNIT, UPGRADE_KINDS } from '../src/generator/lobby/payout'
-import { CASTLE_BRIDGE, SHAFTLOCKE_TOWN, STOCK_TOWNS, SUN_BAZAAR } from '../src/generator/lobby/stockTown'
+import { CASTLE_BRIDGE, CRYSTAL_SHOP, SHAFTLOCKE_TOWN, STOCK_TOWNS, SUN_BAZAAR } from '../src/generator/lobby/stockTown'
+import { CRYSTAL_SHOP_CROP, CRYSTAL_SHOP_PAYOUT } from '../src/generator/lobby/crystalShop'
+import { CELL, decodeRle, rleLength } from '../src/generator/ae/tiles'
 import type { StockTown } from '../src/generator/lobby/stockTown'
 import { HAS_AE, aeAssetsDir, readStockLevel } from './aeInstall'
 import { idsParam, intParam, levelsOf, scriptsOf, strParam } from './ae'
-import { closureOf } from './closure'
+import { closureOf, unreached } from './closure'
 import { plainParameters } from './params'
 
 const embedded = (town: StockTown): AeLevel => readLevel(LOBBY_TEMPLATES.find((t) => t.id === town.id)!.lvl).level
@@ -50,10 +53,14 @@ const beforeAFight = (town: StockTown): DungeonParameters => {
   params.levelOrder = order
   return params
 }
-/** what the stock campaign's own exits name: `levels/hwr/`, `levels/sun_temple/`, Castle's `levels/level_2.lvl` */
+/**
+ * what the stock campaign's own exits name: `levels/hwr/`, `levels/sun_temple/`,
+ * Castle's `levels/level_2.lvl`, survival's `levels/crystal_mines.lvl` (from a
+ * source in a pack, `survival.h1c:levels/crystal_mines_shops.lvl`)
+ */
 const stockLevelsDir = (town: StockTown): string => {
-  const rest = town.source.split('/levels/')[1]
-  return rest.includes('/') ? `levels/${rest.split('/')[0]}/` : 'levels/level_'
+  const rest = town.source.split(/(?:^|[/:])levels\//)[1]
+  return rest.includes('/') ? `levels/${rest.split('/')[0]}/` : `levels/${rest.replace(/(\d+|_shops)\.lvl$/, '')}`
 }
 const PAYOUT_PATHS = new Set([DIAMOND_UNIT, ...UPGRADE_KINDS.map(upgradeItemPath)])
 const inBox = (b: Box, x: number, y: number) => x >= b.x0 && x < b.x1 && y >= b.y0 && y < b.y1
@@ -151,7 +158,7 @@ for (const town of STOCK_TOWNS) {
 
     it("drops the campaign's own exits and the story", () => {
       const before = stock(town)
-      expect(scriptsOf(before, 'LevelExit').length).toBeGreaterThan(5)
+      expect(scriptsOf(before, 'LevelExit').length).toBeGreaterThan(0)
       const after = town.clean(before)
       for (const cls of [
         'LevelExit',
@@ -372,7 +379,7 @@ function extentOf(level: AeLevel): Box {
   return { x0: Math.min(...xs) - 64, y0: Math.min(...ys) - 64, x1: Math.max(...xs) + 64, y1: Math.max(...ys) + 64 }
 }
 
-for (const town of [SHAFTLOCKE_TOWN, SUN_BAZAAR]) {
+for (const town of [SHAFTLOCKE_TOWN, SUN_BAZAAR, CRYSTAL_SHOP]) {
   describe(`${town.label}: the payout on its spots, however big the purse`, () => {
     const payout = town.payout!
     const lobby = () => generate(withLobby(town, { startingGold: 500_000, upgrades: threeOfEach() }))
@@ -442,5 +449,183 @@ describe.skipIf(!HAS_AE)('Castle Hammerwatch bridge: closed by its own colliders
     const cast = new Set(scriptsOf(stock(CASTLE_BRIDGE), 'HideUnit').flatMap((s) => idsParam(s, 'Units')))
     expect(cast.size).toBeGreaterThan(5)
     expect(embedded(CASTLE_BRIDGE).units.filter((u) => cast.has(u.id)).map((u) => u.path)).toEqual([])
+  })
+})
+
+describe('Crystal Mines shop: the red room', () => {
+  const FLOOR = 'tilesets/bonus_5.tileset'
+  const room = () => embedded(CRYSTAL_SHOP)
+  /** the 16-px tiles a tileset paints, as "x,y" */
+  const painted = (level: AeLevel, tileset: string): Set<string> => {
+    const out = new Set<string>()
+    for (const cell of level.tileCells) {
+      for (const ds of cell.datasets.filter((d) => d.tileset === tileset)) {
+        const side = Math.round(Math.sqrt(rleLength(ds.rle)))
+        const size = CELL / side
+        decodeRle(ds.rle, side).forEach((on, i) => {
+          if (on) out.add(`${Math.floor((cell.x - CELL / 2 + (i % side) * size) / 16)},${Math.floor((cell.y - CELL / 2 + Math.trunc(i / side) * size) / 16)}`)
+        })
+      }
+    }
+    return out
+  }
+  const RED = new Set<string>()
+  for (let y = -6; y < 6; y++) for (let x = -6; x < 6; x++) RED.add(`${x},${y}`)
+  for (const d of [-1, 0]) for (const k of [`${d},-7`, `${d},6`, `-7,${d}`, `6,${d}`]) RED.add(k)
+  const PADS = ['-1,-1', '0,-1', '-1,0', '0,0']
+
+  it('lays a 12x12 red floor and the floor of its four doorway notches, with no black void over it', () => {
+    const level = room()
+    expect([...painted(level, FLOOR)].sort()).toEqual([...RED].sort())
+    expect([...painted(level, 'tilesets/__black.tileset')].filter((k) => RED.has(k))).toEqual([])
+  })
+
+  it('walls it in bonus5: four corners, straight pieces, a cap either side of each doorway', () => {
+    // the islands are `doodads/walls/cave_crystal/special_cliff`
+    const walls = room().units.filter((u) => u.path.startsWith('doodads/walls/') && !u.path.includes('/cave_crystal/'))
+    const count = (piece: string) => walls.filter((u) => u.path === `doodads/walls/bonus5/${piece}.unit`).length
+    expect(walls.every((u) => u.path.startsWith('doodads/walls/bonus5/'))).toBe(true)
+    expect(['crn_l_up', 'crn_r_up', 'crn_l_dn', 'crn_r_dn'].map(count)).toEqual([1, 1, 1, 1])
+    expect(['h_cap_l', 'h_cap_r', 'v_cap_up', 'v_cap_dn'].map(count)).toEqual([2, 2, 2, 2])
+    expect([count('h_16'), count('v_16')]).toEqual([16, 16])
+    expect(walls).toHaveLength(44)
+    expect(walls.some((u) => u.state?.hidden?.value === true)).toBe(false)
+  })
+
+  it('puts the arrival at its centre on four bonus pads; the hub island and its marker are gone', () => {
+    const level = room()
+    const spawn = scriptsOf(level, 'LevelStart')
+    expect(spawn.map((s) => [s.label, s.x, s.y, s.params.length])).toEqual([['lobby:spawn', 0, 0, 0]])
+    const pads = units(level, 'doodads/special/bonus_teleport.unit').map((u) => `${u.x / 16},${u.y / 16}`)
+    expect(pads.sort()).toEqual([...PADS].sort())
+    const islands = units(level, 'doodads/walls/cave_crystal/special_cliff.unit')
+    expect(islands.filter((u) => Math.abs(u.x) < 112 && Math.abs(u.y) < 112)).toEqual([])
+    expect(units(level, 'doodads/generic/marker_spawn.unit')).toEqual([])
+    expect(units(level, ':Physics_Freeform')).toEqual([])
+    expect(level.prefabs).toEqual([])
+  })
+
+  it('lays the item stall in the level, as the stock prefab has it, on its island', () => {
+    const level = room()
+    const shop = scriptsOf(level, 'ShopArea').find((s) => s.label === 'lobby:vendor:item')!
+    expect(intParam(shop, 'Type')).toBe(2)
+    const target = shop.params.find((p) => p.name === '#PlayerTarget')!
+    const use = level.scripts.find((s) => target.kind === 'target' && s.id === target.value[0])!
+    const circle = level.units.find((u) => u.id === idsParam(use, 'Areas')[0])!
+    expect(circle.state?.radius?.value).toBe(25)
+    const stand = unit(level, 'doodads/generic/shop_item.unit')!
+    expect([stand.x, stand.y]).toEqual([circle.x, circle.y])
+    const island = units(level, 'doodads/walls/cave_crystal/special_cliff.unit').find((u) => Math.abs(u.x - stand.x) < 30 && Math.abs(u.y - stand.y) < 30)
+    expect(island).toBeDefined()
+  })
+
+  it('leads one glass walkway out of each doorway, flush with the wall ring, inside the doorway', () => {
+    const glass = units(room(), 'doodads/generic/glasswalk.unit')
+    const at = (x0: number, y0: number, x1: number, y1: number) => glass.filter((g) => g.x - 8 === x0 && g.y - 8 === y0 && g.x + 8 === x1 && g.y + 8 === y1)
+    // north edge at y -112, south at 112, west at x -112, east at 112, each within the 32-px doorway
+    expect(glass.filter((g) => g.y + 8 === -112 && Math.abs(g.x) + 8 <= 16)).toHaveLength(1)
+    expect(glass.filter((g) => g.y - 8 === 112 && Math.abs(g.x) + 8 <= 16)).toHaveLength(1)
+    expect(glass.filter((g) => g.x + 8 === -112 && Math.abs(g.y) + 8 <= 16)).toHaveLength(1)
+    expect(glass.filter((g) => g.x - 8 === 112 && Math.abs(g.y) + 8 <= 16)).toHaveLength(1)
+    expect(at(-8, -8, 8, 8)).toEqual([])
+  })
+
+  it('fences the void with invisible solid rectangles that cover no floor and no glass', () => {
+    const level = room()
+    const fences = level.units.filter((u) => u.path === ':Physics_Rectangle' && u.state?.sensor?.value === false)
+    expect(fences.length).toBeGreaterThan(20)
+    const walk: Box[] = [...RED].map((k) => {
+      const [x, y] = k.split(',').map(Number)
+      return { x0: x * 16, y0: y * 16, x1: x * 16 + 16, y1: y * 16 + 16 }
+    })
+    for (const g of units(level, 'doodads/generic/glasswalk.unit')) walk.push({ x0: g.x - 8, y0: g.y - 8, x1: g.x + 8, y1: g.y + 8 })
+    for (const f of fences) {
+      const [w, h] = f.state!.size!.value as [number, number]
+      const b = { x0: f.x - w / 2, y0: f.y - h / 2, x1: f.x + w / 2, y1: f.y + h / 2 }
+      const over = walk.find((a) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1)
+      expect(over, `fence at ${f.x},${f.y}`).toBeUndefined()
+      expect(f.state?.['shot-through']?.value).toBe(true)
+    }
+  })
+
+  it("puts every payout spot on a tile corner whose four tiles are red floor and none a pad", () => {
+    const spots = [...CRYSTAL_SHOP_PAYOUT.diamonds, ...UPGRADE_KINDS.map((k) => CRYSTAL_SHOP_PAYOUT.upgrades[k])]
+    expect(CRYSTAL_SHOP_PAYOUT.diamonds).toHaveLength(16)
+    expect(new Set(spots.map(([x, y]) => `${x},${y}`)).size).toBe(28)
+    for (const [x, y] of spots) {
+      for (const k of [`${x - 1},${y - 1}`, `${x},${y - 1}`, `${x - 1},${y}`, `${x},${y}`]) {
+        expect(RED.has(k), `${x},${y}: ${k}`).toBe(true)
+        expect(PADS, `${x},${y}: ${k}`).not.toContain(k)
+      }
+    }
+  })
+})
+
+describe.skipIf(!HAS_AE)('Crystal Mines shop: the walkways moved as rigid branches', () => {
+  const ISLAND = 'doodads/walls/cave_crystal/special_cliff.unit'
+  const SHIFTS = ['0,-80', '80,0', '0,80', '-80,0']
+
+  it('moves every walkway, island and stall by one of four offsets, everything on an island with it', () => {
+    const before = stock(CRYSTAL_SHOP)
+    const after = new Map(embedded(CRYSTAL_SHOP).units.map((u) => [u.id, u]))
+    const shift = (id: number): string | undefined => {
+      const a = after.get(id)
+      const b = before.units.find((u) => u.id === id)!
+      return a === undefined ? undefined : `${a.x - b.x},${a.y - b.y}`
+    }
+    const glass = before.units.filter((u) => u.path === 'doodads/generic/glasswalk.unit')
+    for (const g of glass) expect(SHIFTS, `glass ${g.x},${g.y}`).toContain(shift(g.id))
+    expect(new Set(glass.map((g) => shift(g.id))).size).toBe(4)
+    const islands = before.units.filter((u) => u.path === ISLAND && (u.x !== 0 || u.y !== 0))
+    expect(islands).toHaveLength(7)
+    for (const island of islands) {
+      const own = shift(island.id)
+      expect(SHIFTS).toContain(own)
+      const on = before.units.filter((u) => u !== island && after.has(u.id) && Math.abs(u.x - island.x) < 30 && Math.abs(u.y - island.y) < 30)
+      expect(on.length, `island ${island.x},${island.y}`).toBeGreaterThan(0)
+      for (const u of on) expect(shift(u.id), `${u.path} on ${island.x},${island.y}`).toBe(own)
+    }
+  })
+
+  it('lands no island on the room or on another', () => {
+    const islands = units(embedded(CRYSTAL_SHOP), ISLAND)
+    for (const a of islands) {
+      expect(Math.abs(a.x) < 112 + 30 && Math.abs(a.y) < 112 + 30, `${a.x},${a.y}`).toBe(false)
+      for (const b of islands) if (a !== b) expect(Math.abs(a.x - b.x) < 60 && Math.abs(a.y - b.y) < 60, `${a.x},${a.y}`).toBe(false)
+    }
+  })
+})
+
+describe.skipIf(!HAS_AE)('Crystal Mines shop: closed by its own colliders', () => {
+  const assets = aeAssetsDir() ?? ''
+
+  it('keeps the party in: the fill from the arrival reaches the exit, every stall and payout spot, never the crop edge', () => {
+    const room = embedded(CRYSTAL_SHOP)
+    const closure = closureOf(room, CRYSTAL_SHOP_CROP, assets)
+    expect(closure.leak).toBeNull()
+    expect(closure.reachesExit).toBe(true)
+    expect(unreached(room, closure)).toEqual([])
+  })
+
+  it('stays closed and in reach as a generated lobby, however big the purse', () => {
+    const lobby = generate(withLobby(CRYSTAL_SHOP, { startingGold: 500_000, upgrades: threeOfEach() }))
+    const closure = closureOf(lobby, CRYSTAL_SHOP_CROP, assets)
+    expect(closure.leak).toBeNull()
+    expect(closure.reachesExit).toBe(true)
+    expect(unreached(lobby, closure)).toEqual([])
+  }, 60_000)
+
+  it("catches a leak: cut the fences from the north doorway's west gutter out through the band and the party walks into the void", () => {
+    const room = embedded(CRYSTAL_SHOP)
+    // a line west from the gutter beside the north glass (the 8 px of void in
+    // the 32-px doorway), just outside the ring, mid-cell (fences lie on a 4-px grid)
+    const cut = room.units.filter((u) => {
+      if (u.path !== ':Physics_Rectangle' || u.state?.sensor?.value !== false) return false
+      const [w, h] = u.state.size!.value as [number, number]
+      return u.y - h / 2 < -118 && -118 < u.y + h / 2 && u.x - w / 2 < -10 && -60 < u.x + w / 2
+    })
+    expect(cut.length).toBeGreaterThan(0)
+    room.units = room.units.filter((u) => !cut.includes(u))
+    expect(closureOf(room, CRYSTAL_SHOP_CROP, assets).leak).not.toBeNull()
   })
 })

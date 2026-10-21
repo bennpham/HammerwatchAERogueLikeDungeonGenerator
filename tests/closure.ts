@@ -127,6 +127,30 @@ export function solidCells(level: AeLevel, assets: string, g: CellGrid): Uint8Ar
   return solid
 }
 
+/**
+ * What a closed room's fill must reach, besides the exit: every stall's use
+ * area (the shapes its `UseTrigger` names) and every payout pickup. Returns
+ * what it misses, empty when the room is whole.
+ */
+export function unreached(level: AeLevel, closure: Closure): string[] {
+  const out: string[] = []
+  for (const use of level.scripts.filter((s) => s.cls === 'UseTrigger')) {
+    const areas = use.params.find((p) => p.name === 'Areas')
+    for (const id of areas?.kind === 'ids' ? areas.value : []) {
+      const u = level.units.find((v) => v.id === id)
+      if (u === undefined) continue
+      const size = u.state?.size?.kind === 'vec2' ? u.state.size.value : undefined
+      const r = u.state?.radius?.kind === 'float' ? u.state.radius.value : 0
+      const [hw, hh] = size !== undefined ? [size[0] / 2, size[1] / 2] : [r, r]
+      if (!closure.reachesBox({ x0: u.x - hw, y0: u.y - hh, x1: u.x + hw, y1: u.y + hh })) out.push(`the use area of UseTrigger ${use.id} at ${u.x},${u.y}`)
+    }
+  }
+  for (const u of level.units) {
+    if (/^items\/pickups\/(money\/diamond|upgrade_)/.test(u.path) && !closure.reaches(u.x, u.y)) out.push(`${u.path} at ${u.x},${u.y}`)
+  }
+  return out
+}
+
 export function closureOf(level: AeLevel, box: Box, assets: string): Closure {
   const w = Math.ceil((box.x1 - box.x0) / CELL)
   const h = Math.ceil((box.y1 - box.y0) / CELL)

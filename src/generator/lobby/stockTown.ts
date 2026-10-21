@@ -5,7 +5,12 @@
  * - Temple of the Sun's bazaar (`sun_temple/levels/sun_temple/level_hub.lvl`);
  * - Castle Hammerwatch's opening bridge (`castle_hammerwatch/levels/level_1.lvl`),
  *   which is no town: it's cut out of a dungeon level and built into a shop by
- *   its own cleanup (castleBridge.ts). The rest of this file is the towns'.
+ *   its own cleanup (castleBridge.ts);
+ * - survival's crystal mines shop (`survival.h1c:levels/crystal_mines_shops.lvl`),
+ *   which AE ships only packed: its hub island becomes a red room and its
+ *   walkways move to the room's doorways (crystalShop.ts).
+ *
+ * The rest of this file is the towns'.
  *
  * Each is its campaign's hub: portals or roads to its own levels, stalls whose
  * stock grows with upgrades bought between runs (Shaftlocke's town upgrades,
@@ -38,16 +43,20 @@
 import type { AeLevel, AeScript, AeUnit } from '../ae/model'
 import { VENDOR_STAND, vendorIdOfShopArea } from './shops'
 import { CASTLE_BRIDGE_CROP, cleanCastleBridge } from './castleBridge'
+import { CRYSTAL_SHOP_CROP, CRYSTAL_SHOP_PAYOUT, cleanCrystalShop } from './crystalShop'
 import type { Box } from './castleBridge'
-import { DIAMOND_UNIT, UPGRADE_KINDS, upgradeItemPath } from './payout'
-import type { UpgradeKind } from './payout'
+import { DIAMOND_UNIT, UPGRADE_KINDS, payoutBlock as block, upgradeItemPath, upgradeRows } from './payout'
+import type { TownPayout } from './payout'
 
 export interface StockTown {
   /** the template id and label the importer files it under */
   id: string
   label: string
   description: string
-  /** the stock level, relative to the install's `scenarios/` folder */
+  /**
+   * the stock level, relative to the install's `scenarios/` folder, or a level
+   * inside a pack as `<pack>.h1c:<path>` (scripts/lib/h1c.ts reads it)
+   */
   source: string
   clean(level: AeLevel): AeLevel
   /**
@@ -66,31 +75,6 @@ export interface StockTown {
    * Shaftlocke's inside the trees.
    */
   payout?: TownPayout
-}
-
-export interface TownPayout {
-  diamonds: ReadonlyArray<readonly [number, number]>
-  upgrades: Readonly<Record<UpgradeKind, readonly [number, number]>>
-}
-
-/** `cols` × `rows` spots from (x0, y0), one tile apart, in reading order. */
-function block(x0: number, y0: number, cols: number, rows: number): Array<readonly [number, number]> {
-  const out: Array<readonly [number, number]> = []
-  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) out.push([x0 + x, y0 + y])
-  return out
-}
-
-/** The column order the user placed the upgrades in, base kind on top, its `_2` below. */
-const PLACED_ORDER = ['attackspeed', 'damage', 'defense', 'health', 'mana', 'speed'] as const
-
-/** Two rows of upgrades from (x0, y), one column per kind in `PLACED_ORDER`. */
-function upgradeRows(x0: number, y: number): TownPayout['upgrades'] {
-  const out = {} as Record<UpgradeKind, readonly [number, number]>
-  PLACED_ORDER.forEach((kind, i) => {
-    out[kind] = [x0 + i, y]
-    out[`${kind}2`] = [x0 + i, y + 1]
-  })
-  return out
 }
 
 /**
@@ -154,7 +138,20 @@ export const CASTLE_BRIDGE: StockTown = {
   closedWithin: CASTLE_BRIDGE_CROP
 }
 
-export const STOCK_TOWNS: readonly StockTown[] = [SHAFTLOCKE_TOWN, SUN_BAZAAR, CASTLE_BRIDGE]
+export type { TownPayout }
+
+export const CRYSTAL_SHOP: StockTown = {
+  id: 'crystal_shop',
+  label: 'Crystal Mines shop',
+  description:
+    "Survival's crystal mines shop, rebuilt round a red room: glass walkways leave its four doorways for the stall islands over the void, and the way on is the teleporter on the east walkway.",
+  source: 'survival.h1c:levels/crystal_mines_shops.lvl',
+  clean: cleanCrystalShop,
+  closedWithin: CRYSTAL_SHOP_CROP,
+  payout: CRYSTAL_SHOP_PAYOUT
+}
+
+export const STOCK_TOWNS: readonly StockTown[] = [SHAFTLOCKE_TOWN, SUN_BAZAAR, CASTLE_BRIDGE, CRYSTAL_SHOP]
 
 /** `ShopArea.Type`: 1 power, 2 equipment, 3 Shaftlocke's town-upgrade shop, no vendor */
 const TOWN_UPGRADE_SHOP = 3

@@ -60,3 +60,29 @@ export function noUpgrades(): UpgradeCounts {
 export function oneOfEachUpgrade(): UpgradeCounts {
   return Object.fromEntries(UPGRADE_KINDS.map((k) => [k, 1])) as UpgradeCounts
 }
+
+/** A room's fixed payout spots, in tiles (lobby/stockTown.ts). */
+export interface TownPayout {
+  diamonds: ReadonlyArray<readonly [number, number]>
+  upgrades: Readonly<Record<UpgradeKind, readonly [number, number]>>
+}
+
+/** `cols` × `rows` spots from (x0, y0), one tile apart, in reading order. */
+export function payoutBlock(x0: number, y0: number, cols: number, rows: number): Array<readonly [number, number]> {
+  const out: Array<readonly [number, number]> = []
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) out.push([x0 + x, y0 + y])
+  return out
+}
+
+/** The column order the user placed the upgrades in, base kind on top, its `_2` below. */
+const PLACED_ORDER = ['attackspeed', 'damage', 'defense', 'health', 'mana', 'speed'] as const
+
+/** Two rows of upgrades from (x0, y), one column per kind in `PLACED_ORDER`. */
+export function upgradeRows(x0: number, y: number): TownPayout['upgrades'] {
+  const out = {} as Record<UpgradeKind, readonly [number, number]>
+  PLACED_ORDER.forEach((kind, i) => {
+    out[kind] = [x0 + i, y]
+    out[`${kind}2`] = [x0 + i, y + 1]
+  })
+  return out
+}

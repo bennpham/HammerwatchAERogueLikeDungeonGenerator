@@ -1,14 +1,17 @@
 /**
  * Import the stock towns as lobby templates: Shaftlocke's town, the Temple of
- * the Sun bazaar and the Castle Hammerwatch bridge.
+ * the Sun bazaar, the Castle Hammerwatch bridge and survival's crystal mines
+ * shop.
  *
  *   node scripts/run-ts.mjs scripts/import-stock-towns.ts [id ...]
  *
  * Reads each stock level from the AE install (HWAE_ROOT, or the default Steam
- * path), cleans it for a generated campaign (src/generator/lobby/stockTown.ts)
+ * path; a level AE ships only packed straight out of its `.h1c`), cleans it for a generated campaign (src/generator/lobby/stockTown.ts)
  * and adds it to src/generator/lobby/templates.generated.ts under its id. A
- * room cut out of a bigger level (the bridge) must also pass the closure
- * check (tests/closure.ts), or nothing is written.
+ * room cut out of a bigger level (the bridge, the crystal shop) must also pass
+ * the closure check (tests/closure.ts): the fill from the arrival never reaches
+ * the box's edge and reaches the exit, every stall and every payout spot, or
+ * nothing is written.
  * With ids, only those towns are imported. tests/stockTown.test.ts fails when
  * an embedded copy no longer matches what this script would write, so re-run
  * it after changing the cleanup.
@@ -16,7 +19,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { AE_ROOT, aeAssetsDir, readStockLevel } from '../tests/aeInstall'
-import { closureOf } from '../tests/closure'
+import { closureOf, unreached } from '../tests/closure'
 import { readLevel } from '../src/generator/ae/levelReader'
 import { renderLevel } from '../src/generator/ae/levelWriter'
 import { STOCK_TOWNS } from '../src/generator/lobby/stockTown'
@@ -29,7 +32,8 @@ if (unknown.length > 0) {
   process.exit(1)
 }
 for (const town of STOCK_TOWNS.filter((t) => wanted.length === 0 || wanted.includes(t.id))) {
-  const source = join(AE_ROOT, 'scenarios', town.source)
+  // a packed level is checked for by its pack
+  const source = join(AE_ROOT, 'scenarios', town.source.split(':')[0])
   if (!existsSync(source)) {
     console.error(`no stock town at ${source}; set HWAE_ROOT to the Hammerwatch Anniversary Edition folder`)
     process.exit(1)
@@ -40,9 +44,17 @@ for (const town of STOCK_TOWNS.filter((t) => wanted.length === 0 || wanted.inclu
   const lvl = renderLevel(town.clean(level))
   if (town.closedWithin !== undefined) {
     // a room cut out of a bigger level must be closed by its own colliders
-    const { leak, reachesExit } = closureOf(readLevel(lvl).level, town.closedWithin, aeAssetsDir() ?? '')
-    if (leak !== null || !reachesExit) {
-      console.error(`"${town.id}" is not closed: ${leak !== null ? `the party walks out at ${leak.x},${leak.y}` : 'the exit is out of reach'}`)
+    const room = readLevel(lvl).level
+    const closure = closureOf(room, town.closedWithin, aeAssetsDir() ?? '')
+    const missed = unreached(room, closure)
+    if (closure.leak !== null || !closure.reachesExit || missed.length > 0) {
+      const why =
+        closure.leak !== null
+          ? `the party walks out at ${closure.leak.x},${closure.leak.y}`
+          : !closure.reachesExit
+            ? 'the exit is out of reach'
+            : `out of reach: ${missed.join('; ')}`
+      console.error(`"${town.id}" is not closed: ${why}`)
       process.exit(1)
     }
   }
