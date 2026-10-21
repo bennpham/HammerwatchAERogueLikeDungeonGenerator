@@ -1241,13 +1241,13 @@ describe('parameters.txt — lobbies (issue #48)', () => {
     // must be re-parsed against the object they were exported from)
     const original = defaultParameters()
     original.lobbies[0].startingGold = 2500
-    original.lobbies[0].preset = 'standin'
+    original.lobbies[0].preset = 'castle_bridge'
     original.lobbies[1].shopCategories = ['misc1', 'power']
     original.lobbies[1].startingGold = 15000
 
     const text = serializeParametersTxt(original)
     expect(text).toContain('lobbies=2')
-    expect(text).toContain('lobby0Preset=standin')
+    expect(text).toContain('lobby0Preset=castle_bridge')
     expect(text).toContain('lobby0Gold=2500')
     expect(text).toContain('lobby1Shops=misc1 power')
     expect(text).toContain('lobby1Gold=15000')
@@ -1259,14 +1259,20 @@ describe('parameters.txt — lobbies (issue #48)', () => {
   })
 
   it('overwrites a named lobby without a `lobbies=` count, and never trims', () => {
-    // index 1 already exists (the base object's second stock lobby is
-    // 'standin'); naming it a different preset proves the key was
-    // actually read rather than just already matching the default
-    const text = ['lobby1Preset=standin'].join('\r\n')
+    // index 1 already exists (the base object's second stock lobby is the
+    // house); naming it a different preset proves the key was actually read
+    // rather than just already matching the default
+    const text = ['lobby1Preset=castle_bridge'].join('\r\n')
     const parsed = parseParametersTxt(text)
     expect(parsed.unknownKeys).toEqual([])
     expect(parsed.params.lobbies).toHaveLength(2)
-    expect(parsed.params.lobbies[1].preset).toBe('standin')
+    expect(parsed.params.lobbies[1].preset).toBe('castle_bridge')
+  })
+
+  it('reads the retired generated room as the default lobby, without a warning', () => {
+    const parsed = parseParametersTxt('lobby0Preset=standin')
+    expect(parsed.unknownKeys).toEqual([])
+    expect(parsed.params.lobbies[0].preset).toBe(DEFAULT_LOBBY_PRESET_ID)
   })
 
   it('grows past the base object\'s own lobbies when a higher index is named', () => {
@@ -1286,7 +1292,7 @@ describe('parameters.txt — lobbies (issue #48)', () => {
   })
 
   it('reports keys for a lobby past `lobbies` instead of adding one', () => {
-    const text = ['lobbies=1', 'lobby0Preset=standin', 'lobby1Preset=standin'].join('\r\n')
+    const text = ['lobbies=1', 'lobby0Preset=castle_bridge', 'lobby1Preset=castle_bridge'].join('\r\n')
     const parsed = parseParametersTxt(text)
     expect(parsed.params.lobbies).toHaveLength(1)
     expect(parsed.unknownKeys).toEqual(['lobby1Preset'])

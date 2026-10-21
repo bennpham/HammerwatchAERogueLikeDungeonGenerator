@@ -1,6 +1,5 @@
 /**
- * Lobbies: the generated stand-in room and every imported AE lobby (the
- * user's `house` is the default). Each preset runs the same contract — exit,
+ * Lobbies: every imported AE lobby (the user's `house` is the default). Each preset runs the same contract — exit,
  * arrival, vendors, payout, ids, assets — read back from the emitted level.
  */
 import { describe, expect, it } from 'vitest'
@@ -21,7 +20,7 @@ import {
 import type { DungeonParameters, DungeonResult, LobbyOptions, LobbyPresetDef } from '../src/generator'
 import { UPGRADE_KINDS, noUpgrades, oneOfEachUpgrade, upgradeItemPath } from '../src/generator/lobby/payout'
 import { DIAMOND_UNIT } from '../src/generator/lobby/payout'
-import { HOUSE_LOBBY_ID, STANDIN_LOBBY_ID } from '../src/generator/lobby/presets'
+import { HOUSE_LOBBY_ID } from '../src/generator/lobby/presets'
 import { buildLobby } from '../src/generator/lobby/build'
 import { GenerationContext } from '../src/generator/core/context'
 import { readLevel } from '../src/generator/ae/levelReader'
@@ -78,13 +77,16 @@ describe('lobby — presets', () => {
   it('has unique ids, and the user\'s hall is the default', () => {
     const ids = LOBBY_PRESETS.map((p) => p.id)
     expect(new Set(ids).size).toBe(ids.length)
-    expect(ids).toContain(STANDIN_LOBBY_ID)
     expect(ids).toContain(HOUSE_LOBBY_ID)
+    // the generated room is gone; every lobby is an imported AE level
+    expect(ids).not.toContain('standin')
+    for (const preset of LOBBY_PRESETS) expect(preset.lvl.length, preset.id).toBeGreaterThan(0)
     expect(DEFAULT_LOBBY_PRESET_ID).toBe(HOUSE_LOBBY_ID)
     expect(defaultLobby().preset).toBe(HOUSE_LOBBY_ID)
   })
 
-  it('maps the retired HW1 placeholder ids onto the default, keeping the boss-prep purse', () => {
+  it('maps the retired ids onto the default, keeping the boss-prep purse', () => {
+    expect(defaultLobby('standin').preset).toBe(DEFAULT_LOBBY_PRESET_ID)
     expect(defaultLobby('BETA-dungeon-prep').preset).toBe(DEFAULT_LOBBY_PRESET_ID)
     expect(defaultLobby('BETA-boss-prep').preset).toBe(DEFAULT_LOBBY_PRESET_ID)
     expect(defaultLobby('BETA-boss-prep').startingGold).toBe(20000)
@@ -286,8 +288,8 @@ for (const preset of LOBBY_PRESETS) {
       }, 60_000)
 
       it('gives each upgrade kind its own spot, clear of the diamonds', () => {
-        // diamonds may stack once a room runs out of slots (the stand-in's
-        // rows of six); an upgrade never shares a spot with anything else
+        // diamonds may stack once a room runs out of slots (the payout
+        // pattern's rows of six); an upgrade never shares a spot with anything else
         const lobby = lobbyOf(preset, { startingGold: 10000, upgrades: oneOfEachUpgrade() })
         const spot = (u: { x: number; y: number }) => `${u.x},${u.y}`
         const diamonds = new Set(lobby.units.filter((u) => u.path === DIAMOND_UNIT).map(spot))
@@ -342,7 +344,7 @@ describe('lobby — authored payout spots', () => {
   /** The house with `n` diamonds and a health upgrade placed by the "author". */
   function houseWithPayout(n: number): LobbyPresetDef {
     const house = lobbyPresetById(HOUSE_LOBBY_ID)!
-    const { level } = readLevel(house.lvl!)
+    const { level } = readLevel(house.lvl)
     // only the spots this test places count: drop what the house itself authored
     level.statics = level.statics.filter((st) => st.path !== DIAMOND_UNIT && !st.path.startsWith('items/pickups/upgrade_'))
     for (let i = 0; i < n; i++) level.units.push({ path: DIAMOND_UNIT, x: 100 + i * 16, y: 40, id: level.newId() })
@@ -353,7 +355,7 @@ describe('lobby — authored payout spots', () => {
   function build(preset: LobbyPresetDef, options: LobbyOptions): AeLevel {
     const ctx = new GenerationContext(plainParameters(), 1)
     ctx.currentStem = 'lobby0'
-    return buildLobby(ctx, preset, options, 'floor0', 0)
+    return buildLobby(ctx, preset, options, 'floor0')
   }
 
   it('lays the diamonds on the spots the author placed, cycling once each holds one', () => {
@@ -373,12 +375,12 @@ describe('lobby — authored payout spots', () => {
 
 describe('lobby — the house as authored', () => {
   const house = lobbyPresetById(HOUSE_LOBBY_ID)!
-  const authored = readLevel(house.lvl!).level
+  const authored = readLevel(house.lvl).level
 
   function build(options: LobbyOptions): AeLevel {
     const ctx = new GenerationContext(plainParameters(), 1)
     ctx.currentStem = 'lobby0'
-    return buildLobby(ctx, house, options, 'floor0', 0)
+    return buildLobby(ctx, house, options, 'floor0')
   }
 
   it('reads the hand-placed pickups the editor saves under statics', () => {

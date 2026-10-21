@@ -6,7 +6,7 @@ import { DEFAULT_ITEM_VENDOR_ODDS, DEFAULT_SHOP_KIND_IDS } from '../objects/vend
 import type { ItemVendorOdds } from '../objects/vendorRoll'
 import type { Brightness, TorchDensity } from '../lighting'
 import { noUpgrades } from '../lobby/payout'
-import { DEFAULT_LOBBY_PRESET_ID } from '../lobby/presets'
+import { DEFAULT_LOBBY_PRESET_ID, RETIRED_LOBBY_IDS } from '../lobby/presets'
 import type { UpgradeCounts } from '../lobby/payout'
 import type { ArenaMode, CampaignSlot } from '../campaign'
 import { ARENA_MODES, campaignOrder, gatewayAfter } from '../campaign'
@@ -907,14 +907,12 @@ export interface DungeonParameters {
  * options describe what to *edit* in the committed template rather than how
  * to lay it out. `preset` picks which committed room (`LOBBY_PRESETS` in
  * `src/generator/lobby/presets.ts`) this slot edits — the same options shape
- * fits either template, since `buildLobby()` reads every coordinate and id off
+ * fits every template, since `buildLobby()` reads every coordinate and id off
  * the preset rather than off a hardcoded room. See src/generator/lobby/.
  */
 export interface LobbyOptions {
-  /** a `LOBBY_PRESETS` id — the generated room (`standin`) or an imported AE lobby */
+  /** a `LOBBY_PRESETS` id: an imported AE lobby */
   preset: string
-  /** theme of the generated room (ignored by an imported lobby); default chambers */
-  theme?: string
   /** multiple of 500 — each 500 is one red diamond on the lobby floor */
   startingGold: number
   /** selected shop columns, e.g. ['misc1', 'misc2', 'off1', 'power'] */
@@ -1644,10 +1642,10 @@ export function isMultiBoss(count: number): boolean {
  * boss-prep room.
  */
 export function defaultLobby(presetId: string = DEFAULT_LOBBY_PRESET_ID): LobbyOptions {
-  // The HW1 remake's two placeholder rooms are gone; their ids still name a
-  // lobby in older presets and files and become the default lobby, the
-  // boss-prep one keeping its larger purse.
-  const legacy = presetId === 'BETA-boss-prep' || presetId === 'BETA-dungeon-prep'
+  // The HW1 remake's two placeholder rooms and the generated room are gone;
+  // their ids still name a lobby in older presets and files and become the
+  // default lobby, the boss-prep one keeping its larger purse.
+  const legacy = RETIRED_LOBBY_IDS.includes(presetId)
   return {
     preset: legacy ? DEFAULT_LOBBY_PRESET_ID : presetId,
     startingGold: presetId === 'BETA-boss-prep' ? 20000 : 10000,

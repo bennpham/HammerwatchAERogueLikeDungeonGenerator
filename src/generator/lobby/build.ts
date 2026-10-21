@@ -3,129 +3,20 @@ import type { LobbyPresetDef } from './presets'
 import { DIAMOND_UNIT, UPGRADE_KINDS, diamondCount, upgradeItemPath } from './payout'
 import type { LobbyOptions } from '../config/parameters'
 import type { GenerationContext } from '../core/context'
-import { getTheme, themeEnvironment, THEME_DEFS } from '../config/themes'
-import { AeLevel, P } from '../ae/model'
-import type { AeUnit } from '../ae/model'
+import { P } from '../ae/model'
+import type { AeLevel, AeUnit } from '../ae/model'
 import { readLevel } from '../ae/levelReader'
-import { TileLayers } from '../ae/tiles'
-import { emitCover, emitObjects, emitWalls } from '../ae/emit'
-import { isLineCell } from '../map/aeWalls'
-import type { WallGrid } from '../map/aeWalls'
-import { tilesetSize } from '../catalog/assets'
-import { ObjectSet, SHOP_KINDS, addArrival, buildExitRig, itemStandBadge } from '../objects/objectSet'
-import type { ShopKind } from '../objects/objectSet'
+import { emitObjects } from '../ae/emit'
+import { buildExitRig, itemStandBadge } from '../objects/objectSet'
 import { SensorShape } from '../objects/nodes'
 import { buildMusicRig } from '../music/rig'
 import { musicSound } from '../music/tracks'
-import { STANDIN_GOLD_ORIGIN, STANDIN_MAP, STANDIN_ROOM, STANDIN_UPGRADE_ORIGIN, diamondSlot, upgradeSlot } from './layout'
+import { diamondSlot, upgradeSlot } from './layout'
 
 export { diamondCount }
 
 /** The lobby's own name for the per-diamond value. */
 export { DIAMOND_VALUE as LOBBY_DIAMOND_VALUE } from './payout'
-
-const MAP_W = STANDIN_MAP.width
-const MAP_H = STANDIN_MAP.height
-const ROOM = STANDIN_ROOM
-const STANDIN_THEME = 'chambers'
-
-/**
- * Build a lobby level.
- *
- * `exitTarget` is the stem of whatever slot follows this lobby in the
- * campaign order, and `exitIsFight` whether that slot is a boss or survival
- * fight; the exit is the same press-F, whole-party rig every floor uses. No
- * save point: AE saves on arriving at a level.
- *
- * No RNG of any stream is read: a lobby's layout is a pure function of its
- * options, so adding or removing one never moves a dungeon seed.
- */
-export function buildLobby(
-  ctx: GenerationContext,
-  preset: LobbyPresetDef,
-  options: LobbyOptions,
-  exitTarget: string,
-  levelIndex: number,
-  exitIsFight = false
-): AeLevel {
-  return preset.lvl === undefined
-    ? buildStandIn(ctx, options, exitTarget, levelIndex)
-    : buildFromTemplate(ctx, preset, options, exitTarget, exitIsFight)
-}
-
-/** One shop kind per vendor stall the options switch on, selling only the selected columns. */
-function vendorKinds(options: LobbyOptions): ShopKind[] {
-  const kinds: ShopKind[] = []
-  for (const vendor of LOBBY_VENDORS) {
-    const selected = categoriesFor(vendor, options.shopCategories)
-    if (selected.length === 0) continue
-    const base = SHOP_KINDS.find((k) => k.id === vendor.id)
-    if (base === undefined) continue
-    kinds.push({ ...base, categories: selected.join(' ') })
-  }
-  return kinds
-}
-
-function buildStandIn(
-  ctx: GenerationContext,
-  options: LobbyOptions,
-  exitTarget: string,
-  levelIndex: number
-): AeLevel {
-  const themeId = options.theme !== undefined && getTheme(options.theme) !== undefined ? options.theme : STANDIN_THEME
-  const theme = getTheme(themeId) ?? THEME_DEFS[0]
-  ctx.currentTheme = themeId
-
-  const solid = new Uint8Array(MAP_W * MAP_H).fill(1)
-  for (let y = ROOM.y; y < ROOM.y + ROOM.height; y++) {
-    for (let x = ROOM.x; x < ROOM.x + ROOM.width; x++) solid[x + y * MAP_W] = 0
-  }
-
-  // the way on: exit stairs in the top wall, centred
-  const exitX = ROOM.x + Math.trunc(ROOM.width / 2) - 3
-  const exit = ObjectSet.create(ctx, exitX, ROOM.y - 2, 'ExitDn', themeId, exitTarget)
-  const reserved = new Set(exit.reserved.map(([x, y]) => `${x},${y}`))
-
-  // vendors in a row across the middle of the room
-  const kinds = vendorKinds(options)
-  const spacing = Math.trunc(ROOM.width / (kinds.length + 1))
-  kinds.forEach((kind, i) => {
-    ObjectSet.create(ctx, ROOM.x + spacing * (i + 1), ROOM.y + 4, 'Shop', themeId, undefined, kind)
-  })
-
-  // arrival at the bottom, centred
-  const arriveX = ROOM.x + Math.trunc(ROOM.width / 2)
-  const arriveY = ROOM.y + ROOM.height - 2
-  addArrival(ctx, arriveX, arriveY)
-
-  // the payout: diamonds bottom-left, upgrades bottom-right
-  placePayout(ctx, options, STANDIN_GOLD_ORIGIN, STANDIN_UPGRADE_ORIGIN)
-
-  buildMusicRig(ctx, options.music, arriveX, arriveY + 1)
-
-  const level = new AeLevel(themeEnvironment(theme, levelIndex))
-  const grid: WallGrid = {
-    width: MAP_W,
-    height: MAP_H,
-    solid: (x, y) => x < 0 || y < 0 || x >= MAP_W || y >= MAP_H || solid[x + y * MAP_W] === 1,
-    reserved: (x, y) => reserved.has(`${x},${y}`)
-  }
-  const floor: Array<[number, number]> = []
-  for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) if (!grid.solid(x, y)) floor.push([x, y])
-  const layers = new TileLayers(tilesetSize)
-  layers.paint16(theme.floor[0], floor, [1, 1, 1, 1])
-  for (const ts of theme.floor.slice(1)) layers.paint16(ts, [...floor, ...exit.reserved])
-  const mask: Array<[number, number]> = []
-  for (let y = -2; y < MAP_H + 2; y++) {
-    for (let x = -2; x < MAP_W + 2; x++) if (grid.solid(x, y) && !grid.reserved(x, y) && !isLineCell(grid, x, y)) mask.push([x, y])
-  }
-  layers.paint16('tilesets/__black.tileset', mask)
-  level.tileCells = layers.cells()
-  emitObjects(level, ctx)
-  emitWalls(level, ctx, grid, theme)
-  emitCover(level, ctx, grid, theme)
-  return level
-}
 
 /**
  * Diamonds in rows of six from `gold`; each upgrade kind on its own slot from
@@ -149,7 +40,17 @@ function placePayout(
 }
 
 /**
- * A hand-made lobby: the imported AE editor level, rewritten for its slot.
+ * Build a lobby level: the preset's imported AE editor level, rewritten for
+ * its slot.
+ *
+ * `exitTarget` is the stem of whatever slot follows this lobby in the
+ * campaign order, and `exitIsFight` whether that slot is a boss or survival
+ * fight; the exit is the same press-F, whole-party rig every floor uses. No
+ * save point: AE saves on arriving at a level.
+ *
+ * No RNG of any stream is read: a lobby's layout is a pure function of its
+ * options, so adding or removing one never moves a dungeon seed.
+ *
  * Each part is found by script LABEL first and by structure when the author
  * did not label it (docs/LOBBY-AUTHORING.md):
  *
@@ -172,14 +73,14 @@ function placePayout(
  * Units and scripts the generator adds continue the template's own id
  * numbering, so nothing collides.
  */
-function buildFromTemplate(
+export function buildLobby(
   ctx: GenerationContext,
   preset: LobbyPresetDef,
   options: LobbyOptions,
   exitTarget: string,
-  exitIsFight: boolean
+  exitIsFight = false
 ): AeLevel {
-  const { level } = readLevel(preset.lvl ?? '')
+  const { level } = readLevel(preset.lvl)
   // the editor saves a level opened from the main menu as MainMenu
   level.gameMode = 'DungeonGameMode'
   ctx.idCounter = level.peekId()

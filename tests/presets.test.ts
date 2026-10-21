@@ -282,14 +282,26 @@ describe('campaign presets', () => {
     expect(campaignPresetById('nope')).toBeUndefined()
   })
 
-  it('makes the castle preset the built-in default plus its mystery plates, and nothing else', () => {
-    const { mysteryButtons, levelMystery, ...rest } = campaignPresetById('castle')!.build()
+  it('makes the castle preset the built-in default plus its mystery plates and the bridge lobby, and nothing else', () => {
+    const { mysteryButtons, levelMystery, lobbies, ...rest } = campaignPresetById('castle')!.build()
     expect(mysteryButtons).toBeDefined()
     expect(levelMystery).toBeDefined()
-    expect(rest).toEqual(defaultParameters())
+    const { lobbies: defaultLobbies, ...defaultRest } = defaultParameters()
+    expect(rest).toEqual(defaultRest)
+    expect(lobbies).toEqual(defaultLobbies.map((l) => ({ ...l, preset: 'castle_bridge' })))
     // the app opens on the plate-free default, and parameters.txt imports onto it
     expect(defaultParameters().mysteryButtons).toBeUndefined()
     expect(defaultParameters().levelMystery).toBeUndefined()
+  })
+
+  it('shops each classic preset in its own campaign\'s stock lobby; the rest stay in the house', () => {
+    const rooms: Record<string, string> = { castle: 'castle_bridge', desert: 'sun_bazaar', shaftlocke: 'shaftlocke_town', bonus: 'house' }
+    for (const [id, room] of Object.entries(rooms)) {
+      const { lobbies } = campaignPresetById(id)!.build()
+      expect(lobbies.length, id).toBeGreaterThan(0)
+      for (const lobby of lobbies) expect(lobby.preset, id).toBe(room)
+    }
+    for (const lobby of defaultParameters().lobbies) expect(lobby.preset).toBe('house')
   })
 
   it('resolves mystery picks by button name, and throws on an unknown one', () => {

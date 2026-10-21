@@ -120,7 +120,9 @@ themes' lighting. **Wall torches** can be none, sparse, normal or dense.
 ### Lobbies
 
 Shop rooms you can put anywhere in the campaign order, as many as you like. The
-default room is the hand-made **house**; a generated room is the other option.
+default room is the hand-made **house**. The classic presets shop in their own
+campaign's stock room instead: Castle on the Castle Hammerwatch bridge, Desert in
+the Temple of the Sun bazaar, Shaftlocke Tower in Shaftlocke's town.
 New lobby rooms can be imported from the AE editor (see
 [docs/LOBBY-AUTHORING.md](docs/LOBBY-AUTHORING.md)).
 
