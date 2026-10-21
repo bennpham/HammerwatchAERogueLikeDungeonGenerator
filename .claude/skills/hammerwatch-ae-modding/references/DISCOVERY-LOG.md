@@ -1070,3 +1070,43 @@ The full note and a feature sketch for the Players tab are in `docs/discovery/up
   `%block Combo_*_regen …_level_N` lines in `tweak/buffs/buffs.sval`. A
   `diamond_red.unit` override at 500,000 paid for it. The edit script is
   `scripts/dev/extend-upgrades-xp99.mjs`.
+
+### Reading `.h1c` packs; survival ships only packed (2026-10-21)
+
+- `[VERIFIED]` The `.h1c` layout, all little-endian: `HW1S`, u8 version (3), u32 hash,
+  u32 info length, binary-SVAL info; u32 logo length and the logo PNG (survival: 0);
+  u32 file count; per file u32 path length, path, u8 flag, u32 raw size, u32 packed size,
+  data. Packed data is one LZ4 block; a packed size of 0 means stored raw. Flag 3 marks a
+  compiled file (`.lvl`, `.unit`, textures), 1 the rest. All four stock packs walk to their
+  exact last byte (`scripts/lib/h1c.ts`).
+- `[VERIFIED]` A compiled `.lvl` is an 8-byte hash, then binary SVAL: a type byte and the
+  value. 0 null, 1 array (u32 n), 2 dict (u32 n, `key\0` + typed value), 3 bool (u8),
+  4 float, 5 int (i32), 6 string `\0`, 7 bytes (u32 n), 8/9/10 vec2/3/4. Compact forms:
+  `e` empty array, `g` true, `h` false, `n` int 0, `x` empty string; 0x7a–0x82 a vecN
+  with only its first k floats stored and the rest 0 (vec2 k 0–1, vec3 k 0–2, vec4 k
+  0–3, in that order); 0x8c a vec2 with both components equal, stored once. Proof: all 66
+  levels of castle_hammerwatch, shaftlocke_tower and sun_temple decode to the same tree as
+  the editor-saved copies in `scenarios/<id>/levels/` (`tests/h1c.test.ts`). A dict's keys
+  come out in a different order (the units dict is a map); arrays match in order.
+- `[VERIFIED]` `scripts/unpack-h1c.ts` writes a pack's levels out as text SVAL, so a level
+  AE ships only packed needs no editor round-trip.
+- `[VERIFIED]` AE's survival (`survival.h1c`, no unpacked folder) holds six levels:
+  `crystal_mines`, `desert_caves`, `shaftlocke_mountains` and a `_shops` level for each.
+  There is no HW1 `level_summit`. AE's Shaftlocke shop is a snowy mountain town, not the
+  floating islands.
+- `[VERIFIED]` AE has no parallax WorldScript. `AddParallaxLayer` doesn't exist, no
+  level uses a parallax layer, and "parallax" appears only in
+  `scripts/GameModes/MainMenu.as` and `GUI/Menus/MenuBackdrop.as`. There is no
+  `effects/clouds.*`.
+- `[VERIFIED]` (decoded) `crystal_mines_shops.lvl`:
+  - a hub island (`walls/cave_crystal/special_cliff.unit`, a 60×60 top over a cliff face)
+    with one `glasswalk` spoke per side (16-px pieces, no collision) out to the stall
+    islands and the teleport island, over `__black` tiles;
+  - 40 `:Physics_Freeform` polygons (state `points`, an array of vec2) fence everything
+    but the island tops and the glass, as shared blobs: one fills a whole quadrant between
+    two spokes;
+  - five in-level stalls (`ShopArea` + `UseTrigger` + a 32×32 sensor) and the item stall
+    as `prefabs/shop_item.pfb` (a `shop_item.unit`, a sensor circle r 25, and a `Type 2`
+    `equipment_5` `ShopArea` with its `UseTrigger`);
+  - `marker_exit` is floor art (32×16) where each walkway lands on an island;
+  - the press-F exit rig, and no lights, music or ambience.

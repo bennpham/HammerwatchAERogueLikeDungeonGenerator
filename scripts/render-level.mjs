@@ -9,7 +9,7 @@
 // layer then y like the engine does, and hidden units are left out.
 // --collision overlays every active collision rect in red so footprints can be
 // checked against the art, plus `:Physics_*` shapes: solid in red, sensors in
-// blue (circles as their bounding square).
+// blue (circles as their bounding square, Freeform polygons filled).
 import fs from 'node:fs'
 import path from 'node:path'
 import { decodePng, encodePng, blankImage, blit, fillRect } from './lib/png.mjs'
@@ -45,7 +45,9 @@ function unitState(dict) {
   const starts = /<array name="start">([\s\S]*?)<\/array>/.exec(dict)?.[1]
   const size = /<vec2 name="size">(-?[\d.]+) (-?[\d.]+)<\/vec2>/.exec(dict)
   const radius = /<float name="radius">(-?[\d.]+)<\/float>/.exec(dict)
+  const points = /<array name="points">([\s\S]*?)<\/array>/.exec(dict)?.[1]
   return {
+    points: points === undefined ? undefined : [...points.matchAll(/<vec2>(-?[\d.]+) (-?[\d.]+)<\/vec2>/g)].map((m) => [+m[1], +m[2]]),
     scenes: starts !== undefined ? [...starts.matchAll(/<string>([^<]*)<\/string>/g)].map((m) => m[1]) : start !== undefined ? [start] : [undefined],
     hidden: bool('hidden') === 't',
     physics: bool('physics-active') !== 'f' && bool('active') !== 'f',
@@ -122,7 +124,9 @@ for (const u of units) {
   for (const scene of u.state.scenes) {
     const def = loadUnit(assets, u.path, scene)
     for (const s of def.sprites) {
-      if (s.texture.includes('minimap') || s.texture.includes('light') || s.texture.includes('__guide') || s.material.includes('bright')) continue
+      // glow sprites are left out, but a bright floor piece (the crystal shop's glass walkways) is ground
+      if (s.texture.includes('minimap') || s.texture.includes('light') || s.texture.includes('__guide')) continue
+      if (s.material.includes('bright') && def.unitLayer >= 0) continue
       const floorish = s.material.includes(':floor') || s.layer < 0
       // floor sprites under everything, by unit layer (a -60 ledge under a -29 bridge), then sprite layer
       draws.push({ u, s, key: floorish ? -1e9 + def.unitLayer * 1e3 + s.layer : def.unitLayer * 1e6 + s.layer * 1e5 + u.y })
@@ -160,10 +164,32 @@ if (flag('--collision') >= 0) {
       fillRect(img, Math.round(u.x - r - x0), Math.round(u.y - r - y0), 2 * r, 2 * r, u.state.sensor ? [0, 120, 255, 50] : [255, 0, 0, 70])
       continue
     }
+    if (u.path === ':Physics_Freeform' && u.state.points) {
+      // a polygon, filled where its winding number is non-zero, row by row
+      const pts = u.state.points.map(([px, py]) => [px + u.x - x0, py + u.y - y0])
+      const ys = pts.map((p) => p[1])
+      for (let y = Math.max(0, Math.floor(Math.min(...ys))); y < Math.min(H, Math.ceil(Math.max(...ys))); y++) {
+        for (let x = 0; x < W; x++) if (winding(pts, x + 0.5, y + 0.5) !== 0) fillRect(img, x, y, 1, 1, u.state.sensor ? [0, 120, 255, 50] : [255, 0, 0, 70])
+      }
+      continue
+    }
     if (u.path.startsWith(':')) continue
     for (const [rx, ry, rw, rh] of loadUnit(assets, u.path, u.state.scenes[0]).rects) fillRect(img, Math.round(u.x + rx - x0), Math.round(u.y + ry - y0), rw, rh, [255, 0, 0, 70])
   }
 }
+/** The winding number of a polygon round a point. */
+function winding(pts, px, py) {
+  let wn = 0
+  for (let i = 0; i < pts.length; i++) {
+    const [ax, ay] = pts[i]
+    const [bx, by] = pts[(i + 1) % pts.length]
+    const side = (bx - ax) * (py - ay) - (px - ax) * (by - ay)
+    if (ay <= py) { if (by > py && side > 0) wn++ }
+    else if (by <= py && side < 0) wn--
+  }
+  return wn
+}
+
 let out = img
 const si = flag('--scale')
 if (si >= 0) {
