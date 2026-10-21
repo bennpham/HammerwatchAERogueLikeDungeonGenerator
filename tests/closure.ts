@@ -9,17 +9,22 @@
  * was cut from (a leak) and whether it reaches the exit (the teleporter's 3×3
  * sensor, as the lobby builder lays it).
  *
- * Collision comes from the install's unit files (scripts/lib/aeunit.mjs):
- * rects as they are, polygons and circles by their bounding box, sensors
- * left out. A collider is never shrunk to the player's body, so a gap too
- * narrow to walk through still counts as open: overstating where the party
- * can go is the safe direction for a leak check.
+ * Collision comes from the level's `:Physics_*` shapes and the install's unit
+ * files (scripts/lib/aeunit.mjs), each shape as it is: rects, circles as
+ * discs, polygons (`:Physics_Freeform` and a unit's `<polygon>`) by non-zero
+ * winding plus every cell an edge crosses (map/polygonCells.ts), so a polygon
+ * that crosses itself doesn't open a hole. Sensors block nothing. A collider
+ * is never shrunk to the player's body, so a gap too narrow to walk through
+ * still counts as open: overstating where the party can go is the safe
+ * direction for a leak check.
  *
  * Used by scripts/import-stock-towns.ts (an import fails on a leak) and by
  * tests/stockTown.test.ts.
  */
-import type { AeLevel } from '../src/generator/ae/model'
+import type { AeLevel, AeUnit, StateValue } from '../src/generator/ae/model'
 import type { Box } from '../src/generator/lobby/castleBridge'
+import { polygonCells } from '../src/generator/map/polygonCells'
+import type { CellGrid, Point } from '../src/generator/map/polygonCells'
 // @ts-expect-error untyped dev helper shared with scripts/render-level.mjs
 import { loadUnit } from '../scripts/lib/aeunit.mjs'
 
@@ -35,44 +40,97 @@ export interface Closure {
   area: number
   /** whether the party can stand at a px point */
   reaches(x: number, y: number): boolean
+  /** whether the party can stand anywhere in a px box */
+  reachesBox(b: Box): boolean
 }
 
 type Rect = [number, number, number, number]
 
-/** Every active collider in the level, as px rects. */
+interface UnitShapes {
+  rects: Rect[]
+  polygons: Point[][]
+  circles: Array<[number, number, number]>
+}
+
+/** Whether a unit collides at all as placed: hidden, switched-off and sensor shapes don't. */
+function active(st: Record<string, StateValue>): boolean {
+  return st.hidden?.value !== true && st['physics-active']?.value !== false && st.active?.value !== false
+}
+
+/** A unit's solid shapes, unit-relative. */
+function shapesOf(u: AeUnit, assets: string): UnitShapes {
+  const st = u.state ?? {}
+  const none: UnitShapes = { rects: [], polygons: [], circles: [] }
+  if (u.path.startsWith(':')) {
+    if (st.sensor?.value === true) return none
+    if (u.path === ':Physics_Rectangle' && st.size?.kind === 'vec2') {
+      const [w, h] = st.size.value
+      return { ...none, rects: [[-w / 2, -h / 2, w, h]] }
+    }
+    if (u.path === ':Physics_Circle' && st.radius?.kind === 'float') return { ...none, circles: [[0, 0, st.radius.value]] }
+    if (u.path === ':Physics_Freeform' && st.points?.kind === 'vec2s') return { ...none, polygons: [st.points.value] }
+    return none
+  }
+  const scene = st.start?.kind === 'string' ? st.start.value : undefined
+  return (loadUnit(assets, u.path, scene) as { shapes: UnitShapes }).shapes
+}
+
+/** Every active collider in the level as a px rect, polygons and circles by their bounding box: for showing what covers a spot. */
 export function collidersOf(level: AeLevel, assets: string): Rect[] {
   const out: Rect[] = []
   for (const u of level.units) {
-    const st = u.state ?? {}
-    if (st.hidden?.value === true || st['physics-active']?.value === false || st.active?.value === false) continue
-    if (u.path === ':Physics_Rectangle' || u.path === ':Physics_Circle') {
-      if (st.sensor?.value === true) continue
-      const size = st.size?.kind === 'vec2' ? st.size.value : undefined
-      const r = st.radius?.kind === 'float' ? st.radius.value : undefined
-      if (size !== undefined) out.push([u.x - size[0] / 2, u.y - size[1] / 2, size[0], size[1]])
-      else if (r !== undefined) out.push([u.x - r, u.y - r, 2 * r, 2 * r])
-      continue
+    if (!active(u.state ?? {})) continue
+    const s = shapesOf(u, assets)
+    for (const [x, y, w, h] of s.rects) out.push([u.x + x, u.y + y, w, h])
+    for (const [x, y, r] of s.circles) out.push([u.x + x - r, u.y + y - r, 2 * r, 2 * r])
+    for (const pts of s.polygons) {
+      const xs = pts.map(([x]) => x)
+      const ys = pts.map(([, y]) => y)
+      out.push([u.x + Math.min(...xs), u.y + Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)])
     }
-    if (u.path.startsWith(':')) continue
-    const scene = st.start?.kind === 'string' ? st.start.value : undefined
-    const def = loadUnit(assets, u.path, scene) as { rects: Rect[] }
-    for (const [x, y, w, h] of def.rects) out.push([u.x + x, u.y + y, w, h])
   }
   return out
+}
+
+/** Mark every grid cell an active collider blocks. */
+export function solidCells(level: AeLevel, assets: string, g: CellGrid): Uint8Array {
+  const solid = new Uint8Array(g.w * g.h)
+  const mark = (i: number): void => {
+    solid[i] = 1
+  }
+  for (const u of level.units) {
+    if (!active(u.state ?? {})) continue
+    const s = shapesOf(u, assets)
+    for (const [rx, ry, rw, rh] of s.rects) {
+      // every cell the rect overlaps by more than a hair
+      const cx0 = Math.max(0, Math.floor((u.x + rx - g.x0) / g.cell))
+      const cy0 = Math.max(0, Math.floor((u.y + ry - g.y0) / g.cell))
+      const cx1 = Math.min(g.w, Math.ceil((u.x + rx + rw - g.x0) / g.cell))
+      const cy1 = Math.min(g.h, Math.ceil((u.y + ry + rh - g.y0) / g.cell))
+      for (let cy = cy0; cy < cy1; cy++) for (let cx = cx0; cx < cx1; cx++) mark(cx + cy * g.w)
+    }
+    for (const [ox, oy, r] of s.circles) {
+      // a disc, as a 32-sided polygon
+      const n = 8
+      const pts: Point[] = []
+      for (let k = 0; k < 4 * n; k++) pts.push([u.x + ox + r * Math.cos((k * Math.PI) / (2 * n)), u.y + oy + r * Math.sin((k * Math.PI) / (2 * n))])
+      polygonCells(pts, g, mark)
+    }
+    for (const pts of s.polygons) {
+      polygonCells(
+        pts.map(([x, y]) => [u.x + x, u.y + y] as const),
+        g,
+        mark
+      )
+    }
+  }
+  return solid
 }
 
 export function closureOf(level: AeLevel, box: Box, assets: string): Closure {
   const w = Math.ceil((box.x1 - box.x0) / CELL)
   const h = Math.ceil((box.y1 - box.y0) / CELL)
-  const solid = new Uint8Array(w * h)
-  for (const [rx, ry, rw, rh] of collidersOf(level, assets)) {
-    // every cell the rect overlaps by more than a hair
-    const cx0 = Math.max(0, Math.floor((rx - box.x0) / CELL))
-    const cy0 = Math.max(0, Math.floor((ry - box.y0) / CELL))
-    const cx1 = Math.min(w, Math.ceil((rx + rw - box.x0) / CELL))
-    const cy1 = Math.min(h, Math.ceil((ry + rh - box.y0) / CELL))
-    for (let cy = cy0; cy < cy1; cy++) for (let cx = cx0; cx < cx1; cx++) solid[cx + cy * w] = 1
-  }
+  const solid = solidCells(level, assets, { x0: box.x0, y0: box.y0, cell: CELL, w, h })
 
   const spawn = level.scripts.find((s) => s.cls === 'LevelStart' && (s.label === 'lobby:spawn' || !s.params.some((p) => p.name === 'StartID')))
   const portal = level.units.find((u) => u.path.startsWith('doodads/generic/teleport'))
@@ -111,5 +169,9 @@ export function closureOf(level: AeLevel, box: Box, assets: string): Closure {
     const cy = Math.floor((y - box.y0) / CELL)
     return cx >= 0 && cy >= 0 && cx < w && cy < h && seen[cx + cy * w] === 1
   }
-  return { leak, reachesExit, area: queue.length * CELL * CELL, reaches }
+  const reachesBox = (b: Box): boolean => {
+    for (let y = b.y0; y < b.y1; y += CELL) for (let x = b.x0; x < b.x1; x += CELL) if (reaches(x, y)) return true
+    return false
+  }
+  return { leak, reachesExit, area: queue.length * CELL * CELL, reaches, reachesBox }
 }

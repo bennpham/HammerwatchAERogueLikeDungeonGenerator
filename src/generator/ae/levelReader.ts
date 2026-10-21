@@ -151,7 +151,9 @@ function readState(dict: SvalNode): Record<string, StateValue> {
         break
       }
       case 'array':
-        out[n.name] = { kind: 'strings', value: n.children.map((c) => c.text) }
+        if (n.children.length > 0 && n.children.every((c) => c.tag === 'vec2')) {
+          out[n.name] = { kind: 'vec2s', value: n.children.map((c) => svalNumbers(c) as [number, number]) }
+        } else out[n.name] = { kind: 'strings', value: n.children.map((c) => c.text) }
         break
       case 'string':
         out[n.name] = { kind: 'string', value: n.text }

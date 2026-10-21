@@ -91,7 +91,8 @@ function scenes(xml) {
 const cache = new Map()
 
 /**
- * { sprites:[{texture, ox, oy, frame:[x,y,w,h], layer}], rects:[[x,y,w,h]], unitLayer }
+ * { sprites:[{texture, ox, oy, frame:[x,y,w,h], layer}], rects:[[x,y,w,h]],
+ *   shapes:{rects:[[x,y,w,h]], polygons:[[[x,y],…]], circles:[[x,y,r]]}, unitLayer }
  *
  * `scene` picks a named scene (a unit's `start` state); without one, or when
  * the unit has no such scene, the default scene.
@@ -125,11 +126,15 @@ export function loadUnit(assets, unitPath, scene) {
   }
   const rects = []
   // every solid collision shape as a rect [x, y, w, h]: polygons and circles by
-  // their bounding box; sensor shapes (a pickup's trigger circle) block nothing
+  // their bounding box (for drawing); sensor shapes (a pickup's trigger circle)
+  // block nothing. `shapes` holds the same shapes exactly, for the closure check.
+  const shapes = { rects: [], polygons: [], circles: [] }
   const sensor = (tagAttrs) => attrs(tagAttrs).sensor === 'true'
   for (const m of body.matchAll(/<collision\b[^>]*>([\s\S]*?)<\/collision>/g)) {
     for (const r of m[1].matchAll(/<rect\b([^>]*)>\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*<\/rect>/g)) {
-      if (!sensor(r[1])) rects.push(r.slice(2, 6).map(Number))
+      if (sensor(r[1])) continue
+      rects.push(r.slice(2, 6).map(Number))
+      shapes.rects.push(r.slice(2, 6).map(Number))
     }
     for (const p of m[1].matchAll(/<polygon\b([^>]*)>([\s\S]*?)<\/polygon>/g)) {
       if (sensor(p[1])) continue
@@ -137,16 +142,19 @@ export function loadUnit(assets, unitPath, scene) {
       if (pts.length === 0) continue
       const xs = pts.map(([x]) => x), ys = pts.map(([, y]) => y)
       rects.push([Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)])
+      shapes.polygons.push(pts)
     }
     for (const c of m[1].matchAll(/<circle\b([^>]*)\/?>/g)) {
       const a = attrs(c[1])
       if (a.sensor === 'true') continue
       const r = Number(a.radius ?? 0)
       const [ox, oy] = (a.offset ?? '0 0').split(/\s+/).map(Number)
-      if (r > 0) rects.push([ox - r, oy - r, 2 * r, 2 * r])
+      if (r <= 0) continue
+      rects.push([ox - r, oy - r, 2 * r, 2 * r])
+      shapes.circles.push([ox, oy, r])
     }
   }
-  const res = { sprites, rects, unitLayer }
+  const res = { sprites, rects, shapes, unitLayer }
   cache.set(key, res)
   return res
 }
