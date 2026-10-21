@@ -36,6 +36,7 @@ import type { GenerationContext } from '../core/context'
 import type { Slot } from '../traps/slots'
 import { eligibleRoom, inBounds } from '../traps/floor'
 import { entranceReach } from '../map/reachability'
+import { STATUE_MAX_GAP } from '../boss/statue'
 
 /**
  * Every free interior tile of one room, in row-major order.
@@ -93,12 +94,15 @@ const STATUE_SOUTH_ROWS = 3
  * party can walk to, off the boss and everything else the floor put down.
  * Draws nothing.
  *
- * The boss's own room first, on the tile FARTHEST from the boss (first in
- * row-major order on ties), so the statue stands at the room's edge as stock's
- * do. A room with no such tile falls back to the nearest one in any other
- * room the party can enter. Each pass tries a three-tile gap from the boss,
- * then two. `avoid` is the tiles already taken by other bosses' statues.
- * Null only for a floor with no free interior tile at all.
+ * The boss's own room first, on the tile farthest from the boss but within
+ * `STATUE_MAX_GAP` (first in row-major order on ties): set apart, as stock's
+ * are, yet close enough that the party breaking it is inside the wraith's
+ * update range (`boss/statue.ts`). A room with no such tile falls back to the
+ * nearest one in any other room the party can enter. Each tries a three-tile
+ * gap from the boss, then two; the boss's room then lets the statue stand
+ * right beside its loot. `avoid` is the tiles already taken
+ * by other bosses' statues. Null only for a floor with no free interior tile
+ * at all.
  */
 export function statueSlot(
   level: Level,
@@ -109,26 +113,33 @@ export function statueSlot(
   const reach = entranceReach(level, ctx)
   const bossRoom = level.regionMap[boss.x + boss.y * level.width] ?? -1
 
+  const items = ctx.items.map((item) => ({ x: Math.trunc(item.x), y: Math.trunc(item.y) }))
   const taken: Array<{ x: number; y: number; gap: number }> = []
-  for (const item of ctx.items) taken.push({ x: Math.trunc(item.x), y: Math.trunc(item.y), gap: 1 })
   for (const b of level.lockButtons) taken.push({ x: Math.trunc(b.x), y: Math.trunc(b.y), gap: 2 })
-  for (const s of level.bossSpots) taken.push({ x: Math.trunc(s.x), y: Math.trunc(s.y), gap: 2 })
+  // the other bosses; this boss's own distance is `minGap` below
+  for (const s of level.bossSpots) {
+    if (Math.trunc(s.x) !== boss.x || Math.trunc(s.y) !== boss.y) taken.push({ x: Math.trunc(s.x), y: Math.trunc(s.y), gap: 2 })
+  }
   for (const s of avoid) taken.push({ x: s.x, y: s.y, gap: 2 })
 
-  const candidates = (room: Room, roomIndex: number, minGap: number): Slot[] =>
+  const candidates = (room: Room, roomIndex: number, minGap: number, itemGap: number): Slot[] =>
     roomInteriorSlots(level, ctx, room, roomIndex).filter(
       (s) =>
         s.y <= room.y + room.height - STATUE_SOUTH_ROWS &&
         (reach === null || reach.visited[s.x + s.y * level.width] === 1) &&
         chebyshev(s, boss) >= minGap &&
+        !items.some((t) => chebyshev(s, t) <= itemGap) &&
         !taken.some((t) => chebyshev(s, t) <= t.gap)
     )
 
-  for (const minGap of [3, 2]) {
+  // A loot-packed room may leave no tile a clear tile from every item; the
+  // last pass only keeps the statue off the items' own tiles.
+  for (const [minGap, itemGap] of [[3, 1], [2, 1], [2, 0]]) {
     const room = level.rooms[bossRoom]
     if (room === undefined) break
     let best: Slot | null = null
-    for (const s of candidates(room, bossRoom, minGap)) {
+    for (const s of candidates(room, bossRoom, minGap, itemGap)) {
+      if (chebyshev(s, boss) > STATUE_MAX_GAP) continue
       if (best === null || chebyshev(s, boss) > chebyshev(best, boss)) best = s
     }
     if (best !== null) return best
@@ -138,7 +149,7 @@ export function statueSlot(
     let best: Slot | null = null
     level.rooms.forEach((room, roomIndex) => {
       if (roomIndex === bossRoom || !eligibleRoom(room) || room.locked) return
-      for (const s of candidates(room, roomIndex, minGap)) {
+      for (const s of candidates(room, roomIndex, minGap, 1)) {
         if (best === null || chebyshev(s, boss) < chebyshev(best, boss)) best = s
       }
     })

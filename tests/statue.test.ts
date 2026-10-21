@@ -12,10 +12,10 @@ import type { DungeonBoss, DungeonParameters, DungeonResult } from '../src/gener
 import { GenerationContext } from '../src/generator/core/context'
 import { buildBossArena } from '../src/generator/boss/arena'
 import { BOSS_DEFS, BOSS_DEF_LIST } from '../src/generator/boss/bosses'
-import { STATUE_RETOGGLE_MS } from '../src/generator/boss/statue'
-import type { AeLevel, AeUnit } from '../src/generator/ae/model'
+import { STATUE_MAX_GAP, STATUE_RETOGGLE_MS, STATUE_RETOGGLE_UNTIL } from '../src/generator/boss/statue'
+import type { AeLevel, AeScript, AeUnit } from '../src/generator/ae/model'
 import { aeAssetExists } from '../src/generator/catalog/assets'
-import { idsParam, intParam, levelsOf, scriptById, scriptsOf } from './ae'
+import { idsParam, intParam, levelsOf, param, scriptById, scriptsOf } from './ae'
 import { plainParameters } from './params'
 import { passabilityOf } from './sealProbe'
 import { aeAssetsDir } from './aeInstall'
@@ -32,38 +32,75 @@ function generateOk(params: DungeonParameters, seed: number): DungeonResult {
 
 const units = (l: AeLevel, path: string): AeUnit[] => l.units.filter((u) => u.path === path)
 
+/** The one-shot UnitDestroyedTrigger over `unitId` alone. */
+function deathTrigger(level: AeLevel, unitId: number): AeScript {
+  const triggers = scriptsOf(level, 'UnitDestroyedTrigger').filter((t) => {
+    const ids = idsParam(t, 'Units')
+    return ids.length === 1 && ids[0] === unitId
+  })
+  expect(triggers, `unit ${unitId}'s death trigger`).toHaveLength(1)
+  expect(triggers[0].triggerTimes).toBe(1)
+  return triggers[0]
+}
+
+/** The wraith a ToggleImmortality(State 2) clears. */
+function clears(level: AeLevel, node: AeScript): number {
+  expect(node.cls).toBe('ToggleImmortality')
+  expect(intParam(node, 'State'), 'State 2 clears immortality').toBe(2)
+  const ids = idsParam(node, 'Units')
+  expect(ids).toHaveLength(1)
+  expect(level.units.find((u) => u.id === ids[0])?.path).toBe(WRAITH)
+  return ids[0]
+}
+
 /**
- * Each statue's rig: a one-shot UnitDestroyedTrigger over it alone, firing two
- * ToggleImmortality(State 2) nodes on one wraith, at 0 and STATUE_RETOGGLE_MS.
- * Returns the wraith id each statue frees, in statue order.
+ * Each statue's rig (boss/statue.ts): its death clears its wraith's
+ * immortality and enables a disabled 1000 ms timer that keeps clearing it;
+ * the wraith dropping below 90% or dying disables the timer. Returns the
+ * wraith id each statue frees, in statue order.
  */
 function freedBy(level: AeLevel): number[] {
   return units(level, STATUE).map((statue) => {
-    const triggers = scriptsOf(level, 'UnitDestroyedTrigger').filter((t) => {
-      const ids = idsParam(t, 'Units')
-      return ids.length === 1 && ids[0] === statue.id
+    const fired = deathTrigger(level, statue.id).connections.map(([id, delayMs]) => {
+      expect(delayMs).toBe(0)
+      return scriptById(level, id)!
     })
-    expect(triggers, `statue ${statue.id}'s death trigger`).toHaveLength(1)
-    const [trigger] = triggers
-    expect(trigger.triggerTimes).toBe(1)
+    expect(fired.map((s) => s.cls)).toEqual(['ToggleImmortality', 'ToggleScripts'])
+    const wraith = clears(level, fired[0])
 
-    const toggles = trigger.connections.map(([id, delayMs]) => ({ node: scriptById(level, id)!, delayMs }))
-    expect(toggles.map((t) => t.delayMs)).toEqual([0, STATUE_RETOGGLE_MS])
-    const targets = new Set<number>()
-    for (const { node } of toggles) {
-      expect(node.cls).toBe('ToggleImmortality')
-      expect(intParam(node, 'State'), 'State 2 clears immortality').toBe(2)
-      for (const id of idsParam(node, 'Units')) targets.add(id)
-    }
-    expect(targets.size).toBe(1)
-    const [wraith] = targets
-    expect(level.units.find((u) => u.id === wraith)?.path).toBe(WRAITH)
+    const [start] = fired.slice(1)
+    expect(intParam(start, 'State'), 'enable').toBe(1)
+    const [timerId] = idsParam(start, 'Scripts')
+    const timer = scriptById(level, timerId)!
+    expect(timer.cls).toBe('TimerTrigger')
+    expect(timer.enabled, 'the timer waits for the statue').toBe(false)
+    expect(intParam(timer, 'Frequency')).toBe(STATUE_RETOGGLE_MS)
+    expect(timer.connections).toHaveLength(1)
+    expect(clears(level, scriptById(level, timer.connections[0][0])!)).toBe(wraith)
+
+    // what stops the timer: the wraith below 90%, and its death
+    const stop = scriptsOf(level, 'ToggleScripts').filter((s) => intParam(s, 'State') === 2 && idsParam(s, 'Scripts').includes(timerId))
+    expect(stop).toHaveLength(1)
+    const stoppers = level.scripts.filter((s) => s.connections.some(([id]) => id === stop[0].id))
+    const health = stoppers.find((s) => s.cls === 'ActorHealthTrigger')!
+    expect(idsParam(health, 'Units')).toEqual([wraith])
+    expect(param(health, 'Value')?.value).toBeCloseTo(STATUE_RETOGGLE_UNTIL)
+    expect(health.triggerTimes).toBe(1)
+    const died = stoppers.find((s) => s.cls === 'UnitDestroyedTrigger')!
+    expect(idsParam(died, 'Units')).toEqual([wraith])
+    expect(died.triggerTimes).toBe(1)
     return wraith
   })
 }
 
 const tileOf = (u: { x: number; y: number }) => ({ x: Math.floor(u.x / TILE), y: Math.floor(u.y / TILE) })
 const chebyshev = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
+
+/** Each statue's distance in tiles from the wraith it frees, in statue order. */
+function ownGaps(level: AeLevel): number[] {
+  const freed = freedBy(level)
+  return units(level, STATUE).map((statue, i) => chebyshev(tileOf(statue), tileOf(level.units.find((u) => u.id === freed[i])!)))
+}
 
 /** Whether the party can walk from the floor's LevelStart to a tile beside `u`. */
 function walkable(result: DungeonResult, stem: string, level: AeLevel, u: AeUnit): boolean {
@@ -128,6 +165,11 @@ describe('wraith statue — Shaftlocke Siege, the reported seed', () => {
     expect(walkable(result, 'floor1', floor, statue)).toBe(true)
   })
 
+  it('keeps the statue where it was played: 6 tiles west of the wraith (checklist #81)', () => {
+    expect(tileOf(units(floor, STATUE)[0])).toEqual({ x: 5, y: 37 })
+    expect(ownGaps(floor)).toEqual([6])
+  })
+
   it('puts no statue anywhere else in the campaign', () => {
     for (const [stem, level] of levels) {
       if (stem !== 'floor1') expect(units(level, STATUE), stem).toHaveLength(0)
@@ -146,6 +188,7 @@ describe('wraith statue — on a floor', () => {
       expect(new Set(freedBy(floor)), `seed ${seed}`).toEqual(new Set(wraiths))
       const [a, b] = units(floor, STATUE).map(tileOf)
       expect(chebyshev(a, b), `seed ${seed}: statues apart`).toBeGreaterThan(2)
+      for (const gap of ownGaps(floor)) expect(gap, `seed ${seed}`).toBeLessThanOrEqual(STATUE_MAX_GAP)
     }
   }, 120_000)
 
@@ -156,6 +199,7 @@ describe('wraith statue — on a floor', () => {
       const statues = units(floor, STATUE)
       expect(statues, `seed ${seed}`).toHaveLength(1)
       expect(walkable(result, 'floor1', floor, statues[0]), `seed ${seed}`).toBe(true)
+      expect(ownGaps(floor)[0], `seed ${seed}: in the wraith's range`).toBeLessThanOrEqual(STATUE_MAX_GAP)
     }
   }, 180_000)
 
@@ -172,14 +216,15 @@ describe('wraith statue — in an arena', () => {
     return buildBossArena(ctx, options, 0).level
   }
 
-  it('gives each wraith its own statue, inside the arena and off the wraiths', () => {
-    for (const [lineup, n] of [[{ boss_wraith: 1 }, 1], [{ boss_wraith: 2 }, 2]] as const) {
+  it('gives each wraith its own statue, inside the arena, off the wraiths and in their range', () => {
+    for (const [lineup, n] of [[{ boss_wraith: 1 }, 1], [{ boss_wraith: 2 }, 2], [{ boss_wraith: 1, boss_knight: 2 }, 1]] as const) {
       for (const seed of [1, 2, 3, 4, 5]) {
         const level = arena(lineup, seed)
         const wraiths = units(level, WRAITH)
         expect(wraiths, `seed ${seed}`).toHaveLength(n)
         expect(units(level, STATUE), `seed ${seed}`).toHaveLength(n)
         expect(new Set(freedBy(level))).toEqual(new Set(wraiths.map((u) => u.id)))
+        for (const gap of ownGaps(level)) expect(gap, `seed ${seed}`).toBeLessThanOrEqual(STATUE_MAX_GAP)
         for (const statue of units(level, STATUE)) {
           const t = tileOf(statue)
           expect(t.x, `seed ${seed}`).toBeGreaterThanOrEqual(0)

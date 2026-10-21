@@ -1001,3 +1001,16 @@ death is the floor's only lock.
 - `[VERIFIED]` (played, 2026-10-20, checklist #81) Shaftlocke Siege seed 1878922481, floor 2:
   the Wraith was immortal while its statue stood, took damage once the statue broke, died,
   and opened the floor. The arena and two-Wraith cases were not played.
+- `[VERIFIED]` (scripts) An actor runs its logic only while a player is within its max range
+  (`SetUpdateDistanceLimit(m_maxRange)`, where `m_maxRange` = max(`aggro-range`, `max-range`
+  default 300)); the wraith's is 400 px. Its intro needs 1020 ms of that running time, so
+  a statue broken from more than 400 px away left the 0/2000 ms toggles early.
+  `ToggleImmortality` casts each unit's behavior without a null check, so it must not run on
+  a dead wraith.
+- `[EMITTED]` (after the floor-2 playtest) The statue rig now clears the wraith's immortality
+  when the statue dies, then every 1000 ms from a `TimerTrigger` the statue's death enables.
+  An `ActorHealthTrigger` (wraith < 90%, above the first invulnerability window at 75%) or the
+  wraith's death disables the timer. The fixed 2000 ms toggle is gone. The statue stands
+  within 6 tiles (96 px) of its wraith: on a floor, the farthest such tile in the boss room
+  (beside loot if the room is packed); in an arena, the nearest free tile to 4 north and 4
+  across. The played seed's statue is unchanged. In game: checklist #82.
