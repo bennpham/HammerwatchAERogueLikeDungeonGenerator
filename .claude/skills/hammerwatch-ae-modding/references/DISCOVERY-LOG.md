@@ -1110,3 +1110,22 @@ The full note and a feature sketch for the Players tab are in `docs/discovery/up
     `equipment_5` `ShopArea` with its `UseTrigger`);
   - `marker_exit` is floor art (32×16) where each walkway lands on an island;
   - the press-F exit rig, and no lights, music or ambience.
+
+### Crystal Mines shop lobby (2026-10-21)
+
+- `[EMITTED]` `crystal_shop` (`lobby/crystalShop.ts`): survival's crystal mines shop, read
+  from `survival.h1c`. The hub island becomes a 12×12 `bonus_5` room walled in `bonus5`
+  (corners, `h_16`/`v_16`, a cap either side of each 2-tile doorway), with the arrival on
+  four `bonus_teleport` pads. Each glass walkway moves with its islands so its glass meets
+  the doorway on its side: N (0,-80), E (80,0), S (0,80), W (-80,0), derived from the
+  geometry. Stock's Freeform fences are replaced with invisible solid `:Physics_Rectangle`s
+  (`jam/shot/aim-through`, as stock flags its fences) round the room, the glass and each
+  island's stock-open top. In game: checklist #86–#89.
+- `[VERIFIED]` (tileset files) `tilesets/__black.tileset` is 4-px tiles at layer -79;
+  `tilesets/bonus_5.tileset` is 16 px at layer -145. A tile layer draws by its tileset's
+  layer, so black void painted over a bonus floor hides it: the room clears `__black` under
+  its floor. Whether the floor then shows in game is checklist #86.
+- `[EMITTED]` The item stall is laid in the level as `prefabs/shop_item.pfb` has it (a
+  `shop_item` stand, a sensor circle r 25, a `UseTrigger` naming it and a `Type 2`
+  `ShopArea`), because the lobby builder only rewrites `ShopArea`s in the level. It's the
+  first time a prefab's stall stands unprefabbed. Checklist #88.

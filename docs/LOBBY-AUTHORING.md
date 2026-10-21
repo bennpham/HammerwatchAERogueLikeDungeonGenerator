@@ -22,13 +22,14 @@ node scripts/run-ts.mjs scripts/import-stock-towns.ts sun_bazaar # one
 It reads each level from the install (`HWAE_ROOT`, or the default Steam path):
 - Shaftlocke's `town.lvl` as the `shaftlocke_town` lobby;
 - Temple of the Sun's `level_hub.lvl` as the `sun_bazaar` lobby;
-- Castle Hammerwatch's `level_1.lvl` as the `castle_bridge` lobby.
+- Castle Hammerwatch's `level_1.lvl` as the `castle_bridge` lobby;
+- survival's `crystal_mines_shops.lvl` as the `crystal_shop` lobby. AE ships survival only packed, so the importer reads it straight out of `survival.h1c` (`scripts/lib/h1c.ts`; the source is written `survival.h1c:levels/crystal_mines_shops.lvl`).
 
-The towns keep their map, vendors and arrival. The castle bridge is cut out of a dungeon level, so its cleanup (`src/generator/lobby/castleBridge.ts`) crops it, mends the bridge, closes the room and builds the shop. AE takes collision from units alone, so a room cut out of a bigger level must be closed by its own colliders: the importer flood-fills it from the arrival (`tests/closure.ts`) and writes nothing if the party could walk out or couldn't reach the exit.
+The towns keep their map, vendors and arrival. The castle bridge is cut out of a dungeon level, so its cleanup (`src/generator/lobby/castleBridge.ts`) crops it, mends the bridge, closes the room and builds the shop. The crystal shop's (`src/generator/lobby/crystalShop.ts`) turns its hub island into a red room, moves each glass walkway to a doorway with the islands it reaches, and fences the void afresh. AE takes collision from units alone, so a room cut out of a bigger level must be closed by its own colliders: the importer flood-fills it from the arrival (`tests/closure.ts`) and writes nothing if the party could walk out or couldn't reach the exit, a stall or a payout spot.
 
 Re-run the importer after changing a cleanup: `tests/stockTown.test.ts` fails while an embedded copy is out of date. To add another stock room, add a `StockTown` to `STOCK_TOWNS`.
 
-To see a level, render it with `node scripts/render-level.mjs <level.lvl> <out.png> --crop x y w h [--collision] [--scale n]`.
+To see a level, render it with `node scripts/render-level.mjs <level.lvl> <out.png> --crop x y w h [--collision] [--scale n]`. A level AE ships only packed can be unpacked first: `node scripts/run-ts.mjs scripts/unpack-h1c.ts <pack.h1c> <outDir> [path ...]`.
 
 ## What the generator looks for
 
