@@ -89,6 +89,13 @@ export class Level {
    */
   bossSpots: Array<{ x: number; y: number }> = []
 
+  /**
+   * Where the floor's boss statues stand (`boss/statue.ts`), one per boss that
+   * has one (the wraith). Filled by the boss rig after construction; read by
+   * `mystery/placement.ts` so a plate keeps clear of them.
+   */
+  bossStatueSpots: Array<{ x: number; y: number }> = []
+
   private ctx: GenerationContext
 
   constructor(ctx: GenerationContext, level: number) {

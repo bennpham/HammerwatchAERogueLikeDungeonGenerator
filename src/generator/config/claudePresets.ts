@@ -366,7 +366,8 @@ function enrage(): FloorBuff[] {
 
 /**
  * The bosses a party can kill against a hazard clock: every mobile boss with
- * 2500 hp or less — Krilith 850, the worm 1000, the wraith 1200, the golem
+ * 2500 hp or less — Krilith 850, the worm 1000, the wraith 1200 (plus its
+ * 1200 hp statue, which must break first: boss/statue.ts), the golem
  * 1600, the knight 2500 (unit files, 2026-10-18). Picked for stock AE attack
  * speed, not the original's: AE swings slower, and a paladin and an archer
  * could not finish a plain knight in the old 180 s hunt (user, 2026-10-18).

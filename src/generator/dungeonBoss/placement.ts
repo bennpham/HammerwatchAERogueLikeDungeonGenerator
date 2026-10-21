@@ -35,6 +35,7 @@ import { roomSpawnBox } from '../map/room'
 import type { GenerationContext } from '../core/context'
 import type { Slot } from '../traps/slots'
 import { eligibleRoom, inBounds } from '../traps/floor'
+import { entranceReach } from '../map/reachability'
 
 /**
  * Every free interior tile of one room, in row-major order.
@@ -78,6 +79,77 @@ export function floorInteriorSlots(level: Level, ctx: GenerationContext): Slot[]
     slots.push(...roomInteriorSlots(level, ctx, room, roomIndex))
   })
   return slots
+}
+
+/**
+ * Rows a statue keeps above a room's last floor row: the south wall's art
+ * covers that row and the one above it (room.ts visibleDropY), as for a
+ * mystery plate.
+ */
+const STATUE_SOUTH_ROWS = 3
+
+/**
+ * Where a boss's statue stands (`boss/statue.ts`): a free interior tile the
+ * party can walk to, off the boss and everything else the floor put down.
+ * Draws nothing.
+ *
+ * The boss's own room first, on the tile FARTHEST from the boss (first in
+ * row-major order on ties), so the statue stands at the room's edge as stock's
+ * do. A room with no such tile falls back to the nearest one in any other
+ * room the party can enter. Each pass tries a three-tile gap from the boss,
+ * then two. `avoid` is the tiles already taken by other bosses' statues.
+ * Null only for a floor with no free interior tile at all.
+ */
+export function statueSlot(
+  level: Level,
+  ctx: GenerationContext,
+  boss: { x: number; y: number },
+  avoid: ReadonlyArray<{ x: number; y: number }>
+): Slot | null {
+  const reach = entranceReach(level, ctx)
+  const bossRoom = level.regionMap[boss.x + boss.y * level.width] ?? -1
+
+  const taken: Array<{ x: number; y: number; gap: number }> = []
+  for (const item of ctx.items) taken.push({ x: Math.trunc(item.x), y: Math.trunc(item.y), gap: 1 })
+  for (const b of level.lockButtons) taken.push({ x: Math.trunc(b.x), y: Math.trunc(b.y), gap: 2 })
+  for (const s of level.bossSpots) taken.push({ x: Math.trunc(s.x), y: Math.trunc(s.y), gap: 2 })
+  for (const s of avoid) taken.push({ x: s.x, y: s.y, gap: 2 })
+
+  const candidates = (room: Room, roomIndex: number, minGap: number): Slot[] =>
+    roomInteriorSlots(level, ctx, room, roomIndex).filter(
+      (s) =>
+        s.y <= room.y + room.height - STATUE_SOUTH_ROWS &&
+        (reach === null || reach.visited[s.x + s.y * level.width] === 1) &&
+        chebyshev(s, boss) >= minGap &&
+        !taken.some((t) => chebyshev(s, t) <= t.gap)
+    )
+
+  for (const minGap of [3, 2]) {
+    const room = level.rooms[bossRoom]
+    if (room === undefined) break
+    let best: Slot | null = null
+    for (const s of candidates(room, bossRoom, minGap)) {
+      if (best === null || chebyshev(s, boss) > chebyshev(best, boss)) best = s
+    }
+    if (best !== null) return best
+  }
+
+  for (const minGap of [3, 2]) {
+    let best: Slot | null = null
+    level.rooms.forEach((room, roomIndex) => {
+      if (roomIndex === bossRoom || !eligibleRoom(room) || room.locked) return
+      for (const s of candidates(room, roomIndex, minGap)) {
+        if (best === null || chebyshev(s, boss) < chebyshev(best, boss)) best = s
+      }
+    })
+    if (best !== null) return best
+  }
+
+  return null
+}
+
+function chebyshev(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
 }
 
 /** Whether one tile is this room's own open floor, unclaimed by any prefab. */
