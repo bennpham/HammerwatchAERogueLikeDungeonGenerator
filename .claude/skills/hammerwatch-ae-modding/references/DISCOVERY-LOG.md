@@ -1047,3 +1047,26 @@ death is the floor's only lock.
   slot is a fight, boss or survival, and stays blue before a floor. Before this only the
   Castle bridge had it, as the template opt-in `redBeforeFight`, which is gone. In game:
   checklist #85.
+
+### Upgrades past tier 5: the level-99 experiment (2026-10-21)
+
+The full note and a feature sketch for the Players tab are in `docs/discovery/upgrades-past-tier-5.md`.
+
+- `[VERIFIED]` (scripts) A chain's level count is `1 + upgrades.length`, with no cap.
+  `SkillUp`, `PlayerSyncSkillLevel` and the save clamp (`PlayerRecord.as:321`) all go by
+  `m_levelParams.length()`. A level's `lvl` field is cosmetic: position counts, and stock
+  `thief_dodge.sval` marks its 4th level `lvl 2`.
+- `[VERIFIED]` (scripts) The shop lists `m_levelParams[picked]`, not
+  `[picked + starting-level]` (`SkillShopMenuContent.AddUpgradesToShop`). So a chain with
+  `starting-level` > 0 and levels left shows nothing (a root: index 0 is the `skill` dict,
+  which has no `category`) or a stale tier (a modifier). This refines the 2026-10-14
+  "lists only its next upgrade", which holds only for a root with no upgrades left. A chain
+  the player is to buy past tier 5 needs `starting-level` 0.
+- `[VERIFIED]` (user, in game, 2026-10-21) `dungeon_1801046482_xp99`: HP, mana, armor,
+  dodge, both move speeds, each class's main damage and the four combo chains were extended
+  to 99 levels, with new levels in the chain's tier-5 column (`misc5`, `def5`, `off5`,
+  `combo5`). Every lobby that sold that column sold levels 6–99, names like `?lvl=57`
+  rendered, and the stats applied. Combo heal and mana levels 6–99 used new
+  `%block Combo_*_regen …_level_N` lines in `tweak/buffs/buffs.sval`. A
+  `diamond_red.unit` override at 500,000 paid for it. The edit script is
+  `scripts/dev/extend-upgrades-xp99.mjs`.
