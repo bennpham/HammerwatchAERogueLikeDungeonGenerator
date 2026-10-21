@@ -50,8 +50,6 @@ export interface StockTown {
   /** the stock level, relative to the install's `scenarios/` folder */
   source: string
   clean(level: AeLevel): AeLevel
-  /** the room's teleporter turns red when a fight follows the lobby, as a floor's portal does */
-  redBeforeFight?: boolean
   /**
    * A room cut out of a bigger level: the box (px) the importer flood-fills
    * from the arrival, failing when the fill reaches its edge or never reaches
@@ -128,10 +126,21 @@ export const SUN_BAZAAR: StockTown = {
   id: 'sun_bazaar',
   label: 'Temple of the Sun bazaar',
   description:
-    "Temple of the Sun's desert bazaar, every vendor fully supplied. Walk up the road from the gate and leave through the teleporter in the square.",
+    "Temple of the Sun's desert bazaar, every vendor fully supplied. Walk up the road from the gate, through the square, and leave from the sun circle in the temple courtyard to the north-west.",
   source: 'sun_temple/levels/sun_temple/level_hub.lvl',
-  // the red pad in the guard-boss courtyard: baked open, it would pass for a second exit
-  clean: (level) => cleanStockTown(level, [/^doodads\/generic\/teleport_red\.unit$/], SUN_BAZAAR_PAYOUT),
+  // The way on is the pad on the sun circle in the guard-boss courtyard, not
+  // the square's teleporter (the user's pick, 2026-10-21): the square's goes,
+  // so it can't pass for a second exit, and the courtyard's becomes the
+  // lobby's blue teleporter (the builder turns it red before a fight).
+  clean: (level) => {
+    cleanStockTown(level, [/^doodads\/generic\/teleport_mt\.unit$/], SUN_BAZAAR_PAYOUT)
+    for (const u of level.units) {
+      if (u.path !== 'doodads/generic/teleport_red.unit') continue
+      u.path = 'doodads/generic/teleport_mt.unit'
+      u.state = { ...u.state, start: { kind: 'string', value: 'open' } }
+    }
+    return level
+  },
   payout: SUN_BAZAAR_PAYOUT
 }
 
@@ -142,7 +151,6 @@ export const CASTLE_BRIDGE: StockTown = {
     "Castle Hammerwatch's opening bridge, mended and closed off as a shop: six stalls along the deck, the payout on the walkway, and the way on through the teleporter at the bridge's far end.",
   source: 'castle_hammerwatch/levels/level_1.lvl',
   clean: cleanCastleBridge,
-  redBeforeFight: true,
   closedWithin: CASTLE_BRIDGE_CROP
 }
 

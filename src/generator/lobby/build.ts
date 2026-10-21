@@ -67,8 +67,8 @@ function placePayout(
  * - music: a `lobby:music` PlayMusic is the room's own track, which the
  *   lobby's music choice rewrites; else that choice is a new rig at the spawn.
  *
- * A template that opts in (`redBeforeFight`) swaps its blue teleporter for
- * the red one when a fight follows, the rule a floor's portal follows.
+ * A lobby's blue teleporter turns red when a fight follows, the rule a
+ * floor's portal follows: blue into a floor, red into an arena.
  *
  * Units and scripts the generator adds continue the template's own id
  * numbering, so nothing collides.
@@ -110,8 +110,10 @@ export function buildLobby(
   }
   if (!labelledExit) {
     const portal = level.units.find((u) => u.path.startsWith('doodads/generic/teleport'))
-    if (portal !== undefined && preset.redBeforeFight === true && exitIsFight && portal.path === LOBBY_PORTAL) {
+    if (portal !== undefined && exitIsFight && portal.path === LOBBY_PORTAL) {
       portal.path = BOSS_PORTAL
+      // the house's pad names no scene; say `open` rather than lean on the unit's default
+      portal.state = { ...portal.state, start: { kind: 'string', value: 'open' } }
     }
     if (portal !== undefined) {
       const sensor = new SensorShape(ctx, portal.x / TILE, portal.y / TILE)

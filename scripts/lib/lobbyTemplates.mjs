@@ -13,7 +13,7 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 export const TEMPLATES_REL = 'src/generator/lobby/templates.generated.ts'
 
 /**
- * @param {{ id: string, label: string, description: string, lvl: string, redBeforeFight?: boolean }} template
+ * @param {{ id: string, label: string, description: string, lvl: string }} template
  * @returns {number} how many templates the file now holds
  */
 export function writeLobbyTemplate(template, root = ROOT) {
@@ -21,7 +21,8 @@ export function writeLobbyTemplate(template, root = ROOT) {
   const existing = []
   if (fs.existsSync(file)) {
     const m = /export const LOBBY_TEMPLATES[^=]*=\s*(\[[\s\S]*\])\s*$/m.exec(fs.readFileSync(file, 'utf8'))
-    if (m !== null) existing.push(...JSON.parse(m[1]).filter((t) => t.id !== template.id))
+    // (`redBeforeFight` was a per-template opt-in; every lobby turns red before a fight now)
+    if (m !== null) existing.push(...JSON.parse(m[1]).filter((t) => t.id !== template.id).map(({ redBeforeFight, ...t }) => t))
   }
   const templates = [...existing, template].sort((a, b) => (a.id < b.id ? -1 : 1))
 
@@ -37,8 +38,6 @@ export interface LobbyTemplate {
   description: string
   /** the level text, verbatim */
   lvl: string
-  /** the room's teleporter turns red when a fight follows the lobby */
-  redBeforeFight?: boolean
 }
 
 export const LOBBY_TEMPLATES: readonly LobbyTemplate[] = ${JSON.stringify(templates, null, 2)}

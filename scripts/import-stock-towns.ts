@@ -46,7 +46,7 @@ for (const town of STOCK_TOWNS.filter((t) => wanted.length === 0 || wanted.inclu
       process.exit(1)
     }
   }
-  const template = { id: town.id, label: town.label, description: town.description, lvl, ...(town.redBeforeFight === true ? { redBeforeFight: true } : {}) }
+  const template = { id: town.id, label: town.label, description: town.description, lvl }
   // run-ts bundles this script into the OS temp folder: write relative to the repo it runs from
   const count = writeLobbyTemplate(template, process.cwd())
   console.log(

@@ -223,9 +223,18 @@ describe('Temple of the Sun bazaar: its shopkeepers', () => {
     expect(keeperOf(bazaar, 'power')).toEqual(['vendor6', 'icon-pow', 'none3'])
   })
 
-  it("drops the guard-boss courtyard's red pad, so the square's teleporter is the only way on", () => {
-    expect(unit(embedded(SUN_BAZAAR), 'doodads/generic/teleport_red.unit')).toBeUndefined()
-  })
+  it("leaves from the sun circle: the courtyard's pad is the one teleporter, the square's is gone", () => {
+    const bazaar = embedded(SUN_BAZAAR)
+    expect(unit(bazaar, 'doodads/generic/teleport_red.unit')).toBeUndefined()
+    // the stock courtyard pad stood at (-26, -42) tiles, the square's at (-15, -1)
+    expect(units(bazaar, 'doodads/generic/teleport_mt.unit').map((u) => [u.x / 16, u.y / 16, u.state?.start?.value])).toEqual([[-26, -42, 'open']])
+    const lobby = lobbyOf(SUN_BAZAAR)
+    const exits = scriptsOf(lobby, 'UseTrigger').filter((s) => idsParam(s, 'Areas').some((id) => {
+      const area = lobby.units.find((u) => u.id === id)
+      return area !== undefined && Math.abs(area.x / 16 + 26) <= 1 && Math.abs(area.y / 16 + 42) <= 1
+    }))
+    expect(exits, 'the press-F rig stands on the courtyard pad').toHaveLength(1)
+  }, 60_000)
 
   it("wears each open stall's highest column as its tier numeral, and takes down a stall that sells nothing", () => {
     const lobby = lobbyOf(SUN_BAZAAR, ['def1', 'def2', 'off1', 'power', 'equipment_1', 'equipment_2'])
@@ -241,12 +250,21 @@ describe('Temple of the Sun bazaar: its shopkeepers', () => {
     }
   }, 60_000)
 
-  it('keeps its blue teleporter before a fight: the red swap is opt-in', () => {
-    const lobby = generate(beforeAFight(SUN_BAZAAR))
-    expect(units(lobby, 'doodads/generic/teleport_mt.unit')).toHaveLength(1)
-    expect(units(lobby, 'doodads/generic/teleport_red.unit')).toHaveLength(0)
-  }, 60_000)
 })
+
+// every lobby, as a floor's portal: blue into a floor, red into an arena
+for (const id of LOBBY_TEMPLATES.map((t) => t.id)) {
+  it(`${id}: leaves through a blue teleporter before a floor, a red one before a fight`, () => {
+    const as = { id } as StockTown
+    const toFloor = generate(withLobby(as))
+    expect(units(toFloor, 'doodads/generic/teleport_mt.unit')).toHaveLength(1)
+    expect(units(toFloor, 'doodads/generic/teleport_red.unit')).toHaveLength(0)
+    const toFight = generate(beforeAFight(as))
+    expect(units(toFight, 'doodads/generic/teleport_mt.unit')).toHaveLength(0)
+    expect(units(toFight, 'doodads/generic/teleport_red.unit').map((u) => u.state?.start?.value)).toEqual(['open'])
+    expect(scriptsOf(toFight, 'LevelExit').map((s) => strParam(s, 'StartID'))).toEqual([slotEntryId({ kind: 'boss', index: 0 })])
+  }, 60_000)
+}
 
 describe('Castle Hammerwatch bridge: the room', () => {
   const BRIDGE = 'doodads/walls/prison/hw_bridge.unit'
