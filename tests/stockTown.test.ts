@@ -95,8 +95,19 @@ for (const town of STOCK_TOWNS) {
         expect(paths.filter((p) => re.test(p)), String(re)).toEqual([])
       }
       // a room that lays its own payout spots keeps those pickups, and only those
+      const laysPayout = town.closedWithin !== undefined || town.payout !== undefined
       const pickups = paths.filter((p) => /^items\//.test(p))
-      expect(pickups.filter((p) => town.closedWithin === undefined || !PAYOUT_PATHS.has(p))).toEqual([])
+      expect(pickups.filter((p) => !laysPayout || !PAYOUT_PATHS.has(p))).toEqual([])
+    })
+
+    it.runIf(town.payout !== undefined)('carries its payout spots as pickups, exactly', () => {
+      const level = embedded(town)
+      const at = (u: { x: number; y: number }) => `${u.x / 16},${u.y / 16}`
+      const want = town.payout!
+      expect(units(level, DIAMOND_UNIT).map(at).sort()).toEqual(want.diamonds.map(([x, y]) => `${x},${y}`).sort())
+      for (const kind of UPGRADE_KINDS) {
+        expect(units(level, upgradeItemPath(kind)).map(at), kind).toEqual([`${want.upgrades[kind][0]},${want.upgrades[kind][1]}`])
+      }
     })
 
     it('opens its one teleporter, where the lobby lays the exit', () => {
@@ -332,6 +343,53 @@ describe('Castle Hammerwatch bridge: the room', () => {
     expect(scriptsOf(toFight, 'LevelExit').map((s) => strParam(s, 'StartID'))).toEqual([slotEntryId({ kind: 'boss', index: 0 })])
   }, 60_000)
 })
+
+/** 3 of every upgrade kind. */
+const threeOfEach = () => Object.fromEntries(UPGRADE_KINDS.map((k) => [k, 3])) as LobbyOptions['upgrades']
+
+/** The level's whole extent, px, with a margin: the box a town's fill runs in. */
+function extentOf(level: AeLevel): Box {
+  const xs = level.units.map((u) => u.x)
+  const ys = level.units.map((u) => u.y)
+  return { x0: Math.min(...xs) - 64, y0: Math.min(...ys) - 64, x1: Math.max(...xs) + 64, y1: Math.max(...ys) + 64 }
+}
+
+for (const town of [SHAFTLOCKE_TOWN, SUN_BAZAAR]) {
+  describe(`${town.label}: the payout on its spots, however big the purse`, () => {
+    const payout = town.payout!
+    const lobby = () => generate(withLobby(town, { startingGold: 500_000, upgrades: threeOfEach() }))
+    const at = (u: { x: number; y: number }) => `${u.x / 16},${u.y / 16}`
+
+    it('lays all 1000 diamonds on the placed spots, stacked evenly, and each upgrade on its own', () => {
+      const level = lobby()
+      const spots = payout.diamonds.map(([x, y]) => `${x},${y}`)
+      const diamonds = units(level, DIAMOND_UNIT).map(at)
+      expect(diamonds).toHaveLength(1000)
+      const per = new Map<string, number>()
+      for (const d of diamonds) per.set(d, (per.get(d) ?? 0) + 1)
+      expect([...per.keys()].sort()).toEqual([...spots].sort())
+      const deep = Math.floor(1000 / spots.length)
+      for (const [spot, n] of per) expect([deep, deep + 1], spot).toContain(n)
+      for (const kind of UPGRADE_KINDS) {
+        const [x, y] = payout.upgrades[kind]
+        expect(units(level, upgradeItemPath(kind)).map(at), kind).toEqual([`${x},${y}`, `${x},${y}`, `${x},${y}`])
+        expect(spots, kind).not.toContain(`${x},${y}`)
+      }
+    }, 60_000)
+
+    it.skipIf(!HAS_AE)('puts every payout pickup where the party can walk (install colliders)', () => {
+      const level = lobby()
+      // Shaftlocke's spots are indoors, behind its houses' `_door_1*` doors,
+      // which swing open when walked into: in play they block no one
+      level.units = level.units.filter((u) => !u.path.startsWith('doodads/doors/'))
+      const closure = closureOf(level, extentOf(level), aeAssetsDir() ?? '')
+      expect(closure.reachesExit).toBe(true)
+      for (const u of level.units.filter((v) => PAYOUT_PATHS.has(v.path))) {
+        expect(closure.reaches(u.x, u.y), `${u.path} at ${at(u)}`).toBe(true)
+      }
+    }, 60_000)
+  })
+}
 
 describe.skipIf(!HAS_AE)('Castle Hammerwatch bridge: closed by its own colliders', () => {
   const assets = aeAssetsDir() ?? ''

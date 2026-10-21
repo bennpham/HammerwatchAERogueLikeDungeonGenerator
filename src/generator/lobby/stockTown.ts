@@ -39,6 +39,8 @@ import type { AeLevel, AeScript, AeUnit } from '../ae/model'
 import { VENDOR_STAND, vendorIdOfShopArea } from './shops'
 import { CASTLE_BRIDGE_CROP, cleanCastleBridge } from './castleBridge'
 import type { Box } from './castleBridge'
+import { DIAMOND_UNIT, UPGRADE_KINDS, upgradeItemPath } from './payout'
+import type { UpgradeKind } from './payout'
 
 export interface StockTown {
   /** the template id and label the importer files it under */
@@ -56,6 +58,60 @@ export interface StockTown {
    * the exit (tests/closure.ts).
    */
   closedWithin?: Box
+  /**
+   * Where the lobby lays its payout, in tiles: spots the user placed in the
+   * AE editor. Stamped into the template as diamond and upgrade pickups, so
+   * the builder's authored-spot path lays every diamond on these (stacking
+   * once each holds one) and each upgrade kind on its own. Without them the
+   * builder walks out from the spawn, and that walk ignores collider shapes:
+   * with a big purse it put the bazaar's diamonds on the hills and
+   * Shaftlocke's inside the trees.
+   */
+  payout?: TownPayout
+}
+
+export interface TownPayout {
+  diamonds: ReadonlyArray<readonly [number, number]>
+  upgrades: Readonly<Record<UpgradeKind, readonly [number, number]>>
+}
+
+/** `cols` × `rows` spots from (x0, y0), one tile apart, in reading order. */
+function block(x0: number, y0: number, cols: number, rows: number): Array<readonly [number, number]> {
+  const out: Array<readonly [number, number]> = []
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) out.push([x0 + x, y0 + y])
+  return out
+}
+
+/** The column order the user placed the upgrades in, base kind on top, its `_2` below. */
+const PLACED_ORDER = ['attackspeed', 'damage', 'defense', 'health', 'mana', 'speed'] as const
+
+/** Two rows of upgrades from (x0, y), one column per kind in `PLACED_ORDER`. */
+function upgradeRows(x0: number, y: number): TownPayout['upgrades'] {
+  const out = {} as Record<UpgradeKind, readonly [number, number]>
+  PLACED_ORDER.forEach((kind, i) => {
+    out[kind] = [x0 + i, y]
+    out[`${kind}2`] = [x0 + i, y + 1]
+  })
+  return out
+}
+
+/**
+ * From the user's `dungeon_58430841/lobby_diamond_pickup_fixed.lvl`
+ * (2026-10-20): 15 diamonds west of the square (a row of seven, two of four
+ * above it), the upgrades north of it.
+ */
+const SHAFTLOCKE_PAYOUT: TownPayout = {
+  diamonds: [...block(-15.5, 2, 4, 2), ...block(-15.5, 4, 7, 1)],
+  upgrades: upgradeRows(-15, -20.5)
+}
+
+/**
+ * From the user's `dungeon_2072460237/01_lobby1.lvl` (2026-10-21): a 6×6
+ * block of diamonds under the stall, the upgrades in two rows above it.
+ */
+const SUN_BAZAAR_PAYOUT: TownPayout = {
+  diamonds: block(-11, 0, 6, 6),
+  upgrades: upgradeRows(-11, -2)
 }
 
 export const SHAFTLOCKE_TOWN: StockTown = {
@@ -64,7 +120,8 @@ export const SHAFTLOCKE_TOWN: StockTown = {
   description:
     "Shaftlocke Tower's town, The Outlook, with every stall fully upgraded. Leave through the teleporter in the square.",
   source: 'shaftlocke_tower/levels/hwr/town.lvl',
-  clean: (level) => cleanStockTown(level, [])
+  clean: (level) => cleanStockTown(level, [], SHAFTLOCKE_PAYOUT),
+  payout: SHAFTLOCKE_PAYOUT
 }
 
 export const SUN_BAZAAR: StockTown = {
@@ -74,7 +131,8 @@ export const SUN_BAZAAR: StockTown = {
     "Temple of the Sun's desert bazaar, every vendor fully supplied. Walk up the road from the gate and leave through the teleporter in the square.",
   source: 'sun_temple/levels/sun_temple/level_hub.lvl',
   // the red pad in the guard-boss courtyard: baked open, it would pass for a second exit
-  clean: (level) => cleanStockTown(level, [/^doodads\/generic\/teleport_red\.unit$/])
+  clean: (level) => cleanStockTown(level, [/^doodads\/generic\/teleport_red\.unit$/], SUN_BAZAAR_PAYOUT),
+  payout: SUN_BAZAAR_PAYOUT
 }
 
 export const CASTLE_BRIDGE: StockTown = {
@@ -101,7 +159,7 @@ const DROPPED_UNIT = [
   /^gui\//
 ]
 
-function cleanStockTown(level: AeLevel, extraDrops: readonly RegExp[]): AeLevel {
+function cleanStockTown(level: AeLevel, extraDrops: readonly RegExp[], payout: TownPayout): AeLevel {
   const dropped = [...DROPPED_UNIT, ...extraDrops]
   bakeScenes(level)
   standUpSpawnedStalls(level)
@@ -130,8 +188,17 @@ function cleanStockTown(level: AeLevel, extraDrops: readonly RegExp[]): AeLevel 
     (u) => !dropped.some((re) => re.test(u.path)) && (!u.path.startsWith(':') || named.has(u.id))
   )
   level.statics = level.statics.filter((st) => !dropped.some((re) => re.test(st.path)))
+
+  // the payout spots, after the stock pickups are gone
+  for (const [x, y] of payout.diamonds) level.addUnit(DIAMOND_UNIT, x * TILE, y * TILE)
+  for (const kind of UPGRADE_KINDS) {
+    const [x, y] = payout.upgrades[kind]
+    level.addUnit(upgradeItemPath(kind), x * TILE, y * TILE)
+  }
   return level
 }
+
+const TILE = 16
 
 /**
  * Each vendor: the `UseTrigger` the stall's `ShopArea`s name, switched on,
