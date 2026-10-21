@@ -1037,3 +1037,13 @@ death is the floor's only lock.
   - A test floods each lobby from the arrival over the install's colliders, doors open, and
     reaches every pickup (`scripts/dev/payout-reach.ts` reports any that it can't).
   - In game: checklist #83.
+- `[VERIFIED]` (user, in game, 2026-10-21, checklist #83) Both towns lay every diamond and
+  upgrade on the placed spots with a 500,000 purse, and all can be picked up.
+- `[EMITTED]` (user's pick, 2026-10-21) The bazaar's exit is the stock `teleport_red` pad on
+  the sun circle in the guard-boss courtyard (-26, -42 tiles), turned into the lobby's
+  `teleport_mt` and opened. The square's `teleport_mt` (-15, -1) is dropped, so it can't pass
+  for a second exit. In game: checklist #84.
+- `[EMITTED]` Every lobby's `teleport_mt` becomes `teleport_red` (scene `open`) when the next
+  slot is a fight, boss or survival, and stays blue before a floor. Before this only the
+  Castle bridge had it, as the template opt-in `redBeforeFight`, which is gone. In game:
+  checklist #85.
