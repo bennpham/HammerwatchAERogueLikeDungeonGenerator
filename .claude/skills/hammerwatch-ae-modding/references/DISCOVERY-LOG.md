@@ -1014,3 +1014,5 @@ death is the floor's only lock.
   within 6 tiles (96 px) of its wraith: on a floor, the farthest such tile in the boss room
   (beside loot if the room is packed); in an arena, the nearest free tile to 4 north and 4
   across. The played seed's statue is unchanged. In game: checklist #82.
+- `[VERIFIED]` (user, 2026-10-21, checklist #56) The classic escape floor's fireball spewers at
+  1500 ms (`ESCAPE_TRAP_RATE_MS`, 8 per wall) work as intended.
