@@ -723,6 +723,9 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
 - `[EMITTED]` The item stand's tier badge: `shop_item.unit` has scenes `none` and `1`–`5`,
   and the stock `prefabs/shop_item_t<n>.pfb` set `start="<n>"`. The generator sets `start` to
   the highest tier a stand sells, in lobbies and floor shops. In game: checklist #57–#58.
+- `[VERIFIED]` (played, 2026-10-20, checklist #57) A floor shop room's item vendor shows its
+  tier number and sells 5 items matching that tier's rarities from the Lobby tab, at the
+  Players tab's item prices.
 - `[VERIFIED]` (files) `Item::Quality` is a flag enum: Common 1, Uncommon 2, Rare 4, Epic 8,
   Legendary 16, Quest 32, Unique 64 (`scripts/Items/Item.as`). `GetRandomQualityEquipment`
   skips shop-blocked items, so a random unique by quality can only give `summoner_book`.
@@ -829,6 +832,8 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   reader used to turn these into an empty string, so the `shaftlocke_town` embed lost its
   window scenes. `[EMITTED]` `StateValue` `strings` round-trips them; the town was re-imported
   and the 13 walls are the only change. In game: checklist #71.
+- `[VERIFIED]` (played, 2026-10-20, checklist #71) The Shaftlocke town's 13 windowed walls
+  show their white windows again, so the round-tripped single-scene lists draw in game.
 - `[VERIFIED]` (`scripts/WorldScript/Units/SetUnitScene.as`) `SetUnitScene` *replaces* a
   unit's scene (`SetUnitScene(set[id])`, one scene). Baking a scripted tier into a list start
   must replace only the matching element, not the whole list.
@@ -921,6 +926,12 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   of the deck and the barrel past the walkway; the cleanup's sideways unit margin is now
   16 px, which leaves both out. The roof is now about 50 large squares (overlapping at the
   rectangles' edges; the cover is opaque) instead of a mosaic.
+- `[VERIFIED]` (played, 2026-10-20, checklist #72–#79) The `castle_bridge` lobby works end to
+  end: the party arrives on the walkway with no cutscene, the six stalls sell the Lobby
+  tab's columns, the deck is walkable over the mended gap and can't be left, and every seal
+  holds. The teleporter and the lights are blue, so the `vec4` light colours load, and with
+  a fight next the red teleporter leads into it. The roof hides the caps and the screen
+  around the room, the east end reads as planks, and the music and payout are right.
 
 ### Wall-top cover: the `__color_N` squares (2026-10-19)
 
@@ -956,3 +967,8 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   always on, so an optional layer must not move it. That is about 450 squares a floor. The
   imported stock rooms (the towns, the castle bridge) keep their own hand-placed roof and get
   none. In game: checklist #80.
+- `[VERIFIED]` (played and in the editor, 2026-10-20, checklist #80) On generated floors the
+  rock reads as the set's flat colour and a room's bottom wall shows only its top edge,
+  with the x-ray silhouette behind it. The rock above top walls is filled, no colour covers
+  a staircase, torch or door, and the map edge shows colour, not void. Floors load as fast
+  as before, and bonus floors are unchanged.
