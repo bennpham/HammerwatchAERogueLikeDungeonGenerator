@@ -998,3 +998,6 @@ death is the floor's only lock.
   On a floor the statue stands on the boss room's tile farthest from the wraith (reachable,
   off items and buttons). In an arena it stands a quarter of the way north-west, or north-east
   when the alcove is W, and joins the cover's boss list. Draws nothing. In game: checklist #81.
+- `[VERIFIED]` (played, 2026-10-20, checklist #81) Shaftlocke Siege seed 1878922481, floor 2:
+  the Wraith was immortal while its statue stood, took damage once the statue broke, died,
+  and opened the floor. The arena and two-Wraith cases were not played.
