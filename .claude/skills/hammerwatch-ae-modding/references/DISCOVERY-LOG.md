@@ -1129,3 +1129,7 @@ The full note and a feature sketch for the Players tab are in `docs/discovery/up
   `shop_item` stand, a sensor circle r 25, a `UseTrigger` naming it and a `Type 2`
   `ShopArea`), because the lobby builder only rewrites `ShopArea`s in the level. It's the
   first time a prefab's stall stands unprefabbed. Checklist #88.
+- `[VERIFIED]` (user, in game, 2026-10-21) `dungeon_860001`, both lobbies on `crystal_shop`:
+  the red `bonus_5` floor shows with the `__black` under it cleared, the walkways meet the
+  doorways, the regenerated `:Physics_Rectangle` fences hold, all six stalls work (the
+  in-level item stall too), the exit works, and the payout picks up. Checklist #86–#89.
