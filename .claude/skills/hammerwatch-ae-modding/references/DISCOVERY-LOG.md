@@ -1021,3 +1021,29 @@ death is the floor's only lock.
   Golem each open their floor on death alone, the Golem drops gold beetles, the light-bolt,
   dark-beam and ballista traps never trap the party for good, and the arena rolls one of the
   Eye, Vampire, frost dragon or Seeress.
+
+### Stock-town payout spots (2026-10-21)
+
+- `[VERIFIED]` (user, in game) With a big purse, the Temple of the Sun bazaar laid diamonds on
+  the hills and Shaftlocke's town inside its trees. The stock towns had no payout spots, so
+  `placePayoutAround` walked out from the spawn, and its blocked cells are each unit's anchor
+  cell only (`templateUnitCells`): cliffs and tree trunks don't stop it.
+- `[EMITTED]` `StockTown.payout` stamps the spots the user placed in the editor into each
+  template as diamond and upgrade pickups, and the builder's authored-spot path takes them:
+  - Shaftlocke: 15 diamonds and 12 upgrades, inside two houses by the square, behind
+    `_door_1*` doors (`dungeon_58430841/lobby_diamond_pickup_fixed.lvl`).
+  - Bazaar: a 6x6 diamond block under the stall, with the 12 upgrades in two rows above it
+    (`dungeon_2072460237/01_lobby1.lvl`).
+  - A test floods each lobby from the arrival over the install's colliders, doors open, and
+    reaches every pickup (`scripts/dev/payout-reach.ts` reports any that it can't).
+  - In game: checklist #83.
+- `[VERIFIED]` (user, in game, 2026-10-21, checklist #83) Both towns lay every diamond and
+  upgrade on the placed spots with a 500,000 purse, and all can be picked up.
+- `[EMITTED]` (user's pick, 2026-10-21) The bazaar's exit is the stock `teleport_red` pad on
+  the sun circle in the guard-boss courtyard (-26, -42 tiles), turned into the lobby's
+  `teleport_mt` and opened. The square's `teleport_mt` (-15, -1) is dropped, so it can't pass
+  for a second exit. In game: checklist #84.
+- `[EMITTED]` Every lobby's `teleport_mt` becomes `teleport_red` (scene `open`) when the next
+  slot is a fight, boss or survival, and stays blue before a floor. Before this only the
+  Castle bridge had it, as the template opt-in `redBeforeFight`, which is gone. In game:
+  checklist #85.

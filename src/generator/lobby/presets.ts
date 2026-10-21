@@ -18,8 +18,6 @@ export interface LobbyPresetDef {
   description: string
   /** the imported AE level text */
   lvl: string
-  /** the template's teleporter turns red when a fight follows the lobby, as a floor's portal does */
-  redBeforeFight?: boolean
   /** where diamonds and upgrades lie, for the Lobby tab diagram */
   diamondSlots: ReadonlyArray<readonly [number, number]>
   upgradeSlots: Readonly<Record<UpgradeKind, readonly [number, number]>>
@@ -32,7 +30,6 @@ export const LOBBY_PRESETS: readonly LobbyPresetDef[] = LOBBY_TEMPLATES.map((t) 
   label: t.label,
   description: t.description,
   lvl: t.lvl,
-  redBeforeFight: t.redBeforeFight === true,
   ...payoutDiagramSlots()
 }))
 
