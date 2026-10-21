@@ -14,7 +14,7 @@ import { aeAssetExists } from '../src/generator/catalog/assets'
 import { doorUnitPath } from '../src/generator/objects/item'
 import { resolvePiece, wallUnitPath } from '../src/generator/map/aeWalls'
 import { exitDoorway, exitIsPad, resolveDoodad } from '../src/generator/objects/doodad'
-import { levelsOf } from './ae'
+import { isWallPiece, levelsOf } from './ae'
 import { aeAssetsDir } from './aeInstall'
 import { wallCells } from './sealProbe'
 import { plainParameters } from './params'
@@ -139,7 +139,7 @@ describe('generating every theme', () => {
       for (const [stem, level] of levelsOf(generateTheme(theme))) {
         const walled = new Set<string>()
         for (const u of level.units) {
-          if (u.path.startsWith('doodads/walls/') && !/\/exit_(up|dn)\.unit$/.test(u.path)) {
+          if (isWallPiece(u.path) && !/\/exit_(up|dn)\.unit$/.test(u.path)) {
             for (const [x, y] of wallCells(u)) walled.add(`${x},${y}`)
           }
         }
@@ -255,7 +255,7 @@ describe.skipIf(aeAssetsDir() === null)('walls hold, by the game\'s own collisio
       result.levels.forEach((preview, i) => {
         const level = files.get(`floor${i}`)!
         const { mapWidth: w, mapHeight: h, walls } = preview
-        const blocked = coveredCells(level.units.filter((u) => u.path.startsWith('doodads/walls/')))
+        const blocked = coveredCells(level.units.filter((u) => isWallPiece(u.path)))
         const solid = (x: number, y: number) => x < 0 || y < 0 || x >= w || y >= h || walls[x + y * w] === '1'
         const holes: string[] = []
         for (let y = 0; y < h; y++) {
@@ -287,7 +287,7 @@ describe.skipIf(aeAssetsDir() === null)("locked doors hold, by the game's own co
         const level = files.get(`floor${i}`)!
         const { mapWidth: w, mapHeight: h, walls } = preview
         const solid = (x: number, y: number) => x < 0 || y < 0 || x >= w || y >= h || walls[x + y * w] === '1'
-        const walled = coveredCells(level.units.filter((u) => u.path.startsWith('doodads/walls/')))
+        const walled = coveredCells(level.units.filter((u) => isWallPiece(u.path)))
         const shut = (x: number, y: number) => solid(x, y) || walled.has(`${x},${y}`)
         for (const controller of level.scripts.filter((s) => s.cls === 'DoorController')) {
           const ids = controller.params.find((p) => p.name === 'Doors')

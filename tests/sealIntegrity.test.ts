@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { generateDungeon, defaultParameters, DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
 import { orbReachableWithoutButton, walkToTarget } from './sealProbe'
-import { levelsOf } from './ae'
+import { isWallPiece, levelsOf } from './ae'
 
 /**
  * The floor's actual promise: the orb cannot be had without opening its gate.
@@ -55,7 +55,7 @@ describe('the final room cannot be entered without opening its gate', () => {
         const opened = { ...lvl, units: lvl.units.filter((u) => !u.path.startsWith('doodads/doors/door_')) }
         const sealCells = new Set(
           lvl.units
-            .filter((u) => u.path.startsWith('doodads/walls/'))
+            .filter((u) => isWallPiece(u.path))
             .filter((u) => level.walls[Math.floor(u.x / 16) + Math.floor(u.y / 16) * level.mapWidth] !== '1')
         )
         opened.units = opened.units.filter((u) => !sealCells.has(u))

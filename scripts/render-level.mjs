@@ -103,6 +103,18 @@ const tex = (p) => {
   }
   return texCache.get(p)
 }
+// colour fills (`__color_N`) draw `special/empty.png` through a material whose
+// colour lives in colors.mats; paint them as flat rects of that colour
+const matColours = new Map()
+try {
+  const mats = fs.readFileSync(path.join(assets, 'doodads/walls/colors.mats'), 'utf8')
+  for (const m of mats.matchAll(/<material name="([^"]+)">([\s\S]*?)<\/material>/g)) {
+    const c = /<color value="([^"]+)"/.exec(m[2])
+    if (!c) continue
+    const v = c[1].trim()
+    matColours.set(m[1], v.startsWith('#') ? [1, 3, 5].map((i) => parseInt(v.slice(i, i + 2), 16)).concat(255) : v.split(/\s+/).map(Number))
+  }
+} catch {}
 const draws = []
 for (const u of units) {
   if (u.path.startsWith(':') || u.path.startsWith('effects/') || u.state.hidden) continue
@@ -125,10 +137,14 @@ for (const { u, s } of draws) {
   blit(img, t, fx, fy, fw, fh, Math.round(u.x - s.ox - x0), Math.round(u.y - s.oy - y0))
 }
 // roof covers (`__color_N`): an empty texture tinted by material, drawn over the
-// walls (layer 10) as an N×N square above-right of the anchor; flat grey here
+// walls (layer 10) as an N×N square above-right of the anchor, in the set's
+// colors.mats colour (prison's blue-grey when the material has none)
 for (const u of units) {
   const n = /\/__color_(\d+)\.unit$/.exec(u.path)?.[1]
-  if (n !== undefined && !u.state.hidden) fillRect(img, Math.round(u.x - x0), Math.round(u.y - Number(n) - y0), Number(n), Number(n), [38, 51, 62, 255])
+  if (n === undefined || u.state.hidden) continue
+  const mat = loadUnit(assets, u.path).sprites.find((s) => s.material.startsWith('doodads/walls/colors.mats:'))?.material
+  const rgba = (mat && matColours.get(mat.split(':')[1])) ?? [38, 51, 62, 255]
+  fillRect(img, Math.round(u.x - x0), Math.round(u.y - Number(n) - y0), Number(n), Number(n), rgba)
 }
 if (flag('--collision') >= 0) {
   for (const u of units) {

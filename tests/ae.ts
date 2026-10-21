@@ -9,6 +9,15 @@ import { generateDungeon } from '../src/generator'
 import { stemOfFileName } from '../src/generator/campaign'
 import type { DungeonParameters, DungeonResult, GeneratedFile } from '../src/generator'
 
+/**
+ * A wall piece: a unit from a wall set that stands as wall (structure, seals,
+ * stairs), not the set's `__color_N` wall-top cover, which is drawn fill with
+ * no collision and anchors wherever its square ends — often over floor.
+ */
+export function isWallPiece(path: string): boolean {
+  return path.startsWith('doodads/walls/') && !/\/__color_\d+\.unit$/.test(path)
+}
+
 /** Generate, failing the test with the generator's own errors if it refuses. */
 export function generateOk(params: DungeonParameters, seed = 1): DungeonResult {
   const r = generateDungeon(params, seed)

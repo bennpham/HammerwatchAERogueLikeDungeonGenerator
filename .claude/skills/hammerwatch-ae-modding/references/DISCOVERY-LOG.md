@@ -723,6 +723,9 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
 - `[EMITTED]` The item stand's tier badge: `shop_item.unit` has scenes `none` and `1`–`5`,
   and the stock `prefabs/shop_item_t<n>.pfb` set `start="<n>"`. The generator sets `start` to
   the highest tier a stand sells, in lobbies and floor shops. In game: checklist #57–#58.
+- `[VERIFIED]` (played, 2026-10-20, checklist #57) A floor shop room's item vendor shows its
+  tier number and sells 5 items matching that tier's rarities from the Lobby tab, at the
+  Players tab's item prices.
 - `[VERIFIED]` (files) `Item::Quality` is a flag enum: Common 1, Uncommon 2, Rare 4, Epic 8,
   Legendary 16, Quest 32, Unique 64 (`scripts/Items/Item.as`). `GetRandomQualityEquipment`
   skips shop-blocked items, so a random unique by quality can only give `summoner_book`.
@@ -829,6 +832,8 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   reader used to turn these into an empty string, so the `shaftlocke_town` embed lost its
   window scenes. `[EMITTED]` `StateValue` `strings` round-trips them; the town was re-imported
   and the 13 walls are the only change. In game: checklist #71.
+- `[VERIFIED]` (played, 2026-10-20, checklist #71) The Shaftlocke town's 13 windowed walls
+  show their white windows again, so the round-tripped single-scene lists draw in game.
 - `[VERIFIED]` (`scripts/WorldScript/Units/SetUnitScene.as`) `SetUnitScene` *replaces* a
   unit's scene (`SetUnitScene(set[id])`, one scene). Baking a scripted tier into a list start
   must replace only the matching element, not the whole list.
@@ -921,3 +926,49 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   of the deck and the barrel past the walkway; the cleanup's sideways unit margin is now
   16 px, which leaves both out. The roof is now about 50 large squares (overlapping at the
   rectangles' edges; the cover is opaque) instead of a mosaic.
+- `[VERIFIED]` (played, 2026-10-20, checklist #72–#79) The `castle_bridge` lobby works end to
+  end: the party arrives on the walkway with no cutscene, the six stalls sell the Lobby
+  tab's columns, the deck is walkable over the mended gap and can't be left, and every seal
+  holds. The teleporter and the lights are blue, so the `vec4` light colours load, and with
+  a fight next the red teleporter leads into it. The roof hides the caps and the screen
+  around the room, the east end reads as planks, and the music and payout are right.
+
+### Wall-top cover: the `__color_N` squares (2026-10-19)
+
+- `[VERIFIED]` (read) Every wall set except the five flat `bonus*` sets ships square
+  `__color_{8,16,32,48,64,96,128,256,512,1024}.unit`: `%replace THEME <set>` over
+  `doodads/walls/color_N.inc`, a `special/empty.png` sprite drawn through
+  `doodads/walls/colors.mats:<set>` (prison `#26333e`, blend, lit, `xray-mask` true), unit
+  `layer="10"`, origin `0 N`. A unit at `(x, y)` covers `[x, x+N] × [y−N, y]`. There is no
+  collision. Stock bonus levels use none.
+- `[VERIFIED]` (stock, Castle levels 1/2/4/6/8/10) Stock fills the solid mass with them
+  (level 2: 673 squares, 16–512 px). 499 of the 673 anchor at (8, 8) mod 16, where walls
+  sit at (0, 0). Measured around every `h_16`/`h_32` at wall row `y` with floor on one side
+  and void on the other:
+  - a room's **south** wall (mass below): colour runs from `y − 24` down (142 cases, the
+    dominant pattern);
+  - a room's **north** wall (mass above): colour runs down to `y − 24` (155 cases).
+
+  One rule fits both. Take the solid mass, lift it 32 px (a wall's art is its footprint
+  drawn 32 px higher), and pull its edge in 8 px. In cells it is HW1's `Cover` rule two rows
+  up: the 16-px square on the corner of drawn cells `(x, y)` and `(x+1, y+1)` is coloured
+  when cells `(x, y+2)…(x+1, y+3)` are all solid. So a south wall's face is hidden under the
+  colour and only its cap edge shows, the mass above a north wall reads as wall top, and a
+  vertical wall keeps half its strip.
+- `[VERIFIED]` (read) The stair art the colour must not cover: the shared `exit_up.inc` /
+  `exit_dn.inc` draw 64×72 at origin `0 72`; cave_desert/cave_crystal 32×48 at `0 32`;
+  battlement's `exit_up` 38×40 at `18 39`. The shared art's top 40 px are opaque in its own
+  dark top colour. Its two outer doorway cells (bottom 32 px) are transparent, and stock
+  leaves them showing whatever is beneath.
+- `[EMITTED]` `map/aeCover.ts` places the cover by that rule on dungeon floors, boss arenas
+  and the stand-in lobby. The squares are greedy and may overlap, are anchored on the odd 8-px
+  phase (so 16 px and up, (8, 8) like stock), and reach 32 cells past the map. Each stair's
+  art rect is cut out. Cover takes its ids after the walls and before the torches: it is
+  always on, so an optional layer must not move it. That is about 450 squares a floor. The
+  imported stock rooms (the towns, the castle bridge) keep their own hand-placed roof and get
+  none. In game: checklist #80.
+- `[VERIFIED]` (played and in the editor, 2026-10-20, checklist #80) On generated floors the
+  rock reads as the set's flat colour and a room's bottom wall shows only its top edge,
+  with the x-ray silhouette behind it. The rock above top walls is filled, no colour covers
+  a staircase, torch or door, and the map edge shows colour, not void. Floors load as fast
+  as before, and bonus floors are unchanged.

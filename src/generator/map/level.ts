@@ -8,7 +8,7 @@ import { GOLD_LOCK_TIER } from '../objects/item'
 import { getTheme, themeEnvironment, THEME_DEFS } from '../config/themes'
 import { AeLevel } from '../ae/model'
 import { TileLayers } from '../ae/tiles'
-import { emitObjects, emitWalls } from '../ae/emit'
+import { emitCover, emitObjects, emitWalls } from '../ae/emit'
 import { emitTorches } from '../lighting/torches'
 import { isLineCell } from './aeWalls'
 import type { WallGrid } from './aeWalls'
@@ -445,7 +445,8 @@ export class Level {
    * further layers cover walkable floor only; a mixed theme gives each room
    * and corridor one surface off the cosmetic stream; and `__black` masks every
    * solid cell that is not part of a wall line, hiding 32-px floor tiles that
-   * spill past a wall.
+   * spill past a wall. Last, the set's `__color_N` cover goes over the solid
+   * mass and past the map edge, as stock levels have (`map/aeCover.ts`).
    */
   toAeLevel(): AeLevel {
     const ctx = this.ctx
@@ -492,6 +493,7 @@ export class Level {
 
     emitObjects(level, ctx)
     this.missingWallPieces = emitWalls(level, ctx, grid, theme)
+    emitCover(level, ctx, grid, theme)
     emitTorches(level, ctx, grid, ctx.params.torches ?? 'normal')
     return level
   }

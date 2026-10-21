@@ -49,6 +49,7 @@ The full record is `.claude/skills/hammerwatch-ae-modding/references/DISCOVERY-L
 - **Lives:** always 0. `info.xml` forces the `NO_LIVES` modifier; never offer lives back.
 - **Player balance** is in `players/` (`classes.sval` plus a `.sval` per skill), not HW1's `tweak/*.xml`. Move speed is two shared skills (melee/ranged), not a class stat. The game's files are never stored in the repo: only line numbers and stock values are.
 - **Walls:** vertical pieces anchor one row above their cell, and `h_32`/`v_32` span two cells.
+- **Wall-top cover** (`__color_N`, `map/aeCover.ts`) draws over walls and actors. Its squares often anchor on floor cells, so never read them as wall pieces (`isWallPiece` in `tests/ae.ts`). It takes its ids after the walls and before the torches.
 - **`PACKAGER.exe`** exits 127 even on success; judge the install by the `.h1c` and its `HW1S` header.
 - **Lobbies** are hand-made AE editor levels: `docs/LOBBY-AUTHORING.md`. The user's `house` is the default.
 - **Collision comes from units alone.** Tiles block nothing, so a room cut out of a stock level must be closed by its own colliders; `tests/closure.ts` flood-fills it.

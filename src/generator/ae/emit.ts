@@ -3,6 +3,9 @@ import { TILE } from './model'
 import type { GenerationContext } from '../core/context'
 import { placeWalls } from '../map/aeWalls'
 import type { WallGrid } from '../map/aeWalls'
+import { placeCover } from '../map/aeCover'
+import type { CoverRect } from '../map/aeCover'
+import { stairArtRect } from '../objects/doodad'
 import type { ThemeDef } from '../config/themes'
 import { AE_UNIT_SET } from '../catalog/assets'
 
@@ -76,6 +79,32 @@ export function emitWalls(
     level.units.push({ path: w.path, x: w.x - originX * TILE, y: w.y - originY * TILE, id: ctx.idCounter++ })
   }
   return missing
+}
+
+/**
+ * Add the wall set's `__color_N` cover over the solid mass and past the map
+ * (`map/aeCover.ts`), leaving every stair's art clear. Call it right after
+ * `emitWalls` and before optional layers (torches): it is always on, so its
+ * ids must not move when an optional layer is switched off. Nothing
+ * references a cover unit.
+ */
+export function emitCover(
+  level: AeLevel,
+  ctx: GenerationContext,
+  grid: WallGrid,
+  theme: ThemeDef,
+  originX = 0,
+  originY = 0
+): void {
+  const exclude: CoverRect[] = []
+  for (const d of ctx.doodads) {
+    const r = stairArtRect(d)
+    // stairs are placed in level space; the cover works in grid space
+    if (r !== null) exclude.push({ ...r, x: r.x + originX * TILE, y: r.y + originY * TILE })
+  }
+  for (const c of placeCover(grid, theme.walls, (p) => AE_UNIT_SET.has(p), { exclude })) {
+    level.units.push({ path: c.path, x: c.x - originX * TILE, y: c.y - originY * TILE, id: ctx.idCounter++ })
+  }
 }
 
 function px(tiles: number): number {
