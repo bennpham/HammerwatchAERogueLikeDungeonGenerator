@@ -79,7 +79,7 @@ export function mysteryButtonSlots(level: Level, ctx: GenerationContext): Button
   for (const b of level.lockButtons) {
     avoid.push({ x: Math.trunc(b.x), y: Math.trunc(b.y), gap: PLATE_CLEARANCE })
   }
-  for (const spot of level.bossSpots) {
+  for (const spot of [...level.bossSpots, ...level.bossStatueSpots]) {
     avoid.push({ x: Math.trunc(spot.x), y: Math.trunc(spot.y), gap: PLATE_CLEARANCE })
   }
 

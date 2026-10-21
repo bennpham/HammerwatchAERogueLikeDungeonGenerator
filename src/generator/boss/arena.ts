@@ -81,6 +81,7 @@ import type { CoverArena, Rect } from './cover'
 import { arenaBossLayout } from './geometry'
 import { TIER_EVENT_NAMES, buildWaveRig, scatterRequests } from './waves'
 import { buildInvulnerabilityRig } from './invulnerability'
+import { arenaStatueSpot, buildBossStatue } from './statue'
 import { buildWaveBuffRig } from './waveBuffs'
 import { buildWavePickupRig } from './wavePickups'
 import type { TrapArena } from './traps'
@@ -417,6 +418,25 @@ export function buildBossArena(
     const loaded = new NodeGlobalEventTrigger(ctx, midX, height + 1, LEVEL_LOADED_EVENT)
     bossPlacements.forEach((p, i) => loaded.connectTo(new NodeCreateBossBar(ctx, midX + i, height + 2, [bossActors[i]], p.def.barName)))
   }
+  // A statue for each boss that stands behind one (the wraith), each wired to
+  // its own boss only (boss/statue.ts). Draws nothing; an arena with no such
+  // boss allocates nothing here. Each statue joins the cover arena's bosses
+  // below, so pillars and food keep off it and its neighbours stay reachable.
+  const bossRects = bossPlacements.map((p) => ({
+    x: p.x,
+    y: p.y + (p.def.collisionOffsetY ?? 0),
+    width: p.def.footprintWidth,
+    height: p.def.footprintHeight
+  }))
+  const statues: Array<{ x: number; y: number; footprint: number }> = []
+  bossPlacements.forEach((p, i) => {
+    if (p.def.statue === undefined) return
+    const spot = arenaStatueSpot({ width, height, alcoveWall }, p, anchorList, entranceRect, bossRects, statues)
+    if (spot === null) return
+    if (buildBossStatue(ctx, p.def, bossActors[i], spot.x, spot.y, midX + i, height + 3) !== null) {
+      statues.push({ ...spot, footprint: p.def.statue.footprint })
+    }
+  })
   // Single-boss shorthand kept for the invulnerability rig, which
   // only ever run for exactly one boss (see below).
   const bossActor = bossActors[0]
@@ -431,7 +451,10 @@ export function buildBossArena(
     // connectivity prune requires only the anchors and the alcove. A
     // single-entry list here produces identical results to the historical
     // `boss` field (see cover.ts's `arenaBosses`).
-    bosses: bossPlacements.map((p) => ({ x: p.x, y: p.y, footprintWidth: p.def.footprintWidth, footprintHeight: p.def.footprintHeight })),
+    bosses: [
+      ...bossPlacements.map((p) => ({ x: p.x, y: p.y, footprintWidth: p.def.footprintWidth, footprintHeight: p.def.footprintHeight })),
+      ...statues.map((s) => ({ x: s.x, y: s.y, footprintWidth: s.footprint, footprintHeight: s.footprint }))
+    ],
     anchors: anchorList,
     entrance: entranceRect,
     alcove: alcoveRect

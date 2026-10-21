@@ -88,6 +88,14 @@ export interface BossDef {
    * `beastiary-name` key, so the bar reads exactly as in the stock campaign.
    */
   barName: string
+  /**
+   * The statue an `immortal` boss must lose before it can be hurt. Only the
+   * wraith has one: `wraith.inc` sets `immortal` true, and in stock
+   * (`hwr/boss_armory.lvl`) the statue's death fires `ToggleImmortality` off
+   * on it. `boss/statue.ts` places it and wires that. `footprint` is the
+   * statue's static collision rect, in tiles.
+   */
+  statue?: { actorPath: string; footprint: number }
 }
 
 /**
@@ -105,7 +113,8 @@ export const UNIQUE_BOSS_IDS: readonly BossId[] = ['boss_dragon', 'boss_dragon_h
  * so they go against the top wall; the queen is static too but attacks in
  * every direction, so she stands in the centre. The worm and the wraith are
  * `TransferDamageActor`s, which take damage themselves and only forward it
- * when a transfer target is set — alone, they fight like any other boss.
+ * when a transfer target is set. The worm alone fights like any other boss;
+ * the wraith is also `immortal` until its statue breaks (`statue` below).
  */
 const BOSS_DEFS_LIST: Omit<BossDef, 'mobile' | 'unique'>[] = [
   { id: 'boss_anubis', actorPath: 'actors/bosses/boss_anubis/boss_anubis.unit', footprintWidth: 20 / 16, footprintHeight: 20 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.d.ig.boss_3' },
@@ -119,7 +128,17 @@ const BOSS_DEFS_LIST: Omit<BossDef, 'mobile' | 'unique'>[] = [
   { id: 'boss_worm', actorPath: 'actors/bosses/boss_worm/boss_worm.unit', footprintWidth: 36 / 16, footprintHeight: 36 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.d.ig.boss_1' },
   { id: 'boss_golem', actorPath: 'actors/bosses/boss_golem/golem_rock.unit', footprintWidth: 30 / 16, footprintHeight: 30 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss1' },
   { id: 'boss_warden', actorPath: 'actors/bosses/boss_warden/warden.unit', footprintWidth: 52 / 16, footprintHeight: 52 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss2' },
-  { id: 'boss_wraith', actorPath: 'actors/bosses/boss_wraith/wraith_mage.unit', footprintWidth: 36 / 16, footprintHeight: 36 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss3' },
+  // the mage statue is the mage wraith's own in stock; <rect>-10 -11 20 20</rect> static
+  {
+    id: 'boss_wraith',
+    actorPath: 'actors/bosses/boss_wraith/wraith_mage.unit',
+    footprintWidth: 36 / 16,
+    footprintHeight: 36 / 16,
+    placement: 'centre',
+    forbiddenAlcoveWalls: [],
+    barName: '.ig.hwr.boss3',
+    statue: { actorPath: 'actors/bosses/boss_wraith/statue_wraith_mage.unit', footprint: 20 / 16 }
+  },
   // <circle offset="0 -12" radius="24">
   { id: 'boss_eye', actorPath: 'actors/bosses/boss_eye/eye.unit', footprintWidth: 48 / 16, footprintHeight: 48 / 16, collisionOffsetY: -12 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss4' },
   { id: 'boss_vampire', actorPath: 'actors/bosses/boss_vampire/vampire.unit', footprintWidth: 20 / 16, footprintHeight: 20 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss5' },

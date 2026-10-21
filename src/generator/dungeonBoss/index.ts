@@ -16,6 +16,7 @@
  * moves every node after the change:
  *
  *   1. boss actor      one draw: which boss
+ *   1b. boss statues   only for a boss that has one (boss/statue.ts)
  *   2. waves           spawn points across the floor   <- draws
  *   3. buffs           one whole-floor field per tier
  *   4. traps           per-tier spewers on room walls  <- draws
@@ -41,7 +42,8 @@ import { BOSS_DEFS, expandLineup } from '../boss/bosses'
 import { LEVEL_LOADED_EVENT } from '../core/events'
 import { NodeCreateBossBar, NodeGlobalEventTrigger } from '../objects/nodes'
 import { placeFloorBoss, placeFloorBosses } from './actor'
-import { floorInteriorSlots } from './placement'
+import { buildBossStatue } from '../boss/statue'
+import { floorInteriorSlots, statueSlot } from './placement'
 import { buildFloorBossWaveRig } from './waves'
 import { buildFloorBossTrapRig } from './traps'
 import { buildFloorBossOpener } from './opener'
@@ -99,6 +101,17 @@ export function buildFloorBossRig(
     if (def !== undefined) loaded.connectTo(new NodeCreateBossBar(ctx, markerX, markerY, [actor], def.barName))
   }
 
+  // 1b. A statue for each boss that stands behind one (the wraith), each wired
+  // to its own boss only. Draws nothing; a floor with no such boss allocates
+  // nothing here.
+  actors.forEach((actor) => {
+    const def = BOSS_DEFS[actor.type.id as keyof typeof BOSS_DEFS]
+    if (def?.statue === undefined) return
+    const slot = statueSlot(level, ctx, { x: Math.trunc(actor.x), y: Math.trunc(actor.y) }, level.bossStatueSpots)
+    if (slot === null) return
+    if (buildBossStatue(ctx, def, actor, slot.x, slot.y, markerX, markerY) !== null) level.bossStatueSpots.push(slot)
+  })
+
   // Multi-boss (issue #64 part 1): the same "all bosses died" rig every
   // arena builds, built once right after the actors are placed. Single boss:
   // unused — every tier-keyed rig below keeps building its own
@@ -107,7 +120,10 @@ export function buildFloorBossRig(
     ? multiBossTierSource(buildAllBossesDied(ctx, actors, markerX, markerY))
     : singleBossTierSource()
 
-  const pool = floorInteriorSlots(level, ctx)
+  // No wave monster inside a statue's static collider.
+  const pool = floorInteriorSlots(level, ctx).filter(
+    (s) => !level.bossStatueSpots.some((t) => Math.abs(s.x - t.x) <= 1 && Math.abs(s.y - t.y) <= 1)
+  )
   buildFloorBossWaveRig(ctx, boss.waves, boss.monsterMultiplier, pool, markerX, markerY, tierSource)
 
   buildWaveBuffRig(ctx, boss.waves, level.width, level.height, markerX, markerY, tierSource)

@@ -177,6 +177,28 @@ export class NodeGlobalEventTrigger extends ScriptNode {
   }
 }
 
+/**
+ * `ActorHealthTrigger` — fires when a listed actor, on being damaged, has
+ * health below `fraction` (0–1). One-shot. `NodeGlobalEventTrigger`'s
+ * `Boss N%` is this over every boss; this one takes its own actors.
+ */
+export class NodeActorHealthTrigger extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    private units: HasId[],
+    public fraction: number
+  ) {
+    super(ctx, x, y, 'ActorHealthTrigger')
+    this.triggerTimes = 1
+  }
+
+  params(): Param[] {
+    return [P.ids('Units', ids(this.units)), P.int('Function', HEALTH_LESS), P.float('Value', this.fraction)]
+  }
+}
+
 /** `UnitDestroyedTrigger` — fires when any listed unit dies or is destroyed (HW1 ObjectEventTrigger). */
 export class NodeObjectEventTrigger extends ScriptNode {
   private units: HasId[] = []

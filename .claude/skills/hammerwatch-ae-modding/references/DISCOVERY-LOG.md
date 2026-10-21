@@ -821,7 +821,8 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   buttons appended last. In game: checklist #64.
 - `[VERIFIED]` (unit files) The wraith is a `TransferDamageActor` with `immortal` true and
   the golem a `CompositeActorBehavior`. Both died to the party in an arena (checklist #54),
-  so both are hunt bosses.
+  so both are hunt bosses. **Wrong for the wraith** (2026-10-20): placed alone it is immortal
+  for good and cannot have died. See "The wraith's statue" below.
 
 ### Start-scene lists; the Temple of the Sun bazaar as a lobby (2026-10-18)
 
@@ -972,3 +973,44 @@ spawns are `UnitType` strings on spawn scripts (the battlements' trolls are all 
   with the x-ray silhouette behind it. The rock above top walls is filled, no colour covers
   a staircase, torch or door, and the map edge shows colour, not void. Floors load as fast
   as before, and bonus floors are unchanged.
+
+### The wraith's statue (2026-10-20)
+
+Shaftlocke Siege seed 1878922481 stalled on floor 2: the wraith took no damage, and its
+death is the floor's only lock.
+
+- `[VERIFIED]` (scripts and unit files) `boss_wraith/wraith.inc` sets `immortal` true.
+  `CompositeActorBehavior.Damage` returns 0 for an immortal actor and shows "immortal". It
+  is the only boss on our list with the flag (`boss_queen_neutral.unit`, unused, is the other).
+- `[VERIFIED]` (stock `shaftlocke_tower/levels/hwr/boss_armory.lvl`) Each wraith has a
+  statue (`statue_wraith_{mage,scythe,staff}.unit`: 1200 hp, construct, a static 20x20
+  rect, novas when hit, `counts-as-kill` false). `UnitDestroyedTrigger(statue)` fires
+  `ToggleImmortality` State 2 on its own wraith (scripts 765-767 -> 762-764). A `CheckFlag`
+  repeats the toggle 2000 ms after the wraith spawns (821-823). `SetDamageTransfer` links
+  statue -> wraith (756-758), but it only forwards hits to a wraith that is still immortal.
+- `[VERIFIED]` (`StateActorBehavior.as`) `SetState` calls `SetActorProperties`, which
+  re-applies `immortal` from the unit. The wraith starts in `state_wraith_intro` (1020 ms)
+  and switches to `state_default` once it updates, so a toggle made before that switch
+  (say, at level load) is undone. Hence stock's 2000 ms repeat.
+- `[EMITTED]` `boss/statue.ts`: every boss with `BossDef.statue` (the wraith, with the mage
+  statue) gets its own statue, a one-shot `UnitDestroyedTrigger` over it, and two
+  `ToggleImmortality` State 2 nodes on that wraith at 0 and 2000 ms. No `SetDamageTransfer`.
+  On a floor the statue stands on the boss room's tile farthest from the wraith (reachable,
+  off items and buttons). In an arena it stands a quarter of the way north-west, or north-east
+  when the alcove is W, and joins the cover's boss list. Draws nothing. In game: checklist #81.
+- `[VERIFIED]` (played, 2026-10-20, checklist #81) Shaftlocke Siege seed 1878922481, floor 2:
+  the Wraith was immortal while its statue stood, took damage once the statue broke, died,
+  and opened the floor. The arena and two-Wraith cases were not played.
+- `[VERIFIED]` (scripts) An actor runs its logic only while a player is within its max range
+  (`SetUpdateDistanceLimit(m_maxRange)`, where `m_maxRange` = max(`aggro-range`, `max-range`
+  default 300)); the wraith's is 400 px. Its intro needs 1020 ms of that running time, so
+  a statue broken from more than 400 px away left the 0/2000 ms toggles early.
+  `ToggleImmortality` casts each unit's behavior without a null check, so it must not run on
+  a dead wraith.
+- `[EMITTED]` (after the floor-2 playtest) The statue rig now clears the wraith's immortality
+  when the statue dies, then every 1000 ms from a `TimerTrigger` the statue's death enables.
+  An `ActorHealthTrigger` (wraith < 90%, above the first invulnerability window at 75%) or the
+  wraith's death disables the timer. The fixed 2000 ms toggle is gone. The statue stands
+  within 6 tiles (96 px) of its wraith: on a floor, the farthest such tile in the boss room
+  (beside loot if the room is packed); in an arena, the nearest free tile to 4 north and 4
+  across. The played seed's statue is unchanged. In game: checklist #82.
