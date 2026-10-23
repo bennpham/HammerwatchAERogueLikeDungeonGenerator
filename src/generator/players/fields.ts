@@ -18,7 +18,7 @@ import { PLAYER_STOCK } from './stock.generated'
  *   player.<chain>.<tier>.<field>               a skill file, for every class
  *   player.<class>@<chain>.<tier>.<field>       a shared skill file, one class
  *   player.<chain>.1.starting-level             levels of a skill owned from the start (1: no need to buy it)
- *   player.<chain>.levels                       how many tiers the chain has, 1 to 99 (stock: as the game ships it)
+ *   player.<chain>.levels                       how many tiers the chain has, 1 to 999 (stock: as the game ships it)
  *   player.<chain>.<tier>.<field>               past stock too: a tier added by `levels` (`added`)
  *   player.shop.<id>.cost                       a potion or item price (a script, not players/)
  *   player.extra.<id>                           a skill number outside players/ (combo buffs, lightning bolt)

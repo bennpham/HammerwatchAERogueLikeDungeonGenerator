@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Upgrade tiers.**
-  - On the Players tab, every skill upgrade with more than one tier has a **− / + / Reset** stepper. You can take tiers away, or add them past stock up to 99 (AE has no cap).
+  - On the Players tab, every skill upgrade with more than one tier has a **− / + / Reset** stepper. You can take tiers away, or add them past stock up to 999 (AE itself has no cap; the app stops there so a scenario stays a sensible size).
   - An added tier copies the last one and carries on its step: health, damage, radius, buff strength and price. A chance (dodge, crit, block) closes in on 99% and never reaches it. Every added tier is editable like a stock one.
   - Upgrades that work through a buff (combo heal and mana, poison, chill, nova slow and the rest) get a new buff level for each added tier.
   - The quick setup's **Upgrade tiers** row sets every upgrade to the same count in one go.

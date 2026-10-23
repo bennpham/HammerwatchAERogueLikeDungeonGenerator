@@ -11,8 +11,13 @@ import type { PlayerBuffLevel, PlayerChain, PlayerSkillFile, PlayerTier } from '
  * values the ladder starts from.
  */
 
-/** The most tiers a chain can have; the experiment went this far. */
-export const PLAYER_LEVELS_MAX = 99
+/**
+ * The most tiers a chain can have. AE has no cap (the experiment went to 99);
+ * this one is the app's: each tier is ~14 lines of the player file, so every
+ * chain at 999 writes ~37 MB and takes ~3 s to build, and by ~1,400 prices hit
+ * {@link PLAYER_COST_MAX} anyway.
+ */
+export const PLAYER_LEVELS_MAX = 999
 
 /** The highest price the tab accepts; past this nobody could afford it anyway. */
 export const PLAYER_COST_MAX = 999_999

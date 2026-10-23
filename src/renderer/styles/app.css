@@ -394,6 +394,12 @@ body {
   gap: 4px;
 }
 
+/* a row's fields stretch to its tallest; the label takes the slack, so a
+   label that wraps to two lines leaves its input level with the others */
+.field-grid > .field > .field-label {
+  flex-grow: 1;
+}
+
 .field-label {
   font-size: 12px;
   color: var(--text-dim);

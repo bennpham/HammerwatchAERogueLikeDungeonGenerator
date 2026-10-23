@@ -94,7 +94,7 @@ describe('clone and drop line edits', () => {
 })
 
 describe('tier counts', () => {
-  it('every chain with upgrades has a count; one that can grow goes to 99', () => {
+  it('every chain with upgrades has a count; one that can grow goes to the cap', () => {
     for (const { chain } of CHAIN_BY_KEY.values()) {
       const f = playerField(levelsKey(chain.key))
       if (!hasUpgrades(chain)) {
@@ -179,7 +179,7 @@ describe('tier counts', () => {
   it('is validated', () => {
     const errs = (t: PlayerTweaks): string[] => validatePlayerTweaks(t).errors.map((e) => e.field)
     expect(errs({ [levelsKey(HP)]: 0 })).toEqual([levelsKey(HP)])
-    expect(errs({ [levelsKey(HP)]: 100 })).toEqual([levelsKey(HP)])
+    expect(errs({ [levelsKey(HP)]: PLAYER_LEVELS_MAX + 1 })).toEqual([levelsKey(HP)])
     expect(errs({ [levelsKey(HP)]: 6.5 })).toEqual([levelsKey(HP)])
     expect(errs({ [levelsKey('wiz_meteor:wiz_meteor_amount')]: 4 })).toEqual([levelsKey('wiz_meteor:wiz_meteor_amount')])
     expect(errs({ [levelsKey(HP)]: 99, [skillKey(HP, 99, 'cost')]: -1 })).toEqual([skillKey(HP, 99, 'cost')])
@@ -280,7 +280,7 @@ describe.skipIf(assets === null)('tier counts against the install', () => {
     ])
   })
 
-  it('patches every chain to 99 and every one down to 1 cleanly', () => {
+  it('patches every chain to the cap and every one down to 1 cleanly', () => {
     for (const n of [PLAYER_LEVELS_MAX, 1]) {
       for (const o of playerOverrides(applyChainLevels({}, n))) {
         const { text, missed } = applyLineEdits(readAsset(o.source), o.edits)

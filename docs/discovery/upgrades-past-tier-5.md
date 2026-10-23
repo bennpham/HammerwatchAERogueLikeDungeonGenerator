@@ -4,6 +4,8 @@
 `players/levels.ts`). Where it differs from the sketch below:
 - Every chain with upgrades has a count, not only the stat chains. It can grow past
   stock when its last upgrade sets a number or a numbered buff.
+- The cap is 999, not 99 (2026-10-22, the user's call). Past 99 is `[UNVERIFIED]` in game.
+  It's the app's own limit: every chain at 999 writes ~37 MB of player files.
 - Prices follow the stock price ladder, not +100 a level.
 - Added tiers are editable.
 - The starting-level trap is handled by patching the shop script, not by forbidding it.
