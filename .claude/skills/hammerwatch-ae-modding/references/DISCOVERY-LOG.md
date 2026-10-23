@@ -1133,3 +1133,34 @@ The full note and a feature sketch for the Players tab are in `docs/discovery/up
   the red `bonus_5` floor shows with the `__black` under it cleared, the walkways meet the
   doorways, the regenerated `:Physics_Rectangle` fences hold, all six stalls work (the
   in-level item stall too), the exit works, and the payout picks up. Checklist #86–#89.
+
+### Upgrade tiers on the Players tab (2026-10-22)
+
+The level-99 experiment, built as a feature: `player.<chain>.levels` (1–99) on every chain
+with upgrades (`players/ladder.ts`, `players/levels.ts`).
+
+- `[EMITTED]` A tier added past stock is a `clone` line edit: the install copies the
+  chain's last upgrade dict from its own `players/` file (the snapshot records each
+  upgrade's `<dict>` lines) and re-values it. The rewrites are the `name` `?lvl=N` and
+  `lvl` N; the `category` is the last tier's column at tier 5, as the experiment used.
+  Cost and the numeric binds are rewritten too, and so is the description: an argument
+  matched to a bind as is, ×100 for a chance, or ×0.001 for a duration in ms. An effect
+  string's `radius=` follows the tier's `*radius` bind. A removed tier's dict is a `drop`.
+- `[EMITTED]` A numbered buff (`tweak/buffs/*.sval:<name>_level_K`, ten chains: combo heal
+  and mana, nova slow, combustion, growth root, chill, cripple, poison, chain stun and
+  fervor, the last in `buffs_stacking.sval`) gets the next number. A copy of its
+  `%block` line follows the level-K one, with carried-on arguments. Only combo heal and
+  mana were in the experiment; the other eight are new. Checklist #92.
+- `[EMITTED]` Values carry on the step of the chain's last two stock tiers (as edited) from
+  the tier below, overrides included. A rising `*-chance` closes in on 0.99 by a fixed
+  ratio, and a value that would reach or cross 0 holds. A price follows the stock price
+  ladder × the Prices knob. The combo nova projectile stays `combo_nova_level_5.unit`.
+- `[UNVERIFIED]` `SHOP_OWNED_LEVEL_FIXES` patches `SkillShopMenuContent.as` (lines
+  102/106–108 index `m_levelParams[skillDef.m_startingLevel + currLevel]`; 118/122 list
+  a modifier with `m_startingLevel` > 0 by its upgrades). It ships only when a chain owns
+  some levels from the start with more to buy. No stock chain does (a test holds this), so
+  it changes nothing the stock game sells. **Fully upgraded** now owns the stock tiers
+  only, which is exactly that case. Checklist #91.
+- `[EMITTED]` A lobby sells an added tier only where one vendor sells both the chain's
+  own column and its tier-5 column (lines 96 and 102 of the same script). Validation warns
+  when no lobby does.

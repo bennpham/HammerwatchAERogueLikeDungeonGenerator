@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Upgrade tiers.**
+  - On the Players tab, every skill upgrade with more than one tier has a **− / + / Reset** stepper. You can take tiers away, or add them past stock up to 99 (AE has no cap).
+  - An added tier copies the last one and carries on its step: health, damage, radius, buff strength and price. A chance (dodge, crit, block) closes in on 99% and never reaches it. Every added tier is editable like a stock one.
+  - Upgrades that work through a buff (combo heal and mana, poison, chill, nova slow and the rest) get a new buff level for each added tier.
+  - The quick setup's **Upgrade tiers** row sets every upgrade to the same count in one go.
+  - Added tiers sell from the upgrade's tier-5 shop column, so a lobby needs those columns to sell them; the app warns when none does.
+- **Fully upgraded with added tiers.** **Fully upgraded** now owns the stock tiers only, so tiers you add stay for sale. The skill shop script is patched so it lists the right next tier when some are owned from the start.
+
 ## [0.1.0] - 2026-10-21
 
 The first official release. This is a port of the [Hammerwatch 1 remake](https://github.com/bennpham/HammerwatchRogueLikeDungeonGeneratorRemake), forked from its 0.9.5, to **Hammerwatch Anniversary Edition**. It makes the same kind of campaigns (floors, lobbies, boss and survival arenas, and the floor order between them), but builds them out of AE's own levels, assets, scripts and player files. It has no Hammerwatch 1 output. The entries below describe what's different from the remake.
