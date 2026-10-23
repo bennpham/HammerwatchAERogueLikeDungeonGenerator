@@ -1166,3 +1166,23 @@ with upgrades (`players/ladder.ts`, `players/levels.ts`).
 - `[EMITTED]` A lobby sells an added tier only where one vendor sells both the chain's
   own column and its tier-5 column (lines 96 and 102 of the same script). Validation warns
   when no lobby does.
+
+### Seal check blind to the blue teleporter; vertical seals read a row off (2026-10-23)
+
+- `[VERIFIED]` (user, in game) `dungeon_1428135045` (Frozen Descent), floor 5: the boss floor
+  before the boss-prep lobby. Its corridor (rows 28-33) touched the passage to the exit
+  room below the boss seal (row 31), so the party could walk round the seal to the
+  exit without killing the boss.
+- Cause: `sealHolds` and `exitReachable` looked for an `Orb` or `BossPortal` goal only.
+  A floor's way on is a `LobbyPortal` (the blue `teleport_mt`) both before a lobby and
+  on any locked floor without a boss (`room.ts`), so those floors were never
+  seal-checked and their exit was never proven reachable. Now `isGatewaySet`
+  (`objects/objectSet.ts`) covers all three.
+- Also: `sealHolds` blocked a seal piece at its drawn position, `trunc(d.y)`. A
+  `Doodad`'s `y` includes the art's anchor offset (`v_16` is drawn one row up, or down on
+  the flat sets), so every vertical seal was checked one row off. It rejected sound
+  floors, and could have passed a leaking one. Seal pieces now record the cell they were
+  placed on (`Doodad.cell`).
+- Consequence: seeds whose floors flip between rejected and accepted build different
+  layouts. Shaftlocke Siege 1878922481's floor 2 (checklist #81) is now its first
+  attempt; the independent probe (`tests/sealProbe.ts`) agrees the floor is sealed.

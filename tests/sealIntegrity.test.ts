@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { generateDungeon, defaultParameters, DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
+import { campaignPresetById } from '../src/generator/config/presets'
 import { orbReachableWithoutButton, walkToTarget } from './sealProbe'
 import { isWallPiece, levelsOf } from './ae'
 
@@ -66,4 +67,27 @@ describe('the final room cannot be entered without opening its gate', () => {
       expect(checked, `${theme} checked no sealed floor`).toBeGreaterThan(seeds.length / 2)
     }, 300_000)
   }
+
+  // The sweep above turns lobbies off, so a floor whose way on is the blue
+  // lobby portal was never walked: the generator's own checks looked for the
+  // orb or the red portal only, found no goal, and passed it unchecked. Frozen
+  // Descent's floor 5 at this seed (the boss floor before the boss-prep
+  // lobby) shipped with its corridor touching the gated passage below the boss
+  // seal, so the party walked round it (dungeon_1428135045, 2026-10-23).
+  it('holds on a boss floor that leads into a lobby (Frozen Descent, seed 1428135045)', () => {
+    const params = campaignPresetById('claude-frozen-descent')!.build()
+    const result = generateDungeon(params, 1428135045)
+    expect(result.ok).toBe(true)
+    const ok = result as DungeonResult
+    const lvls = levelsOf(ok)
+    let checked = 0
+    for (const preview of ok.levels.filter((l) => /^\d+$/.test(l.label))) {
+      const lvl = lvls.get(`floor${Number(preview.label) - 1}`)!
+      const probe = orbReachableWithoutButton(preview, lvl)
+      if (probe.reachable === null) continue
+      checked++
+      expect(probe.reachable, `floor ${preview.label}: way on reachable with the seal intact`).toBe(false)
+    }
+    expect(checked).toBeGreaterThan(0)
+  }, 300_000)
 })

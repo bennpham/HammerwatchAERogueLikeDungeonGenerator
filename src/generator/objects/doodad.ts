@@ -193,6 +193,13 @@ export class Doodad {
    * corridor floor. Read by the seal check; walls from the grid are not doodads.
    */
   blocking = false
+  /**
+   * The tile the doodad was placed on, before its art's anchor offset: the
+   * cell a seal piece closes. `x`/`y` are where the unit is drawn from, which
+   * for a vertical piece is a row away (`v_16` anchors one row up, or down on
+   * the flat sets), so reading the seal from `y` checks the wrong row.
+   */
+  readonly cell: readonly [number, number]
 
   constructor(
     ctx: GenerationContext,
@@ -202,6 +209,7 @@ export class Doodad {
     public theme: string
   ) {
     this.id = ctx.idCounter++
+    this.cell = [Math.trunc(x), Math.trunc(y)]
     const r = resolveDoodad(type, theme)
     this.path = r.path
     this.x = x + r.dx

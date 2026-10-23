@@ -165,9 +165,14 @@ describe('wraith statue — Shaftlocke Siege, the reported seed', () => {
     expect(walkable(result, 'floor1', floor, statue)).toBe(true)
   })
 
-  it('keeps the statue where it was played: 6 tiles west of the wraith (checklist #81)', () => {
-    expect(tileOf(units(floor, STATUE)[0])).toEqual({ x: 5, y: 37 })
-    expect(ownGaps(floor)).toEqual([6])
+  // Played for checklist #81 with the statue 6 tiles west of the wraith at
+  // (5, 37). That floor was the second attempt: the seal check read a vertical
+  // seal piece one row off and threw out the first, which was sound. Since
+  // that fix (2026-10-23) the first attempt stands, so the floor and its
+  // statue moved; this pins the layout the seed builds now.
+  it('keeps the statue where this seed puts it: 2 tiles from the wraith', () => {
+    expect(tileOf(units(floor, STATUE)[0])).toEqual({ x: 58, y: 6 })
+    expect(ownGaps(floor)).toEqual([2])
   })
 
   it('puts no statue anywhere else in the campaign', () => {
