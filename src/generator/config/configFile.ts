@@ -76,7 +76,7 @@ import { DEFAULT_ITEM_VENDOR_ODDS, DEFAULT_SHOP_KIND_IDS, isShopKindId } from '.
 import { DEFAULT_LOBBY_PRESET_ID, LOBBY_PRESETS, RETIRED_LOBBY_IDS } from '../lobby/presets'
 import { campaignOrder, isDefaultOrder, normalizeOrder, parseSlotLabel, slotLabeller } from '../campaign'
 import type { CampaignSlot } from '../campaign'
-import { PLAYER_FIELD_MAP, formatPlayerLine, parsePlayerValue, prunePlayerTweaks } from '../players/fields'
+import { formatPlayerLine, parsePlayerValue, playerField, prunePlayerTweaks } from '../players/fields'
 import { isBrightness, isTorchDensity } from '../lighting'
 import { MUSIC_DEFAULT, isKnownMusicId } from '../music/tracks'
 
@@ -2307,7 +2307,7 @@ export function serializeParametersTxt(params: DungeonParameters, path?: string,
       }
       const allKeys = new Set([...Object.keys(tweaks), ...explicitStock])
       for (const tweakKey of Array.from(allKeys).sort()) {
-        lines.push(formatPlayerLine(tweakKey, tweaks[tweakKey] ?? PLAYER_FIELD_MAP.get(tweakKey)?.stock ?? 0))
+        lines.push(formatPlayerLine(tweakKey, tweaks[tweakKey] ?? playerField(tweakKey)?.stock ?? 0))
       }
     }
   }

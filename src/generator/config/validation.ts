@@ -87,6 +87,8 @@ import { wallCapacity } from '../boss/traps'
 import { floorTrapCapacity } from '../traps/floor'
 import { scaledMax } from '../boss/waves'
 import { validatePlayerTweaks as checkPlayerTweaks } from '../players/validate'
+import { CHAIN_BY_KEY, chainLevels, levelsKey, prunePlayerTweaks } from '../players/fields'
+import { addedCategory } from '../players/ladder'
 import { BRIGHTNESS_LEVELS, TORCH_DENSITIES, isBrightness, isTorchDensity } from '../lighting'
 import { MAX_ITEM_VENDOR_ODDS, SHOP_KIND_IDS, isShopKindId } from '../objects/vendorRoll'
 
@@ -1737,6 +1739,24 @@ function validatePlayerTweaks(
   const issues = checkPlayerTweaks(p.playerTweaks ?? {})
   errors.push(...issues.errors)
   warnings.push(...issues.warnings)
+  if (issues.errors.length > 0 || p.lobbies === undefined) return
+  // AE's shop sells a chain's next tier only where it sells both the chain's
+  // own column and that tier's (`SkillShopMenuContent.AddUpgradesToShop`);
+  // a tier added past stock is in the chain's tier-5 column
+  const tweaks = prunePlayerTweaks(p.playerTweaks ?? {})
+  for (const { chain } of CHAIN_BY_KEY.values()) {
+    if (chainLevels(chain.key, tweaks) <= chain.tiers.length) continue
+    const own = chain.tiers[0].category
+    const added = addedCategory(chain)
+    if (own === undefined || added === undefined) continue
+    if (p.lobbies.some((l) => l.shopCategories.includes(own) && l.shopCategories.includes(added))) continue
+    warnings.push({
+      field: levelsKey(chain.key),
+      message:
+        `No lobby sells both ${own} and ${added}, so the tiers added past ${chain.tiers.length} can only be bought ` +
+        'in a dungeon shop room that happens to roll both.'
+    })
+  }
 }
 
 /**

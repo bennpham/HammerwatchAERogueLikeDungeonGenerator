@@ -69,7 +69,7 @@ describe('player snapshot', () => {
           }
           const { start, end } = tier.block!
           const inside = [
-            tier.nameLine,
+            tier.name?.line,
             tier.lvlLine,
             tier.categoryLine,
             tier.cost?.line,
@@ -200,9 +200,10 @@ describe('player overrides', () => {
   })
 
   it.skipIf(assets === null)('every field patches cleanly against the install', () => {
-    // every value moved off stock at once, classes forked too
+    // every value moved off stock at once, classes forked too (tier counts,
+    // which add and remove lines, are tests/playerLevels.test.ts's)
     const tweaks: PlayerTweaks = {}
-    for (const f of PLAYER_FIELDS) tweaks[f.key] = f.stock + 1
+    for (const f of PLAYER_FIELDS) if (f.kind !== 'levels') tweaks[f.key] = f.stock + 1
     for (const o of playerOverrides(tweaks)) {
       const { text, missed } = applyLineEdits(readAsset(o.source), o.edits)
       expect(missed, o.path).toEqual([])

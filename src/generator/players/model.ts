@@ -62,8 +62,8 @@ export interface PlayerTier {
    * dict a tier added past stock is copied from and a removed tier drops
    */
   block?: { start: number; end: number }
-  /** the `name` line (`.hp-uname?lvl=5`), an upgrade only */
-  nameLine?: number
+  /** the shop name (`.hp-uname?lvl=5`) and its line, an upgrade only */
+  name?: { line: number; text: string }
   /** the `lvl` line, an upgrade only */
   lvlLine?: number
   /** string binds (`proj-fx`, a combo buff's name), an upgrade only */
@@ -172,10 +172,18 @@ export interface PlayerStock {
  * element named `name` on that line (`<int name="cost">600</int>`); `text`
  * replaces the first `find` on that line. An edit whose target is not on its
  * line is reported, never guessed at.
+ *
+ * Two more add and remove whole tiers: `clone` inserts, after `line`, a copy
+ * of the stock file's own lines `from`…`to` with `edits` applied to the copy
+ * (numbered as in the stock file), so a tier past stock is the game's last
+ * upgrade dict re-valued; `drop` removes lines `line`…`to`. Line numbers
+ * always name the stock file, whatever else is inserted or removed.
  */
 export type LineEdit =
   | { line: number; kind: 'value'; name: string; value: string }
   | { line: number; kind: 'text'; find: string; replace: string }
+  | { line: number; kind: 'clone'; from: number; to: number; edits: LineEdit[] }
+  | { line: number; kind: 'drop'; to: number }
 
 /**
  * A file the scenario ships: `source` read from the install's assets, `edits`

@@ -139,7 +139,7 @@ function tierOf(dict: SvalNode, upgrade = false, readBuffs?: BuffFileReader): Pl
   if (upgrade && dict.line !== undefined && dict.endLine !== undefined) {
     tier.block = { start: dict.line, end: dict.endLine }
     const name = svalGet(dict, 'name')
-    if (name?.line !== undefined) tier.nameLine = name.line
+    if (name?.line !== undefined) tier.name = { line: name.line, text: name.text.trim() }
     const lvl = svalGet(dict, 'lvl')
     if (lvl?.line !== undefined) tier.lvlLine = lvl.line
     const strings: Record<string, PlayerStringBind> = {}
