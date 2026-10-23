@@ -57,6 +57,44 @@ export interface PlayerTier {
   params?: Record<string, PlayerValue>
   /** the description line, whose `?a=1&b=2` arguments echo the binds */
   description?: { line: number; text: string }
+  /**
+   * An upgrade (not a chain's first tier): its `<dict>` … `</dict>` lines, the
+   * dict a tier added past stock is copied from and a removed tier drops
+   */
+  block?: { start: number; end: number }
+  /** the `name` line (`.hp-uname?lvl=5`), an upgrade only */
+  nameLine?: number
+  /** the `lvl` line, an upgrade only */
+  lvlLine?: number
+  /** string binds (`proj-fx`, a combo buff's name), an upgrade only */
+  strings?: Record<string, PlayerStringBind>
+}
+
+export interface PlayerStringBind {
+  line: number
+  stock: string
+  /** the bind names a numbered buff (`tweak/buffs/buffs.sval:combo_health_regen_level_5`) */
+  buff?: PlayerBuffLevel
+}
+
+/**
+ * A numbered buff an upgrade applies, as its buff file defines it:
+ * `%block Combo_health_regen combo_health_regen_level_5 10`. A tier added past
+ * stock gets the next number, on a copy of this line with its own arguments.
+ */
+export interface PlayerBuffLevel {
+  path: string
+  /** 1-based line of the `%block` */
+  line: number
+  /** the buff's name without its number, `combo_health_regen_level_` */
+  name: string
+  level: number
+  /** the block's arguments after the name: duration, amount … */
+  args: number[]
+  /** the arguments of the level below, when the file has it */
+  prevArgs?: number[]
+  /** the line from the name to its last argument, as written */
+  find: string
 }
 
 /** A root skill or a modifier skill, and its upgrades in order. */

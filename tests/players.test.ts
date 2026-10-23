@@ -59,6 +59,30 @@ describe('player snapshot', () => {
     for (const f of PLAYER_FIELDS) expect(f.key).toBe(f.key.toLowerCase())
   })
 
+  it('every upgrade knows the dict lines a tier added past it is copied from', () => {
+    for (const file of PLAYER_STOCK.skills) {
+      for (const chain of file.chains) {
+        chain.tiers.forEach((tier, i) => {
+          if (i === 0) {
+            expect(tier.block).toBeUndefined()
+            return
+          }
+          const { start, end } = tier.block!
+          const inside = [
+            tier.nameLine,
+            tier.lvlLine,
+            tier.categoryLine,
+            tier.cost?.line,
+            tier.description?.line,
+            ...Object.values(tier.binds).map((b) => b.line),
+            ...Object.values(tier.strings ?? {}).map((s) => s.line)
+          ].filter((l): l is number => l !== undefined)
+          for (const l of inside) expect(l > start && l < end, `${chain.key} tier ${i + 1} line ${l}`).toBe(true)
+        })
+      }
+    }
+  })
+
   it('the warlock gargoyle is bought from def2 for 900', () => {
     const f = PLAYER_FIELD_MAP.get(skillKey('warlock_gargoyle', 1, 'cost'))
     expect(f?.stock).toBe(900)
@@ -67,7 +91,8 @@ describe('player snapshot', () => {
   it.skipIf(assets === null)('matches the installed assets', () => {
     expect(assets!.endsWith(PLAYER_STOCK_SOURCE)).toBe(true)
     expect(parseClasses(readAsset(CLASSES_PATH))).toEqual(PLAYER_STOCK.classes)
-    for (const s of PLAYER_STOCK.skills) expect(parseSkillFile(s.path, readAsset(s.path))).toEqual(s)
+    const readBuffs = (rel: string): string | undefined => readAsset(rel)
+    for (const s of PLAYER_STOCK.skills) expect(parseSkillFile(s.path, readAsset(s.path), readBuffs)).toEqual(s)
     expect(parseShopPrices(readAsset(POWER_SHOP_PATH), readAsset(SHOP_CONSTANTS_PATH))).toEqual(PLAYER_STOCK.shop)
     expect(parseExtras(readAsset(COMBO_BUFFS_PATH), readAsset(LIGHTNING_BOLT_PATH))).toEqual(PLAYER_STOCK.extras)
   })

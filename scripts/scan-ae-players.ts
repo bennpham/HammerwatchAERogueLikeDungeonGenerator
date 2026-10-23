@@ -30,13 +30,14 @@ if (dirs.length === 0) {
 }
 const assets = path.join(root, dirs[0])
 const read = (rel: string): string => fs.readFileSync(path.join(assets, rel), 'utf8')
+const readBuffs = (rel: string): string | undefined => (fs.existsSync(path.join(assets, rel)) ? read(rel) : undefined)
 
 const classes = parseClasses(read('players/classes.sval'))
 const paths: string[] = []
 for (const c of classes) for (const s of c.skills) if (!paths.includes(s.path)) paths.push(s.path)
 const stock: PlayerStock = {
   classes,
-  skills: paths.map((p) => parseSkillFile(p, read(p))),
+  skills: paths.map((p) => parseSkillFile(p, read(p), readBuffs)),
   shop: parseShopPrices(read(POWER_SHOP_PATH), read(SHOP_CONSTANTS_PATH)),
   extras: parseExtras(read(COMBO_BUFFS_PATH), read(LIGHTNING_BOLT_PATH))
 }

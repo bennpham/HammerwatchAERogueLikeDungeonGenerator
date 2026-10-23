@@ -1,11 +1,13 @@
 import { parseSval, svalGet, svalInt, svalString } from '../ae/sval'
 import type { SvalNode } from '../ae/sval'
 import type {
+  PlayerBuffLevel,
   PlayerChain,
   PlayerClass,
   PlayerExtraValue,
   PlayerShopPrice,
   PlayerSkillFile,
+  PlayerStringBind,
   PlayerTier,
   PlayerValue
 } from './model'
@@ -77,7 +79,40 @@ function paramsOf(dict: SvalNode): Record<string, PlayerValue> {
   return out
 }
 
-function tierOf(dict: SvalNode): PlayerTier {
+/** Reads a buff file by its asset path, for the numbered buffs upgrades name. */
+export type BuffFileReader = (path: string) => string | undefined
+
+/** `tweak/buffs/buffs.sval:combo_health_regen_level_5` and its `%block` line. */
+function buffLevelOf(value: string, readBuffs: BuffFileReader | undefined): PlayerBuffLevel | undefined {
+  const m = /^(tweak\/buffs\/[\w/]+\.sval):(\w*?)(\d+)$/.exec(value)
+  const text = m === null ? undefined : readBuffs?.(m[1])
+  if (m === null || text === undefined) return undefined
+  const [, path, name] = m
+  const level = Number(m[3])
+  const lines = text.split('\n')
+  const find = (k: number): { line: number; args: number[]; find: string } | undefined => {
+    const re = new RegExp(`^%block \\w+ (${name}${k}((?: [\\d.-]+)+))\\s*$`)
+    for (let i = 0; i < lines.length; i++) {
+      const b = re.exec(lines[i])
+      if (b !== null) return { line: i + 1, args: b[2].trim().split(' ').map(Number), find: b[1] }
+    }
+    return undefined
+  }
+  const own = find(level)
+  if (own === undefined || own.args.some((a) => !Number.isFinite(a))) return undefined
+  const prev = find(level - 1)
+  return {
+    path,
+    line: own.line,
+    name,
+    level,
+    args: own.args,
+    ...(prev === undefined || prev.args.length !== own.args.length ? {} : { prevArgs: prev.args }),
+    find: own.find
+  }
+}
+
+function tierOf(dict: SvalNode, upgrade = false, readBuffs?: BuffFileReader): PlayerTier {
   const tier: PlayerTier = { binds: {} }
   const lvl = svalInt(svalGet(dict, 'lvl'))
   if (lvl !== undefined) tier.lvl = lvl
@@ -100,15 +135,36 @@ function tierOf(dict: SvalNode): PlayerTier {
   if (Object.keys(params).length > 0) tier.params = params
   const desc = svalGet(dict, 'description')
   if (desc?.line !== undefined && desc.text.includes('=')) tier.description = { line: desc.line, text: desc.text }
+  // what copying this upgrade as a new tier rewrites
+  if (upgrade && dict.line !== undefined && dict.endLine !== undefined) {
+    tier.block = { start: dict.line, end: dict.endLine }
+    const name = svalGet(dict, 'name')
+    if (name?.line !== undefined) tier.nameLine = name.line
+    const lvl = svalGet(dict, 'lvl')
+    if (lvl?.line !== undefined) tier.lvlLine = lvl.line
+    const strings: Record<string, PlayerStringBind> = {}
+    for (const b of binds?.children ?? []) {
+      if (b.tag !== 'string' || b.name === undefined || b.line === undefined) continue
+      const stock = b.text.trim()
+      const buff = buffLevelOf(stock, readBuffs)
+      strings[b.name] = { line: b.line, stock, ...(buff === undefined ? {} : { buff }) }
+    }
+    if (Object.keys(strings).length > 0) tier.strings = strings
+  }
   return tier
 }
 
-function chainOf(key: string, dict: SvalNode): PlayerChain {
+function chainOf(key: string, dict: SvalNode, readBuffs?: BuffFileReader): PlayerChain {
   return {
     key,
     id: svalString(svalGet(dict, 'id')) ?? key,
     name: svalString(svalGet(dict, 'name')) ?? '',
-    tiers: [tierOf(dict), ...(svalGet(dict, 'upgrades')?.children ?? []).filter((c) => c.tag === 'dict').map(tierOf)]
+    tiers: [
+      tierOf(dict),
+      ...(svalGet(dict, 'upgrades')?.children ?? [])
+        .filter((c) => c.tag === 'dict')
+        .map((d) => tierOf(d, true, readBuffs))
+    ]
   }
 }
 
@@ -116,14 +172,15 @@ export function stemOf(path: string): string {
   return path.replace(/^.*\//, '').replace(/\.sval$/, '')
 }
 
-export function parseSkillFile(path: string, text: string): PlayerSkillFile {
+/** `readBuffs` resolves the numbered buffs upgrades name (`PlayerBuffLevel`); without it they stay plain strings. */
+export function parseSkillFile(path: string, text: string, readBuffs?: BuffFileReader): PlayerSkillFile {
   const root = parseSval(text)
   const stem = stemOf(path)
-  const chains = [chainOf(stem, root)]
+  const chains = [chainOf(stem, root, readBuffs)]
   for (const m of svalGet(root, 'modifier-skills')?.children ?? []) {
     if (m.tag !== 'dict') continue
     const id = svalString(svalGet(m, 'id')) ?? `${chains.length}`
-    chains.push(chainOf(`${stem}:${id}`, m))
+    chains.push(chainOf(`${stem}:${id}`, m, readBuffs))
   }
   // a chain that buys or sets nothing has nothing to edit
   return {
