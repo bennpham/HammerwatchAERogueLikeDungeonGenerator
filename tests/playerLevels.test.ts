@@ -15,6 +15,7 @@ import {
   applyEverythingFree,
   applyFullyUpgraded,
   applyLineEdits,
+  buildLoadouts,
   canAddTiers,
   hasUpgrades,
   levelsKey,
@@ -210,6 +211,15 @@ describe('tier counts', () => {
     const stock = totalShopCost({})
     expect(totalShopCost({ [levelsKey(HP)]: 6 })).toBe(stock + 4300)
     expect(totalShopCost({ [levelsKey(HP)]: 4 })).toBe(stock - 3600)
+  })
+
+  it('the loadout reaches an added tier, and stops at a removed one', () => {
+    const health = (t: PlayerTweaks) => buildLoadouts(t).find((c) => c.id === 'wizard')!.stats.find((s) => s.name === 'Health')!
+    expect(health({}).maxed).toBe(100)
+    expect(health({ [levelsKey(HP)]: 6 }).maxed).toBe(115)
+    expect(health({ [levelsKey(HP)]: 2 }).maxed).toBe(60)
+    const cost = (t: PlayerTweaks) => buildLoadouts(t).find((c) => c.id === 'wizard')!.totalCost
+    expect(cost({ [levelsKey(HP)]: 6 }) - cost({})).toBe(4300)
   })
 
   it('is deterministic', () => {

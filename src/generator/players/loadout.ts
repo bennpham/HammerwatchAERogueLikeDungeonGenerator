@@ -1,6 +1,7 @@
-import { skillKey, startingLevelKey, statKey, unlockKey } from './fields'
+import { chainLevels, skillKey, startingLevelKey, statKey, unlockKey } from './fields'
 import type { PlayerTweaks } from './fields'
 import { classLabel, skillFileLabel } from './labels'
+import { addedTiers } from './levels'
 import { PLAYER_STOCK } from './stock.generated'
 
 /**
@@ -63,15 +64,33 @@ export function buildLoadouts(tweaks: PlayerTweaks): ClassLoadout[] {
         )
         // a modifier's levels count only once its skill is owned
         const owned = isRootChain || rootOwned ? ownedLevels : 0
-        chain.tiers.forEach((tier, i) => {
+        const levels = chainLevels(chain.key, tweaks)
+        // the tiers the chain has: the stock ones it kept, then any added past
+        // stock (their buff arguments are not binds)
+        const binds = new Set(Object.keys(chain.tiers[chain.tiers.length - 1].binds))
+        const ladder = [
+          ...chain.tiers.slice(0, levels).map((tier, i) => ({
+            cost: tier.cost === undefined ? undefined : { value: value(chain.key, i + 1, 'cost', tier.cost.stock), stock: tier.cost.stock },
+            binds: Object.entries(tier.binds).map(([name, b]) => ({ name, v: value(chain.key, i + 1, name, b.stock), changed: isChanged(chain.key, i + 1, name) }))
+          })),
+          ...addedTiers(chain.key, tweaks, c.id).map((a) => ({
+            cost: a.values.cost === undefined ? undefined : { value: a.values.cost, stock: 0 },
+            binds: Object.entries(a.values)
+              .filter(([name]) => binds.has(name))
+              .map(([name, v]) => ({ name, v, changed: true }))
+          }))
+        ]
+        if (levels !== chain.tiers.length) {
+          // removed stock tiers still count in the stock total
+          for (const tier of chain.tiers.slice(levels)) stockTotalCost += tier.cost?.stock ?? 0
+        }
+        ladder.forEach((tier, i) => {
           // an owned level is never bought, so its price is not paid
           if (tier.cost !== undefined) {
-            if (i >= owned) totalCost += value(chain.key, i + 1, 'cost', tier.cost.stock)
+            if (i >= owned) totalCost += tier.cost.value
             stockTotalCost += tier.cost.stock
           }
-          for (const [name, b] of Object.entries(tier.binds)) {
-            const v = value(chain.key, i + 1, name, b.stock)
-            const changed = isChanged(chain.key, i + 1, name)
+          for (const { name, v, changed } of tier.binds) {
             if (BODY_BINDS.has(name)) {
               const prev = body.get(name)
               const ownedValue = i < owned ? v : prev?.owned

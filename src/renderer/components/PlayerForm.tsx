@@ -3,11 +3,18 @@ import {
   PLAYER_FIELD_MAP,
   PLAYER_STOCK,
   SHARED_SKILL_PATHS,
+  addedCategory,
+  addedFieldSpecs,
+  addedTiers,
   boughtRoot,
   chainLabel,
+  chainLevels,
   classLabel,
   extraKey,
   extraLabel,
+  levelsKey,
+  playerField,
+  setChainLevels,
   shopKey,
   shopPriceLabel,
   skillFileLabel,
@@ -17,9 +24,10 @@ import {
   tierLabel,
   unlockKey
 } from '../../generator'
-import type { PlayerFieldDef, PlayerSkillFile, PlayerTweaks, ValidationIssue } from '../../generator'
+import type { PlayerChain, PlayerFieldDef, PlayerSkillFile, PlayerTweaks, ValidationIssue } from '../../generator'
 import { BoolField, NumberField, Section, Subsection, TierBlock } from './fields'
 import { QuickSetup } from './QuickSetup'
+import { TierStepper } from './TierStepper'
 
 interface PlayerFormProps {
   tweaks: PlayerTweaks
@@ -43,11 +51,22 @@ const CLASS_EXTRA_KEYS: Record<string, string[]> = {
   warlock: PLAYER_STOCK.extras.filter((e) => e.id.startsWith('lightning_')).map((e) => extraKey(e.id))
 }
 
+/** The numbers of a chain's tiers added past stock, with these overrides. */
+function addedKeysOf(chain: PlayerChain, tweaks: PlayerTweaks): string[] {
+  const names = addedFieldSpecs(chain).map((s) => s.name)
+  const keys: string[] = []
+  for (let t = chain.tiers.length + 1; t <= chainLevels(chain.key, tweaks); t++) {
+    for (const name of names) keys.push(skillKey(chain.key, t, name))
+  }
+  return keys
+}
+
 /** Every all-classes key a skill file holds, for its "n changed" badge. */
-function keysOfFile(file: PlayerSkillFile): string[] {
+function keysOfFile(file: PlayerSkillFile, tweaks: PlayerTweaks): string[] {
   const keys: string[] = []
   for (const chain of file.chains) {
     if (PLAYER_FIELD_MAP.has(startingLevelKey(chain.key))) keys.push(startingLevelKey(chain.key))
+    if (PLAYER_FIELD_MAP.has(levelsKey(chain.key))) keys.push(levelsKey(chain.key), ...addedKeysOf(chain, tweaks))
     chain.tiers.forEach((tier, i) => {
       if (tier.cost !== undefined) keys.push(skillKey(chain.key, i + 1, 'cost'))
       for (const name of Object.keys(tier.binds)) keys.push(skillKey(chain.key, i + 1, name))
@@ -108,25 +127,71 @@ export function PlayerForm({ tweaks, issues, onChange }: PlayerFormProps) {
     )
   }
 
+  /** A number of a tier added past stock: shown at its default until edited, which follows the tiers below. */
+  const addedInput = (key: string, label: string, value: number, def: number, type: 'int' | 'float') => (
+    <NumberField
+      key={key}
+      label={label}
+      field={key}
+      value={value}
+      step={label === 'cost' ? 50 : type === 'float' ? 0.05 : 1}
+      issues={issues}
+      title={`default ${def}, carrying on the tiers below`}
+      onChange={(v) => {
+        const next = { ...tweaks }
+        if (Number.isNaN(v) || v === def) delete next[key]
+        else next[key] = type === 'int' ? Math.trunc(v) : v
+        onChange(next)
+      }}
+    />
+  )
+
+  const chainEditor = (file: PlayerSkillFile, chain: PlayerChain) => {
+    const levelsField = PLAYER_FIELD_MAP.get(levelsKey(chain.key))
+    const levels = chainLevels(chain.key, tweaks)
+    const specs = addedFieldSpecs(chain)
+    const category = addedCategory(chain)
+    return (
+      <div key={chain.key} className="player-chain">
+        {(file.chains.length > 1 || levelsField !== undefined) && (
+          <div className="player-chain-head">
+            {file.chains.length > 1 && <span className="player-chain-title">{chainLabel(file, chain)}</span>}
+            {levelsField !== undefined && (
+              <TierStepper
+                field={levelsField.key}
+                value={levels}
+                stock={levelsField.stock}
+                max={levelsField.maxLevel ?? levelsField.stock}
+                issues={issues}
+                onChange={(n) => onChange(setChainLevels(tweaks, chain.key, n))}
+              />
+            )}
+          </div>
+        )}
+        {chain.tiers.slice(0, levels).map((tier, i) => (
+          <TierBlock key={i} id={tierLabel(tier, i)}>
+            {tier.cost !== undefined && input(skillKey(chain.key, i + 1, 'cost'), 'cost')}
+            {Object.keys(tier.binds).map((name) => input(skillKey(chain.key, i + 1, name), name))}
+            {Object.keys(tier.params ?? {}).map((name) => input(skillKey(chain.key, i + 1, name), name))}
+          </TierBlock>
+        ))}
+        {addedTiers(chain.key, tweaks).map((a) => (
+          <TierBlock key={`added-${a.tier}`} id={`Tier ${a.tier}${category === undefined ? '' : ` · ${category}`} · added`}>
+            {specs.map((s) => addedInput(skillKey(chain.key, a.tier, s.name), s.name, a.values[s.name], a.defaults[s.name], s.type))}
+          </TierBlock>
+        ))}
+      </div>
+    )
+  }
+
   const skillEditor = (file: PlayerSkillFile) => (
-    <Subsection key={file.path} title={skillFileLabel(file)} badge={badge(keysOfFile(file))}>
+    <Subsection key={file.path} title={skillFileLabel(file)} badge={badge(keysOfFile(file, tweaks))} lazy>
       {unlock(file)}
-      {file.chains.map((chain) => (
-        <div key={chain.key} className="player-chain">
-          {file.chains.length > 1 && <span className="player-chain-title">{chainLabel(file, chain)}</span>}
-          {chain.tiers.map((tier, i) => (
-            <TierBlock key={i} id={tierLabel(tier, i)}>
-              {tier.cost !== undefined && input(skillKey(chain.key, i + 1, 'cost'), 'cost')}
-              {Object.keys(tier.binds).map((name) => input(skillKey(chain.key, i + 1, name), name))}
-              {Object.keys(tier.params ?? {}).map((name) => input(skillKey(chain.key, i + 1, name), name))}
-            </TierBlock>
-          ))}
-        </div>
-      ))}
+      {file.chains.map((chain) => chainEditor(file, chain))}
     </Subsection>
   )
 
-  const allKeys = Object.keys(tweaks).filter((k) => PLAYER_FIELD_MAP.has(k))
+  const allKeys = Object.keys(tweaks).filter((k) => playerField(k) !== undefined)
 
   return (
     <div className="parameter-form">
@@ -150,7 +215,7 @@ export function PlayerForm({ tweaks, issues, onChange }: PlayerFormProps) {
         const classKeys = [
           ...statKeys,
           ...extraKeys,
-          ...own.flatMap(keysOfFile),
+          ...own.flatMap((f) => keysOfFile(f, tweaks)),
           ...allKeys.filter((k) => PLAYER_FIELD_MAP.get(k)?.classId === c.id && !statKeys.includes(k))
         ]
         return (
@@ -172,7 +237,7 @@ export function PlayerForm({ tweaks, issues, onChange }: PlayerFormProps) {
         )
       })}
 
-      <Section title="Shared skills" badge={badge([...SHARED_FILES.flatMap(keysOfFile), ...COMBO_KEYS])}>
+      <Section title="Shared skills" badge={badge([...SHARED_FILES.flatMap((f) => keysOfFile(f, tweaks)), ...COMBO_KEYS])}>
         <p className="hint">
           Skills several classes own. A change here applies to every class that has the skill; a class with its own move
           speed (set under <strong>All characters</strong>) keeps its own.
@@ -181,7 +246,8 @@ export function PlayerForm({ tweaks, issues, onChange }: PlayerFormProps) {
         <Subsection title="Combo regen" badge={badge(COMBO_KEYS)}>
           <p className="hint">
             Mana and health per second while combo is on, by the tier of each combo upgrade. They live in the game&apos;s{' '}
-            <code>tweak/buffs/buffs.sval</code>; the install patches the scenario&apos;s copy.
+            <code>tweak/buffs/buffs.sval</code>; the install patches the scenario&apos;s copy. A tier added to the combo heal or
+            mana upgrade sets its own, in that tier.
           </p>
           <div className="field-grid">{COMBO_KEYS.map((key) => input(key, extraLabel(PLAYER_FIELD_MAP.get(key)!.name)))}</div>
         </Subsection>
