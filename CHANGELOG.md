@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Upgrades that work through a buff (combo heal and mana, poison, chill, nova slow and the rest) get a new buff level for each added tier.
   - The quick setup's **Upgrade tiers** row sets every upgrade to the same count in one go.
   - Added tiers sell from the upgrade's tier-5 shop column, so a lobby needs those columns to sell them; the app warns when none does.
-- **Fully upgraded with added tiers.** **Fully upgraded** now owns the stock tiers only, so tiers you add stay for sale. The skill shop script is patched so it lists the right next tier when some are owned from the start.
+- **Owned tiers and tiers for sale.** **Fully upgraded** owns every tier, added ones included. Tiers added after pressing it stay for sale: the skill shop script is patched so it lists the right next tier when some are owned from the start.
 
 ## [0.1.0] - 2026-10-21
 

@@ -122,16 +122,16 @@ export function deriveGroupFactor(id: StatGroupId, tweaks: PlayerTweaks): number
 
 /**
  * Every class starts with every skill it can own and every modifier of it,
- * each at the top level of its own stock ladder (AE's `starting-level`), so
- * the game reads the real top-tier binds — nova projectiles and combo buffs
- * included — and the skill shop has nothing of the stock game left to sell.
- * Tiers added past stock stay for sale (the shop script is patched to list
- * them, `SHOP_OWNED_LEVEL_FIXES`). Every stock skill price is 0 too.
+ * each at the top of its ladder (AE's `starting-level`), tiers added past
+ * stock included, so the game reads the real top-tier binds — nova
+ * projectiles and combo buffs included — and the skill shop has nothing left
+ * to sell. Tiers added after this stay for sale (the shop script is patched
+ * to list them, `SHOP_OWNED_LEVEL_FIXES`). Every stock skill price is 0 too.
  */
 export function applyFullyUpgraded(tweaks: PlayerTweaks): PlayerTweaks {
   const out = { ...tweaks }
   for (const f of PLAYER_FIELDS) {
-    if (f.kind === 'unlock') setField(out, f, Math.min(f.maxLevel ?? 1, chainLevels(f.chainKey!, tweaks)))
+    if (f.kind === 'unlock') setField(out, f, chainLevels(f.chainKey!, tweaks))
     else if (f.kind === 'cost' && f.chainKey !== undefined && f.classId === undefined) setField(out, f, 0)
   }
   return prunePlayerTweaks(out)

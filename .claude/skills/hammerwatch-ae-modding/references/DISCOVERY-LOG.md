@@ -1155,12 +1155,14 @@ with upgrades (`players/ladder.ts`, `players/levels.ts`).
   the tier below, overrides included. A rising `*-chance` closes in on 0.99 by a fixed
   ratio, and a value that would reach or cross 0 holds. A price follows the stock price
   ladder × the Prices knob. The combo nova projectile stays `combo_nova_level_5.unit`.
-- `[UNVERIFIED]` `SHOP_OWNED_LEVEL_FIXES` patches `SkillShopMenuContent.as` (lines
+- `[VERIFIED]` (user, in game, 2026-10-22) `SHOP_OWNED_LEVEL_FIXES` patches `SkillShopMenuContent.as` (lines
   102/106–108 index `m_levelParams[skillDef.m_startingLevel + currLevel]`; 118/122 list
   a modifier with `m_startingLevel` > 0 by its upgrades). It ships only when a chain owns
   some levels from the start with more to buy. No stock chain does (a test holds this), so
-  it changes nothing the stock game sells. **Fully upgraded** now owns the stock tiers
-  only, which is exactly that case. Checklist #91.
+  it changes nothing the stock game sells. Played with Fully upgraded owning the stock 5 and
+  999 tiers per chain: every added tier could be bought in turn and took effect. Fully
+  upgraded has since been changed to own every tier, added ones included
+  (the user's call); the patch now ships when tiers are added after pressing it. Checklist #91.
 - `[EMITTED]` A lobby sells an added tier only where one vendor sells both the chain's
   own column and its tier-5 column (lines 96 and 102 of the same script). Validation warns
   when no lobby does.

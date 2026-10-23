@@ -187,8 +187,8 @@ export function QuickSetup({ tweaks, onChange }: QuickSetupProps) {
         <p className="hint">
           <strong>Everything free</strong> sets every price to 0: skills, upgrades, potions and items.{' '}
           <strong>Fully upgraded</strong> gives every class every one of its skills and upgrades from the start, each at its
-          stock top level (combo included), so the skill vendors have nothing of the stock game left to sell; tiers you added
-          past stock stay for sale. Potions and items keep their prices.{' '}
+          top tier, added tiers included (combo too), so the skill vendors have nothing left to sell. Tiers you add after
+          pressing it stay for sale. Potions and items keep their prices.{' '}
           <strong>Reset</strong> clears every player setting.
         </p>
       </Subsection>

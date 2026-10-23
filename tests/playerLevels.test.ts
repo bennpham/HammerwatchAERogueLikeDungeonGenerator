@@ -196,15 +196,21 @@ describe('tier counts', () => {
     expect(validateParameters(params).warnings.some((w) => w.field === levelsKey(HP))).toBe(true)
   })
 
-  it('Fully upgraded owns the stock tiers and leaves the added ones for sale, with the shop patched', () => {
+  it('Fully upgraded owns every tier, added ones included; tiers added after it stay for sale, with the shop patched', () => {
     const t = applyFullyUpgraded({ [levelsKey(HP)]: 8, [levelsKey(FIREBALL)]: 3 })
-    expect(t[startingLevelKey(HP)]).toBe(5)
+    expect(t[startingLevelKey(HP)]).toBe(8)
     expect(t[startingLevelKey(FIREBALL)]).toBe(3)
-    const shop = playerOverrides(t).find((o) => o.path === SKILL_SHOP_PATH)
+    expect(validatePlayerTweaks(t).errors).toEqual([])
+    // everything owned, nothing for sale: no patch
+    const hasPatch = (x: PlayerTweaks): boolean => playerOverrides(x).some((o) => o.path === SKILL_SHOP_PATH)
+    expect(hasPatch(t)).toBe(false)
+    expect(hasPatch(applyFullyUpgraded({}))).toBe(false)
+    expect(hasPatch({ [levelsKey(HP)]: 8 })).toBe(false)
+    // more tiers after it: the owned ones stay owned, the new ones are sold
+    const more = setChainLevels(t, HP, 10)
+    expect(more[startingLevelKey(HP)]).toBe(8)
+    const shop = playerOverrides(more).find((o) => o.path === SKILL_SHOP_PATH)
     expect(shop?.edits.length).toBe(SHOP_OWNED_LEVEL_FIXES.length)
-    // nothing owned with more for sale: no patch
-    expect(playerOverrides(applyFullyUpgraded({})).some((o) => o.path === SKILL_SHOP_PATH)).toBe(false)
-    expect(playerOverrides({ [levelsKey(HP)]: 8 }).some((o) => o.path === SKILL_SHOP_PATH)).toBe(false)
   })
 
   it('counts added tiers in the gold to buy everything, and not removed ones', () => {
