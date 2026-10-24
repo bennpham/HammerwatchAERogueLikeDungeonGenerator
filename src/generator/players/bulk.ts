@@ -1,4 +1,4 @@
-import { PLAYER_FIELDS, prunePlayerTweaks } from './fields'
+import { PLAYER_FIELDS, chainLevels, prunePlayerTweaks } from './fields'
 import type { PlayerFieldDef, PlayerTweaks } from './fields'
 
 /**
@@ -122,15 +122,16 @@ export function deriveGroupFactor(id: StatGroupId, tweaks: PlayerTweaks): number
 
 /**
  * Every class starts with every skill it can own and every modifier of it,
- * each at the top level of its own ladder (AE's `starting-level`), so the
- * game reads the real top-tier binds — nova projectiles and combo buffs
- * included — and the skill shop has nothing left to sell. Every skill price
- * is 0 too.
+ * each at the top of its ladder (AE's `starting-level`), tiers added past
+ * stock included, so the game reads the real top-tier binds — nova
+ * projectiles and combo buffs included — and the skill shop has nothing left
+ * to sell. Tiers added after this stay for sale (the shop script is patched
+ * to list them, `SHOP_OWNED_LEVEL_FIXES`). Every stock skill price is 0 too.
  */
 export function applyFullyUpgraded(tweaks: PlayerTweaks): PlayerTweaks {
   const out = { ...tweaks }
   for (const f of PLAYER_FIELDS) {
-    if (f.kind === 'unlock') setField(out, f, f.maxLevel ?? 1)
+    if (f.kind === 'unlock') setField(out, f, chainLevels(f.chainKey!, tweaks))
     else if (f.kind === 'cost' && f.chainKey !== undefined && f.classId === undefined) setField(out, f, 0)
   }
   return prunePlayerTweaks(out)
@@ -139,13 +140,4 @@ export function applyFullyUpgraded(tweaks: PlayerTweaks): PlayerTweaks {
 /** Every price at 0, nothing else touched. */
 export function applyEverythingFree(tweaks: PlayerTweaks): PlayerTweaks {
   return applyGroupFactor('cost', 0, tweaks)
-}
-
-/** Gold to buy every skill and upgrade once, across every class (potions and items are bought again and again). */
-export function totalShopCost(tweaks: PlayerTweaks): number {
-  let sum = 0
-  for (const f of PLAYER_FIELDS) {
-    if (f.kind === 'cost' && f.classId === undefined && f.shopId === undefined) sum += tweaks[f.key] ?? f.stock
-  }
-  return sum
 }

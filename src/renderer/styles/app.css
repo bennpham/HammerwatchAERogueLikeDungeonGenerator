@@ -394,6 +394,12 @@ body {
   gap: 4px;
 }
 
+/* a row's fields stretch to its tallest; the label takes the slack, so a
+   label that wraps to two lines leaves its input level with the others */
+.field-grid > .field > .field-label {
+  flex-grow: 1;
+}
+
 .field-label {
   font-size: 12px;
   color: var(--text-dim);
@@ -2075,6 +2081,68 @@ button.danger:hover:not(:disabled) {
   font-weight: 600;
   font-size: 13px;
   margin-bottom: 6px;
+}
+
+/* the chain's title and its tier count side by side, wrapping when narrow */
+.player-chain-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 6px;
+}
+
+.player-chain-head .player-chain-title {
+  margin-bottom: 0;
+}
+
+/* quick setup: the count and its buttons on one baseline */
+.tier-count-row {
+  align-items: flex-end;
+}
+
+.tier-count-row .curve-field {
+  width: 120px;
+}
+
+.tier-stepper {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tier-stepper .field-label {
+  margin: 0 4px 0 0;
+}
+
+.tier-stepper input {
+  width: 52px;
+  padding: 4px 6px;
+  text-align: center;
+}
+
+.tier-step {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.tier-reset {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.tier-stock {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.tier-stepper .field-message {
+  flex-basis: 100%;
 }
 
 /* boss pickers: one block per AE campaign the bosses come from */

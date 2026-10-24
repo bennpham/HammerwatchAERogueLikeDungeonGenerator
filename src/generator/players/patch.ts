@@ -1,6 +1,7 @@
 import { fmtNum } from '../ae/sval'
-import { PLAYER_FIELDS, extraKey, prunePlayerTweaks, shopKey, skillKey, statKey } from './fields'
+import { PLAYER_FIELDS, chainLevels, extraKey, prunePlayerTweaks, shopKey, skillKey, statKey } from './fields'
 import type { PlayerTweaks } from './fields'
+import { buffLevelEdits, chainLevelEdits } from './levels'
 import type { LineEdit, PlayerFileOverride, PlayerSkillFile, PlayerTier } from './model'
 import { PLAYER_STOCK } from './stock.generated'
 
@@ -35,8 +36,11 @@ function skillFileEdits(file: PlayerSkillFile, tweaks: PlayerTweaks, classId?: s
   const edits: LineEdit[] = []
   const root = file.chains.find((c) => c.key === file.stem)
   for (const chain of file.chains) {
+    const levels = chainLevels(chain.key, tweaks)
     chain.tiers.forEach((tier, i) => {
       const t = i + 1
+      // a removed tier's dict is dropped whole
+      if (t > levels) return
       if (tier.cost !== undefined) {
         const v = effective(chain.key, t, 'cost', tier.cost.stock)
         if (v !== tier.cost.stock) edits.push({ line: tier.cost.line, kind: 'value', name: 'cost', value: fmt('int', v) })
@@ -88,11 +92,60 @@ function skillFileEdits(file: PlayerSkillFile, tweaks: PlayerTweaks, classId?: s
     // AE's shop lists a modifier skill nobody has bought whatever its starting
     // level (`SkillShopMenuContent.AddModifiersToShop`), and buying one already
     // at its top does nothing; a column no vendor sells keeps it off the shelf
-    if (chain.key !== file.stem && level >= chain.tiers.length && first.categoryLine !== undefined) {
+    if (chain.key !== file.stem && level >= chainLevels(chain.key, tweaks) && first.categoryLine !== undefined) {
       edits.push({ line: first.categoryLine, kind: 'value', name: 'category', value: OWNED_CATEGORY })
     }
+    // tiers removed, or added past stock
+    edits.push(...chainLevelEdits(file, chain, tweaks, classId))
   }
   return edits
+}
+
+export const SKILL_SHOP_PATH = 'scripts/GUI/Shop/SkillShopMenuContent.as'
+
+/**
+ * AE's skill shop shows the upgrade at `m_levelParams[bought]`, but buying it
+ * grants level `starting-level + bought` (`GetSkillLevel`); the two agree only
+ * when nothing is owned from the start. A root owning some of its levels
+ * therefore lists nothing more (index 0 is the skill dict, which has no
+ * category), and a modifier is offered again at its level-1 price, after
+ * which the shop shows a tier the player already has. Owning the stock levels
+ * and buying the added ones needs both fixed: the shop indexes by the real
+ * level, and a modifier owned from the start is listed by its upgrades.
+ * [UNVERIFIED] in game; stock lines, the text exactly as AE ships it.
+ */
+export const SHOP_OWNED_LEVEL_FIXES: ReadonlyArray<{ path: string; line: number; find: string; replace: string }> = [
+  ...[102, 106, 107, 108].map((line) => ({
+    path: SKILL_SHOP_PATH,
+    line,
+    find: 'skillDef.m_levelParams[currLevel]',
+    replace: 'skillDef.m_levelParams[skillDef.m_startingLevel + currLevel]'
+  })),
+  {
+    path: SKILL_SHOP_PATH,
+    line: 118,
+    find: 'EligibleCategory(mod.m_shopCategory) && int(record.pickedSkills[mod.m_id]) == 0',
+    replace: 'EligibleCategory(mod.m_shopCategory) && mod.m_startingLevel == 0 && int(record.pickedSkills[mod.m_id]) == 0'
+  },
+  {
+    path: SKILL_SHOP_PATH,
+    line: 122,
+    find: 'else if (int(record.pickedSkills[mod.m_id]) > 0)',
+    replace: 'else if (mod.m_startingLevel > 0 || int(record.pickedSkills[mod.m_id]) > 0)'
+  }
+]
+
+/** Some chain owns part of its levels from the start and sells the rest: the shop needs {@link SHOP_OWNED_LEVEL_FIXES}. */
+export function needsShopOwnedLevelFix(tweaks: PlayerTweaks): boolean {
+  for (const file of PLAYER_STOCK.skills) {
+    for (const chain of file.chains) {
+      const first = chain.tiers[0]
+      const stock = first.startingLevel?.stock ?? 0
+      const level = tweaks[skillKey(chain.key, 1, 'starting-level')] ?? stock
+      if (level !== stock && level > 0 && level < chainLevels(chain.key, tweaks)) return true
+    }
+  }
+  return false
 }
 
 /** The shop column a maxed modifier skill moves to: no vendor sells it. */
@@ -224,14 +277,19 @@ export function playerOverrides(raw: PlayerTweaks): PlayerFileOverride[] {
     edits.push({ line: e.line, kind: 'text', find: `${e.prefix}${e.stock}${e.suffix}`, replace: `${e.prefix}${fmt(e.type, value)}${e.suffix}` })
     scripts.set(e.path, edits)
   }
+  // the numbered buffs of tiers added past stock
+  for (const [path, edits] of buffLevelEdits(tweaks)) scripts.set(path, [...(scripts.get(path) ?? []), ...edits])
   // combo owned from the start: AE counts combo kills only for a combo that
-  // was bought, so the scenario's scripts ask for its level instead
-  if ((tweaks[skillKey(COMBO_STEM, 1, 'starting-level')] ?? 0) >= 1) {
-    for (const fix of COMBO_OWNED_FIXES) {
-      const edits = scripts.get(fix.path) ?? []
-      edits.push({ line: fix.line, kind: 'text', find: fix.find, replace: fix.replace })
-      scripts.set(fix.path, edits)
-    }
+  // was bought, so the scenario's scripts ask for its level instead; levels
+  // owned with more for sale: the skill shop lists by the real level
+  const fixes = [
+    ...((tweaks[skillKey(COMBO_STEM, 1, 'starting-level')] ?? 0) >= 1 ? COMBO_OWNED_FIXES : []),
+    ...(needsShopOwnedLevelFix(tweaks) ? SHOP_OWNED_LEVEL_FIXES : [])
+  ]
+  for (const fix of fixes) {
+    const edits = scripts.get(fix.path) ?? []
+    edits.push({ line: fix.line, kind: 'text', find: fix.find, replace: fix.replace })
+    scripts.set(fix.path, edits)
   }
   for (const [path, edits] of scripts) out.push({ path, source: path, edits })
 
@@ -244,8 +302,11 @@ export function playerOverrides(raw: PlayerTweaks): PlayerFileOverride[] {
  * install's file differs from the snapshot) and changes nothing.
  */
 export function applyLineEdits(text: string, edits: readonly LineEdit[]): { text: string; missed: LineEdit[] } {
-  const lines = text.split('\n')
+  const stock = text.split('\n')
+  const lines = [...stock]
   const missed: LineEdit[] = []
+  const inserted = new Map<number, string[]>()
+  const dropped = new Set<number>()
   for (const e of edits) {
     const i = e.line - 1
     const line = lines[i]
@@ -253,7 +314,23 @@ export function applyLineEdits(text: string, edits: readonly LineEdit[]): { text
       missed.push(e)
       continue
     }
-    if (e.kind === 'value') {
+    if (e.kind === 'clone') {
+      // a copy of the stock lines, whatever else edits them
+      if (e.from < 1 || e.to < e.from || e.to > stock.length) {
+        missed.push(e)
+        continue
+      }
+      const shift = e.from - 1
+      const copy = applyLineEdits(
+        stock.slice(shift, e.to).join('\n'),
+        e.edits.map((c) => ({ ...c, line: c.line - shift }))
+      )
+      missed.push(...copy.missed.map((c) => ({ ...c, line: c.line + shift })))
+      inserted.set(i, [...(inserted.get(i) ?? []), copy.text])
+    } else if (e.kind === 'drop') {
+      if (e.to < e.line || e.to > stock.length) missed.push(e)
+      else for (let j = i; j < e.to; j++) dropped.add(j)
+    } else if (e.kind === 'value') {
       const re = new RegExp(`(name="${e.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}">)[^<]*(<)`)
       if (!re.test(line)) missed.push(e)
       else lines[i] = line.replace(re, (_m, open: string, close: string) => `${open}${e.value}${close}`)
@@ -263,5 +340,11 @@ export function applyLineEdits(text: string, edits: readonly LineEdit[]): { text
       lines[i] = line.replace(e.find, () => e.replace)
     }
   }
-  return { text: lines.join('\n'), missed }
+  if (inserted.size === 0 && dropped.size === 0) return { text: lines.join('\n'), missed }
+  const out: string[] = []
+  lines.forEach((line, i) => {
+    if (!dropped.has(i)) out.push(line)
+    out.push(...(inserted.get(i) ?? []))
+  })
+  return { text: out.join('\n'), missed }
 }

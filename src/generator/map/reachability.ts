@@ -1,5 +1,6 @@
 import type { Level } from './level'
 import type { GenerationContext } from '../core/context'
+import { isGatewaySet } from '../objects/objectSet'
 import type { ObjectSet } from '../objects/objectSet'
 
 /**
@@ -166,7 +167,7 @@ export function exitReachable(level: Level, ctx: GenerationContext): boolean {
 
   const targets: Array<{ x: number; y: number }> = []
   for (const s of sets) {
-    if (s.type === 'ExitDn' || s.type === 'Orb' || s.type === 'BossPortal') targets.push(prefabTarget(s))
+    if (s.type === 'ExitDn' || isGatewaySet(s.type)) targets.push(prefabTarget(s))
   }
   // A key the player cannot reach locks them out of the door it opens just as
   // surely as an unreachable exit does.

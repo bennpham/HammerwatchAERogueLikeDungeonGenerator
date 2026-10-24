@@ -22,7 +22,7 @@ Both must pass before every commit. `HWAE_PACK=1 npm test -- tests/packer.test.t
   - `map/`: rooms, passages, AE walls (`aeWalls.ts`), reachability and the seal check.
   - `objects/`: the AE script vocabulary (`nodes.ts`), doodads, items, and the monster, projectile and buff rosters.
   - `lighting/`: wall torches and the brightness setting. The brightness setting patches the theme lighting environments, from a snapshot (`envs.generated.ts`; regenerate it with `node scripts/run-ts.mjs scripts/scan-ae-lighting.ts`).
-  - `players/`: the Players tab. A snapshot of AE's `players/` balance (`stock.generated.ts`; regenerate it with `node scripts/run-ts.mjs scripts/scan-ae-players.ts`), the `player.*` keys, the quick setup, move speed, presets, and `playerOverrides`, which turns edits into line patches the install applies to the game's own files.
+  - `players/`: the Players tab. A snapshot of AE's `players/` balance (`stock.generated.ts`; regenerate it with `node scripts/run-ts.mjs scripts/scan-ae-players.ts`), the `player.*` keys, the quick setup, move speed, presets, tier counts (`ladder.ts` values the tiers added past stock, `levels.ts` turns them into `clone`/`drop` edits), and `playerOverrides`, which turns edits into line patches the install applies to the game's own files.
   - `boss/`, `dungeonBoss/`, `survival/`, `traps/`, `timer/`, `buffs/`, `mystery/`, `music/`, `lobby/`: the rigs.
 - `src/main/`: Electron main. `packer.ts` does the install and AE detection.
 - `src/renderer/`: React UI.

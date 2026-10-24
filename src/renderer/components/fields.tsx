@@ -56,15 +56,20 @@ export function Section({ title, children, defaultOpen = false, badge }: Section
   )
 }
 
-/** Collapsible group nested inside a {@link Section}. */
-export function Subsection({ title, children, defaultOpen = false, badge }: SectionProps) {
+/**
+ * Collapsible group nested inside a {@link Section}. `lazy` renders the body
+ * only while it is open, for a body that can run to thousands of inputs (a
+ * skill with 99 tiers).
+ */
+export function Subsection({ title, children, defaultOpen = false, badge, lazy = false }: SectionProps & { lazy?: boolean }) {
+  const [open, setOpen] = React.useState(defaultOpen)
   return (
-    <details className="subsection" open={defaultOpen}>
+    <details className="subsection" open={defaultOpen} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary className="subsection-title">
         {title}
         {badge && <span className="section-badge">{badge}</span>}
       </summary>
-      <div className="subsection-body">{children}</div>
+      <div className="subsection-body">{!lazy || open ? children : null}</div>
     </details>
   )
 }

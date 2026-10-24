@@ -1,8 +1,10 @@
 import React from 'react'
 import {
   ORIGINAL_TOGGLES,
+  PLAYER_LEVELS_MAX,
   PLAYER_STOCK,
   STAT_GROUPS,
+  applyChainLevels,
   applyEverythingFree,
   applyFullyUpgraded,
   applyGroupFactor,
@@ -57,6 +59,7 @@ const SPEED_MODES: Array<{ value: SpeedMode; label: string; title: string }> = [
  */
 export function QuickSetup({ tweaks, onChange }: QuickSetupProps) {
   const speedMode = deriveSpeedMode(tweaks)
+  const [tierCount, setTierCount] = React.useState(10)
 
   return (
     <>
@@ -130,6 +133,29 @@ export function QuickSetup({ tweaks, onChange }: QuickSetupProps) {
         </p>
       </Subsection>
 
+      <Subsection title="Upgrade tiers">
+        <div className="quick-setup-presets tier-count-row">
+          <CurveField label="tiers per upgrade" value={tierCount} step={1} onChange={setTierCount} />
+          <button
+            type="button"
+            disabled={!Number.isInteger(tierCount) || tierCount < 1 || tierCount > PLAYER_LEVELS_MAX}
+            onClick={() => onChange(applyChainLevels(tweaks, tierCount))}
+          >
+            Apply to every upgrade
+          </button>
+          <button type="button" onClick={() => onChange(applyChainLevels(tweaks, 'stock'))}>
+            Stock tiers
+          </button>
+        </div>
+        <p className="hint">
+          Gives every skill upgrade this many tiers (1 to {PLAYER_LEVELS_MAX}; AE has no cap). An added tier copies the last
+          one and carries on its step — health, damage, prices — and a chance closes in on 99%. Each skill below has its own{' '}
+          <strong>− / +</strong> as well, and every added tier stays editable. Added tiers sell in the shop columns at tier 5,
+          so a lobby needs those columns to sell them. Upgrades whose last tier has no number to raise (a meteor&apos;s count)
+          stay at stock.
+        </p>
+      </Subsection>
+
       <Subsection title="Original Hammerwatch feel">
         {ORIGINAL_TOGGLES.map((t) => (
           <BoolField
@@ -161,7 +187,8 @@ export function QuickSetup({ tweaks, onChange }: QuickSetupProps) {
         <p className="hint">
           <strong>Everything free</strong> sets every price to 0: skills, upgrades, potions and items.{' '}
           <strong>Fully upgraded</strong> gives every class every one of its skills and upgrades from the start, each at its
-          top level (combo included), so the skill vendors have nothing left to sell. Potions and items keep their prices.{' '}
+          top tier, added tiers included (combo too), so the skill vendors have nothing left to sell. Tiers you add after
+          pressing it stay for sale. Potions and items keep their prices.{' '}
           <strong>Reset</strong> clears every player setting.
         </p>
       </Subsection>

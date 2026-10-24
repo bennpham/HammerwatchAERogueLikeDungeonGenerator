@@ -38,6 +38,8 @@ export interface SvalNode {
   children: SvalNode[]
   /** 1-based line of the opening tag, for patching a stock file in place */
   line?: number
+  /** 1-based line of the closing tag (the opening line when self-closing) */
+  endLine?: number
 }
 
 /** Child of a dict by name, or undefined. */
@@ -108,13 +110,15 @@ export function parseSval(text: string): SvalNode {
       if (open === undefined || open.tag !== tag) {
         throw new Error(`SVAL: </${tag}> does not close <${open?.tag ?? 'nothing'}>`)
       }
+      open.endLine = line
       continue
     }
     const nameMatch = /\bname\s*=\s*"([^"]*)"/.exec(m[3] ?? '')
     const node: SvalNode = { tag, text: '', children: [], line }
     if (nameMatch !== null) node.name = unescapeXml(nameMatch[1])
     top.children.push(node)
-    if (!selfClosing) stack.push(node)
+    if (selfClosing) node.endLine = line
+    else stack.push(node)
   }
   if (stack.length !== 1) throw new Error(`SVAL: <${stack[stack.length - 1].tag}> is never closed`)
   const first = root.children[0]

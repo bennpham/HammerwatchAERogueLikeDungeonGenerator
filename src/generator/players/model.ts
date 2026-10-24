@@ -57,6 +57,44 @@ export interface PlayerTier {
   params?: Record<string, PlayerValue>
   /** the description line, whose `?a=1&b=2` arguments echo the binds */
   description?: { line: number; text: string }
+  /**
+   * An upgrade (not a chain's first tier): its `<dict>` … `</dict>` lines, the
+   * dict a tier added past stock is copied from and a removed tier drops
+   */
+  block?: { start: number; end: number }
+  /** the shop name (`.hp-uname?lvl=5`) and its line, an upgrade only */
+  name?: { line: number; text: string }
+  /** the `lvl` line, an upgrade only */
+  lvlLine?: number
+  /** string binds (`proj-fx`, a combo buff's name), an upgrade only */
+  strings?: Record<string, PlayerStringBind>
+}
+
+export interface PlayerStringBind {
+  line: number
+  stock: string
+  /** the bind names a numbered buff (`tweak/buffs/buffs.sval:combo_health_regen_level_5`) */
+  buff?: PlayerBuffLevel
+}
+
+/**
+ * A numbered buff an upgrade applies, as its buff file defines it:
+ * `%block Combo_health_regen combo_health_regen_level_5 10`. A tier added past
+ * stock gets the next number, on a copy of this line with its own arguments.
+ */
+export interface PlayerBuffLevel {
+  path: string
+  /** 1-based line of the `%block` */
+  line: number
+  /** the buff's name without its number, `combo_health_regen_level_` */
+  name: string
+  level: number
+  /** the block's arguments after the name: duration, amount … */
+  args: number[]
+  /** the arguments of the level below, when the file has it */
+  prevArgs?: number[]
+  /** the line from the name to its last argument, as written */
+  find: string
 }
 
 /** A root skill or a modifier skill, and its upgrades in order. */
@@ -134,10 +172,18 @@ export interface PlayerStock {
  * element named `name` on that line (`<int name="cost">600</int>`); `text`
  * replaces the first `find` on that line. An edit whose target is not on its
  * line is reported, never guessed at.
+ *
+ * Two more add and remove whole tiers: `clone` inserts, after `line`, a copy
+ * of the stock file's own lines `from`…`to` with `edits` applied to the copy
+ * (numbered as in the stock file), so a tier past stock is the game's last
+ * upgrade dict re-valued; `drop` removes lines `line`…`to`. Line numbers
+ * always name the stock file, whatever else is inserted or removed.
  */
 export type LineEdit =
   | { line: number; kind: 'value'; name: string; value: string }
   | { line: number; kind: 'text'; find: string; replace: string }
+  | { line: number; kind: 'clone'; from: number; to: number; edits: LineEdit[] }
+  | { line: number; kind: 'drop'; to: number }
 
 /**
  * A file the scenario ships: `source` read from the install's assets, `edits`

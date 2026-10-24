@@ -1472,7 +1472,7 @@ function shaftlockeSiegeMystery(): Pick<DungeonParameters, 'mysteryButtons' | 'l
         ['Attack speed upgrade II', 1]
       ]),
       kit.pick(2, deepLoot(['Damage upgrade II', 'Speed upgrade II']), [
-        ["Wizard's gambit", 3], ['Bannermen rally', 3], ['Ballista nest', 2], ['Ballista volley', 3], ['Lich council', 1]
+        ["Wizard's gambit", 3], ['Bannermen rally', 3], ['Ballista nest', 2], ['Ballista volley', 1], ['Lich council', 1]
       ])
     ]
   }
@@ -1527,13 +1527,18 @@ function shaftlockeSiege(): DungeonParameters {
     // Light bolts from the start; the strong bolt, dark beams (50) and
     // ballista bolts (70) deeper in, the heavy two in straight lanes. The
     // mines carry no wall traps, as stock's barely do.
+    //
+    // The chambers were ten spewers each, the queen's bolts every 0.7-0.8 s;
+    // played (2026-10-23), floor 6's crowded into its southern rooms as a
+    // crossfire with no safe lane. Now eight and six, slower, and floor 6 keeps
+    // one of each heavy kind rather than a pair.
     levelTraps: [
       [bolt('up', 1200, 2), bolt('down', 1200, 2)],
       [bolt('left', 1000, 2), bolt('right', 1000, 2), bolt('up', 1200, 2, 'shooter_arrow'), bolt('down', 1200, 2, 'shooter_arrow')],
       [],
       [bolt('up', 900, 2, 'shooter_light_bolt_queen'), bolt('down', 900, 2, 'shooter_light_bolt_queen'), bolt('left', 1500, 2, 'shooter_dark_beam')],
-      [bolt('up', 1500, 2, 'tower_ballista_bolt'), bolt('down', 1500, 2, 'tower_ballista_bolt'), bolt('left', 800, 3, 'shooter_light_bolt_queen'), bolt('right', 800, 3, 'shooter_light_bolt_queen')],
-      [bolt('up', 1500, 2, 'tower_ballista_bolt'), bolt('down', 1500, 2, 'shooter_dark_beam'), bolt('left', 700, 3, 'shooter_light_bolt_queen'), bolt('right', 700, 3, 'shooter_light_bolt_queen')]
+      [bolt('up', 1800, 2, 'tower_ballista_bolt'), bolt('down', 1800, 2, 'tower_ballista_bolt'), bolt('left', 1000, 2, 'shooter_light_bolt_queen'), bolt('right', 1000, 2, 'shooter_light_bolt_queen')],
+      [bolt('up', 1800, 1, 'tower_ballista_bolt'), bolt('down', 2000, 1, 'shooter_dark_beam'), bolt('left', 1200, 2, 'shooter_light_bolt_queen'), bolt('right', 1200, 2, 'shooter_light_bolt_queen')]
     ],
     // Sized to the golem's floor, the last enabled one — see `campaign()`.
     // The golem drops a clutch of gold beetles when it falls.

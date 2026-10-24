@@ -1,13 +1,17 @@
 export {
+  CHAIN_BY_KEY,
   PLAYER_FIELDS,
   PLAYER_FIELD_MAP,
   PLAYER_KEY_PREFIX,
   SHARED_SKILL_PATHS,
   SKILL_FILE_BY_PATH,
+  chainLevels,
   classesOwning,
   formatPlayerLine,
   isPlayerKey,
+  levelsKey,
   parsePlayerValue,
+  playerField,
   boughtRoot,
   prunePlayerTweaks,
   extraKey,
@@ -17,6 +21,16 @@ export {
   statKey,
   unlockKey
 } from './fields'
+export {
+  CHANCE_CAP,
+  PLAYER_LEVELS_MAX,
+  addedCategory,
+  addedFieldSpecs,
+  canAddTiers,
+  hasUpgrades
+} from './ladder'
+export type { AddedFieldSpec, AddedTier } from './ladder'
+export { addedTiers, applyChainLevels, setChainLevels, totalShopCost } from './levels'
 export type { PlayerFieldDef, PlayerTweaks } from './fields'
 export {
   CLASS_STATS,
@@ -32,7 +46,17 @@ export {
   parseSkillFile,
   stemOf
 } from './parse'
-export { CLASSES_PATH, COMBO_OWNED_FIXES, OWNED_CATEGORY, applyLineEdits, playerOverrides, sharedCopyPath } from './patch'
+export {
+  CLASSES_PATH,
+  COMBO_OWNED_FIXES,
+  OWNED_CATEGORY,
+  SHOP_OWNED_LEVEL_FIXES,
+  SKILL_SHOP_PATH,
+  applyLineEdits,
+  needsShopOwnedLevelFix,
+  playerOverrides,
+  sharedCopyPath
+} from './patch'
 export { PLAYER_STOCK, PLAYER_STOCK_SOURCE } from './stock.generated'
 export type {
   LineEdit,
@@ -40,9 +64,11 @@ export type {
   PlayerClass,
   PlayerExtraValue,
   PlayerFileOverride,
+  PlayerBuffLevel,
   PlayerShopPrice,
   PlayerSkillFile,
   PlayerStock,
+  PlayerStringBind,
   PlayerTier,
   PlayerValue
 } from './model'
@@ -56,8 +82,7 @@ export {
   deriveGroupFactor,
   fieldsOfGroup,
   scaled,
-  statGroup,
-  totalShopCost
+  statGroup
 } from './bulk'
 export type { StatGroup, StatGroupId } from './bulk'
 export {

@@ -1,5 +1,6 @@
 import type { Level } from './level'
 import type { GenerationContext } from '../core/context'
+import { isGatewaySet } from '../objects/objectSet'
 
 /**
  * Can the party reach the orb without opening the gate that guards it?
@@ -106,7 +107,7 @@ function passabilityOf(level: Level, ctx: GenerationContext): Passability {
     }
   }
   for (const d of ctx.doodads) {
-    if (d.blocking) pass.setSolid(Math.trunc(d.x), Math.trunc(d.y))
+    if (d.blocking) pass.setSolid(d.cell[0], d.cell[1])
   }
   return pass
 }
@@ -175,7 +176,7 @@ export function sealHolds(level: Level, ctx: GenerationContext): boolean {
   if (orbRoom === undefined || !orbRoom.locked) return true
 
   const entrance = ctx.objectSets.find((s) => s.type === 'ExitUp')
-  const goal = ctx.objectSets.find((s) => s.type === 'Orb' || s.type === 'BossPortal')
+  const goal = ctx.objectSets.find((s) => isGatewaySet(s.type))
   if (entrance === undefined || goal === undefined) return true
 
   const pass = passabilityOf(level, ctx)

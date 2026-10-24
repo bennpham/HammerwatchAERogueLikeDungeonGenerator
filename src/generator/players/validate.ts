@@ -1,5 +1,7 @@
-import { PLAYER_FIELD_MAP, skillKey } from './fields'
+import { chainLevels, playerField, skillKey } from './fields'
 import type { PlayerTweaks } from './fields'
+import { PLAYER_COST_MAX } from './ladder'
+import { addedTiers } from './levels'
 import { PLAYER_STOCK } from './stock.generated'
 
 /**
@@ -12,17 +14,18 @@ export interface PlayerIssue {
   message: string
 }
 
-/** The highest price the tab accepts; past this nobody could afford it anyway. */
-export const PLAYER_COST_MAX = 999_999
+export { PLAYER_COST_MAX }
 
 export function validatePlayerTweaks(tweaks: PlayerTweaks): { errors: PlayerIssue[]; warnings: PlayerIssue[] } {
   const errors: PlayerIssue[] = []
   const warnings: PlayerIssue[] = []
   const unknown: string[] = []
+  const lower: PlayerTweaks = {}
+  for (const [raw, value] of Object.entries(tweaks)) lower[raw.toLowerCase()] = value
 
   for (const [raw, value] of Object.entries(tweaks)) {
     const key = raw.toLowerCase()
-    const field = PLAYER_FIELD_MAP.get(key)
+    const field = playerField(key)
     if (field === undefined) {
       unknown.push(raw)
       continue
@@ -35,10 +38,28 @@ export function validatePlayerTweaks(tweaks: PlayerTweaks): { errors: PlayerIssu
       errors.push({ field: key, message: 'Must be a whole number.' })
       continue
     }
-    if (field.kind === 'unlock' && (value < 0 || value > (field.maxLevel ?? 1))) {
+    if (field.kind === 'levels' && (value < 1 || value > (field.maxLevel ?? field.stock))) {
       errors.push({
         field: key,
-        message: `Must be from 0 (bought in a shop) to ${field.maxLevel ?? 1} (every level owned from the start).`
+        message:
+          field.maxLevel === field.stock
+            ? `Must be from 1 to ${field.stock}: this skill's last upgrade has no number to raise, so it cannot have more tiers.`
+            : `Must be from 1 to ${field.maxLevel} tiers.`
+      })
+      continue
+    }
+    if (field.added === true && field.tier! > chainLevels(field.chainKey!, lower)) {
+      warnings.push({
+        field: key,
+        message: `Tier ${field.tier} is past the ${chainLevels(field.chainKey!, lower)} tiers this skill has; it will be ignored.`
+      })
+      continue
+    }
+    const levels = field.kind === 'unlock' ? chainLevels(field.chainKey!, lower) : 0
+    if (field.kind === 'unlock' && (value < 0 || value > levels)) {
+      errors.push({
+        field: key,
+        message: `Must be from 0 (bought in a shop) to ${levels} (every level owned from the start).`
       })
       continue
     }
@@ -96,17 +117,24 @@ function downgrades(raw: PlayerTweaks): PlayerIssue[] {
   const out: PlayerIssue[] = []
   for (const file of PLAYER_STOCK.skills) {
     for (const chain of file.chains) {
+      const levels = chainLevels(chain.key, tweaks)
+      const added = addedTiers(chain.key, tweaks)
       const names = new Set(chain.tiers.flatMap((t) => Object.keys(t.binds)))
       for (const name of names) {
-        const ladder = chain.tiers
+        const stockLadder = chain.tiers
           .map((t, i) => ({ tier: i + 1, b: t.binds[name] }))
           .filter((x) => x.b !== undefined)
-        if (ladder.length < 2) continue
-        const rising = ladder[ladder.length - 1].b.stock >= ladder[0].b.stock
+        if (stockLadder.length < 2) continue
+        const rising = stockLadder[stockLadder.length - 1].b.stock >= stockLadder[0].b.stock
+        // the tiers the chain has: stock ones it kept, then any added past stock
+        const ladder = [
+          ...stockLadder.filter((x) => x.tier <= levels).map((x) => ({ tier: x.tier, stock: x.b.stock })),
+          ...added.filter((a) => name in a.values).map((a) => ({ tier: a.tier, stock: a.defaults[name] }))
+        ]
         let prev: number | undefined
-        for (const { tier, b } of ladder) {
+        for (const { tier, stock } of ladder) {
           const key = skillKey(chain.key, tier, name)
-          const value = tweaks[key] ?? b.stock
+          const value = tweaks[key] ?? stock
           if (prev !== undefined && (rising ? value < prev : value > prev) && tweaks[key] !== undefined) {
             out.push({
               field: key,

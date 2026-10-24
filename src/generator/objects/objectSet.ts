@@ -28,6 +28,17 @@ import { bossArenaId, lobbyId } from '../campaign'
 
 export type SetTypeName = 'ExitUp' | 'ExitDn' | 'Shop' | 'Orb' | 'BossPortal' | 'LobbyPortal'
 
+/**
+ * A floor's way on when it has no stairs down: the orb, or the portal a
+ * gateway room carries (red into a boss or the next floor, blue into a
+ * lobby). The reachability and seal checks walk to it, so every kind must be
+ * here: a floor before a lobby once went unchecked because `LobbyPortal` was
+ * missing, and shipped a walk-around of its boss seal (dungeon_1428135045).
+ */
+export function isGatewaySet(type: SetTypeName): boolean {
+  return type === 'Orb' || type === 'BossPortal' || type === 'LobbyPortal'
+}
+
 /** `.meta.info.gatherparty` — "You must gather your party before venturing forth." [VERIFIED] */
 export const GATHER_PARTY_TEXT = '.meta.info.gatherparty'
 
