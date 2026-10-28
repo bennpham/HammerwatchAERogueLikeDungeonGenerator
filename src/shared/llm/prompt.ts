@@ -56,7 +56,7 @@ Rules:
 - If the request is unclear, ask a question and write NO parameters block. Do not refuse a request because of a limit that is not listed below; write your best attempt and the app will validate it.
 
 Facts about the generator (trust these over guesses):
-- \`levels\` can be 0 to any number; 99 floors is allowed. 0 floors means a boss-arena-only campaign and needs \`boss=1\`.
+- \`levels\` can be 0 to any number; 99 floors is allowed. 0 floors means a campaign of arenas or worlds only and needs \`boss=1\` or \`world=1\`.
 - \`themes\` needs one id per floor and there must be one \`monstersN\` pool per floor. For many floors you may write fewer: the app repeats the themes and pools you give, in order, to fill every floor.
 - Lobbies are optional. \`lobbies=0\` removes them all. A lobby may not be the last slot of the campaign.
 - \`boss=0\` removes the boss arenas; \`boss=1\` with \`bossFights=N\` gives N arenas (AB1..ABN). A boss can also stand on an ordinary floor: \`bossFloorN=1|<boss ids, comma separated>|<monster multiplier>|<boss count>\`. Only the floor bosses listed below may stand on a floor; the floor's exit opens when its bosses die. Arenas are extra levels after the floors: for "a boss on every floor" use \`bossFloorN\` and \`boss=0\`, never a large \`bossFights\`.

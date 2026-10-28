@@ -149,6 +149,21 @@ describe('world validation', () => {
     expect(result.warnings.map((w) => w.field)).toContain('world.worlds.0.maxWidth')
   })
 
+  it('accepts a campaign of worlds alone: 0 floors and no arena', () => {
+    const p = withWorlds([smallWorld()])
+    p.levels = 0
+    p.boss.enabled = false
+    delete p.levelLock
+    expect(validateParameters(p).errors).toEqual([])
+    const result = generateOk(p, 2)
+    expect(stemsOf(result)).toEqual(['world0'])
+    // the world is the whole campaign, so it ends on the orb
+    expect(scriptsOf(levelsOf(result).get('world0')!, 'ShowGameOver')).toHaveLength(1)
+    // still refused with neither an arena nor a world
+    p.world!.enabled = false
+    expect(fieldsOf(p)).toContain('levels')
+  })
+
   it('rejects an order that names a world the campaign does not have', () => {
     const p = withWorlds([smallWorld()], 'W1,1,2,3,B1')
     expect(fieldsOf(p)).toEqual([])

@@ -176,7 +176,7 @@ export function ParameterForm({ params, issues, onChange }: ParameterFormProps) 
         <>
           <Section title="General" defaultOpen>
             <div className="field-grid">
-              <NumberField label="Levels" field="levels" value={params.levels} onChange={setLevels} issues={issues} min={0} max={50} title="Number of floors in the campaign — 0 means a boss-only campaign (needs the boss fight on, and usually a lobby to shop from first)" />
+              <NumberField label="Levels" field="levels" value={params.levels} onChange={setLevels} issues={issues} min={0} max={50} title="Number of floors in the campaign — 0 means arenas or worlds only (needs an arena or a world, and usually a lobby to shop from first)" />
               <NumberField label="Map width" field="mapWidth" value={params.mapWidth} onChange={(v) => set('mapWidth', v)} issues={issues} min={20} step={20} title="In tiles — multiples of 20 recommended" />
               <NumberField label="Map height" field="mapHeight" value={params.mapHeight} onChange={(v) => set('mapHeight', v)} issues={issues} min={20} step={20} title="In tiles — multiples of 20 recommended" />
               <NumberField label="Edge padding" field="edgePadding" value={params.edgePadding} onChange={(v) => set('edgePadding', v)} issues={issues} min={0} title="Empty border around the map" />

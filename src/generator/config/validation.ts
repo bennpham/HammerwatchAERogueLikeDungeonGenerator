@@ -146,14 +146,14 @@ export function validateParameters(p: DungeonParameters): ValidationResult {
     return true
   }
 
-  // 0 floors is legal and means "boss-only campaign": no generated dungeon at
-  // all, straight into the arena (or a lobby first, if one leads to it). The
-  // rules just below keep that honest.
+  // 0 floors is legal and means a campaign of arenas or worlds: no generated
+  // dungeon at all, straight into the arena or the island (or a lobby first,
+  // if one leads to it). The rules just below keep that honest.
   requirePositiveInt('levels', p.levels, 0)
-  if (p.levels === 0 && p.boss?.enabled !== true) {
+  if (p.levels === 0 && p.boss?.enabled !== true && worldList(p.world).length === 0) {
     errors.push({
       field: 'levels',
-      message: 'With 0 floors the boss fight must be enabled — otherwise the campaign has no levels to play.'
+      message: 'With 0 floors the campaign needs an arena or a world — otherwise it has no levels to play.'
     })
   }
   requirePositiveInt('minRoomSize', p.minRoomSize, 3)
