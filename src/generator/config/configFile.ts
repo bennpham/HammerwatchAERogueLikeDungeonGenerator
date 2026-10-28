@@ -39,7 +39,7 @@ import {
   bossSelection,
   arenaUsesBodyguards
 } from './parameters'
-import { WORLD_HUBS, WORLD_PORTALS, defaultWorld, defaultWorldOptions, worldList } from '../world/options'
+import { WORLD_HUBS, defaultWorld, defaultWorldOptions, worldList } from '../world/options'
 import type { WorldDef } from '../world/options'
 import { UPGRADE_KINDS, noUpgrades } from '../lobby/payout'
 import type { UpgradeCounts } from '../lobby/payout'
@@ -353,8 +353,8 @@ function parseWorldKey(suffix: string, key: string, value: string, world: WorldD
       else bad()
       return true
     case 'portal':
-      if ((WORLD_PORTALS as readonly string[]).includes(value)) world.portal = value as WorldDef['portal']
-      else bad()
+      // retired: the portal is always the empty frame now. Read and ignored,
+      // so a file written while it existed still imports clean.
       return true
     case 'trails':
       world.trails = value === '1'
@@ -410,7 +410,6 @@ function worldLines(w: number, world: WorldDef): string[] {
     k('Coast', world.coast),
     k('WaterMargin', world.waterMargin),
     k('Hub', world.hub),
-    k('Portal', world.portal),
     k('Buttons', world.buttons),
     k('Bosses', world.bossCount),
     k('BossPool', world.bossPool.join(','))

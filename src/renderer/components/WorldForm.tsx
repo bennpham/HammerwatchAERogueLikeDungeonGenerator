@@ -174,7 +174,7 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
             <NumberField label="Water to the map edge" field={`${prefix}.waterMargin`} value={world.waterMargin} issues={issues} min={WORLD_MIN_MARGIN} max={WORLD_MAX_MARGIN} onChange={(waterMargin) => setWorld({ waterMargin })} />
           </Section>
 
-          <Section title="Start and portal">
+          <Section title="Start">
             <ToggleGroup
               label="Start"
               value={world.hub}
@@ -183,15 +183,6 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
                 { value: 'random', label: 'Random', title: 'A camp or nothing, per seed' },
                 { value: 'camp', label: 'Camp', title: "The biome's tent, campfire and a few props round the portal" },
                 { value: 'bare', label: 'Bare', title: 'The middle of nowhere: only the portal frame' }
-              ]}
-            />
-            <ToggleGroup
-              label="Portal"
-              value={world.portal}
-              onChange={(portal) => setWorld({ portal })}
-              options={[
-                { value: 'frame', label: 'Empty frame', title: 'An empty arch that comes alive' },
-                { value: 'appear', label: 'Appears', title: 'Nothing there until the portal appears, as before the Castle dragon' }
               ]}
             />
           </Section>

@@ -74,7 +74,6 @@ import {
   WORLD_MIN_MARGIN,
   WORLD_MIN_SAFE_RADIUS,
   WORLD_MIN_SIZE,
-  WORLD_PORTALS,
   WORLD_WARN_SIZE,
   worldList,
   worldSiteCapacity
@@ -503,9 +502,6 @@ function validateWorld(w: WorldDef, index: number, errors: ValidationIssue[], wa
   whole('waterMargin', 'the water margin', WORLD_MIN_MARGIN, WORLD_MAX_MARGIN)
   if (!(WORLD_HUBS as readonly string[]).includes(w.hub)) {
     errors.push({ field: at('hub'), message: `${subject}: the start must be one of: ${WORLD_HUBS.join(', ')}.` })
-  }
-  if (!(WORLD_PORTALS as readonly string[]).includes(w.portal)) {
-    errors.push({ field: at('portal'), message: `${subject}: the portal must be one of: ${WORLD_PORTALS.join(', ')}.` })
   }
   whole('buttons', 'the button count', 0, WORLD_MAX_BUTTONS)
   whole('packs', 'the pack count', 0, WORLD_MAX_PACKS)

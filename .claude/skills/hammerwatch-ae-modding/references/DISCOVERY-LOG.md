@@ -1215,7 +1215,8 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
   install's colliders: no leak, the portal reached. In game: checklist #96.
 - `[EMITTED]` A world's portal: `frame` places `teleport_mt` (or `teleport_red` before a
   fight) in `closed` and switches it to `open` with `SetUnitScene` when the objective
-  count reaches zero; `appear` places it `hidden: t` and shows it with `HideUnit` State 2.
+  count reaches zero (an `appear` style, hidden then shown with `HideUnit` State 2, was
+  dropped 2026-10-28 at the user's call).
   The exit `UseTrigger` ships disabled and a `ToggleScripts` (enable) wakes it at zero.
   Last in the campaign, the orb ships hidden and is shown instead. In game: #98, #99.
 - `[EMITTED]` Ambush tripwire: a 4×4 sensor on a trail → `AreaTrigger` (once) →

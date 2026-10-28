@@ -7,7 +7,8 @@ after feedback: the `village` start, landmark compositions (pyramids, ruins), my
 then custom content packs. The in-game questions are in `docs/discovery/world-mode.md`.
 
 Where pass 1 differs from the design below: the coast is drawn at tile resolution (cleaned until every coast cell
-has a piece), not on a 32-px grid; the hub is `random | camp | bare`; and ambushes attack at once.
+has a piece), not on a 32-px grid; the hub is `random | camp | bare`; ambushes attack at once; and the portal is
+always the empty frame (the `appear` style below was dropped, 2026-10-28).
 
 ## Context
 

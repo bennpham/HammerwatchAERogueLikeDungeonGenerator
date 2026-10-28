@@ -120,7 +120,6 @@ describe('world validation', () => {
     [{ coast: 101 }, 'coast'],
     [{ waterMargin: 2 }, 'waterMargin'],
     [{ hub: 'castle' as never }, 'hub'],
-    [{ portal: 'spin' as never }, 'portal'],
     [{ buttons: -1 }, 'buttons'],
     [{ buttons: 0, bossCount: 0 }, 'buttons'],
     [{ buttons: 33 }, 'buttons'],
@@ -166,7 +165,7 @@ describe('world parameters.txt keys', () => {
   it('round-trips every world field', () => {
     const p = withWorlds(
       [
-        smallWorld({ biome: 'desert', hub: 'camp', portal: 'appear', coast: 80, music: 'temple_hub' }),
+        smallWorld({ biome: 'desert', hub: 'camp', coast: 80, music: 'temple_hub' }),
         smallWorld({
           biome: 'snow',
           bossSelection: 'lineup',
@@ -322,20 +321,17 @@ describe('the objectives and the portal', () => {
     expect(textsOf(w0)).toContain(PORTAL_TEXT)
   })
 
-  it('wakes the frame by its scene, or shows a hidden portal', () => {
-    const portalOf = (w: ReturnType<typeof worldOf>) => unitsOf(w, (u) => u.path === 'doodads/generic/teleport_mt.unit')[0]
-    const frame = worldOf(smallWorld({ portal: 'frame' }))
-    const shut = portalOf(frame)
+  it('wakes the empty frame by its scene', () => {
+    const frame = worldOf(smallWorld())
+    const shut = unitsOf(frame, (u) => u.path === 'doodads/generic/teleport_mt.unit')[0]
     expect(shut.state?.start).toEqual({ kind: 'string', value: 'closed' })
     expect(shut.state?.hidden).toBeUndefined()
     const scene = scriptsOf(frame, 'SetUnitScene').find((s) => idsParam(s, 'Units').includes(shut.id))!
     expect(strParam(scene, 'State')).toBe('open')
+  })
 
-    const appear = worldOf(smallWorld({ portal: 'appear' }))
-    const hidden = portalOf(appear)
-    expect(hidden.state?.hidden).toEqual({ kind: 'bool', value: true })
-    const show = scriptsOf(appear, 'HideUnit').find((s) => idsParam(s, 'Units').includes(hidden.id))!
-    expect(intParam(show, 'State')).toBe(2)
+  it('still reads a retired world<i>Portal line without complaint', () => {
+    expect(parseParametersTxt('world=1\r\nworlds=1\r\nworld0Portal=appear\r\n').unknownKeys).toEqual([])
   })
 
   it('turns the portal red in front of a fight', () => {

@@ -8,7 +8,7 @@
  *                UnitDestroyedTrigger(boss, once)
  *   every one of those triggers → buildButtonCountdown (`map/buttonSeal.ts`)
  *   == 0 → AnnounceText + PlaySound
- *        → frame:  SetUnitScene(portal, open)    appear: HideUnit(portal, show)
+ *        → SetUnitScene(portal, open): the empty frame comes alive
  *        → ToggleScripts(enable) the exit's UseTrigger, which ships disabled
  *   orb:   == 0 → HideUnit(orb, show); the orb ships hidden
  *
@@ -108,26 +108,16 @@ export function buildObjectives(
     show.setTarget(orb)
     reveal = [show, announce(ctx, hub, ORB_TEXT)]
   } else {
-    const appear = def.portal === 'appear'
     const portal = Doodad.prop(ctx, hub.x + 0.5, hub.y + 0.5, nextIsFight ? PORTAL_RED : PORTAL_BLUE, {
-      start: { kind: 'string', value: appear ? 'open' : 'closed' },
-      ...(appear ? { hidden: { kind: 'bool' as const, value: true } } : {})
+      start: { kind: 'string', value: 'closed' }
     })
     const sensor = new SensorShape(ctx, hub.x + 0.5, hub.y + 0.5)
     sensor.width = 3
     sensor.height = 3
     const [use] = buildExitRig(ctx, sensor, gateway.target, hub.x, hub.y + 2)
     use.enabled = false
-    let wake: ScriptNode
-    if (appear) {
-      const show = new NodeHideUnit(ctx, hub.x, hub.y - 2)
-      show.setTarget(portal)
-      wake = show
-    } else {
-      const open = new NodeChangeDoodadState(ctx, hub.x, hub.y - 2, 'open')
-      open.setTarget(portal)
-      wake = open
-    }
+    const wake = new NodeChangeDoodadState(ctx, hub.x, hub.y - 2, 'open')
+    wake.setTarget(portal)
     const enable = new NodeToggleElement(ctx, hub.x + 1, hub.y - 2)
     enable.action = 'enable'
     enable.connectToElement(use)

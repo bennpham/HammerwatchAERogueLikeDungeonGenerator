@@ -111,7 +111,6 @@ export {
 } from './config/parameters'
 export {
   WORLD_HUBS,
-  WORLD_PORTALS,
   WORLD_MIN_SIZE,
   WORLD_MAX_SIZE,
   WORLD_WARN_SIZE,
@@ -130,7 +129,7 @@ export {
   worldList,
   worldSiteCapacity
 } from './world/options'
-export type { WorldDef, WorldOptions, WorldHub, WorldPortal } from './world/options'
+export type { WorldDef, WorldOptions, WorldHub } from './world/options'
 export { BIOME_DEFS, BIOME_IDS, biomeById } from './world/biomes'
 export type { BiomeDef } from './world/biomes'
 export type { BossSelection, MysteryButton, MysteryMonster, FloorMystery, FloorLockMystery } from './config/parameters'

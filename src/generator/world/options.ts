@@ -15,14 +15,6 @@ import type { BossId } from '../boss/bosses'
 export const WORLD_HUBS = ['random', 'camp', 'bare'] as const
 export type WorldHub = (typeof WORLD_HUBS)[number]
 
-/**
- * How the center portal comes alive once the last objective is done.
- * `frame`: the empty `teleport_mt` arch switches to its `open` scene.
- * `appear`: the portal is hidden until then, and `HideUnit` shows it (stock
- * Castle Hammerwatch `level_12`).
- */
-export const WORLD_PORTALS = ['frame', 'appear'] as const
-export type WorldPortal = (typeof WORLD_PORTALS)[number]
 
 /** Size bounds, in tiles. Above the warning size, load time and frame rate are unverified. */
 export const WORLD_MIN_SIZE = 96
@@ -63,7 +55,6 @@ export interface WorldDef {
   /** Water between the coast and the map edge, in tiles. */
   waterMargin: number
   hub: WorldHub
-  portal: WorldPortal
   /** Floor buttons to press; each counts toward the portal. */
   buttons: number
   /** Bosses to kill; each counts toward the portal. Ignored in `lineup` mode. */
@@ -120,7 +111,6 @@ export function defaultWorld(): WorldDef {
     coast: 50,
     waterMargin: 8,
     hub: 'random',
-    portal: 'frame',
     buttons: 4,
     bossCount: 1,
     bossPool: ['boss_knight', 'boss_lich', 'boss_golem', 'boss_warden', 'boss_vampire'],
