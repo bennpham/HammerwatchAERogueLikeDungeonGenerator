@@ -1,6 +1,13 @@
 # World mode — plan
 
-Status: **planned, not started** (2026-10-27). The in-game questions are in `docs/discovery/world-mode.md`.
+Status: **pass 1 implemented** (2026-10-28), awaiting in-game checks (`docs/BOOT-CHECKLIST.md` #96–#101). Pass 1
+covers the slot, the World tab, five biomes, the cliff coast and fence, sites, trails, scatter, buttons and bosses,
+both portal styles and the orb, packs, ambushes, loot, the timer, music, and the `camp`/`bare` starts. **Pass 2**,
+after feedback: the `village` start, landmark compositions (pyramids, ruins), mystery payloads on world buttons,
+then custom content packs. The in-game questions are in `docs/discovery/world-mode.md`.
+
+Where pass 1 differs from the design below: the coast is drawn at tile resolution (cleaned until every coast cell
+has a piece), not on a 32-px grid; the hub is `random | camp | bare`; and ambushes attack at once.
 
 ## Context
 

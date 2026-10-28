@@ -1186,3 +1186,41 @@ with upgrades (`players/ladder.ts`, `players/levels.ts`).
 - Consequence: seeds whose floors flip between rejected and accepted build different
   layouts. Shaftlocke Siege 1878922481's floor 2 (checklist #81) is now its first
   attempt; the independent probe (`tests/sealProbe.ts`) agrees the floor is sealed.
+
+### World mode, pass 1 (2026-10-28)
+
+The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discovery/world-mode.md`.
+
+- `[VERIFIED]` (scripts) `HideUnit.as`: `HideState` is Hide = 1, Show = 2, Toggle = 3, then
+  `Units`. Castle `level_12` places a `teleport_mt` with `hidden: t` (unit 2134) and a
+  `HideUnit` with `State 2` naming it among others.
+- `[VERIFIED]` (user, in game, 2026-10-27) A hidden portal doesn't react to F.
+- `[VERIFIED]` (unit file) `teleport_mt`'s `closed` scene is the base, the empty arch and the
+  minimap `teleport_off`; `open` adds the swirl, two lights, the front effect and
+  `teleport_on`.
+- `[VERIFIED]` (unit files, via `scripts/lib/aeunit.mjs`) The cliff sets
+  (`doodads/cliffs/{granite,granite2,basalt,silt}`) are plateau edge pieces, each drawn up
+  from a bottom-left anchor: `s_*`/`se`/`sw` a 16-px lip and a 32-px face, collision 40 px
+  up (corners 48); `n_*`/`ne`/`nw` a 16-px lip, collision its top 8 px; `e_*`/`w_*` a
+  16-px-wide lip, collision the outer 8 px; `*_i` an inner-corner lip with a triangle.
+  Stock town.lvl stacks `s_32` rows into tall faces.
+- `[VERIFIED]` (tooling) `aeunit.mjs` read every cliff unit as empty: their
+  `%include "doodads/cliffs/s_32.inc` has no closing quote, and their
+  `%replace "0 -10" "0 6"` arguments hold spaces. Both are parsed now.
+- `[EMITTED]` A world's coast: each coast land cell carries the piece for its water
+  neighbours, anchored three rows below the cell's top for a south piece, two for a
+  `_32` east/west, one otherwise; `_32` pieces pair straight runs. Behind it, a solid
+  invisible `:Physics_Rectangle` (`jam/shot/aim-through`) covers each horizontal run of
+  water tiles next to land. `tests/world.test.ts` floods every biome's island over the
+  install's colliders: no leak, the portal reached. In game: checklist #96.
+- `[EMITTED]` A world's portal: `frame` places `teleport_mt` (or `teleport_red` before a
+  fight) in `closed` and switches it to `open` with `SetUnitScene` when the objective
+  count reaches zero; `appear` places it `hidden: t` and shows it with `HideUnit` State 2.
+  The exit `UseTrigger` ships disabled and a `ToggleScripts` (enable) wakes it at zero.
+  Last in the campaign, the orb ships hidden and is shown instead. In game: #98, #99.
+- `[EMITTED]` Ambush tripwire: a 4×4 sensor on a trail → `AreaTrigger` (once) →
+  `PlaySound` `event:/SFX/UI/puzzle/puzzle_fail` + a ring of `SpawnUnit`s with
+  `AggroEnemy`, after the HW1 mansion `test_yard` pattern. In game: #100.
+- `[EMITTED]` Biome lighting: grass `effects/env/day.env`, woods `dusk.env` (ambient
+  `25 25 60`, as dark as a dungeon; brightness lifts it), desert `egypt_outside.env`, mud
+  `outside.env`, snow `effects/lighting/outlook.env` (Shaftlocke's town). In game: #97.
