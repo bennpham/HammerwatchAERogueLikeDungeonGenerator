@@ -1231,3 +1231,8 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
   with no `[ERR]` before it. Not reproduced: the same campaign replayed, the same W1
   played first (`dungeon_3488689421`), and four 96-tile grass worlds (bare, trees,
   monsters and a boss, camp) all ran. If it comes back, compare the dump's offset.
+- `[VERIFIED]` (user, in game, 2026-10-28; checklist #96–#98, #100) The world coast reads
+  as a coast and holds the party in; 192- and 384-tile islands load and play without
+  trouble; the empty frame comes alive at zero and F moves the party on; tripwires,
+  packs, boss bars and loot work. The orb-last case (#99), the camp and the timer (#101)
+  are not yet played.
