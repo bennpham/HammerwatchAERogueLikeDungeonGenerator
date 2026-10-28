@@ -1,5 +1,5 @@
 import React from 'react'
-import { arenaModes, campaignOrder, isDefaultOrder, slotLabeller } from '../../generator'
+import { arenaModes, campaignCounts, campaignOrder, isDefaultOrder, slotLabeller } from '../../generator'
 import type { CampaignCounts, CampaignSlot, DungeonParameters, ValidationIssue } from '../../generator'
 import { Section } from './fields'
 
@@ -27,8 +27,7 @@ interface FloorOrderEditorProps {
  * jszip, and a reorder this short does not justify a fourth.
  */
 export function FloorOrderEditor({ params, issues, onChange }: FloorOrderEditorProps) {
-  const fightCount = params.boss?.enabled === true ? (params.boss.fights?.length ?? 0) : 0
-  const counts: CampaignCounts = { levels: params.levels, fights: fightCount, lobbies: params.lobbies.length }
+  const counts: CampaignCounts = campaignCounts(params)
   const order = campaignOrder(counts, params.levelOrder)
   // Arena chips read AB1/AS2 — the prefix is that arena's mode, the number its
   // position in the fight list. See campaign.ts's slotLabel. A floor with a

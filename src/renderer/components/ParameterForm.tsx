@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { BRIGHTNESS_LABELS, BRIGHTNESS_LEVELS, DEFAULT_SHOP_KIND_IDS, MUSIC_DEFAULT, SHOP_KIND_LABELS, THEME_DEFS, TORCH_DENSITIES, TORCH_LABELS, defaultDungeonBoss, defaultFloorLock, defaultFloorLockMystery, defaultFloorMystery, defaultFloorTimer, floorMystery, isDefaultOrder, normalizeOrder } from '../../generator'
+import { BRIGHTNESS_LABELS, BRIGHTNESS_LEVELS, DEFAULT_SHOP_KIND_IDS, MUSIC_DEFAULT, SHOP_KIND_LABELS, THEME_DEFS, TORCH_DENSITIES, TORCH_LABELS, defaultDungeonBoss, defaultFloorLock, defaultFloorLockMystery, defaultFloorMystery, defaultFloorTimer, floorMystery, isDefaultOrder, normalizeOrder, campaignCounts } from '../../generator'
 import type { CampaignCounts, DungeonParameters, FloorLockMystery, ShopKindId, ValidationIssue } from '../../generator'
 import { NumberField, Section, ToggleGroup } from './fields'
 import { MusicPicker } from './MusicPicker'
@@ -118,11 +118,7 @@ export function ParameterForm({ params, issues, onChange }: ParameterFormProps) 
       }
 
       if (params.levelOrder !== undefined) {
-        const counts: CampaignCounts = {
-          levels,
-          fights: params.boss?.enabled === true ? (params.boss.fights?.length ?? 0) : 0,
-          lobbies: params.lobbies.length
-        }
+        const counts: CampaignCounts = { ...campaignCounts(params), levels }
         const repaired = normalizeOrder(params.levelOrder, counts)
         if (isDefaultOrder(repaired, counts)) delete next.levelOrder
         else next.levelOrder = repaired

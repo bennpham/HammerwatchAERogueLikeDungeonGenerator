@@ -36,6 +36,8 @@ export type DoodadTypeName =
   | 'Horizontal'
   | 'Vertical'
   | 'Pillar'
+  // any unit by path (a world's trees, cliffs, tents): see `Doodad.prop`
+  | 'Prop'
 
 interface Resolved {
   path: string
@@ -181,6 +183,9 @@ export function resolveDoodad(type: DoodadTypeName, themeId: string): Resolved {
       const r = resolvePiece(walls, 'single', exists)
       return { path: r?.path ?? `doodads/walls/${walls}/x_x.unit`, dx: 0, dy: r?.dy ?? 0 }
     }
+    // a prop names its own unit; nothing resolves one by kind
+    case 'Prop':
+      return { path: '', dx: 0, dy: 0 }
   }
 }
 
@@ -206,11 +211,12 @@ export class Doodad {
     public x: number,
     public y: number,
     public type: DoodadTypeName,
-    public theme: string
+    public theme: string,
+    fixed?: Resolved
   ) {
     this.id = ctx.idCounter++
     this.cell = [Math.trunc(x), Math.trunc(y)]
-    const r = resolveDoodad(type, theme)
+    const r = fixed ?? resolveDoodad(type, theme)
     this.path = r.path
     this.x = x + r.dx
     this.y = y + r.dy
@@ -219,6 +225,13 @@ export class Doodad {
 
   static create(ctx: GenerationContext, x: number, y: number, type: DoodadTypeName, theme: string): Doodad {
     const d = new Doodad(ctx, x, y, type, theme)
+    ctx.doodads.push(d)
+    return d
+  }
+
+  /** Any unit by its path, drawn from (x, y) with no anchor offset: a world's trees, tents and portals. */
+  static prop(ctx: GenerationContext, x: number, y: number, path: string, state?: Record<string, StateValue>): Doodad {
+    const d = new Doodad(ctx, x, y, 'Prop', '', { path, dx: 0, dy: 0, state })
     ctx.doodads.push(d)
     return d
   }

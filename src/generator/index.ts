@@ -1,10 +1,13 @@
 import { GenerationContext } from './core/context'
 import { Level } from './map/level'
-import { defaultParameters, bossFights, arenaMode, defaultSurvivalOptions, floorBoss, floorBossCount, floorLockButtons, floorLockDisguised } from './config/parameters'
+import { defaultParameters, bossFights, arenaMode, campaignCounts, defaultSurvivalOptions, floorBoss, floorBossCount, floorLockButtons, floorLockDisguised } from './config/parameters'
 import type { DungeonParameters } from './config/parameters'
 import { validateParameters, ValidationResult } from './config/validation'
 import { DEFAULT_LOBBY_PRESET_ID, buildLobby, lobbyPresetById } from './lobby'
 import { buildBossArena } from './boss'
+import { buildWorld } from './world/build'
+import type { WorldPreview } from './world/build'
+import { worldList } from './world/options'
 import { campaignFileNames, campaignOrder, floorId, gatewayAfter, slotEntryId, slotLabeller } from './campaign'
 import type { CampaignSlot } from './campaign'
 import { renderLevel } from './ae/levelWriter'
@@ -102,8 +105,34 @@ export {
   MAX_MYSTERY_MONSTERS,
   MYSTERY_NAME_MAX,
   MYSTERY_TEXT_MAX,
-  MAX_MYSTERY_TRAP_SECONDS
+  MAX_MYSTERY_TRAP_SECONDS,
+  campaignCounts,
+  worldBossCount
 } from './config/parameters'
+export {
+  WORLD_HUBS,
+  WORLD_PORTALS,
+  WORLD_MIN_SIZE,
+  WORLD_MAX_SIZE,
+  WORLD_WARN_SIZE,
+  WORLD_MIN_MARGIN,
+  WORLD_MAX_MARGIN,
+  WORLD_MAX_BUTTONS,
+  WORLD_MAX_PACKS,
+  WORLD_MAX_GROUP,
+  WORLD_MAX_AMBUSHES,
+  WORLD_MAX_LOOT,
+  WORLD_MIN_SAFE_RADIUS,
+  WORLD_MAX_SAFE_RADIUS,
+  WORLD_MAX_TIMER_SECONDS,
+  defaultWorld,
+  defaultWorldOptions,
+  worldList,
+  worldSiteCapacity
+} from './world/options'
+export type { WorldDef, WorldOptions, WorldHub, WorldPortal } from './world/options'
+export { BIOME_DEFS, BIOME_IDS, biomeById } from './world/biomes'
+export type { BiomeDef } from './world/biomes'
 export type { BossSelection, MysteryButton, MysteryMonster, FloorMystery, FloorLockMystery } from './config/parameters'
 export { MYSTERY_LOOT_DEFS, MYSTERY_LOOT_GROUPS, mysteryLootById } from './objects/mysteryLoot'
 export type { LootDef } from './objects/mysteryLoot'
@@ -292,6 +321,8 @@ export interface LevelPreview {
   itemCount: number
   /** wall bitmap packed row-major as '0'/'1' chars, for the canvas preview */
   walls: string
+  /** a world's island map and sites, drawn instead of rooms (`world/build.ts`) */
+  world?: WorldPreview
 }
 
 export interface DungeonResult {
@@ -344,10 +375,12 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
   // the lighting environments the generated levels use, for the brightness copies
   const environments = new Set<string>()
   const arenaPreviews = new Map<number, LevelPreview>()
+  const worldPreviews = new Map<number, LevelPreview>()
 
   const fights = bossFights(params.boss)
   const lobbies = params.lobbies ?? []
-  const order = campaignOrder({ levels: params.levels, fights: fights.length, lobbies: lobbies.length }, params.levelOrder)
+  const worlds = worldList(params.world)
+  const order = campaignOrder(campaignCounts(params), params.levelOrder)
   const label = slotLabeller(fights.map(arenaMode))
   // play-order file names, before any level links to another
   ctx.levelFiles = campaignFileNames(
@@ -363,6 +396,7 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
     const n = (positionOf.get(slotEntryId(slot)) ?? 0) + 1
     if (slot.kind === 'boss') return `Floor ${n} — ${arenaMode(fights[slot.index]) === 'survival' ? 'Survive!' : 'Boss'}`
     if (slot.kind === 'lobby') return `Floor ${n} — Shop`
+    if (slot.kind === 'world') return `Floor ${n} — The Island`
     return `Floor ${n}`
   }
   const enter = (slot: CampaignSlot): void => {
@@ -441,6 +475,29 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
     arenaPreviews.set(i, preview)
   })
 
+  // Each world draws only from ctx.worldRand, so adding one moves no floor or arena.
+  for (let i = 0; i < worlds.length; i++) {
+    const slot: CampaignSlot = { kind: 'world', index: i }
+    const position = positionOf.get(slotEntryId(slot))
+    const gateway = position === undefined ? { kind: 'orb' as const } : gatewayAfter(order, position)
+    const next = position === undefined ? undefined : order[position + 1]
+    ctx.clearLevel()
+    enter(slot)
+    const built = buildWorld(ctx, worlds[i], params.levels + fights.length + i, gateway, next?.kind === 'boss')
+    if (built === null) {
+      return {
+        ok: false,
+        errors: [
+          `Could not generate world ${i + 1}. ` +
+            `The island is likely too crowded — try fewer buttons or bosses, a smaller safe radius, or a larger map.`
+        ]
+      }
+    }
+    files.push({ path: ctx.levelPath(ctx.currentStem), content: renderLevel(built.level) })
+    if (built.level.environment !== null) environments.add(built.level.environment)
+    worldPreviews.set(i, built.preview)
+  }
+
   // Lobbies draw from no stream at all.
   order.forEach((slot, position) => {
     if (slot.kind !== 'lobby') return
@@ -457,7 +514,14 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
 
   const previews: LevelPreview[] = []
   for (const slot of order) {
-    const p = slot.kind === 'floor' ? floorPreviews.get(slot.index) : slot.kind === 'boss' ? arenaPreviews.get(slot.index) : undefined
+    const p =
+      slot.kind === 'floor'
+        ? floorPreviews.get(slot.index)
+        : slot.kind === 'boss'
+          ? arenaPreviews.get(slot.index)
+          : slot.kind === 'world'
+            ? worldPreviews.get(slot.index)
+            : undefined
     if (p !== undefined) previews.push({ ...p, label: label(slot) })
   }
 
@@ -466,7 +530,7 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
     path: 'info.xml',
     content: renderInfoXml({
       name: `Dungeon #${usedSeed}`,
-      description: describeCampaign(params, fights.length, lobbies.length),
+      description: describeCampaign(params, fights.length, lobbies.length, worlds.length),
       startLevel: ctx.levelPath(startStem)
     })
   })
@@ -486,8 +550,9 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
 }
 
 /** One line for the scenario list: what the run holds. */
-function describeCampaign(params: DungeonParameters, fights: number, lobbies: number): string {
+function describeCampaign(params: DungeonParameters, fights: number, lobbies: number, worlds: number): string {
   const parts = [`${params.levels} floor${params.levels === 1 ? '' : 's'}`]
+  if (worlds > 0) parts.push(`${worlds} world${worlds === 1 ? '' : 's'}`)
   if (fights > 0) parts.push(`${fights} arena${fights === 1 ? '' : 's'}`)
   if (lobbies > 0) parts.push(`${lobbies} lobb${lobbies === 1 ? 'y' : 'ies'}`)
   return `A generated rogue-like dungeon: ${parts.join(', ')}.`
