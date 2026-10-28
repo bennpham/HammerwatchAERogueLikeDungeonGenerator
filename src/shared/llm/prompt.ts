@@ -35,7 +35,8 @@ export const FEATURE_KEYS: readonly string[] = [
   'Buffs and traps when a wave starts: `boss<f>WaveBuff<T>=<buff id>:<target>|...`, e.g. `boss0WaveBuff5=bloodlust:monsters`, and `boss<f>WaveTrap<T>=<same rows as trapN>`.',
   'Survival arena (no boss; outlast a clock, slot becomes `AS<f+1>`): `boss<f>Mode=survival`, `boss<f>Survival=<seconds>,<off|milestones|seconds>`, `boss<f>SurvivalWaves=<monster>:<count>:<startSecond>:<everyMs>|...`, `boss<f>SurvivalPickups=<pickup id>:<count>:<atSecond>|...`, `boss<f>SurvivalBuffs=<buff>:<target>:<startSecond>:<endSecond>|...`, `boss<f>SurvivalTraps=<trap row>:<startSecond>:<endSecond>|...`, e.g. `boss0Survival=120,milestones` and `boss0SurvivalWaves=bat:40:0:1000|skeleton_warrior:20:30:2000`.',
   'Arena extras: `boss<f>MonsterMultiplier`, `boss<f>FoodMultiplier`, `boss<f>Music=<track>`. Lobbies: `lobby<i>Preset=<lobby preset>`, `lobby<i>Gold=<gold>`, `lobby<i>Music=<track>` (i from 0), e.g. `lobby0Gold=5000`. Floor music: `musicN=<track>`, e.g. `music0=act1`.',
-  'Mystery plates (`mysteryButton...`, `mysteryFloorN`): only copy formats shown in the current settings.'
+  'Mystery plates (`mysteryButton...`, `mysteryFloorN`): only copy formats shown in the current settings.',
+  'Worlds (open islands; press every button and kill every boss, then walk back to the portal at the center): `world=1`, `worlds=<count>`, then per world w (from 0) `world<w>Biome=<grass|woods|desert|mud|snow>`, `world<w>Width=<min>,<max>` and `world<w>Height=<min>,<max>` in tiles (96 to 512), `world<w>Buttons=<n>`, `world<w>Bosses=<n>` with `world<w>BossPool=<floor boss ids>`, `world<w>Monsters=<pool keys>`, `world<w>Packs=<n>`, `world<w>Ambushes=<n>`, `world<w>Hub=<random|camp|bare>`, `world<w>Portal=<frame|appear>`, `world<w>Music=<track>`, e.g. `world0Biome=desert` and `world0Buttons=6`.'
 ]
 
 const RULES = `You configure a Hammerwatch Anniversary Edition rogue-like campaign generator by writing lines of its parameters.txt file.
@@ -71,7 +72,7 @@ Facts about the generator (trust these over guesses):
 CAMPAIGN STRUCTURE
 - "N floors, then fight <boss>" means a boss ARENA after those floors, not a boss on a floor. Give each such fight its own arena and place it with \`levelOrder\`. Use \`bossFloorN\` only when the user says the boss stands ON a floor, and \`bossFloorN=0\` to take a floor boss away.
 - Arenas: \`boss=1\`, \`bossFights=<count>\`, then per arena \`boss<f>Pool=<boss id>\` and \`boss<f>Theme=<theme id>\`. \`f\` counts from 0; arena f is the slot \`AB<f+1>\` in \`levelOrder\`.
-- \`levelOrder\` lists every slot once, in play order: floors as \`1\`..\`N\` (1-based), arenas as \`AB1\`.., lobbies as \`L1\`... Example for "3 floors, Queen, 3 floors, Knight" with a shop before each fight: \`lobbies=2\`, \`levelOrder=1,2,3,L1,AB1,4,5,6,L2,AB2\`.
+- \`levelOrder\` lists every slot once, in play order: floors as \`1\`..\`N\` (1-based), arenas as \`AB1\`.., lobbies as \`L1\`..., worlds as \`W1\`... Example for "3 floors, Queen, 3 floors, Knight" with a shop before each fight: \`lobbies=2\`, \`levelOrder=1,2,3,L1,AB1,4,5,6,L2,AB2\`.
 - A lobby is a shop and rest stop. Put one right before a boss arena or between acts. NEVER make a lobby the last slot: the last slot must be a floor or an arena, because it carries the victory orb.
 - Castle Hammerwatch's acts are its themes: Act 1 \`prison\`, Act 2 \`armory\`, Act 3 \`archives\`, Act 4 \`chambers\`. "Desert" means the Temple of the Sun themes or \`cave_desert\`, with Temple of the Sun monsters. Match monsters to the campaign the user names (see "Monsters by campaign" below).
 - Only use bosses, monsters and themes from the lists below. If the user names something that does not exist, pick the closest real one and say so in your summary.
