@@ -170,7 +170,7 @@ describe('world parameters.txt keys', () => {
           biome: 'snow',
           bossSelection: 'lineup',
           bossLineup: { boss_lich: 2 },
-          trails: false,
+          trails: true,
           timer: { enabled: true, seconds: 600, damage: 2, freqMs: 500, countdown: false },
           music: undefined
         })
@@ -436,6 +436,16 @@ describe('the encounters', () => {
       expect(closure.reachesExit, b.id).toBe(true)
       expect(closure.area, b.id).toBeGreaterThan(100_000)
     }
+  })
+
+  it('paints no trail by default, and only when asked', () => {
+    const trailTiles = (trails: boolean) => {
+      const text = lvlText(resultOf(smallWorld({ trails })), 'world0')
+      return text.includes(BIOME_DEFS[0].trail)
+    }
+    expect(defaultWorld().trails).toBe(false)
+    expect(trailTiles(false)).toBe(false)
+    expect(trailTiles(true)).toBe(true)
   })
 
   it('pitches the camp only when asked', () => {

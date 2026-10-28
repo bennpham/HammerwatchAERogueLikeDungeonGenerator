@@ -80,7 +80,10 @@ export interface WorldDef {
   buttonAmbush: number
   /** Loot caches placed on the island. */
   loot: number
-  /** Dirt trails from the start to every site. */
+  /**
+   * Dirt trails painted from the start to every site. Off by default (the
+   * user found them ugly); the way to each site is kept clear of trees either way.
+   */
   trails: boolean
   /** How dense trees, rocks and bushes grow, 0–100. */
   scatter: number
@@ -122,7 +125,7 @@ export function defaultWorld(): WorldDef {
     ambushSize: 6,
     buttonAmbush: 50,
     loot: 8,
-    trails: true,
+    trails: false,
     scatter: 50,
     music: 'act1'
   }

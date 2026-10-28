@@ -1225,3 +1225,9 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
 - `[EMITTED]` Biome lighting: grass `effects/env/day.env`, woods `dusk.env` (ambient
   `25 25 60`, as dark as a dungeon; brightness lifts it), desert `egypt_outside.env`, mud
   `outside.env`, snow `effects/lighting/outlook.env` (Shaftlocke's town). In game: #97.
+- `[UNVERIFIED]` (user, in game, 2026-10-28) One crash about a second after arriving in
+  W1 (grass, 192 tiles) of `dungeon_348868942`, from the first lobby: access violation
+  reading `-1` at `HW1A.exe+0x2d1dc9`, while drawing units (`_draw_units` in the dump),
+  with no `[ERR]` before it. Not reproduced: the same campaign replayed, the same W1
+  played first (`dungeon_3488689421`), and four 96-tile grass worlds (bare, trees,
+  monsters and a boss, camp) all ran. If it comes back, compare the dump's offset.
