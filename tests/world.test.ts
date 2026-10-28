@@ -42,6 +42,7 @@ import { floodFill } from '../src/generator/map/reachability'
 import { PORTAL_TEXT } from '../src/generator/world/objectives'
 import { MONSTER_THEMES, matchingTheme } from '../src/generator/world/monsterThemes'
 import { WORLD_PRESETS } from '../src/generator/world/presets'
+import { LANDMARK_DEFS, landmarksFor } from '../src/generator/world/landmarks'
 import { isKnownFloorPoolKey } from '../src/generator/objects/monsterTypes'
 import { closureOf } from './closure'
 import { aeAssetsDir } from './aeInstall'
@@ -535,6 +536,36 @@ describe('the village start', () => {
     const closure = closureOf(level, { x0: 0, y0: 0, x1: preview.mapWidth * 16, y1: preview.mapHeight * 16 }, aeAssetsDir()!)
     expect(closure.leak).toBeNull()
     expect(closure.reachesExit).toBe(true)
+  })
+})
+
+describe('landmarks', () => {
+  const landmarkPaths = new Set(LANDMARK_DEFS.flatMap((l) => l.pieces.map((p) => p.path)))
+
+  it('names only base assets, and every biome has some', () => {
+    for (const path of landmarkPaths) expect(aeAssetExists(path), path).toBe(true)
+    for (const b of BIOME_DEFS) expect(landmarksFor(b.id).length, b.id).toBeGreaterThan(1)
+  })
+
+  it('stands a landmark by the sites, and none when switched off', () => {
+    const count = (landmarks: boolean) => {
+      let n = 0
+      for (const biome of ['desert', 'mud', 'snow']) {
+        const w0 = levelsOf(generateOk(withWorlds([smallWorld({ biome, landmarks, scatter: 0 })]), 2)).get('world0')!
+        n += unitsOf(w0, (u) => landmarkPaths.has(u.path) && !u.path.includes('tree_palm') && !u.path.includes('stone_desert')).length
+      }
+      return n
+    }
+    expect(count(true)).toBeGreaterThan(0)
+    expect(count(false)).toBe(0)
+  })
+
+  it('moves no site, trail or monster', () => {
+    const where = (landmarks: boolean) => {
+      const preview = generateOk(withWorlds([smallWorld({ landmarks })]), 5).levels.find((l) => l.world !== undefined)!
+      return JSON.stringify(preview.world!.sites.filter((s) => s.kind !== 'loot'))
+    }
+    expect(where(true)).toBe(where(false))
   })
 })
 

@@ -3,8 +3,9 @@
 Status: **pass 1 implemented and verified in game** (2026-10-28, `docs/BOOT-CHECKLIST.md` #96–#101). Pass 1 covers
 the slot, the World tab, five biomes, the cliff coast and fence, sites, trails (off by default), scatter, buttons
 and bosses, the portal frame and the orb, packs, ambushes, loot, the timer, music, and the `camp`/`bare` starts.
-**Pass 2** is planned below ("Pass 2"): dungeon-master control first, then the village start and landmarks. PR #15
-stays open until the World content is done. The in-game questions are in `docs/discovery/world-mode.md`.
+**Pass 2** is implemented (2026-10-28, checklist #102–#107): monster themes, mystery plates and the treasure hunt,
+ambush shortcuts and types, whole-world presets, the village start and landmarks. PR #15 stays open until the World
+content is done. The in-game questions are in `docs/discovery/world-mode.md`.
 
 **Custom content is out of scope until after the 1.0 release** (the user's call, 2026-10-28): no custom tilesets,
 doodads, content packs or defs loaded from disk. Don't plan or build it before 1.0.
@@ -322,7 +323,7 @@ These are preferences, not in-game proof. The probe still has to show them.
   - raised plateaus using the cliff sets' ramps and `_stairs`;
   - more biomes.
 
-## Pass 2 (planned 2026-10-28, not started)
+## Pass 2 (implemented 2026-10-28)
 
 The user's direction after playing pass 1:
 - It's hard to customise a world's **monster theme** (which campaign's monsters roam it), its **ambushes** and its
@@ -408,9 +409,13 @@ wall. So the village is composed from base-game props, per biome (`BiomeDef.vill
 
 `random` picks it a third of the time on islands of 128 tiles and up; validation refuses `village` below that.
 
-### C. Landmarks at sites
+### C. Landmarks at sites (done 2026-10-28)
 
-As designed above: pyramids, dune fields, ruins, groves, ponds and camps at objective sites.
+`world/landmarks.ts`: a small composition of base-game units beside each objective site, picked from those its
+biome suits. Pyramid and oasis (desert); shrine (any); ruins; graveyard; a ring of the biome's own trees (grove); a
+stone circle (snow); a pond (mud). Pieces keep off the path to the site, the coast and other props, so a site is
+never cut off, and they draw from the layout stream after the trails, so they move nothing else. Dune fields are
+left out: their 512-px colliders would wall off whole stretches of island. `world<i>Landmarks=0` switches them off.
 
 ### In-game questions for `docs/discovery/world-mode.md`
 

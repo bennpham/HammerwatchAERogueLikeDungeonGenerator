@@ -1239,3 +1239,20 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
 - `[VERIFIED]` (user, in game, 2026-10-28; checklist #99, #101) A world that ends the
   campaign shows its hidden orb at zero (`HideUnit` State 2 on an item), and the orb
   ends the run; the camp start and the world timer work. `dungeon_7200001`/`7200002`.
+
+### World mode, pass 2 (2026-10-28)
+
+- `[VERIFIED]` (asset snapshot) The stock town's houses (`prefabs/theme_town/building_*`)
+  are built from `doodads/walls/city_outlook_*`, which are not in the base assets
+  (`unpacked_assets_66`): they ship inside Shaftlocke Tower's own scenario. A generated
+  campaign can't use them, so the world's village is composed from base props instead
+  (tents, a fountain or well, market props). `cityofstone_fountain` is the same.
+- `[EMITTED]` World mystery plates: `doodads/generic/button_round.unit`, a 1×1 sensor,
+  `AreaTrigger` (once) → `PlaySound` + `SetUnitScene on` + the mystery payload
+  (`mystery/rig.ts emitPayload`, loot and monsters on open ground round the plate, no
+  spewers). Disguised portal buttons wear the same art and state and fire a pool button
+  too. In game: checklist #103.
+- `[EMITTED]` Ambush types: a tripwire spawns exactly one type's monsters (`SpawnUnit`
+  with `AggroEnemy`) on its ring. In game: #104.
+- `[EMITTED]` Village (#106) and landmarks (#107): base-game props only, each marking
+  its collider footprint solid in the world grid.

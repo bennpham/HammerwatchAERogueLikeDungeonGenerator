@@ -127,6 +127,8 @@ export interface WorldDef {
   trails: boolean
   /** How dense trees, rocks and bushes grow, 0–100. */
   scatter: number
+  /** A landmark round each objective site (a pyramid, a shrine, a grove…). Absent means on. */
+  landmarks?: boolean
   /** A countdown, then a whole-island hazard, like a floor's timer. */
   timer?: FloorTimer
   /** A `music/tracks.ts` id; absent plays nothing new. */
@@ -167,6 +169,7 @@ export function defaultWorld(): WorldDef {
     loot: 8,
     mysteryPlates: 0,
     disguise: false,
+    landmarks: true,
     trails: false,
     scatter: 50,
     music: 'act1'

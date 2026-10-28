@@ -43,6 +43,7 @@ import type { Tile } from './grid'
 import { HUB_RADIUS, VILLAGE_MIN_SIZE, buildHub, hubRadius, resolveHub } from './hub'
 import { SITE_RADIUS, placeSites } from './place'
 import { carveTrails } from './paths'
+import { placeLandmarks } from './landmarks'
 import { buildObjectives } from './objectives'
 import { buildEncounters, placeLoot } from './encounters'
 import { scatterProps } from './scatter'
@@ -107,6 +108,7 @@ export function buildWorld(
     buildHub(ctx, layout, grid, biome, hubKind, hub)
     grid.markDisc(hub, 1, WorldGrid.SOLID)
     if (!carveTrails(layout, grid, arrival, sites, def.trails)) continue
+    if (def.landmarks !== false) placeLandmarks(ctx, layout, grid, biome, sites)
 
     const placed = buildObjectives(ctx, encounters, grid, def, hub, sites, gateway, nextIsFight)
     const met = buildEncounters(ctx, encounters, grid, def, hub, sites, placed.plates, ctx.params.mysteryButtons ?? [])

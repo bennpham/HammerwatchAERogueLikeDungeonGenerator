@@ -386,6 +386,9 @@ function parseWorldKey(suffix: string, key: string, value: string, world: WorldD
     case 'disguise':
       world.disguise = value === '1'
       return true
+    case 'landmarks':
+      world.landmarks = value === '1'
+      return true
     case 'mysterypool': {
       const indices = value.split(',').map((t) => t.trim()).filter((t) => t !== '')
       const parsed = indices.map((t) => parseInt(t, 10) - 1)
@@ -462,7 +465,8 @@ function worldLines(w: number, world: WorldDef): string[] {
     k('Trails', world.trails ? 1 : 0),
     k('Scatter', world.scatter),
     k('MysteryPlates', world.mysteryPlates ?? 0),
-    k('Disguise', world.disguise === true ? 1 : 0)
+    k('Disguise', world.disguise === true ? 1 : 0),
+    k('Landmarks', world.landmarks === false ? 0 : 1)
   )
   // 1-based, as the mystery buttons are numbered on the form
   if (world.mysteryPool !== undefined) out.push(k('MysteryPool', world.mysteryPool.map((i) => i + 1).join(',')))

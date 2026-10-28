@@ -246,6 +246,11 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
               title="How thick the trees, rocks and ground cover grow"
             />
             <BoolField label="Dirt trails from the start to each site" checked={world.trails} onChange={(trails) => setWorld({ trails })} />
+            <BoolField
+              label="A landmark at each site (pyramids, shrines, graveyards, groves…)"
+              checked={world.landmarks !== false}
+              onChange={(landmarks) => setWorld({ landmarks })}
+            />
           </Section>
 
           <Section title="Size and coast" badge={`${world.minWidth}×${world.minHeight}`}>
