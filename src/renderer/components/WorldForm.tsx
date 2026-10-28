@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import {
   BIOME_DEFS,
   MONSTER_THEMES,
+  WORLD_PRESETS,
   matchingTheme,
   mysteryStarterPool,
   BOSS_DEF_LIST,
@@ -39,6 +40,7 @@ import { MonsterFilterBar, useMonsterFilter } from './MonsterFilterBar'
 import { MonsterPoolPicker } from './MonsterPoolPicker'
 import { BossSelectionEditor } from './BossSelectionEditor'
 import { MonsterCountListEditor } from './MysteryButtonsEditor'
+import { ConfirmButton } from './ConfirmButton'
 import { formatSeconds } from './FloorTimerEditor'
 
 interface WorldFormProps {
@@ -180,6 +182,42 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
               </button>
             </div>
           )}
+
+          <Section title="Presets" defaultOpen>
+            <div className="quick-setup-presets">
+              {WORLD_PRESETS.map((preset) => (
+                <ConfirmButton
+                  key={preset.id}
+                  label={preset.label}
+                  variant="warning"
+                  title={preset.description}
+                  heading={`Make this world "${preset.label}"?`}
+                  body={
+                    <>
+                      <p>{preset.description}</p>
+                      <p>
+                        This replaces this world&apos;s monsters, encounters and loot settings. Its biome and the other
+                        worlds are left alone.
+                        {preset.needsMysteryPool && mysteryDefs.length === 0
+                          ? ' The campaign has no mystery pool yet, so the starter set is added.'
+                          : ''}
+                      </p>
+                    </>
+                  }
+                  confirmLabel={`Use ${preset.label}`}
+                  onConfirm={() =>
+                    setWorld(
+                      JSON.parse(JSON.stringify(preset.patch)) as Partial<WorldDef>,
+                      preset.needsMysteryPool && mysteryDefs.length === 0 ? { mysteryButtons: mysteryStarterPool() } : {}
+                    )
+                  }
+                />
+              ))}
+            </div>
+            <p className="hint">
+              Starting points: each sets this world&apos;s monsters, encounters and loot, which stay editable below.
+            </p>
+          </Section>
 
           <Section title="Biome" defaultOpen badge={BIOME_DEFS.find((b) => b.id === world.biome)?.label}>
             <label className={`field ${fieldIssues('biome').length > 0 ? 'field-error' : ''}`}>

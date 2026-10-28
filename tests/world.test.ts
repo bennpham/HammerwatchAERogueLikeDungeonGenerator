@@ -41,6 +41,7 @@ import {
 import { floodFill } from '../src/generator/map/reachability'
 import { PORTAL_TEXT } from '../src/generator/world/objectives'
 import { MONSTER_THEMES, matchingTheme } from '../src/generator/world/monsterThemes'
+import { WORLD_PRESETS } from '../src/generator/world/presets'
 import { isKnownFloorPoolKey } from '../src/generator/objects/monsterTypes'
 import { closureOf } from './closure'
 import { aeAssetsDir } from './aeInstall'
@@ -495,6 +496,25 @@ describe('the encounters', () => {
       unitsOf(levelsOf(resultOf(smallWorld({ hub }))).get('world0')!, (u) => u.path.includes('tent_')).length
     expect(tents('camp')).toBe(1)
     expect(tents('bare')).toBe(0)
+  })
+})
+
+describe('world presets', () => {
+  it('each validates and generates on the default world, with the starter pool where it needs one', () => {
+    for (const preset of WORLD_PRESETS) {
+      const p = withWorlds([{ ...defaultWorld(), ...preset.patch }])
+      if (preset.needsMysteryPool) p.mysteryButtons = mysteryStarterPool()
+      expect(validateParameters(p).errors, preset.id).toEqual([])
+      expect(generateDungeon(p, 3).ok, preset.id).toBe(true)
+      // the flag is honest: a preset without it scatters no plates
+      if (!preset.needsMysteryPool) expect(preset.patch.mysteryPlates ?? 0, preset.id).toBe(0)
+    }
+  })
+
+  it('makes the treasure hunt a hunt: disguised buttons among many plates', () => {
+    const hunt = WORLD_PRESETS.find((p) => p.id === 'treasure_hunt')!
+    expect(hunt.patch.disguise).toBe(true)
+    expect(hunt.patch.mysteryPlates!).toBeGreaterThan(hunt.patch.buttons!)
   })
 })
 
