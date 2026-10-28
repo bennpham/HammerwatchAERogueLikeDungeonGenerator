@@ -23,7 +23,7 @@ export function emitObjects(level: AeLevel, ctx: GenerationContext): void {
     return u
   }
   for (const d of ctx.doodads) level.units.push(unit(d.path, d.x, d.y, d.id, d.state))
-  for (const i of ctx.items) level.units.push(unit(i.path, i.x, i.y, i.id))
+  for (const i of ctx.items) level.units.push(unit(i.path, i.x, i.y, i.id, i.state))
   for (const m of ctx.monsters) level.units.push(unit(m.path, m.x, m.y, m.id))
   for (const s of ctx.sensors) {
     const flags: Record<string, StateValue> = {

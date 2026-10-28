@@ -23,7 +23,24 @@ import { COAST_PIECE_NAMES, EDGE_SETS, coastPiece } from '../src/generator/world
 import { buildIsland } from '../src/generator/world/island'
 import { Rand } from '../src/generator/core/rand'
 import { aeAssetExists } from '../src/generator/catalog/assets'
-import { generateOk, levelsOf, lvlText, scriptsOf, stemsOf, unitsOf, withStemPathsText } from './ae'
+import {
+  firedBy,
+  generateOk,
+  idsParam,
+  intParam,
+  levelsOf,
+  lvlText,
+  scriptsOf,
+  stemsOf,
+  strParam,
+  textsOf,
+  unitsOf,
+  withStemPathsText
+} from './ae'
+import { floodFill } from '../src/generator/map/reachability'
+import { PORTAL_TEXT } from '../src/generator/world/objectives'
+import { closureOf } from './closure'
+import { aeAssetsDir } from './aeInstall'
 import { plainParameters } from './params'
 
 /** A small, fast world: 96 tiles square. */
@@ -283,5 +300,152 @@ describe('a generated world', () => {
     const p = withWorlds([smallWorld({ waterMargin: 32, coast: 100 })])
     const r = generateDungeon(p, 1)
     expect(r.ok === true || r.errors.some((e) => /world 1/i.test(e))).toBe(true)
+  })
+})
+
+describe('the objectives and the portal', () => {
+  const worldOf = (def: WorldDef, order?: string, seed = 4) => levelsOf(generateOk(withWorlds([def], order), seed)).get('world0')!
+
+  it('counts every button and boss down one variable, and opens the shut portal at zero', () => {
+    const w0 = worldOf(smallWorld({ buttons: 3, bossCount: 1 }))
+    const vars = scriptsOf(w0, 'Variable')
+    expect(vars).toHaveLength(1)
+    expect(intParam(vars[0], 'Value')).toBe(4)
+    // the exit's use trigger ships off, and the zero branch switches it on
+    const use = scriptsOf(w0, 'UseTrigger')
+    expect(use).toHaveLength(1)
+    expect(use[0].enabled).toBe(false)
+    const enable = scriptsOf(w0, 'ToggleScripts').find((s) => idsParam(s, 'Scripts').includes(use[0].id))!
+    expect(intParam(enable, 'State')).toBe(1)
+    const zero = scriptsOf(w0, 'CheckVariables').find((s) => intParam(s, 'Value') === 0)!
+    expect(idsParam(zero, 'OnTrue')).toContain(enable.id)
+    expect(textsOf(w0)).toContain(PORTAL_TEXT)
+  })
+
+  it('wakes the frame by its scene, or shows a hidden portal', () => {
+    const portalOf = (w: ReturnType<typeof worldOf>) => unitsOf(w, (u) => u.path === 'doodads/generic/teleport_mt.unit')[0]
+    const frame = worldOf(smallWorld({ portal: 'frame' }))
+    const shut = portalOf(frame)
+    expect(shut.state?.start).toEqual({ kind: 'string', value: 'closed' })
+    expect(shut.state?.hidden).toBeUndefined()
+    const scene = scriptsOf(frame, 'SetUnitScene').find((s) => idsParam(s, 'Units').includes(shut.id))!
+    expect(strParam(scene, 'State')).toBe('open')
+
+    const appear = worldOf(smallWorld({ portal: 'appear' }))
+    const hidden = portalOf(appear)
+    expect(hidden.state?.hidden).toEqual({ kind: 'bool', value: true })
+    const show = scriptsOf(appear, 'HideUnit').find((s) => idsParam(s, 'Units').includes(hidden.id))!
+    expect(intParam(show, 'State')).toBe(2)
+  })
+
+  it('turns the portal red in front of a fight', () => {
+    const w0 = worldOf(smallWorld(), '1,2,3,W1,B1')
+    expect(unitsOf(w0, (u) => u.path === 'doodads/generic/teleport_red.unit')).toHaveLength(1)
+  })
+
+  it('hides the orb until the count reaches zero when it ends the campaign', () => {
+    const w0 = worldOf(smallWorld(), '1,2,3,B1,W1')
+    const orb = unitsOf(w0, (u) => u.path.includes('collectable_10_sphere'))[0]
+    expect(orb.state?.hidden).toEqual({ kind: 'bool', value: true })
+    const show = scriptsOf(w0, 'HideUnit').find((s) => idsParam(s, 'Units').includes(orb.id))!
+    const zero = scriptsOf(w0, 'CheckVariables').find((s) => intParam(s, 'Value') === 0)!
+    expect(idsParam(zero, 'OnTrue')).toContain(show.id)
+    expect(scriptsOf(w0, 'UseTrigger')).toHaveLength(0)
+  })
+
+  it('places each boss with a death trigger, and its bar near it', () => {
+    const w0 = worldOf(smallWorld({ buttons: 1, bossCount: 2, bossPool: ['boss_knight', 'boss_lich'] }))
+    const watched = new Set(scriptsOf(w0, 'UnitDestroyedTrigger').flatMap((s) => idsParam(s, 'Units')))
+    expect(unitsOf(w0, (u) => u.path.startsWith('actors/') && watched.has(u.id))).toHaveLength(2)
+    expect(scriptsOf(w0, 'CreateBossBar')).toHaveLength(2)
+  })
+
+  it('reaches every site from the arrival, on every biome', () => {
+    for (const b of BIOME_DEFS) {
+      for (const seed of [1, 2, 3]) {
+        const result = generateOk(withWorlds([smallWorld({ biome: b.id, buttons: 3, bossCount: 1, scatter: 100 })]), seed)
+        const preview = result.levels.find((l) => l.world !== undefined)!
+        const world = preview.world!
+        const blocked = Uint8Array.from(preview.walls, (c) => (c === '1' ? 1 : 0))
+        const reached = floodFill(blocked, preview.mapWidth, preview.mapHeight, { x: world.hub.x, y: world.hub.y + 3 })
+        const objectives = world.sites.filter((s) => s.kind === 'button' || s.kind === 'boss')
+        expect(objectives).toHaveLength(4)
+        for (const s of objectives) expect(reached[s.y * preview.mapWidth + s.x], `${b.id} seed ${seed} ${s.kind}`).toBe(1)
+      }
+    }
+  })
+})
+
+describe('the encounters', () => {
+  const resultOf = (def: WorldDef, seed = 6) => generateOk(withWorlds([def]), seed)
+  const sitesOf = (def: WorldDef, kind: string, seed = 6) =>
+    resultOf(def, seed).levels.find((l) => l.world !== undefined)!.world!.sites.filter((s) => s.kind === kind)
+
+  it('springs each ambush once, spawning its ring of monsters', () => {
+    const w0 = levelsOf(resultOf(smallWorld({ ambushes: 3, ambushSize: 5, buttonAmbush: 0, safeRadius: 8 }))).get('world0')!
+    const wires = scriptsOf(w0, 'AreaTrigger').filter((s) => firedBy(w0, s).some((f) => f.script.cls === 'SpawnUnit'))
+    expect(wires.length).toBeGreaterThan(0)
+    expect(wires.length).toBeLessThanOrEqual(3)
+    for (const wire of wires) {
+      expect(wire.triggerTimes).toBe(1)
+      const spawns = firedBy(w0, wire).filter((f) => f.script.cls === 'SpawnUnit')
+      expect(spawns.length).toBeGreaterThan(0)
+      expect(spawns.length).toBeLessThanOrEqual(5)
+      for (const s of spawns) expect(strParam(s.script, 'UnitType')).toMatch(/^actors\//)
+    }
+  })
+
+  it('springs an ambush from every button at 100%, and none at 0%', () => {
+    const plates = (chance: number) => {
+      const w0 = levelsOf(resultOf(smallWorld({ ambushes: 0, buttonAmbush: chance, bossCount: 0, buttons: 3 }))).get('world0')!
+      return scriptsOf(w0, 'AreaTrigger')
+        .filter((s) => firedBy(w0, s).some((f) => f.script.cls === 'SetUnitScene'))
+        .map((s) => firedBy(w0, s).filter((f) => f.script.cls === 'SpawnUnit').length)
+    }
+    expect(plates(100)).toHaveLength(3)
+    expect(plates(100).every((n) => n > 0)).toBe(true)
+    expect(plates(0).every((n) => n === 0)).toBe(true)
+  })
+
+  it('keeps the sites where they were whatever the scatter, the packs or the ambushes', () => {
+    const base = smallWorld()
+    const where = (def: WorldDef) => JSON.stringify([sitesOf(def, 'button'), sitesOf(def, 'boss')])
+    expect(where({ ...base, scatter: 0 })).toBe(where({ ...base, scatter: 100 }))
+    expect(where({ ...base, ambushes: 0 })).toBe(where({ ...base, ambushes: 12 }))
+    expect(where({ ...base, packs: 0 })).toBe(where({ ...base, packs: 60 }))
+  })
+
+  it('keeps the packs where they were whatever the scatter', () => {
+    const base = smallWorld({ packs: 10 })
+    expect(sitesOf({ ...base, scatter: 0 }, 'pack')).toEqual(sitesOf({ ...base, scatter: 100 }, 'pack'))
+  })
+
+  it('adds the timer only when it is on', () => {
+    const off = levelsOf(resultOf(smallWorld())).get('world0')!
+    expect(scriptsOf(off, 'DangerArea')).toHaveLength(0)
+    const timer = { enabled: true, seconds: 30, damage: 1, freqMs: 1000, countdown: true }
+    const on = levelsOf(resultOf(smallWorld({ timer }))).get('world0')!
+    expect(scriptsOf(on, 'DangerArea')).toHaveLength(1)
+  })
+
+  it.skipIf(aeAssetsDir() === null)('keeps the party on the island: the cliffs and the fence close every coast', () => {
+    for (const b of BIOME_DEFS) {
+      // first, so its arrival is the campaign's default spawn the closure walks from
+      const result = generateOk(withWorlds([smallWorld({ biome: b.id })], 'W1,1,2,3,B1'), 8)
+      const level = levelsOf(result).get('world0')!
+      const preview = result.levels.find((l) => l.world !== undefined)!
+      const box = { x0: 0, y0: 0, x1: preview.mapWidth * 16, y1: preview.mapHeight * 16 }
+      const closure = closureOf(level, box, aeAssetsDir()!)
+      expect(closure.leak, b.id).toBeNull()
+      expect(closure.reachesExit, b.id).toBe(true)
+      expect(closure.area, b.id).toBeGreaterThan(100_000)
+    }
+  })
+
+  it('pitches the camp only when asked', () => {
+    const tents = (hub: WorldDef['hub']) =>
+      unitsOf(levelsOf(resultOf(smallWorld({ hub }))).get('world0')!, (u) => u.path.includes('tent_')).length
+    expect(tents('camp')).toBe(1)
+    expect(tents('bare')).toBe(0)
   })
 })

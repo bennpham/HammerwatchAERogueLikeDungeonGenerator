@@ -43,6 +43,8 @@ export interface BiomeDef {
   environment: string
   /** clumped, mostly solid: trees, rocks */
   clumps: ScatterEntry[]
+  /** how many clumps, against grassland's 1: woods grow thick, the desert thin */
+  clumpDensity: number
   /** sparse and walk-through: tufts, flowers, pebbles */
   cover: ScatterEntry[]
   /** the camp hub's props, laid round the portal */
@@ -59,6 +61,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     water: 'tilesets/water_clear.tileset',
     edgeSet: 'granite2',
     environment: 'effects/env/day.env',
+    clumpDensity: 1,
     clumps: [
       { path: 'doodads/terrain/tree_oak_apple.unit', weight: 3, solid: 1 },
       { path: 'doodads/terrain/tree_oak_red.unit', weight: 2, solid: 1 },
@@ -88,6 +91,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     water: 'tilesets/water_clear.tileset',
     edgeSet: 'granite',
     environment: 'effects/env/dusk.env',
+    clumpDensity: 3,
     clumps: [
       { path: 'doodads/terrain/tree_fir.unit', weight: 4, solid: 1 },
       { path: 'doodads/terrain/tree_pine.unit', weight: 3, solid: 2 },
@@ -117,6 +121,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     water: 'tilesets/water_clear.tileset',
     edgeSet: 'silt',
     environment: 'effects/env/egypt_outside.env',
+    clumpDensity: 0.6,
     clumps: [
       { path: 'doodads/terrain/tree_palm.unit', weight: 3, solid: 1 },
       { path: 'doodads/terrain/cactus.unit', weight: 3, solid: 1 },
@@ -144,6 +149,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     water: 'tilesets/water_clear.tileset',
     edgeSet: 'basalt',
     environment: 'effects/env/outside.env',
+    clumpDensity: 1.2,
     clumps: [
       { path: 'doodads/terrain/tree_ash.unit', weight: 2, solid: 1 },
       { path: 'doodads/terrain/tree_oak_stump.unit', weight: 2, solid: 1 },
@@ -172,6 +178,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     water: 'tilesets/water_clear.tileset',
     edgeSet: 'granite2',
     environment: 'effects/lighting/outlook.env',
+    clumpDensity: 1.5,
     clumps: [
       { path: 'doodads/terrain/tree_fir.unit', weight: 4, solid: 1 },
       { path: 'doodads/terrain/tree_pine.unit', weight: 2, solid: 2 },
