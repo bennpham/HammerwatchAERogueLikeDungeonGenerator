@@ -1236,3 +1236,6 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
   trouble; the empty frame comes alive at zero and F moves the party on; tripwires,
   packs, boss bars and loot work. The orb-last case (#99), the camp and the timer (#101)
   are not yet played.
+- `[VERIFIED]` (user, in game, 2026-10-28; checklist #99, #101) A world that ends the
+  campaign shows its hidden orb at zero (`HideUnit` State 2 on an item), and the orb
+  ends the run; the camp start and the world timer work. `dungeon_7200001`/`7200002`.
