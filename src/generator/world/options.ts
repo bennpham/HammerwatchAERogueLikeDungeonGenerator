@@ -8,7 +8,7 @@
  * below ("absent means default", the same discipline `arenaMode()` enforces).
  */
 
-import type { BossSelection, FloorTimer } from '../config/parameters'
+import type { BossSelection, FloorTimer, MysteryMonster } from '../config/parameters'
 import type { BossId } from '../boss/bosses'
 
 /** How a world's start looks. `random` picks `camp` or `bare` from the world's own layout stream. */
@@ -32,6 +32,27 @@ export const WORLD_MAX_GROUP = 30
 export const WORLD_MAX_AMBUSHES = 100
 export const WORLD_MAX_LOOT = 100
 export const WORLD_MAX_MYSTERY_PLATES = 60
+export const WORLD_MAX_AMBUSH_TYPES = 20
+export const WORLD_MAX_AMBUSH_WEIGHT = 99
+
+/**
+ * One kind of ambush: exactly these monsters spring round the party. Each
+ * tripwire (and each button that springs one) picks a type by weight.
+ */
+export interface WorldAmbushType {
+  /** how often this type is picked, against the others' weights */
+  weight: number
+  /** arena-grammar monster keys and counts, as a mystery button's */
+  monsters: MysteryMonster[]
+}
+
+/** The Ambushes section's shortcuts: tripwires, monsters each, and the button chance. */
+export const WORLD_AMBUSH_LEVELS = [
+  { id: 'off', label: 'Off', ambushes: 0, ambushSize: 4, buttonAmbush: 0 },
+  { id: 'light', label: 'Light', ambushes: 4, ambushSize: 4, buttonAmbush: 25 },
+  { id: 'normal', label: 'Normal', ambushes: 8, ambushSize: 6, buttonAmbush: 50 },
+  { id: 'heavy', label: 'Heavy', ambushes: 16, ambushSize: 10, buttonAmbush: 100 }
+] as const
 export const WORLD_MIN_SAFE_RADIUS = 8
 export const WORLD_MAX_SAFE_RADIUS = 64
 /** A world timer emits one node per second; this keeps the level under ~2000 of them. */
@@ -75,8 +96,13 @@ export interface WorldDef {
   safeRadius: number
   /** Ambush tripwires: walking over one spawns monsters around the party. */
   ambushes: number
-  /** Monsters one ambush spawns. */
+  /** Monsters one ambush spawns, when it draws from the pool. */
   ambushSize: number
+  /**
+   * Exact ambushes to pick from by weight. Absent or empty: an ambush is
+   * `ambushSize` random monsters from the world's pool.
+   */
+  ambushTypes?: WorldAmbushType[]
   /** Chance, in percent, that a floor button also springs an ambush. */
   buttonAmbush: number
   /** Loose coin caches placed on the island. */

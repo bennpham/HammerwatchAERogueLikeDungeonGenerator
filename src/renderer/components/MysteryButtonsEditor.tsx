@@ -428,7 +428,7 @@ interface MonsterCountListEditorProps {
 }
 
 /** `{monster, count}` rows — the survival wave editor's monster picker, with only a count beside it. */
-function MonsterCountListEditor({ value, onChange, issuePrefix, issues }: MonsterCountListEditorProps) {
+export function MonsterCountListEditor({ value, onChange, issuePrefix, issues }: MonsterCountListEditorProps) {
   const filter = useMonsterFilter()
 
   const patch = (index: number, change: Partial<MysteryMonster>) => {

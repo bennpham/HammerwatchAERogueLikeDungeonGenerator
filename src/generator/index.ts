@@ -122,6 +122,9 @@ export {
   WORLD_MAX_AMBUSHES,
   WORLD_MAX_LOOT,
   WORLD_MAX_MYSTERY_PLATES,
+  WORLD_AMBUSH_LEVELS,
+  WORLD_MAX_AMBUSH_TYPES,
+  WORLD_MAX_AMBUSH_WEIGHT,
   WORLD_MIN_SAFE_RADIUS,
   WORLD_MAX_SAFE_RADIUS,
   WORLD_MAX_TIMER_SECONDS,
@@ -131,7 +134,7 @@ export {
   worldMysteryPool,
   worldSiteCapacity
 } from './world/options'
-export type { WorldDef, WorldOptions, WorldHub } from './world/options'
+export type { WorldAmbushType, WorldDef, WorldOptions, WorldHub } from './world/options'
 export { BIOME_DEFS, BIOME_IDS, biomeById } from './world/biomes'
 export { MONSTER_THEMES, matchingTheme } from './world/monsterThemes'
 export type { MonsterTheme } from './world/monsterThemes'

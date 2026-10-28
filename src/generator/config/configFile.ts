@@ -39,7 +39,7 @@ import {
   bossSelection,
   arenaUsesBodyguards
 } from './parameters'
-import { WORLD_HUBS, defaultWorld, defaultWorldOptions, worldList } from '../world/options'
+import { WORLD_HUBS, WORLD_MAX_AMBUSH_TYPES, defaultWorld, defaultWorldOptions, worldList } from '../world/options'
 import type { WorldDef } from '../world/options'
 import { UPGRADE_KINDS, noUpgrades } from '../lobby/payout'
 import type { UpgradeCounts } from '../lobby/payout'
@@ -328,6 +328,29 @@ const WORLD_INT_KEYS = {
  */
 function parseWorldKey(suffix: string, key: string, value: string, world: WorldDef, unknownKeys: string[]): boolean {
   const bad = () => unknownKeys.push(`${key} value "${value}"`)
+  // `ambushType<k>=<weight>|<monster>:<count>,<monster>:<count>` — k from 1
+  const ambush = /^ambushtype(\d+)$/.exec(suffix)
+  if (ambush !== null) {
+    const index = parseInt(ambush[1], 10) - 1
+    const [weightText, rows = ''] = value.split('|')
+    const weight = parseInt(weightText, 10)
+    if (index < 0 || index >= WORLD_MAX_AMBUSH_TYPES || Number.isNaN(weight)) {
+      bad()
+      return true
+    }
+    const monsters = rows
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t !== '')
+      .map((t) => {
+        const [monster, count = '1'] = t.split(':')
+        return { monster: monster.trim(), count: parseInt(count, 10) }
+      })
+    const types = world.ambushTypes ?? (world.ambushTypes = [])
+    while (types.length <= index) types.push({ weight: 1, monsters: [] })
+    types[index] = { weight, monsters }
+    return true
+  }
   if (suffix in WORLD_INT_KEYS) {
     const n = parseInt(value, 10)
     if (Number.isNaN(n)) bad()
@@ -443,6 +466,9 @@ function worldLines(w: number, world: WorldDef): string[] {
   )
   // 1-based, as the mystery buttons are numbered on the form
   if (world.mysteryPool !== undefined) out.push(k('MysteryPool', world.mysteryPool.map((i) => i + 1).join(',')))
+  for (const [t, type] of (world.ambushTypes ?? []).entries()) {
+    out.push(k(`AmbushType${t + 1}`, `${type.weight}|${type.monsters.map((m) => `${m.monster}:${m.count}`).join(',')}`))
+  }
   if (world.timer !== undefined) {
     const t = world.timer
     out.push(k('Timer', `${t.enabled ? 1 : 0}|${t.seconds}|${t.damage}|${t.freqMs}|${t.countdown ? 1 : 0}`))

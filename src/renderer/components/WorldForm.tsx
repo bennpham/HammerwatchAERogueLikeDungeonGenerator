@@ -12,6 +12,9 @@ import {
   WORLD_MAX_LOOT,
   WORLD_MAX_MARGIN,
   WORLD_MAX_MYSTERY_PLATES,
+  WORLD_AMBUSH_LEVELS,
+  WORLD_MAX_AMBUSH_TYPES,
+  WORLD_MAX_AMBUSH_WEIGHT,
   WORLD_MAX_PACKS,
   WORLD_MAX_SAFE_RADIUS,
   WORLD_MAX_SIZE,
@@ -29,12 +32,13 @@ import {
   worldBossCount,
   worldSiteCapacity
 } from '../../generator'
-import type { DungeonParameters, ValidationIssue, WorldDef, WorldOptions } from '../../generator'
+import type { DungeonParameters, ValidationIssue, WorldAmbushType, WorldDef, WorldOptions } from '../../generator'
 import { BoolField, NumberField, Section, ToggleGroup } from './fields'
 import { MusicPicker } from './MusicPicker'
 import { MonsterFilterBar, useMonsterFilter } from './MonsterFilterBar'
 import { MonsterPoolPicker } from './MonsterPoolPicker'
 import { BossSelectionEditor } from './BossSelectionEditor'
+import { MonsterCountListEditor } from './MysteryButtonsEditor'
 import { formatSeconds } from './FloorTimerEditor'
 
 interface WorldFormProps {
@@ -86,6 +90,16 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
   }
   const setWorld = (patch: Partial<WorldDef>, also: Partial<DungeonParameters> = {}) =>
     set({ worlds: worlds.map((w, i) => (i === active ? { ...w, ...patch } : w)) }, also)
+
+  const ambushLevel = WORLD_AMBUSH_LEVELS.find(
+    (level) =>
+      world !== undefined &&
+      world.ambushes === level.ambushes &&
+      world.buttonAmbush === level.buttonAmbush &&
+      (level.ambushes === 0 || world.ambushSize === level.ambushSize)
+  )
+  const setAmbushType = (t: number, patch: Partial<WorldAmbushType>) =>
+    setWorld({ ambushTypes: (world?.ambushTypes ?? []).map((type, k) => (k === t ? { ...type, ...patch } : type)) })
 
   const mysteryDefs = params.mysteryButtons ?? []
   /** A mystery shortcut: its plates and disguise, plus the starter pool if the campaign has no buttons yet. */
@@ -289,8 +303,25 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
             />
           </Section>
 
-          <Section title="Ambushes" badge={`${world.ambushes} ambush`}>
-            <p className="hint">An ambush is a tripwire on a trail: the first player through it springs a ring of monsters round the party.</p>
+          <Section title="Ambushes" badge={ambushLevel?.label ?? `${world.ambushes} tripwires`}>
+            <div className="quick-setup-presets">
+              {WORLD_AMBUSH_LEVELS.map((level) => (
+                <button
+                  key={level.id}
+                  type="button"
+                  className={`toggle ${ambushLevel?.id === level.id ? 'active' : ''}`}
+                  onClick={() =>
+                    setWorld({ ambushes: level.ambushes, ambushSize: level.ambushSize, buttonAmbush: level.buttonAmbush })
+                  }
+                >
+                  {level.label}
+                </button>
+              ))}
+            </div>
+            <p className="hint">
+              An ambush is a tripwire on the way to a site: the first player through it springs a ring of monsters round the
+              party. A button can spring one too.
+            </p>
             <div className="field-grid">
               <NumberField label="Tripwires" field={`${prefix}.ambushes`} value={world.ambushes} issues={issues} min={0} max={WORLD_MAX_AMBUSHES} onChange={(ambushes) => setWorld({ ambushes })} />
               <NumberField label="Monsters each" field={`${prefix}.ambushSize`} value={world.ambushSize} issues={issues} min={1} max={WORLD_MAX_GROUP} onChange={(ambushSize) => setWorld({ ambushSize })} />
@@ -304,6 +335,68 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
               max={100}
               onChange={(buttonAmbush) => setWorld({ buttonAmbush })}
             />
+            <details className="pool-level">
+              <summary>
+                Ambush types
+                <span className="pool-summary">
+                  {(world.ambushTypes ?? []).length === 0
+                    ? `random from the pool, ${world.ambushSize} each`
+                    : `${world.ambushTypes!.length} type${world.ambushTypes!.length === 1 ? '' : 's'}`}
+                </span>
+              </summary>
+              <p className="hint">
+                With none, an ambush is random monsters from the world&apos;s pool. With types, each ambush springs exactly
+                one type&apos;s monsters, picked by weight.
+              </p>
+              {(world.ambushTypes ?? []).map((type, t) => (
+                <div key={t} className="chain-row">
+                  <div className="field-grid">
+                    <NumberField
+                      label={`Ambush ${t + 1}: weight`}
+                      field={`${prefix}.ambushTypes.${t}.weight`}
+                      value={type.weight}
+                      issues={issues}
+                      min={1}
+                      max={WORLD_MAX_AMBUSH_WEIGHT}
+                      onChange={(weight) => setAmbushType(t, { weight })}
+                    />
+                    <button
+                      type="button"
+                      className="buff-remove"
+                      onClick={() => setWorld({ ambushTypes: (world.ambushTypes ?? []).filter((_, k) => k !== t) })}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <MonsterCountListEditor
+                    value={type.monsters}
+                    onChange={(monsters) => setAmbushType(t, { monsters })}
+                    issuePrefix={`${prefix}.ambushTypes.${t}.monsters`}
+                    issues={issues}
+                  />
+                  {issues
+                    .filter((i) => i.field === `${prefix}.ambushTypes.${t}.monsters`)
+                    .map((issue, k) => (
+                      <span key={k} className="field-message">
+                        {issue.message}
+                      </span>
+                    ))}
+                </div>
+              ))}
+              {(world.ambushTypes ?? []).length < WORLD_MAX_AMBUSH_TYPES && (
+                <button
+                  type="button"
+                  className="copy-down"
+                  onClick={() =>
+                    setWorld({
+                      ambushTypes: [...(world.ambushTypes ?? []), { weight: 1, monsters: [{ monster: 'skeleton_warrior', count: 4 }] }]
+                    })
+                  }
+                >
+                  Add ambush type
+                </button>
+              )}
+            </details>
           </Section>
 
           <Section

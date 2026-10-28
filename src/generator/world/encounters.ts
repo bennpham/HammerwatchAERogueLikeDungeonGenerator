@@ -24,7 +24,8 @@ import type { Rand } from '../core/rand'
 import { Item } from '../objects/item'
 import { Monster } from '../objects/monster'
 import type { MonsterTypeDef } from '../objects/monsterTypes'
-import { resolveActorPath } from '../objects/monsterTypes'
+import { isKnownMonsterKey, resolveActorPath } from '../objects/monsterTypes'
+import { pick } from './scatter'
 import { SensorShape } from '../objects/scriptNode'
 import type { ScriptNode } from '../objects/scriptNode'
 import { Doodad } from '../objects/doodad'
@@ -32,7 +33,7 @@ import { NodeAreaTrigger, NodeChangeDoodadState, NodePlaySound, NodeSpawnObject 
 import type { MysteryButton } from '../config/parameters'
 import { MYSTERY_ANNOUNCE_TYPE, MYSTERY_BUTTON_STATE, emitPayload } from '../mystery/rig'
 import { SEAL_SOUND } from '../map/buttonSeal'
-import type { WorldDef } from './options'
+import type { WorldAmbushType, WorldDef } from './options'
 import { worldMysteryPool } from './options'
 import type { Tile } from './grid'
 import { WorldGrid, dist2 } from './grid'
@@ -97,7 +98,7 @@ export function buildEncounters(
   const clearOf = (t: Tile) =>
     dist2(t, hub) >= def.safeRadius * def.safeRadius &&
     [...ambushes, ...sites].every((a) => dist2(a, t) >= AMBUSH_SPACING * AMBUSH_SPACING)
-  for (let i = 0; i < def.ambushes && def.monsters.length > 0 && path.length > 0; i++) {
+  for (let i = 0; i < def.ambushes && canAmbush(def) && path.length > 0; i++) {
     let at: Tile | null = null
     for (let t = 0; t < PLACE_TRIES && at === null; t++) {
       const candidate = path[rand.iRand(0, path.length)]
@@ -115,7 +116,7 @@ export function buildEncounters(
   }
 
   for (const plate of plates) {
-    if (def.monsters.length === 0 || rand.iRand(0, 100) >= def.buttonAmbush) continue
+    if (!canAmbush(def) || rand.iRand(0, 100) >= def.buttonAmbush) continue
     springRing(ctx, rand, grid, def, plate.at, plate.trigger)
   }
 
@@ -179,8 +180,17 @@ function openGround(grid: WorldGrid, at: Tile): Tile[] {
 function springRing(ctx: GenerationContext, rand: Rand, grid: WorldGrid, def: WorldDef, at: Tile, trigger: ScriptNode): void {
   trigger.connectTo(new NodePlaySound(ctx, at.x + 0.5, at.y - 1, AMBUSH_SOUND))
   const offset = rand.nextFloat() * Math.PI * 2
-  for (let i = 0; i < def.ambushSize; i++) {
-    const angle = offset + (i / def.ambushSize) * Math.PI * 2
+  // an ambush type, when the world has any: exactly its monsters, decided up front
+  const types = ambushTypes(def)
+  const exact =
+    types.length > 0
+      ? pick(rand, types).monsters.flatMap((row) =>
+          isKnownMonsterKey(row.monster) && row.count >= 1 ? Array.from({ length: row.count }, () => resolveActorPath(row.monster)) : []
+        )
+      : null
+  const size = exact === null ? def.ambushSize : exact.length
+  for (let i = 0; i < size; i++) {
+    const angle = offset + (i / size) * Math.PI * 2
     // the ring point, or the nearest walkable tile toward the center
     let spot: Tile | null = null
     for (let r = AMBUSH_RING; r >= 1 && spot === null; r--) {
@@ -188,13 +198,28 @@ function springRing(ctx: GenerationContext, rand: Rand, grid: WorldGrid, def: Wo
       if (grid.walkable(t.x, t.y)) spot = t
     }
     if (spot === null) continue
-    const key = def.monsters[rand.iRand(0, def.monsters.length)]
-    const { type, tier } = rollPoolKey(rand, key)
-    const spawn = new NodeSpawnObject(ctx, spot.x + 0.5, spot.y + 0.5, type.tiers[tier] ?? resolveActorPath(key))
+    let actor: string
+    if (exact !== null) actor = exact[i]
+    else {
+      const key = def.monsters[rand.iRand(0, def.monsters.length)]
+      const { type, tier } = rollPoolKey(rand, key)
+      actor = type.tiers[tier] ?? resolveActorPath(key)
+    }
+    const spawn = new NodeSpawnObject(ctx, spot.x + 0.5, spot.y + 0.5, actor)
     spawn.triggerTimes = 1
     trigger.connectTo(spawn)
     grid.set(spot.x, spot.y, WorldGrid.RESERVED)
   }
+}
+
+/** The world's usable ambush types: a positive weight and at least one monster. */
+function ambushTypes(def: WorldDef): WorldAmbushType[] {
+  return (def.ambushTypes ?? []).filter((t) => t.weight > 0 && t.monsters.some((m) => m.count >= 1))
+}
+
+/** Whether this world can spring an ambush at all: a type to pick, or a pool to draw from. */
+function canAmbush(def: WorldDef): boolean {
+  return ambushTypes(def).length > 0 || def.monsters.length > 0
 }
 
 /** Coin clusters on reachable, free ground, after the scatter. */

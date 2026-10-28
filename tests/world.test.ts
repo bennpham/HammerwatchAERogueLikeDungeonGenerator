@@ -498,6 +498,49 @@ describe('the encounters', () => {
   })
 })
 
+describe('ambush types', () => {
+  const spawnsOf = (def: WorldDef) => {
+    const w0 = levelsOf(generateOk(withWorlds([def]), 6)).get('world0')!
+    const wires = scriptsOf(w0, 'AreaTrigger').filter((s) => firedBy(w0, s).some((f) => f.script.cls === 'SpawnUnit'))
+    return wires.map((wire) => firedBy(w0, wire).filter((f) => f.script.cls === 'SpawnUnit').map((f) => strParam(f.script, 'UnitType')!))
+  }
+  const base = smallWorld({ ambushes: 3, buttonAmbush: 0, safeRadius: 8 })
+
+  it('springs exactly one type\'s monsters per ambush', () => {
+    const types = [{ weight: 1, monsters: [{ monster: 'mummy', count: 3 }, { monster: 'scorpion', count: 2 }] }]
+    const rings = spawnsOf({ ...base, ambushTypes: types })
+    expect(rings.length).toBeGreaterThan(0)
+    for (const ring of rings) {
+      expect(ring).toHaveLength(5)
+      expect(ring.filter((p) => p.includes('mummy'))).toHaveLength(3)
+    }
+  })
+
+  it('needs no monster pool when every ambush is a type', () => {
+    const def = { ...base, packs: 0, monsters: [], ambushTypes: [{ weight: 2, monsters: [{ monster: 'bat', count: 4 }] }] }
+    expect(validateParameters(withWorlds([def])).errors).toEqual([])
+    // and without types the empty pool is refused
+    expect(validateParameters(withWorlds([{ ...def, ambushTypes: [] }])).errors.map((e) => e.field)).toContain('world.worlds.0.monsters')
+  })
+
+  it('refuses a bad weight, an unknown monster or a type with none', () => {
+    const fields = (ambushTypes: WorldDef['ambushTypes']) =>
+      validateParameters(withWorlds([{ ...base, ambushTypes }])).errors.map((e) => e.field)
+    expect(fields([{ weight: 0, monsters: [{ monster: 'bat', count: 1 }] }])).toContain('world.worlds.0.ambushTypes.0.weight')
+    expect(fields([{ weight: 1, monsters: [{ monster: 'dragon_of_doom', count: 1 }] }])).toContain('world.worlds.0.ambushTypes.0.monsters.0.monster')
+    expect(fields([{ weight: 1, monsters: [] }])).toContain('world.worlds.0.ambushTypes.0.monsters')
+  })
+
+  it('round-trips through parameters.txt', () => {
+    const p = withWorlds([{ ...base, ambushTypes: [{ weight: 3, monsters: [{ monster: 'mummy', count: 2 }] }, { weight: 1, monsters: [{ monster: 'bat', count: 6 }] }] }])
+    const text = serializeParametersTxt(p)
+    expect(text).toContain('world0AmbushType1=3|mummy:2')
+    const parsed = parseParametersTxt(text)
+    expect(parsed.unknownKeys).toEqual([])
+    expect(parsed.params.world).toEqual(p.world)
+  })
+})
+
 describe('mystery plates and the treasure hunt', () => {
   const PLATE = 'doodads/generic/button_round.unit'
   /** The campaign with the starter mystery pool and one world. */

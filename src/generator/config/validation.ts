@@ -78,7 +78,9 @@ import {
   worldList,
   worldMysteryPool,
   worldSiteCapacity,
-  WORLD_MAX_MYSTERY_PLATES
+  WORLD_MAX_MYSTERY_PLATES,
+  WORLD_MAX_AMBUSH_TYPES,
+  WORLD_MAX_AMBUSH_WEIGHT
 } from '../world/options'
 import type { WorldDef } from '../world/options'
 import { getTheme } from './themes'
@@ -563,7 +565,33 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
     })
   }
 
-  if ((w.packs > 0 || w.ambushes > 0 || w.buttonAmbush > 0) && w.monsters.length === 0) {
+  // ambush types: each a positive weight and real monsters; with any, ambushes need no pool
+  const types = w.ambushTypes ?? []
+  if (types.length > WORLD_MAX_AMBUSH_TYPES) {
+    errors.push({ field: at('ambushTypes'), message: `${subject}: at most ${WORLD_MAX_AMBUSH_TYPES} ambush types.` })
+  }
+  types.forEach((type, t) => {
+    const tf = (field: string) => at(`ambushTypes.${t}.${field}`)
+    if (!Number.isInteger(type.weight) || type.weight < 1 || type.weight > WORLD_MAX_AMBUSH_WEIGHT) {
+      errors.push({ field: tf('weight'), message: `${subject}, ambush ${t + 1}: the weight must be a whole number from 1 to ${WORLD_MAX_AMBUSH_WEIGHT}.` })
+    }
+    if (type.monsters.length === 0) {
+      errors.push({ field: tf('monsters'), message: `${subject}, ambush ${t + 1}: add at least one monster.` })
+    }
+    type.monsters.forEach((row, m) => {
+      if (!isKnownMonsterKey(row.monster)) {
+        errors.push({ field: tf(`monsters.${m}.monster`), message: `${subject}, ambush ${t + 1}: unknown monster "${row.monster}".` })
+      }
+      if (!Number.isInteger(row.count) || row.count < 1 || row.count > WORLD_MAX_GROUP) {
+        errors.push({
+          field: tf(`monsters.${m}.count`),
+          message: `${subject}, ambush ${t + 1}: each count must be a whole number from 1 to ${WORLD_MAX_GROUP}.`
+        })
+      }
+    })
+  })
+  const poolAmbushes = (w.ambushes > 0 || w.buttonAmbush > 0) && types.length === 0
+  if ((w.packs > 0 || poolAmbushes) && w.monsters.length === 0) {
     errors.push({ field: at('monsters'), message: `${subject}: packs and ambushes need at least one monster in the pool.` })
   }
   for (const key of w.monsters) {
