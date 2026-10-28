@@ -313,6 +313,7 @@ const WORLD_INT_KEYS = {
   ambushsize: 'ambushSize',
   buttonambush: 'buttonAmbush',
   loot: 'loot',
+  mysteryplates: 'mysteryPlates',
   scatter: 'scatter'
 } as const satisfies Record<string, keyof WorldDef>
 
@@ -359,6 +360,16 @@ function parseWorldKey(suffix: string, key: string, value: string, world: WorldD
     case 'trails':
       world.trails = value === '1'
       return true
+    case 'disguise':
+      world.disguise = value === '1'
+      return true
+    case 'mysterypool': {
+      const indices = value.split(',').map((t) => t.trim()).filter((t) => t !== '')
+      const parsed = indices.map((t) => parseInt(t, 10) - 1)
+      if (parsed.some((n) => Number.isNaN(n))) bad()
+      else world.mysteryPool = parsed
+      return true
+    }
     case 'bosspool':
       world.bossPool = value.split(',').map((t) => t.trim()).filter((t) => t !== '')
       return true
@@ -426,8 +437,12 @@ function worldLines(w: number, world: WorldDef): string[] {
     k('ButtonAmbush', world.buttonAmbush),
     k('Loot', world.loot),
     k('Trails', world.trails ? 1 : 0),
-    k('Scatter', world.scatter)
+    k('Scatter', world.scatter),
+    k('MysteryPlates', world.mysteryPlates ?? 0),
+    k('Disguise', world.disguise === true ? 1 : 0)
   )
+  // 1-based, as the mystery buttons are numbered on the form
+  if (world.mysteryPool !== undefined) out.push(k('MysteryPool', world.mysteryPool.map((i) => i + 1).join(',')))
   if (world.timer !== undefined) {
     const t = world.timer
     out.push(k('Timer', `${t.enabled ? 1 : 0}|${t.seconds}|${t.damage}|${t.freqMs}|${t.countdown ? 1 : 0}`))

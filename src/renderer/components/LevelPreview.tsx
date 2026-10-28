@@ -39,6 +39,7 @@ const WORLD_SITE_STYLE: Record<string, { color: string; label: string; legend: s
   boss: { color: '#c0455f', label: 'B', legend: 'Boss' },
   button: { color: '#d0a53f', label: '●', legend: 'Button' },
   ambush: { color: '#e06030', label: '!', legend: 'Ambush' },
+  mystery: { color: '#7fb8e0', label: '?', legend: 'Mystery plate' },
   pack: { color: '#b04a4a', label: '', legend: 'Pack' },
   loot: { color: '#e0d060', label: '', legend: 'Loot' }
 }

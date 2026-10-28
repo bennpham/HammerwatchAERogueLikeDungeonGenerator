@@ -8,6 +8,9 @@
  *   springs a ring of `SpawnUnit`s round it, each aggroed on the spot. The
  *   HW1 mansion `test_yard` level's pattern, in AE's nodes.
  * - the same ring on a floor button, at `buttonAmbush` percent.
+ * - mystery plates: a plate that fires a button from the campaign's mystery
+ *   pool (`mystery/rig.ts`'s `emitPayload`): loot, monsters, a line of text,
+ *   or nothing. With `disguise` on, the real portal buttons fire one too.
  * - loot caches: a cluster of coins.
  *
  * Draws only from the world's encounter stream. A pool key resolves the way a
@@ -24,8 +27,13 @@ import type { MonsterTypeDef } from '../objects/monsterTypes'
 import { resolveActorPath } from '../objects/monsterTypes'
 import { SensorShape } from '../objects/scriptNode'
 import type { ScriptNode } from '../objects/scriptNode'
-import { NodeAreaTrigger, NodePlaySound, NodeSpawnObject } from '../objects/nodes'
+import { Doodad } from '../objects/doodad'
+import { NodeAreaTrigger, NodeChangeDoodadState, NodePlaySound, NodeSpawnObject } from '../objects/nodes'
+import type { MysteryButton } from '../config/parameters'
+import { MYSTERY_ANNOUNCE_TYPE, MYSTERY_BUTTON_STATE, emitPayload } from '../mystery/rig'
+import { SEAL_SOUND } from '../map/buttonSeal'
 import type { WorldDef } from './options'
+import { worldMysteryPool } from './options'
 import type { Tile } from './grid'
 import { WorldGrid, dist2 } from './grid'
 import { freeTile } from './place'
@@ -39,10 +47,16 @@ const TRIPWIRE_SIZE = 4
 const PACK_SPACING = 10
 const AMBUSH_SPACING = 12
 const PLACE_TRIES = 400
+/** The mystery plates' art: the floors' own plate (`TriggerButton`), centred on its tile. */
+export const MYSTERY_PLATE = 'doodads/generic/button_round.unit'
+const MYSTERY_SPACING = 10
+/** How far round a plate its loot and monsters may land, in tiles. */
+const PAYLOAD_REACH = 6
 
 export interface WorldEncounters {
   packs: Tile[]
   ambushes: Tile[]
+  mystery: Tile[]
 }
 
 /** Packs and tripwires, and an ambush on each button that rolls one. Before the scatter, which keeps off them. */
@@ -53,7 +67,8 @@ export function buildEncounters(
   def: WorldDef,
   hub: Tile,
   sites: readonly Tile[],
-  plates: ReadonlyArray<{ at: Tile; trigger: ScriptNode }>
+  plates: ReadonlyArray<{ at: Tile; trigger: ScriptNode }>,
+  mysteryDefs: readonly MysteryButton[]
 ): WorldEncounters {
   const packs: Tile[] = []
   if (def.monsters.length > 0) {
@@ -103,7 +118,61 @@ export function buildEncounters(
     if (def.monsters.length === 0 || rand.iRand(0, 100) >= def.buttonAmbush) continue
     springRing(ctx, rand, grid, def, plate.at, plate.trigger)
   }
-  return { packs, ambushes }
+
+  // Mystery plates, then a payload on each disguised real button, both drawing
+  // after everything above so a world without them draws exactly as before.
+  const pool = worldMysteryPool(def, mysteryDefs.length)
+  const mystery: Tile[] = []
+  if (pool.length > 0) {
+    const pick = () => mysteryDefs[pool[rand.iRand(0, pool.length)]]
+    const fire = (trigger: ScriptNode, at: Tile, button: MysteryButton, index: number) =>
+      emitPayload(
+        ctx,
+        trigger,
+        at,
+        index,
+        button,
+        [...plates.map((p) => p.at), ...mystery],
+        () => openGround(grid, at),
+        () => [],
+        MYSTERY_ANNOUNCE_TYPE,
+        rand
+      )
+    for (let i = 0; i < (def.mysteryPlates ?? 0); i++) {
+      const at = freeTile(rand, grid, hub, def.safeRadius, [...mystery, ...sites, ...ambushes], MYSTERY_SPACING, PLACE_TRIES)
+      if (at === null) break
+      mystery.push(at)
+      grid.markDisc(at, 2, WorldGrid.RESERVED)
+      fire(mysteryPlate(ctx, at), at, pick(), i)
+    }
+    if (def.disguise === true) plates.forEach((p, i) => fire(p.trigger, p.at, pick(), mystery.length + i))
+  }
+  return { packs, ambushes, mystery }
+}
+
+/** A mystery plate on `at`: its doodad, sensor and one-shot trigger, pressing down for good. */
+function mysteryPlate(ctx: GenerationContext, at: Tile): ScriptNode {
+  const plate = Doodad.prop(ctx, at.x + 0.5, at.y + 0.5, MYSTERY_PLATE)
+  const shape = new SensorShape(ctx, at.x + 0.5, at.y + 0.5)
+  const trigger = new NodeAreaTrigger(ctx, at.x + 0.5, at.y + 0.5)
+  trigger.triggerTimes = 1
+  trigger.connectToShape(shape)
+  trigger.connectTo(new NodePlaySound(ctx, at.x + 0.5, at.y + 0.5, SEAL_SOUND))
+  const press = new NodeChangeDoodadState(ctx, at.x + 0.5, at.y + 0.5, MYSTERY_BUTTON_STATE)
+  press.setTarget(plate)
+  trigger.connectTo(press)
+  return trigger
+}
+
+/** Walkable tiles within `PAYLOAD_REACH` of `at`: where a plate's loot and monsters may land. */
+function openGround(grid: WorldGrid, at: Tile): Tile[] {
+  const out: Tile[] = []
+  for (let dy = -PAYLOAD_REACH; dy <= PAYLOAD_REACH; dy++) {
+    for (let dx = -PAYLOAD_REACH; dx <= PAYLOAD_REACH; dx++) {
+      if (grid.walkable(at.x + dx, at.y + dy)) out.push({ x: at.x + dx, y: at.y + dy })
+    }
+  }
+  return out
 }
 
 /** `def.ambushSize` monsters round `at`, spawned by `trigger`, plus the cue. */

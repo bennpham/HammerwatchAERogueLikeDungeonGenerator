@@ -121,12 +121,14 @@ export {
   WORLD_MAX_GROUP,
   WORLD_MAX_AMBUSHES,
   WORLD_MAX_LOOT,
+  WORLD_MAX_MYSTERY_PLATES,
   WORLD_MIN_SAFE_RADIUS,
   WORLD_MAX_SAFE_RADIUS,
   WORLD_MAX_TIMER_SECONDS,
   defaultWorld,
   defaultWorldOptions,
   worldList,
+  worldMysteryPool,
   worldSiteCapacity
 } from './world/options'
 export type { WorldDef, WorldOptions, WorldHub } from './world/options'

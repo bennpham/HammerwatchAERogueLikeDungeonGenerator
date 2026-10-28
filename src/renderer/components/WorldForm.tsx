@@ -3,6 +3,7 @@ import {
   BIOME_DEFS,
   MONSTER_THEMES,
   matchingTheme,
+  mysteryStarterPool,
   BOSS_DEF_LIST,
   MUSIC_DEFAULT,
   WORLD_MAX_AMBUSHES,
@@ -10,6 +11,7 @@ import {
   WORLD_MAX_GROUP,
   WORLD_MAX_LOOT,
   WORLD_MAX_MARGIN,
+  WORLD_MAX_MYSTERY_PLATES,
   WORLD_MAX_PACKS,
   WORLD_MAX_SAFE_RADIUS,
   WORLD_MAX_SIZE,
@@ -47,6 +49,10 @@ function bossLabel(id: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
+/** The mystery shortcuts' plate counts. */
+const MYSTERY_SOME_PLATES = 6
+const MYSTERY_HUNT_PLATES = 16
+
 /** Bosses that can roam a world: the floors' mobile list. */
 const MOBILE_BOSS_DEFS = BOSS_DEF_LIST.filter((def) => def.mobile)
 
@@ -66,8 +72,10 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
   const world = worlds[active]
   const prefix = `world.worlds.${active}`
 
-  const set = (patch: Partial<WorldOptions>) => {
-    const next: DungeonParameters = { ...params, world: { ...options, ...patch } }
+  // `also` patches the campaign beside the worlds: the mystery shortcuts add
+  // the starter pool when the campaign has none.
+  const set = (patch: Partial<WorldOptions>, also: Partial<DungeonParameters> = {}) => {
+    const next: DungeonParameters = { ...params, ...also, world: { ...options, ...patch } }
     if (params.levelOrder !== undefined) {
       const counts = campaignCounts(next)
       const repaired = normalizeOrder(params.levelOrder, counts)
@@ -76,7 +84,31 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
     }
     onChange(next)
   }
-  const setWorld = (patch: Partial<WorldDef>) => set({ worlds: worlds.map((w, i) => (i === active ? { ...w, ...patch } : w)) })
+  const setWorld = (patch: Partial<WorldDef>, also: Partial<DungeonParameters> = {}) =>
+    set({ worlds: worlds.map((w, i) => (i === active ? { ...w, ...patch } : w)) }, also)
+
+  const mysteryDefs = params.mysteryButtons ?? []
+  /** A mystery shortcut: its plates and disguise, plus the starter pool if the campaign has no buttons yet. */
+  const setMystery = (mysteryPlates: number, disguise: boolean) =>
+    setWorld(
+      { mysteryPlates, disguise },
+      mysteryPlates > 0 && mysteryDefs.length === 0 ? { mysteryButtons: mysteryStarterPool() } : {}
+    )
+  const mysteryShortcut =
+    (world?.mysteryPlates ?? 0) === 0 && world?.disguise !== true
+      ? 'off'
+      : world?.disguise === true && (world?.mysteryPlates ?? 0) >= MYSTERY_HUNT_PLATES
+        ? 'hunt'
+        : (world?.mysteryPlates ?? 0) === MYSTERY_SOME_PLATES && world?.disguise !== true
+          ? 'some'
+          : undefined
+  const poolPicked = (i: number) => world?.mysteryPool === undefined || world.mysteryPool.includes(i)
+  const togglePool = (i: number) => {
+    const current = world?.mysteryPool ?? mysteryDefs.map((_, k) => k)
+    const next = current.includes(i) ? current.filter((k) => k !== i) : [...current, i].sort((a, b) => a - b)
+    // every button picked is stored as absent: "all of them", which follows the pool as it grows
+    setWorld({ mysteryPool: next.length === mysteryDefs.length ? undefined : next })
+  }
 
   // Zero switches worlds off and keeps the list, so 0 -> 1 gives back the
   // world already tuned; growing clones the last one, as the arenas do.
@@ -257,7 +289,7 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
             />
           </Section>
 
-          <Section title="Ambushes and loot" badge={`${world.ambushes} ambush`}>
+          <Section title="Ambushes" badge={`${world.ambushes} ambush`}>
             <p className="hint">An ambush is a tripwire on a trail: the first player through it springs a ring of monsters round the party.</p>
             <div className="field-grid">
               <NumberField label="Tripwires" field={`${prefix}.ambushes`} value={world.ambushes} issues={issues} min={0} max={WORLD_MAX_AMBUSHES} onChange={(ambushes) => setWorld({ ambushes })} />
@@ -272,7 +304,90 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
               max={100}
               onChange={(buttonAmbush) => setWorld({ buttonAmbush })}
             />
-            <NumberField label="Loot caches" field={`${prefix}.loot`} value={world.loot} issues={issues} min={0} max={WORLD_MAX_LOOT} onChange={(loot) => setWorld({ loot })} />
+          </Section>
+
+          <Section
+            title="Mystery plates and loot"
+            defaultOpen
+            badge={mysteryShortcut === 'hunt' ? 'treasure hunt' : `${world.mysteryPlates ?? 0} plates`}
+          >
+            <div className="quick-setup-presets">
+              <button type="button" className={`toggle ${mysteryShortcut === 'off' ? 'active' : ''}`} onClick={() => setMystery(0, false)}>
+                Off
+              </button>
+              <button
+                type="button"
+                className={`toggle ${mysteryShortcut === 'some' ? 'active' : ''}`}
+                onClick={() => setMystery(MYSTERY_SOME_PLATES, false)}
+              >
+                Some
+              </button>
+              <button
+                type="button"
+                className={`toggle ${mysteryShortcut === 'hunt' ? 'active' : ''}`}
+                onClick={() => setMystery(MYSTERY_HUNT_PLATES, true)}
+              >
+                Treasure hunt
+              </button>
+            </div>
+            <p className="hint">
+              A mystery plate fires a button from the campaign&apos;s mystery pool when stepped on: loot, monsters, a line of
+              text, or nothing at all. <strong>Treasure hunt</strong> scatters many and disguises the real portal buttons
+              as mystery plates too, so the party has to find them among the rest. The pool is edited on the Dungeon
+              tab&apos;s Mystery section{mysteryDefs.length === 0 ? '; it is empty, so a shortcut adds the starter set' : ''}.
+            </p>
+            <NumberField
+              label="Mystery plates"
+              field={`${prefix}.mysteryPlates`}
+              value={world.mysteryPlates ?? 0}
+              issues={issues}
+              min={0}
+              max={WORLD_MAX_MYSTERY_PLATES}
+              onChange={(mysteryPlates) => setWorld({ mysteryPlates })}
+            />
+            <BoolField
+              label="Disguise the real buttons as mystery plates"
+              checked={world.disguise === true}
+              onChange={(disguise) => setWorld({ disguise })}
+            />
+            {mysteryDefs.length === 0 ? (
+              <button type="button" className="copy-down" onClick={() => setWorld({}, { mysteryButtons: mysteryStarterPool() })}>
+                Add the starter mystery pool
+              </button>
+            ) : (
+              <details className="pool-level">
+                <summary>
+                  Which mystery buttons this world uses
+                  <span className="pool-summary">
+                    {world.mysteryPool === undefined ? `all ${mysteryDefs.length}` : `${world.mysteryPool.length} of ${mysteryDefs.length}`}
+                  </span>
+                </summary>
+                <div className="pool-checkboxes">
+                  {mysteryDefs.map((button, i) => (
+                    <label key={i} className="pool-checkbox" title={button.text ?? ''}>
+                      <input type="checkbox" checked={poolPicked(i)} onChange={() => togglePool(i)} />
+                      {button.name?.trim() || `Button ${i + 1}`}
+                    </label>
+                  ))}
+                </div>
+              </details>
+            )}
+            {issues
+              .filter((i) => i.field === `${prefix}.mysteryPool`)
+              .map((issue, k) => (
+                <span key={k} className="field-message">
+                  {issue.message}
+                </span>
+              ))}
+            <NumberField
+              label="Loose coin caches"
+              field={`${prefix}.loot`}
+              value={world.loot}
+              issues={issues}
+              min={0}
+              max={WORLD_MAX_LOOT}
+              onChange={(loot) => setWorld({ loot })}
+            />
           </Section>
 
           <Section title="Timer" badge={world.timer?.enabled === true ? formatSeconds(world.timer.seconds) : 'off'}>

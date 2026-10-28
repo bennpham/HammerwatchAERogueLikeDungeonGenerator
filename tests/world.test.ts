@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   defaultParameters,
+  mysteryStarterPool,
   generateDungeon,
   parseParametersTxt,
   serializeParametersTxt,
@@ -182,7 +183,7 @@ describe('world parameters.txt keys', () => {
   it('round-trips every world field', () => {
     const p = withWorlds(
       [
-        smallWorld({ biome: 'desert', hub: 'camp', coast: 80, music: 'temple_hub' }),
+        smallWorld({ biome: 'desert', hub: 'camp', coast: 80, music: 'temple_hub', mysteryPlates: 5, disguise: true, mysteryPool: [0, 2] }),
         smallWorld({
           biome: 'snow',
           bossSelection: 'lineup',
@@ -494,5 +495,84 @@ describe('the encounters', () => {
       unitsOf(levelsOf(resultOf(smallWorld({ hub }))).get('world0')!, (u) => u.path.includes('tent_')).length
     expect(tents('camp')).toBe(1)
     expect(tents('bare')).toBe(0)
+  })
+})
+
+describe('mystery plates and the treasure hunt', () => {
+  const PLATE = 'doodads/generic/button_round.unit'
+  /** The campaign with the starter mystery pool and one world. */
+  const withPool = (def: WorldDef) => {
+    const p = withWorlds([def])
+    p.mysteryButtons = mysteryStarterPool()
+    return p
+  }
+  const worldOf = (p: DungeonParameters, seed = 6) => levelsOf(generateOk(p, seed)).get('world0')!
+
+  it('scatters plates that each fire a pool button once, apart from the portal count', () => {
+    const w0 = worldOf(withPool(smallWorld({ mysteryPlates: 4, ambushes: 0, buttonAmbush: 0 })))
+    const plates = unitsOf(w0, (u) => u.path === PLATE)
+    expect(plates.length).toBeGreaterThan(0)
+    expect(plates.length).toBeLessThanOrEqual(4)
+    for (const plate of plates) {
+      const press = scriptsOf(w0, 'SetUnitScene').find((s) => idsParam(s, 'Units').includes(plate.id))!
+      expect(strParam(press, 'State')).toBe('on')
+      const trigger = scriptsOf(w0, 'AreaTrigger').find((s) => s.connections.some(([id]) => id === press.id))!
+      expect(trigger.triggerTimes).toBe(1)
+    }
+    // the portal still counts only the buttons and the boss
+    expect(intParam(scriptsOf(w0, 'Variable')[0], 'Value')).toBe(3)
+  })
+
+  it('places nothing and draws nothing new with plates off', () => {
+    const off = smallWorld({ mysteryPlates: 0, disguise: false })
+    expect(unitsOf(worldOf(withPool(off)), (u) => u.path === PLATE)).toHaveLength(0)
+    // a world with no pool and no plates is byte-identical to one with a pool it never uses
+    expect(lvlText(generateOk(withWorlds([off]), 6), 'world0')).toBe(lvlText(generateOk(withPool(off), 6), 'world0'))
+  })
+
+  it('disguises the real buttons as mystery plates, still counting toward the portal', () => {
+    const w0 = worldOf(withPool(smallWorld({ disguise: true, mysteryPlates: 0, bossCount: 0, buttons: 3 })))
+    expect(unitsOf(w0, (u) => u.path === 'doodads/doors/boss_door_button.unit')).toHaveLength(0)
+    const plates = unitsOf(w0, (u) => u.path === PLATE)
+    expect(plates).toHaveLength(3)
+    expect(intParam(scriptsOf(w0, 'Variable')[0], 'Value')).toBe(3)
+    // each real button also fires a pool button: its trigger does more than click and count
+    const triggers = plates.map((plate) => {
+      const press = scriptsOf(w0, 'SetUnitScene').find((s) => idsParam(s, 'Units').includes(plate.id))!
+      return scriptsOf(w0, 'AreaTrigger').find((s) => s.connections.some(([id]) => id === press.id))!
+    })
+    expect(triggers.some((t) => firedBy(w0, t).some((f) => f.script.cls === 'SpawnUnit' || f.script.cls === 'AnnounceText'))).toBe(true)
+  })
+
+  it('keeps the plain plate art without disguise', () => {
+    const w0 = worldOf(withPool(smallWorld({ disguise: false, bossCount: 0, buttons: 2 })))
+    expect(unitsOf(w0, (u) => u.path === 'doodads/doors/boss_door_button.unit')).toHaveLength(2)
+  })
+
+  it('draws only from the pool buttons the world picks', () => {
+    const p = withPool(smallWorld({ mysteryPlates: 6, mysteryPool: [0] }))
+    expect(validateParameters(p).errors).toEqual([])
+    const w0 = worldOf(p)
+    const first = p.mysteryButtons![0]
+    for (const text of textsOf(w0).filter((t) => t !== PORTAL_TEXT && !/objective/.test(t) && !t.startsWith('.meta'))) {
+      expect(text).toBe(first.text)
+    }
+  })
+
+  it('refuses plates with an empty pool, or a pool index past its end', () => {
+    const fields = (p: DungeonParameters) => validateParameters(p).errors.map((e) => e.field)
+    expect(fields(withWorlds([smallWorld({ mysteryPlates: 3 })]))).toContain('world.worlds.0.mysteryPlates')
+    expect(fields(withPool(smallWorld({ mysteryPlates: 3, mysteryPool: [99] })))).toContain('world.worlds.0.mysteryPool')
+    expect(fields(withPool(smallWorld({ mysteryPlates: 999 })))).toContain('world.worlds.0.mysteryPlates')
+  })
+
+  it('leaves the floors\' own mystery plates as they were', () => {
+    const p = withPool(smallWorld({ mysteryPlates: 4, disguise: true }))
+    p.levelMystery = [{ count: 2, pool: [0, 1] }, { count: 0, pool: [] }, { count: 0, pool: [] }]
+    // the same campaign with the world's plates and disguise off: only the world changes
+    const without = { ...p, world: { enabled: true, worlds: [{ ...p.world!.worlds[0], mysteryPlates: 0, disguise: false }] } }
+    for (const stem of ['floor0', 'floor1', 'floor2']) {
+      expect(lvlText(generateOk(p, 4), stem), stem).toBe(lvlText(generateOk(without, 4), stem))
+    }
   })
 })

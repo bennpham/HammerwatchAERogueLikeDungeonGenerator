@@ -31,6 +31,7 @@ export const WORLD_MAX_PACKS = 400
 export const WORLD_MAX_GROUP = 30
 export const WORLD_MAX_AMBUSHES = 100
 export const WORLD_MAX_LOOT = 100
+export const WORLD_MAX_MYSTERY_PLATES = 60
 export const WORLD_MIN_SAFE_RADIUS = 8
 export const WORLD_MAX_SAFE_RADIUS = 64
 /** A world timer emits one node per second; this keeps the level under ~2000 of them. */
@@ -78,8 +79,21 @@ export interface WorldDef {
   ambushSize: number
   /** Chance, in percent, that a floor button also springs an ambush. */
   buttonAmbush: number
-  /** Loot caches placed on the island. */
+  /** Loose coin caches placed on the island. */
   loot: number
+  /**
+   * Mystery plates scattered on the island, each firing a button from the
+   * campaign's mystery pool (`params.mysteryButtons`, the Dungeon tab's
+   * Mystery section) when stepped on. They don't count toward the portal.
+   */
+  mysteryPlates?: number
+  /** Which pool buttons this world's plates draw from, by index; absent means all of them. */
+  mysteryPool?: number[]
+  /**
+   * The real portal buttons wear the mystery plates' art and fire a pool
+   * button too, so they hide among the plates: a treasure hunt.
+   */
+  disguise?: boolean
   /**
    * Dirt trails painted from the start to every site. Off by default (the
    * user found them ugly); the way to each site is kept clear of trees either way.
@@ -125,6 +139,8 @@ export function defaultWorld(): WorldDef {
     ambushSize: 6,
     buttonAmbush: 50,
     loot: 8,
+    mysteryPlates: 0,
+    disguise: false,
     trails: false,
     scatter: 50,
     music: 'act1'
@@ -150,4 +166,15 @@ export function worldList(world: WorldOptions | undefined): WorldDef[] {
 export function worldSiteCapacity(width: number, height: number, margin: number): number {
   const land = Math.max(0, width - 2 * margin) * Math.max(0, height - 2 * margin) * 0.5
   return Math.max(0, Math.floor(land / (WORLD_SITE_SPACING * WORLD_SITE_SPACING)) - 1)
+}
+
+/**
+ * The pool buttons a world's plates draw from: its own list, or every button
+ * of a `poolSize`-button campaign pool when it names none. Indices out of range
+ * are dropped, so a pool that shrank under a saved world never breaks it.
+ */
+export function worldMysteryPool(world: WorldDef, poolSize: number): number[] {
+  const all = Array.from({ length: Math.max(0, poolSize) }, (_, i) => i)
+  if (world.mysteryPool === undefined) return all
+  return world.mysteryPool.filter((i) => Number.isInteger(i) && i >= 0 && i < poolSize)
 }

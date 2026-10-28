@@ -42,6 +42,8 @@ import {
   NodeUnitPickedUpTrigger
 } from '../objects/nodes'
 import { SEAL_SOUND, buildButtonCountdown } from '../map/buttonSeal'
+import { MYSTERY_BUTTON_STATE } from '../mystery/rig'
+import { MYSTERY_PLATE } from './encounters'
 import { BOSS_DEFS, expandLineup, pickBosses } from '../boss/bosses'
 import type { BossId } from '../boss/bosses'
 import { buildBossStatue } from '../boss/statue'
@@ -163,13 +165,14 @@ export function buildObjectives(
 
   const buttons = sites.slice(ids.length)
   const plates = buttons.map((at) => {
-    const plate = Doodad.prop(ctx, at.x, at.y, BUTTON_PLATE)
+    // disguised, it wears the mystery plates' art and presses the way they do
+    const plate = def.disguise === true ? Doodad.prop(ctx, at.x + 0.5, at.y + 0.5, MYSTERY_PLATE) : Doodad.prop(ctx, at.x, at.y, BUTTON_PLATE)
     const shape = new SensorShape(ctx, at.x + 0.5, at.y + 0.5)
     const trigger = new NodeAreaTrigger(ctx, at.x + 0.5, at.y + 0.5)
     trigger.triggerTimes = 1
     trigger.connectToShape(shape)
     trigger.connectTo(new NodePlaySound(ctx, at.x + 0.5, at.y + 0.5, SEAL_SOUND))
-    const press = new NodeChangeDoodadState(ctx, at.x + 0.5, at.y + 0.5, BUTTON_PRESSED)
+    const press = new NodeChangeDoodadState(ctx, at.x + 0.5, at.y + 0.5, def.disguise === true ? MYSTERY_BUTTON_STATE : BUTTON_PRESSED)
     press.setTarget(plate)
     trigger.connectTo(press)
     triggers.push(trigger)

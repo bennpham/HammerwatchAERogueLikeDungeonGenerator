@@ -76,7 +76,9 @@ import {
   WORLD_MIN_SIZE,
   WORLD_WARN_SIZE,
   worldList,
-  worldSiteCapacity
+  worldMysteryPool,
+  worldSiteCapacity,
+  WORLD_MAX_MYSTERY_PLATES
 } from '../world/options'
 import type { WorldDef } from '../world/options'
 import { getTheme } from './themes'
@@ -475,10 +477,11 @@ function validateWorlds(p: DungeonParameters, errors: ValidationIssue[], warning
     errors.push({ field: 'world.worlds', message: 'Worlds are switched on but there are none. Add one, or switch them off.' })
     return
   }
-  world.worlds.forEach((w, i) => validateWorld(w, i, errors, warnings))
+  const poolSize = (p.mysteryButtons ?? []).length
+  world.worlds.forEach((w, i) => validateWorld(w, i, poolSize, errors, warnings))
 }
 
-function validateWorld(w: WorldDef, index: number, errors: ValidationIssue[], warnings: ValidationIssue[]): void {
+function validateWorld(w: WorldDef, index: number, poolSize: number, errors: ValidationIssue[], warnings: ValidationIssue[]): void {
   const before = errors.length
   const at = (field: string) => `world.worlds.${index}.${field}`
   const subject = `World ${index + 1}`
@@ -511,6 +514,21 @@ function validateWorld(w: WorldDef, index: number, errors: ValidationIssue[], wa
   whole('ambushSize', 'the ambush size', 1, WORLD_MAX_GROUP)
   whole('buttonAmbush', 'the button ambush chance', 0, 100)
   whole('loot', 'the loot cache count', 0, WORLD_MAX_LOOT)
+  if (w.mysteryPlates !== undefined) whole('mysteryPlates', 'the mystery plate count', 0, WORLD_MAX_MYSTERY_PLATES)
+  for (const i of w.mysteryPool ?? []) {
+    if (!Number.isInteger(i) || i < 0 || i >= poolSize) {
+      errors.push({
+        field: at('mysteryPool'),
+        message: `${subject}: mystery button ${Number.isInteger(i) ? i + 1 : i} isn't in the campaign's mystery pool (it has ${poolSize}).`
+      })
+    }
+  }
+  if ((w.mysteryPlates ?? 0) > 0 && worldMysteryPool(w, poolSize).length === 0) {
+    errors.push({
+      field: at('mysteryPlates'),
+      message: `${subject}: mystery plates need buttons in the mystery pool. Add the starter set here, or build some on the Dungeon tab's Mystery section.`
+    })
+  }
   whole('scatter', 'the scatter density', 0, 100)
 
   // bosses: the floors' rule, since a world doesn't confine a fight either
