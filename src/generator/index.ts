@@ -131,6 +131,8 @@ export {
 } from './world/options'
 export type { WorldDef, WorldOptions, WorldHub } from './world/options'
 export { BIOME_DEFS, BIOME_IDS, biomeById } from './world/biomes'
+export { MONSTER_THEMES, matchingTheme } from './world/monsterThemes'
+export type { MonsterTheme } from './world/monsterThemes'
 export type { BiomeDef } from './world/biomes'
 export type { BossSelection, MysteryButton, MysteryMonster, FloorMystery, FloorLockMystery } from './config/parameters'
 export { MYSTERY_LOOT_DEFS, MYSTERY_LOOT_GROUPS, mysteryLootById } from './objects/mysteryLoot'

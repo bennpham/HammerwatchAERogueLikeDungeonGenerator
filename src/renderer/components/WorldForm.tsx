@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import {
   BIOME_DEFS,
+  MONSTER_THEMES,
+  matchingTheme,
   BOSS_DEF_LIST,
   MUSIC_DEFAULT,
   WORLD_MAX_AMBUSHES,
@@ -28,7 +30,8 @@ import {
 import type { DungeonParameters, ValidationIssue, WorldDef, WorldOptions } from '../../generator'
 import { BoolField, NumberField, Section, ToggleGroup } from './fields'
 import { MusicPicker } from './MusicPicker'
-import { PoolTextField } from './PoolTextField'
+import { MonsterFilterBar, useMonsterFilter } from './MonsterFilterBar'
+import { MonsterPoolPicker } from './MonsterPoolPicker'
 import { BossSelectionEditor } from './BossSelectionEditor'
 import { formatSeconds } from './FloorTimerEditor'
 
@@ -55,6 +58,7 @@ const MOBILE_BOSS_DEFS = BOSS_DEF_LIST.filter((def) => def.mobile)
  */
 export function WorldForm({ params, issues, onChange }: WorldFormProps) {
   const [worldIndex, setWorldIndex] = useState(0)
+  const monsterFilter = useMonsterFilter()
   const options: WorldOptions = params.world ?? { enabled: false, worlds: [defaultWorld()] }
   const worlds = options.worlds ?? []
   const count = options.enabled ? worlds.length : 0
@@ -205,13 +209,25 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
             />
           </Section>
 
-          <Section title="Monsters" badge={`${world.packs} packs`}>
-            <PoolTextField
-              label="Monster pool"
-              value={world.monsters}
-              onCommit={(monsters) => setWorld({ monsters })}
-              hint="Pool keys, as a floor's: repeat one to weight it, or pin a tier with #."
-            />
+          <Section title="Monsters" defaultOpen badge={matchingTheme(world.monsters)?.label ?? `${new Set(world.monsters).size} kinds`}>
+            <span className="field-label">Monster theme</span>
+            <div className="quick-setup-presets">
+              {MONSTER_THEMES.map((theme) => (
+                <button
+                  key={theme.id}
+                  type="button"
+                  className={`toggle ${matchingTheme(world.monsters)?.id === theme.id ? 'active' : ''}`}
+                  title={theme.description}
+                  onClick={() => setWorld({ monsters: [...theme.monsters] })}
+                >
+                  {theme.label}
+                </button>
+              ))}
+            </div>
+            <p className="hint">
+              A theme fills the pool below; change it freely from there. Packs and ambushes draw from it, and repeating a
+              monster (its weight) makes it more common.
+            </p>
             {fieldIssues('monsters').map((i, k) => (
               <span key={k} className="field-message">
                 {i.message}
@@ -221,6 +237,14 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
               <NumberField label="Roaming packs" field={`${prefix}.packs`} value={world.packs} issues={issues} min={0} max={WORLD_MAX_PACKS} onChange={(packs) => setWorld({ packs })} />
               <NumberField label="Most per pack" field={`${prefix}.packSize`} value={world.packSize} issues={issues} min={1} max={WORLD_MAX_GROUP} onChange={(packSize) => setWorld({ packSize })} />
             </div>
+            <details className="pool-level">
+              <summary>
+                Edit the pool
+                <span className="pool-summary">{[...new Set(world.monsters)].join(', ') || '(empty!)'}</span>
+              </summary>
+              <MonsterFilterBar filter={monsterFilter} />
+              <MonsterPoolPicker pool={world.monsters} filter={monsterFilter} onCommit={(monsters) => setWorld({ monsters })} />
+            </details>
             <NumberField
               label="Safe radius round the start"
               field={`${prefix}.safeRadius`}

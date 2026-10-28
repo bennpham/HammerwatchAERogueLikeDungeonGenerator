@@ -39,6 +39,8 @@ import {
 } from './ae'
 import { floodFill } from '../src/generator/map/reachability'
 import { PORTAL_TEXT } from '../src/generator/world/objectives'
+import { MONSTER_THEMES, matchingTheme } from '../src/generator/world/monsterThemes'
+import { isKnownFloorPoolKey } from '../src/generator/objects/monsterTypes'
 import { closureOf } from './closure'
 import { aeAssetsDir } from './aeInstall'
 import { plainParameters } from './params'
@@ -253,6 +255,30 @@ describe('the island', () => {
       // land at the center, under the start
       expect(isLand(48, 60)).toBe(true)
     }
+  })
+})
+
+describe('monster themes', () => {
+  it('names only known pool keys, and every theme validates on a world', () => {
+    expect(MONSTER_THEMES.length).toBeGreaterThan(5)
+    for (const theme of MONSTER_THEMES) {
+      expect(theme.monsters.length, theme.id).toBeGreaterThan(0)
+      for (const key of theme.monsters) expect(isKnownFloorPoolKey(key), `${theme.id}: ${key}`).toBe(true)
+      expect(validateParameters(withWorlds([smallWorld({ monsters: [...theme.monsters] })])).errors, theme.id).toEqual([])
+    }
+  })
+
+  it('recognises a pool as its theme in any order, and nothing else', () => {
+    const act1 = MONSTER_THEMES.find((t) => t.id === 'castle_act1')!
+    expect(matchingTheme([...act1.monsters].reverse())?.id).toBe('castle_act1')
+    expect(matchingTheme([...act1.monsters, 'bat'])).toBeUndefined()
+  })
+
+  it('keeps towers, mini-bosses and bodyguards out of the mixed theme', () => {
+    const mixed = MONSTER_THEMES.find((t) => t.id === 'mixed')!
+    expect(mixed.monsters).toContain('mummy')
+    expect(mixed.monsters).toContain('prison_warrior')
+    expect(mixed.monsters.some((k) => k.startsWith('mb_') || k.startsWith('tower_') || k.includes('guard_'))).toBe(false)
   })
 })
 
