@@ -1,8 +1,7 @@
 /**
  * The stock biomes a world is built from: one per world, picked on the World
- * tab. Plain data, keyed by id, so a later content pack can add its own
- * (docs/plans/world-mode.md). Every path here is checked against the asset
- * snapshot by `tests/world.test.ts`.
+ * tab. Plain data, keyed by id (docs/plans/world-mode.md). Every path here
+ * is checked against the asset snapshot by `tests/world.test.ts`.
  *
  * Tile layers: a tileset with a higher `layer` draws over a lower one where
  * both are painted (`tilesets/layers.inc`). Each biome's `trail` sits above its

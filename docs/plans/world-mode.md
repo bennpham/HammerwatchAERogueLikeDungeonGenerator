@@ -1,10 +1,13 @@
 # World mode — plan
 
-Status: **pass 1 implemented** (2026-10-28), awaiting in-game checks (`docs/BOOT-CHECKLIST.md` #96–#101). Pass 1
-covers the slot, the World tab, five biomes, the cliff coast and fence, sites, trails, scatter, buttons and bosses,
-both portal styles and the orb, packs, ambushes, loot, the timer, music, and the `camp`/`bare` starts. **Pass 2**,
-after feedback: the `village` start, landmark compositions (pyramids, ruins), mystery payloads on world buttons,
-then custom content packs. The in-game questions are in `docs/discovery/world-mode.md`.
+Status: **pass 1 implemented and verified in game** (2026-10-28, `docs/BOOT-CHECKLIST.md` #96–#101). Pass 1 covers
+the slot, the World tab, five biomes, the cliff coast and fence, sites, trails (off by default), scatter, buttons
+and bosses, the portal frame and the orb, packs, ambushes, loot, the timer, music, and the `camp`/`bare` starts.
+**Pass 2** is planned below ("Pass 2"): dungeon-master control first, then the village start and landmarks. PR #15
+stays open until the World content is done. The in-game questions are in `docs/discovery/world-mode.md`.
+
+**Custom content is out of scope until after the 1.0 release** (the user's call, 2026-10-28): no custom tilesets,
+doodads, content packs or defs loaded from disk. Don't plan or build it before 1.0.
 
 Where pass 1 differs from the design below: the coast is drawn at tile resolution (cleaned until every coast cell
 has a piece), not on a 32-px grid; the hub is `random | camp | bare`; ambushes attack at once; and the portal is
@@ -36,8 +39,8 @@ with P0: the in-game answers decide the edge set and the collision belt.
   - boss sites;
   - an optional **timer**.
 - **The portal is an empty frame** that comes alive when the objectives are done.
-- **Stock AE assets only.** mistdeep is layout reference only. Custom tilesets and doodads are a *later* feature, so
-  the design must stay data-driven and not hard-code them.
+- **Stock AE assets only.** mistdeep is layout reference only. Custom tilesets and doodads are post-1.0 (see the
+  status above).
 - The user will plan the same feature for original Hammerwatch separately. There, desert and pyramids, HW1 theme `h`,
   is likely the only outdoor set.
 
@@ -172,16 +175,13 @@ These are preferences, not in-game proof. The probe still has to show them.
 | `encounters.ts` | Roaming packs, ambush tripwires, mystery plates, loot caches. |
 | `build.ts` | `buildWorld(ctx, worldDef, gateway)` runs the whole pipeline and returns the `Level` (or `AeLevel`). |
 
-**Data-driven, so custom content can arrive later.**
+**Data-driven.**
 
 - Every biome, edge set, landmark and hub is a def object keyed by string id. All asset paths live in those tables,
   and a test runs every path through `aeAssetExists`.
-- Defs are plain data: no functions, only weights, footprints and anchors. A future "content pack" can then load
-  more defs from disk (the main process reads them and passes them into the pure generator) and ship its
-  `tilesets/*.tileset`, `.png` and `doodads/**.unit` files in the scenario folder for `PACKAGER.exe`. mistdeep shows
-  that layout works.
+- Defs are plain data: no functions, only weights, footprints and anchors.
 - `StampDef` (units + scripts + tiles + footprint + named anchors) is the single "composition" format. The village
-  hamlets, the stock-town crops and later custom compositions all use it.
+  hamlets and the stock-town crops both use it.
 
 ### Generation pipeline (`buildWorld`)
 
@@ -317,11 +317,97 @@ These are preferences, not in-game proof. The probe still has to show them.
   - `hammerwatch-ae-project` and `-modding` skills.
   - Discovery log entries (`[EMITTED]`/`[VERIFIED]`), and boot checklist items.
 - **Later, not in scope:**
-  - custom content packs (defs and files from disk, shipped in the scenario);
   - teleport shortcuts between sites;
   - rivers, shallow lakes and bridges;
   - raised plateaus using the cliff sets' ramps and `_stairs`;
   - more biomes.
+
+## Pass 2 (planned 2026-10-28, not started)
+
+The user's direction after playing pass 1:
+- It's hard to customise a world's **monster theme** (which campaign's monsters roam it), its **ambushes** and its
+  **loot**. They want the control the Dungeon and Arena tabs give a dungeon master: **simple presets first, advanced
+  customisation after**.
+- Loot should work like the **mystery buttons**: mystery plates scattered round the island. The real portal buttons
+  can be **disguised as mystery plates**, so finding them is a treasure hunt. The user calls this "one of the charms
+  of the island".
+
+Order: **A1 → A3 → A2 → A4**, then **B**, then **C**. Each step is one area-sized commit with its tests and a boot
+checklist entry. Stock assets only.
+
+### A. Dungeon-master control
+
+Every section uses the same UI pattern: one-click **shortcut buttons** that write ordinary values, which stay
+editable underneath (`QuickSetup.tsx`, `.quick-setup-presets`). Whole-world presets get a confirm step, as
+`PresetGuide` does, since a misclick must not wipe tuned work (issue #77).
+
+**A1 — Monster theme.**
+- **Simple:** shortcut buttons fill `world.monsters`:
+  - Castle Act 1–4 (`defaultParameters().levelMonsters[0..3]`);
+  - Temple of the Sun (the Desert preset's pools in `config/presets.ts`);
+  - Shaftlocke;
+  - Bonus;
+  - Mixed: from `MonsterTypeDef.campaigns`, skipping deprecated types, mini-bosses and bodyguards.
+
+  The pools live in one table, `world/monsterThemes.ts`. A test checks every key with `isKnownFloorPoolKey`.
+- **Advanced:** the Dungeon tab's own picker.
+  - Lift `MonsterPoolsEditor`'s per-floor body into `MonsterPoolPicker({ pool, onCommit, filter })`: checkboxes,
+    weights and `PoolTextField`, with no generator change.
+  - The Dungeon tab maps floors onto it; WorldForm mounts it in place of its bare `PoolTextField`.
+  - Group sizes stay bounded by `packSize` and `ambushSize`. No per-monster caps.
+
+**A3 — Mystery plates and disguised portal buttons** (the treasure hunt).
+- **New fields:** `WorldDef.mystery: { plates: number; disguise: boolean }`.
+  - `plates`: mystery plates scattered on reachable ground.
+  - `disguise`: the real portal buttons drawn with the mystery plate's art (`TriggerButton`, `pressed`), as the
+    floors' disguise tickbox does (`ctx.floorLockDisguise`, `map/buttonSeal.ts`).
+- **Payloads:** come from the campaign's shared mystery pool (`params.mysteryButtons`, edited on the Dungeon tab).
+  No second pool to maintain. A disguised real button may carry one too.
+- **Refactor:** export `mystery/rig.ts`'s payload builder (`emitPayload`) and pass it the `Rand` to draw from.
+  - Floors keep passing `ctx.mysteryRand`, so their output is unchanged; an isolation test proves it.
+  - Worlds pass their `encounters` stream.
+- **Simple shortcuts:**
+  - Off: no plates, plain buttons.
+  - Some: a handful of plates.
+  - Treasure hunt: many plates, real buttons disguised.
+
+  The coin caches stay as "Loose coins".
+- **Advanced:** the plate count, the disguise tickbox, a link to the Mystery pool, and optionally which pool buttons
+  this world may use (a subset by index, default all).
+- **Validation and keys:**
+  - plates > 0 needs a non-empty pool;
+  - a capacity estimate covering plates plus sites;
+  - keys `world<i>MysteryPlates` and `world<i>Disguise`.
+
+**A2 — Ambushes.**
+- **Simple:** Off, Light, Normal and Heavy shortcuts. Each sets the tripwire count, monsters per ambush, and the
+  button-ambush chance.
+- **Advanced:** **ambush types**, a list of `{ weight, monsters: MysteryMonster[] }` (exact monsters and counts).
+  - Each tripwire picks a type by weight from the world's `encounters` stream.
+  - Reuse `MonsterCountListEditor` (`MysteryButtonsEditor.tsx`): export it with a `fieldPrefix` prop.
+  - An empty list keeps today's behaviour: random monsters from the pool, `ambushSize` of them.
+- **Out:** traps (spewers need walls; an island has none).
+
+**A4 — Whole-world presets.**
+- Named starting points as shortcut buttons with a confirm step:
+  - Explorer: sparse monsters, plenty of loot.
+  - Treasure hunt: disguised buttons, many plates.
+  - Monster island: dense packs, heavy ambushes.
+  - Speedrun: small, a timer on.
+- Each is a plain `Partial<WorldDef>` in `world/presets.ts`, so it serialises like any world.
+
+### B. Village start
+
+As designed above:
+- desert gets the bazaar crop;
+- snow gets Shaftlocke town;
+- grass, woods and mud get a hamlet composed from `prefabs/theme_town`.
+
+It goes through `stamp.ts`, which shares the id-remap code with `lobby/stockTown.ts`.
+
+### C. Landmarks at sites
+
+As designed above: pyramids, dune fields, ruins, groves, ponds and camps at objective sites.
 
 ### In-game questions for `docs/discovery/world-mode.md`
 
