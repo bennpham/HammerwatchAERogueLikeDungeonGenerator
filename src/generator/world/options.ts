@@ -11,8 +11,8 @@
 import type { BossSelection, FloorTimer, MysteryMonster } from '../config/parameters'
 import type { BossId } from '../boss/bosses'
 
-/** How a world's start looks. `random` picks `camp` or `bare` from the world's own layout stream. */
-export const WORLD_HUBS = ['random', 'camp', 'bare'] as const
+/** How a world's start looks. `random` picks `camp`, `bare` or `village` from the world's own layout stream. */
+export const WORLD_HUBS = ['random', 'camp', 'bare', 'village'] as const
 export type WorldHub = (typeof WORLD_HUBS)[number]
 
 

@@ -233,7 +233,10 @@ describe('the island', () => {
         ...b.cover.map((s) => s.path),
         b.camp.tent,
         b.camp.fire,
-        ...b.camp.extras
+        ...b.camp.extras,
+        b.village.centre.path,
+        ...b.village.tents.map((t) => t.path),
+        ...b.village.props.map((p) => p.path)
       ]
       for (const path of paths) expect(aeAssetExists(path), `${b.id}: ${path}`).toBe(true)
     }
@@ -496,6 +499,42 @@ describe('the encounters', () => {
       unitsOf(levelsOf(resultOf(smallWorld({ hub }))).get('world0')!, (u) => u.path.includes('tent_')).length
     expect(tents('camp')).toBe(1)
     expect(tents('bare')).toBe(0)
+  })
+})
+
+describe('the village start', () => {
+  const village = (patch: Partial<WorldDef> = {}) =>
+    smallWorld({ minWidth: 160, maxWidth: 160, minHeight: 160, maxHeight: 160, hub: 'village', ...patch })
+
+  it("rings the portal with the biome's tents and market, and every site stays reachable", () => {
+    for (const seed of [1, 2, 3]) {
+      const result = generateOk(withWorlds([village()]), seed)
+      const w0 = levelsOf(result).get('world0')!
+      expect(unitsOf(w0, (u) => u.path.includes('tent_')).length, `seed ${seed}`).toBeGreaterThan(4)
+      expect(unitsOf(w0, (u) => u.path === BIOME_DEFS[0].village.centre.path), `seed ${seed}`).toHaveLength(1)
+      const preview = result.levels.find((l) => l.world !== undefined)!
+      const blocked = Uint8Array.from(preview.walls, (c) => (c === '1' ? 1 : 0))
+      const hub = preview.world!.hub
+      const reached = floodFill(blocked, preview.mapWidth, preview.mapHeight, { x: hub.x, y: hub.y + 3 })
+      for (const s of preview.world!.sites.filter((s) => s.kind === 'button' || s.kind === 'boss')) {
+        expect(reached[s.y * preview.mapWidth + s.x], `seed ${seed} ${s.kind}`).toBe(1)
+      }
+    }
+  })
+
+  it('refuses a village on an island too small for one', () => {
+    const fields = validateParameters(withWorlds([smallWorld({ hub: 'village' })])).errors.map((e) => e.field)
+    expect(fields).toContain('world.worlds.0.hub')
+    expect(validateParameters(withWorlds([village()])).errors).toEqual([])
+  })
+
+  it.skipIf(aeAssetsDir() === null)('keeps the party on the island with a village too', () => {
+    const result = generateOk(withWorlds([village()], 'W1,1,2,3,B1'), 4)
+    const level = levelsOf(result).get('world0')!
+    const preview = result.levels.find((l) => l.world !== undefined)!
+    const closure = closureOf(level, { x0: 0, y0: 0, x1: preview.mapWidth * 16, y1: preview.mapHeight * 16 }, aeAssetsDir()!)
+    expect(closure.leak).toBeNull()
+    expect(closure.reachesExit).toBe(true)
   })
 })
 

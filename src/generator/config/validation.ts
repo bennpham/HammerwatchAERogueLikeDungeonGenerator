@@ -60,6 +60,7 @@ import type { BossFight, BossOptions } from './parameters'
 import type { CampaignSlot } from '../campaign'
 import { SLOT_KINDS, defaultOrder } from '../campaign'
 import { biomeById, BIOME_IDS } from '../world/biomes'
+import { VILLAGE_MIN_SIZE } from '../world/hub'
 import {
   WORLD_HUBS,
   WORLD_MAX_AMBUSHES,
@@ -507,6 +508,8 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
   whole('waterMargin', 'the water margin', WORLD_MIN_MARGIN, WORLD_MAX_MARGIN)
   if (!(WORLD_HUBS as readonly string[]).includes(w.hub)) {
     errors.push({ field: at('hub'), message: `${subject}: the start must be one of: ${WORLD_HUBS.join(', ')}.` })
+  } else if (w.hub === 'village' && Math.min(w.minWidth, w.minHeight) < VILLAGE_MIN_SIZE) {
+    errors.push({ field: at('hub'), message: `${subject}: a village needs an island at least ${VILLAGE_MIN_SIZE} tiles across.` })
   }
   whole('buttons', 'the button count', 0, WORLD_MAX_BUTTONS)
   whole('packs', 'the pack count', 0, WORLD_MAX_PACKS)

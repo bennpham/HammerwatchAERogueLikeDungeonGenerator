@@ -40,7 +40,7 @@ import { coastFence, coastPiece, coastUnits } from './coast'
 import { ValueNoise } from './noise'
 import { WorldGrid } from './grid'
 import type { Tile } from './grid'
-import { HUB_RADIUS, buildHub, resolveHub } from './hub'
+import { HUB_RADIUS, VILLAGE_MIN_SIZE, buildHub, hubRadius, resolveHub } from './hub'
 import { SITE_RADIUS, placeSites } from './place'
 import { carveTrails } from './paths'
 import { buildObjectives } from './objectives'
@@ -96,14 +96,15 @@ export function buildWorld(
     const grid = gridOf(island)
     const hub = { x: Math.floor(width / 2), y: Math.floor(height / 2) }
     const arrival = { x: hub.x, y: hub.y + 3 }
-    const hubKind = resolveHub(layout, def.hub)
+    const hubKind = resolveHub(layout, def.hub, Math.min(width, height) >= VILLAGE_MIN_SIZE)
+    // the portal's own ground must be open; a village's ring may meet the coast
     if (!grid.discAll(hub, HUB_RADIUS, (x, y) => grid.walkable(x, y))) continue
-    grid.markDisc(hub, HUB_RADIUS, WorldGrid.RESERVED)
+    grid.markDisc(hub, hubRadius(hubKind), WorldGrid.RESERVED)
 
     const sites = placeSites(layout, grid, hub, objectives, def.safeRadius)
     if (sites === null) continue
     for (const s of sites) grid.markDisc(s, SITE_RADIUS, WorldGrid.RESERVED)
-    buildHub(ctx, grid, biome, hubKind, hub)
+    buildHub(ctx, layout, grid, biome, hubKind, hub)
     grid.markDisc(hub, 1, WorldGrid.SOLID)
     if (!carveTrails(layout, grid, arrival, sites, def.trails)) continue
 

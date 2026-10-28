@@ -396,14 +396,17 @@ editable underneath (`QuickSetup.tsx`, `.quick-setup-presets`). Whole-world pres
   - Speedrun: small, a timer on.
 - Each is a plain `Partial<WorldDef>` in `world/presets.ts`, so it serialises like any world.
 
-### B. Village start
+### B. Village start (done 2026-10-28)
 
-As designed above:
-- desert gets the bazaar crop;
-- snow gets Shaftlocke town;
-- grass, woods and mud get a hamlet composed from `prefabs/theme_town`.
+**Built differently from the design above.** The stock town's houses (`prefabs/theme_town/building_*`) are made of
+`doodads/walls/city_outlook_*`, which exist only inside Shaftlocke Tower's own scenario, not in the base assets, so a
+generated campaign can't use them; the asset test caught it. Cropping the bazaar or Shaftlocke town hits the same
+wall. So the village is composed from base-game props, per biome (`BiomeDef.village`):
+- a fountain or well north of the portal;
+- a ring of eight tents: shaman, desert, or snow tents by biome;
+- market props between them: carts, barrels, crates, lanterns or braziers, signposts.
 
-It goes through `stamp.ts`, which shares the id-remap code with `lobby/stockTown.ts`.
+`random` picks it a third of the time on islands of 128 tiles and up; validation refuses `village` below that.
 
 ### C. Landmarks at sites
 

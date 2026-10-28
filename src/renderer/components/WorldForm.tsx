@@ -268,9 +268,10 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
               value={world.hub}
               onChange={(hub) => setWorld({ hub })}
               options={[
-                { value: 'random', label: 'Random', title: 'A camp or nothing, per seed' },
+                { value: 'random', label: 'Random', title: 'A camp, a village or nothing, per seed (no village on a small island)' },
                 { value: 'camp', label: 'Camp', title: "The biome's tent, campfire and a few props round the portal" },
-                { value: 'bare', label: 'Bare', title: 'The middle of nowhere: only the portal frame' }
+                { value: 'bare', label: 'Bare', title: 'The middle of nowhere: only the portal frame' },
+                { value: 'village', label: 'Village', title: 'Stock town houses and a fountain round the portal (islands of 128 tiles and up)' }
               ]}
             />
           </Section>

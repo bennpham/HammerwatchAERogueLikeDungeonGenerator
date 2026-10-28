@@ -48,7 +48,22 @@ export interface BiomeDef {
   cover: ScatterEntry[]
   /** the camp hub's props, laid round the portal */
   camp: { tent: string; fire: string; extras: string[] }
+  /**
+   * The village hub: a centrepiece north of the portal, a ring of tents, and
+   * market props between. Base-game units only: the stock town's houses live
+   * in Shaftlocke Tower's own scenario, which a generated campaign can't use.
+   */
+  village: { centre: ScatterEntry; tents: ScatterEntry[]; props: ScatterEntry[] }
 }
+
+/** A village's market props, shared by the biomes that don't swap any out. */
+const MARKET: ScatterEntry[] = [
+  { path: 'doodads/generic/deco_vendor_cart.unit', weight: 2, solid: 1 },
+  { path: 'doodads/generic/containers/barrel_wood.unit', weight: 3, solid: 1 },
+  { path: 'doodads/generic/containers/crate_wood_16x16.unit', weight: 3, solid: 1 },
+  { path: 'doodads/generic/lamps/lantern.unit', weight: 2, solid: 1 },
+  { path: 'doodads/signs/sign_pole.unit', weight: 1, solid: 1 }
+]
 
 export const BIOME_DEFS: readonly BiomeDef[] = [
   {
@@ -79,6 +94,11 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
       tent: 'doodads/generic/tent_shaman.unit',
       fire: 'doodads/generic/campfire.unit',
       extras: ['doodads/terrain/log.unit', 'doodads/terrain/stump.unit']
+    },
+    village: {
+      centre: { path: 'doodads/generic/outlook_fountain.unit', weight: 1, solid: 2 },
+      tents: [{ path: 'doodads/generic/tent_shaman.unit', weight: 1, solid: 2 }],
+      props: MARKET
     }
   },
   {
@@ -109,6 +129,11 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
       tent: 'doodads/generic/tent_shaman.unit',
       fire: 'doodads/generic/campfire.unit',
       extras: ['doodads/terrain/log.unit', 'doodads/terrain/tree_oak_stump.unit']
+    },
+    village: {
+      centre: { path: 'doodads/generic/well.unit', weight: 1, solid: 1 },
+      tents: [{ path: 'doodads/generic/tent_shaman.unit', weight: 1, solid: 2 }],
+      props: MARKET
     }
   },
   {
@@ -137,6 +162,14 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
       tent: 'doodads/generic/tent_desert.unit',
       fire: 'doodads/generic/campfire.unit',
       extras: ['doodads/generic/well_desert.unit']
+    },
+    village: {
+      centre: { path: 'doodads/generic/well_desert.unit', weight: 1, solid: 1 },
+      tents: [{ path: 'doodads/generic/tent_desert.unit', weight: 1, solid: 2 }],
+      props: [
+        ...MARKET.filter((p) => !p.path.includes('lantern')),
+        { path: 'doodads/generic/lamp_brazier.unit', weight: 2, solid: 1 }
+      ]
     }
   },
   {
@@ -166,6 +199,11 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
       tent: 'doodads/generic/tent_shaman.unit',
       fire: 'doodads/generic/campfire.unit',
       extras: ['doodads/terrain/log.unit', 'doodads/generic/well.unit']
+    },
+    village: {
+      centre: { path: 'doodads/generic/well.unit', weight: 1, solid: 1 },
+      tents: [{ path: 'doodads/generic/tent_shaman.unit', weight: 1, solid: 2 }],
+      props: MARKET
     }
   },
   {
@@ -193,6 +231,14 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
       tent: 'doodads/generic/tent_snow.unit',
       fire: 'doodads/generic/campfire.unit',
       extras: ['doodads/terrain/log.unit']
+    },
+    village: {
+      centre: { path: 'doodads/generic/outlook_fountain.unit', weight: 1, solid: 2 },
+      tents: [
+        { path: 'doodads/generic/tent_snow.unit', weight: 1, solid: 2 },
+        { path: 'doodads/generic/tent_snow_round.unit', weight: 1, solid: 2 }
+      ],
+      props: MARKET
     }
   }
 ]
