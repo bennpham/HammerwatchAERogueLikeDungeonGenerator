@@ -558,9 +558,7 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
       }
     }
   }
-  if (Number.isInteger(w.buttons) && Number.isInteger(bosses) && w.buttons + bosses < 1) {
-    errors.push({ field: at('buttons'), message: `${subject}: needs at least one button or boss, or the portal never opens.` })
-  }
+  // 0 buttons and 0 bosses is free roam: the portal is open from the start
   const capacity = worldSiteCapacity(w.minWidth, w.minHeight, w.waterMargin)
   if (w.buttons + bosses > capacity) {
     errors.push({

@@ -80,6 +80,10 @@ export function objectivesRemainingText(k: number): string {
 /**
  * The start: arrival, the portal (or the hidden orb) at `hub`, and every
  * objective on `sites` — bosses on the first `bossCount`, buttons on the rest.
+ *
+ * With no objectives at all the world is free roam: the portal stands open
+ * (or the orb in plain sight) from the start, and there is no countdown, so
+ * the party can explore for loot or walk straight on.
  */
 export function buildObjectives(
   ctx: GenerationContext,
@@ -92,12 +96,13 @@ export function buildObjectives(
   nextIsFight: boolean
 ): WorldObjectives {
   addArrival(ctx, hub.x + 0.5, hub.y + 3)
+  const freeRoam = sites.length === 0
 
-  // the way out, shut until the count reaches zero
-  let reveal: ScriptNode[]
+  // the way out, shut until the count reaches zero (or open from the start)
+  let reveal: ScriptNode[] = []
   if (gateway.kind === 'orb') {
     const orb = Item.create(ctx, hub.x + 0.5, hub.y + 0.5, 'Orb', 0)
-    orb.state = { hidden: { kind: 'bool', value: true } }
+    if (!freeRoam) orb.state = { hidden: { kind: 'bool', value: true } }
     const picked = new NodeUnitPickedUpTrigger(ctx, hub.x, hub.y + 2)
     picked.units.push(orb)
     const victory = new NodeAnnounceText(ctx, hub.x + 1, hub.y + 2)
@@ -106,26 +111,30 @@ export function buildObjectives(
     end.showCredits = true
     picked.connectTo(victory)
     picked.connectTo(end, 3000)
-    const show = new NodeHideUnit(ctx, hub.x, hub.y - 2)
-    show.setTarget(orb)
-    reveal = [show, announce(ctx, hub, ORB_TEXT)]
+    if (!freeRoam) {
+      const show = new NodeHideUnit(ctx, hub.x, hub.y - 2)
+      show.setTarget(orb)
+      reveal = [show, announce(ctx, hub, ORB_TEXT)]
+    }
   } else {
     const portal = Doodad.prop(ctx, hub.x + 0.5, hub.y + 0.5, nextIsFight ? PORTAL_RED : PORTAL_BLUE, {
-      start: { kind: 'string', value: 'closed' }
+      start: { kind: 'string', value: freeRoam ? 'open' : 'closed' }
     })
     const sensor = new SensorShape(ctx, hub.x + 0.5, hub.y + 0.5)
     sensor.width = 3
     sensor.height = 3
     const [use] = buildExitRig(ctx, sensor, gateway.target, hub.x, hub.y + 2)
-    use.enabled = false
-    const wake = new NodeChangeDoodadState(ctx, hub.x, hub.y - 2, 'open')
-    wake.setTarget(portal)
-    const enable = new NodeToggleElement(ctx, hub.x + 1, hub.y - 2)
-    enable.action = 'enable'
-    enable.connectToElement(use)
-    reveal = [wake, enable, announce(ctx, hub, PORTAL_TEXT)]
+    if (!freeRoam) {
+      use.enabled = false
+      const wake = new NodeChangeDoodadState(ctx, hub.x, hub.y - 2, 'open')
+      wake.setTarget(portal)
+      const enable = new NodeToggleElement(ctx, hub.x + 1, hub.y - 2)
+      enable.action = 'enable'
+      enable.connectToElement(use)
+      reveal = [wake, enable, announce(ctx, hub, PORTAL_TEXT)]
+    }
   }
-  reveal.push(new NodePlaySound(ctx, hub.x + 2, hub.y - 2, PORTAL_SOUND))
+  if (!freeRoam) reveal.push(new NodePlaySound(ctx, hub.x + 2, hub.y - 2, PORTAL_SOUND))
   // the portal's own colliders, two small posts
   grid.markDisc(hub, 1, WorldGrid.SOLID)
 
@@ -179,8 +188,10 @@ export function buildObjectives(
     return { at, trigger }
   })
 
-  const zero = buildButtonCountdown(ctx, triggers, { x: hub.x + 8, y: hub.y - 8 }, objectivesRemainingText)
-  for (const node of reveal) zero.connectTo(node)
+  if (triggers.length > 0) {
+    const zero = buildButtonCountdown(ctx, triggers, { x: hub.x + 8, y: hub.y - 8 }, objectivesRemainingText)
+    for (const node of reveal) zero.connectTo(node)
+  }
   return { buttons, bosses, plates }
 }
 

@@ -283,7 +283,7 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
 
           <Section title="Objectives" defaultOpen badge={`${world.buttons + worldBossCount(world)}`}>
             <p className="hint">
-              Every button pressed and every boss killed counts toward the portal. This size fits about{' '}
+              Every button pressed and every boss killed counts toward the portal. With none at all the world is free roam: the portal is open from the start. This size fits about{' '}
               {worldSiteCapacity(world.minWidth, world.minHeight, world.waterMargin)}.
             </p>
             <NumberField label="Floor buttons" field={`${prefix}.buttons`} value={world.buttons} issues={issues} min={0} max={WORLD_MAX_BUTTONS} onChange={(buttons) => setWorld({ buttons })} />

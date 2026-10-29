@@ -126,7 +126,6 @@ describe('world validation', () => {
     [{ waterMargin: 2 }, 'waterMargin'],
     [{ hub: 'castle' as never }, 'hub'],
     [{ buttons: -1 }, 'buttons'],
-    [{ buttons: 0, bossCount: 0 }, 'buttons'],
     [{ buttons: 33 }, 'buttons'],
     [{ buttons: 20, minWidth: 96, maxWidth: 96, minHeight: 96, maxHeight: 96 }, 'buttons'],
     [{ bossPool: [] }, 'bossPool'],
@@ -601,6 +600,62 @@ describe('world presets', () => {
     const hunt = WORLD_PRESETS.find((p) => p.id === 'treasure_hunt')!
     expect(hunt.patch.disguise).toBe(true)
     expect(hunt.patch.mysteryPlates!).toBeGreaterThan(hunt.patch.buttons!)
+  })
+})
+
+describe('free roam: no buttons and no bosses', () => {
+  const roam = (patch: Partial<WorldDef> = {}) => smallWorld({ buttons: 0, bossCount: 0, safeRadius: 8, ...patch })
+
+  it('opens the portal from the start, with no countdown', () => {
+    const p = withWorlds([roam()])
+    expect(validateParameters(p).errors).toEqual([])
+    const w0 = levelsOf(generateOk(p, 2)).get('world0')!
+    const portal = unitsOf(w0, (u) => u.path === 'doodads/generic/teleport_mt.unit')[0]
+    expect(portal.state?.start).toEqual({ kind: 'string', value: 'open' })
+    expect(scriptsOf(w0, 'UseTrigger')[0].enabled).toBe(true)
+    expect(scriptsOf(w0, 'Variable')).toHaveLength(0)
+    expect(textsOf(w0)).not.toContain(PORTAL_TEXT)
+  })
+
+  it('shows the orb from the start when it ends the campaign', () => {
+    const w0 = levelsOf(generateOk(withWorlds([roam()], '1,2,3,B1,W1'), 2)).get('world0')!
+    const orb = unitsOf(w0, (u) => u.path.includes('collectable_10_sphere'))[0]
+    expect(orb.state?.hidden).toBeUndefined()
+    expect(scriptsOf(w0, 'HideUnit')).toHaveLength(0)
+  })
+
+  it('still springs ambushes, on open ground', () => {
+    const w0 = levelsOf(generateOk(withWorlds([roam({ ambushes: 4, buttonAmbush: 0 })]), 2)).get('world0')!
+    const wires = scriptsOf(w0, 'AreaTrigger').filter((s) => firedBy(w0, s).some((f) => f.script.cls === 'SpawnUnit'))
+    expect(wires.length).toBeGreaterThan(0)
+  })
+})
+
+describe('mystery traps on an island', () => {
+  it('stands a trap button\'s spewers on open ground across the plate, switched on by the press', () => {
+    const p = withWorlds([smallWorld({ mysteryPlates: 3, buttonAmbush: 0, ambushes: 0 })])
+    p.mysteryButtons = [
+      {
+        name: 'Crossfire',
+        loot: [],
+        monsters: [],
+        traps: [{ projectile: 'shooter_arrow', direction: 'down', spread: 0, spawnRateMs: 1000, count: 3 }]
+      }
+    ]
+    expect(validateParameters(p).errors).toEqual([])
+    const w0 = levelsOf(generateOk(p, 6)).get('world0')!
+    const spewers = scriptsOf(w0, 'ProjectileSpewer')
+    expect(spewers.length).toBeGreaterThan(0)
+    for (const spewer of spewers) {
+      expect(spewer.enabled).toBe(false)
+      const on = scriptsOf(w0, 'ToggleScripts').find((s) => idsParam(s, 'Scripts').includes(spewer.id))!
+      expect(intParam(on, 'State')).toBe(1)
+    }
+    // each plate's line stands north of it, firing south across it
+    const plates = unitsOf(w0, (u) => u.path === 'doodads/generic/button_round.unit')
+    for (const spewer of spewers) {
+      expect(plates.some((plate) => spewer.y < plate.y && Math.abs(spewer.x - plate.x) <= 6 * 16 + 8)).toBe(true)
+    }
   })
 })
 

@@ -9,8 +9,10 @@
  *   HW1 mansion `test_yard` level's pattern, in AE's nodes.
  * - the same ring on a floor button, at `buttonAmbush` percent.
  * - mystery plates: a plate that fires a button from the campaign's mystery
- *   pool (`mystery/rig.ts`'s `emitPayload`): loot, monsters, a line of text,
- *   or nothing. With `disguise` on, the real portal buttons fire one too.
+ *   pool (`mystery/rig.ts`'s `emitPayload`): loot, monsters, traps, a line
+ *   of text, or nothing. An island has no walls, so a trap's spewers stand on
+ *   open ground in a line across the plate (`spewerLine`). With `disguise`
+ *   on, the real portal buttons fire one too.
  * - loot caches: a cluster of coins.
  *
  * Draws only from the world's encounter stream. A pool key resolves the way a
@@ -30,7 +32,7 @@ import { SensorShape } from '../objects/scriptNode'
 import type { ScriptNode } from '../objects/scriptNode'
 import { Doodad } from '../objects/doodad'
 import { NodeAreaTrigger, NodeChangeDoodadState, NodePlaySound, NodeSpawnObject } from '../objects/nodes'
-import type { MysteryButton } from '../config/parameters'
+import type { MysteryButton, TrapDirection } from '../config/parameters'
 import { MYSTERY_ANNOUNCE_TYPE, MYSTERY_BUTTON_STATE, emitPayload } from '../mystery/rig'
 import { SEAL_SOUND } from '../map/buttonSeal'
 import type { WorldAmbushType, WorldDef } from './options'
@@ -53,6 +55,9 @@ export const MYSTERY_PLATE = 'doodads/generic/button_round.unit'
 const MYSTERY_SPACING = 10
 /** How far round a plate its loot and monsters may land, in tiles. */
 const PAYLOAD_REACH = 6
+/** How far from a plate its trap spewers stand, and how far either way along their line. */
+const TRAP_REACH = 5
+const TRAP_SPAN = 5
 
 export interface WorldEncounters {
   packs: Tile[]
@@ -98,11 +103,17 @@ export function buildEncounters(
   const clearOf = (t: Tile) =>
     dist2(t, hub) >= def.safeRadius * def.safeRadius &&
     [...ambushes, ...sites].every((a) => dist2(a, t) >= AMBUSH_SPACING * AMBUSH_SPACING)
-  for (let i = 0; i < def.ambushes && canAmbush(def) && path.length > 0; i++) {
+  // with no sites (free roam) there is no path, so a tripwire waits on any open ground
+  const candidate = (): Tile => {
+    if (path.length > 0) return path[rand.iRand(0, path.length)]
+    const t = { x: rand.iRand(0, grid.width), y: rand.iRand(0, grid.height) }
+    return grid.free(t.x, t.y) ? t : { x: -1, y: -1 }
+  }
+  for (let i = 0; i < def.ambushes && canAmbush(def); i++) {
     let at: Tile | null = null
     for (let t = 0; t < PLACE_TRIES && at === null; t++) {
-      const candidate = path[rand.iRand(0, path.length)]
-      if (clearOf(candidate)) at = candidate
+      const c = candidate()
+      if (c.x >= 0 && clearOf(c)) at = c
     }
     if (at === null) break
     ambushes.push(at)
@@ -126,7 +137,17 @@ export function buildEncounters(
   const mystery: Tile[] = []
   if (pool.length > 0) {
     const pick = () => mysteryDefs[pool[rand.iRand(0, pool.length)]]
-    const fire = (trigger: ScriptNode, at: Tile, button: MysteryButton, index: number) =>
+    const fire = (trigger: ScriptNode, at: Tile, button: MysteryButton, index: number) => {
+      // one slot pool per direction for this plate, so a button's spewers never stack
+      const lines = new Map<TrapDirection, Tile[]>()
+      const trapLine = (_room: number, direction: TrapDirection): Tile[] => {
+        let line = lines.get(direction)
+        if (line === undefined) {
+          line = spewerLine(grid, at, direction)
+          lines.set(direction, line)
+        }
+        return line
+      }
       emitPayload(
         ctx,
         trigger,
@@ -135,10 +156,11 @@ export function buildEncounters(
         button,
         [...plates.map((p) => p.at), ...mystery],
         () => openGround(grid, at),
-        () => [],
+        trapLine,
         MYSTERY_ANNOUNCE_TYPE,
         rand
       )
+    }
     for (let i = 0; i < (def.mysteryPlates ?? 0); i++) {
       const at = freeTile(rand, grid, hub, def.safeRadius, [...mystery, ...sites, ...ambushes], MYSTERY_SPACING, PLACE_TRIES)
       if (at === null) break
@@ -163,6 +185,31 @@ function mysteryPlate(ctx: GenerationContext, at: Tile): ScriptNode {
   press.setTarget(plate)
   trigger.connectTo(press)
   return trigger
+}
+
+/**
+ * Where a plate's trap spewers stand on open ground, since an island has no
+ * walls to mount them on: a line across the plate's far side from the way
+ * they fire, `TRAP_REACH` tiles out, so the volley crosses the plate (a
+ * `down` spewer stands north of it). Only walkable tiles, nearest the line's
+ * middle first.
+ */
+function spewerLine(grid: WorldGrid, at: Tile, direction: TrapDirection): Tile[] {
+  const out: Tile[] = []
+  for (let k = 0; k <= TRAP_SPAN; k++) {
+    for (const off of k === 0 ? [0] : [-k, k]) {
+      const t =
+        direction === 'down'
+          ? { x: at.x + off, y: at.y - TRAP_REACH }
+          : direction === 'up'
+            ? { x: at.x + off, y: at.y + TRAP_REACH }
+            : direction === 'left'
+              ? { x: at.x + TRAP_REACH, y: at.y + off }
+              : { x: at.x - TRAP_REACH, y: at.y + off }
+      if (grid.walkable(t.x, t.y)) out.push(t)
+    }
+  }
+  return out
 }
 
 /** Walkable tiles within `PAYLOAD_REACH` of `at`: where a plate's loot and monsters may land. */

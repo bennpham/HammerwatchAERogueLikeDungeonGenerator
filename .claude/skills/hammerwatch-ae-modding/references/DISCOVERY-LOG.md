@@ -1256,3 +1256,11 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
   with `AggroEnemy`) on its ring. In game: #104.
 - `[EMITTED]` Village (#106) and landmarks (#107): base-game props only, each marking
   its collider footprint solid in the world grid.
+- `[EMITTED]` (2026-10-28) A world with no buttons and no bosses is free roam: the portal
+  ships `open` with its `UseTrigger` enabled (the orb unhidden when last), and no
+  countdown. In game: #108.
+- `[EMITTED]` (2026-10-28, the user found world trap buttons doing nothing) A mystery
+  button's traps on a world plate: `ProjectileSpewer`s need no wall, so they stand on open
+  ground in a line 5 tiles off the plate on the far side from their direction, firing
+  across it (`world/encounters.ts spewerLine`), shipped disabled and enabled by the press.
+  Floors keep their wall slots. In game: #109.
