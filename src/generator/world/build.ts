@@ -47,6 +47,7 @@ import { placeLandmarks } from './landmarks'
 import { buildObjectives } from './objectives'
 import { buildEncounters, placeLoot } from './encounters'
 import { scatterProps } from './scatter'
+import { placeSavePlates, worldSavePlates } from './saves'
 
 /** Fresh islands tried before the world gives up. */
 const MAX_WORLD_ATTEMPTS = 20
@@ -56,7 +57,7 @@ export interface WorldPreview {
   /** one char per tile, row-major: '0' water, '1' land, '2' cliff, '3' trail, '4' solid */
   map: string
   hub: Tile
-  sites: Array<Tile & { kind: 'button' | 'boss' | 'ambush' | 'pack' | 'loot' | 'mystery' }>
+  sites: Array<Tile & { kind: 'button' | 'boss' | 'ambush' | 'pack' | 'loot' | 'mystery' | 'save' }>
 }
 
 /** A world's three streams, each seeded from one `ctx.worldRand` draw. */
@@ -117,6 +118,11 @@ export function buildWorld(
     const reached = grid.reach(arrival)
     if (sites.some((s) => reached[s.y * width + s.x] !== 1)) continue
     const loot = placeLoot(ctx, encounters, grid, def, hub, reached, [...sites, ...met.packs, ...met.mystery])
+    const saves = placeSavePlates(ctx, encounters, grid, worldSavePlates(def, width, height), hub, reached, [
+      ...sites,
+      ...met.mystery,
+      ...met.ambushes
+    ])
 
     buildFloorHazardRig(ctx, def.timer, width, height)
     buildMusicRig(ctx, def.music, hub.x - 4, hub.y - 8)
@@ -128,7 +134,8 @@ export function buildWorld(
       ...met.ambushes.map((t) => ({ ...t, kind: 'ambush' as const })),
       ...met.packs.map((t) => ({ ...t, kind: 'pack' as const })),
       ...met.mystery.map((t) => ({ ...t, kind: 'mystery' as const })),
-      ...loot.map((t) => ({ ...t, kind: 'loot' as const }))
+      ...loot.map((t) => ({ ...t, kind: 'loot' as const })),
+      ...saves.map((t) => ({ ...t, kind: 'save' as const }))
     ]
     return { level, preview: previewOf(ctx, grid, hub, levelNumber, biome, marks) }
   }

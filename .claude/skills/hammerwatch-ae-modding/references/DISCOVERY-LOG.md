@@ -1264,3 +1264,12 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
   ground in a line 5 tiles off the plate on the far side from their direction, firing
   across it (`world/encounters.ts spewerLine`), shipped disabled and enabled by the press.
   Floors keep their wall slots. In game: #109.
+- `[VERIFIED]` (scripts, 2026-10-28) `doodads/generic/button_save.unit` is the floor
+  checkpoint. Its `SavePoint` behaviour (`scripts/Behaviors/Objects/SavePoint.as`) fires on a
+  player stepping on it: scene `on`, the last one used back `off`, `g_startId = SpawnId`,
+  and a save. `SpawnId` is a behaviour parameter, the fifth element of the unit entry:
+  `[pos, id, null, null, {SpawnId}]` (castle_hammerwatch level_1). It needs a `LevelStart`
+  with that StartID to respawn at.
+- `[EMITTED]` (2026-10-28) `AeUnit.behavior` writes that fifth element. A world spreads
+  save plates over the island (one per 160×160 tiles by default), each with a
+  `LevelStart` on its own spot. In game: #110.

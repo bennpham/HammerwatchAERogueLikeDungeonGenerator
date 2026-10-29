@@ -140,6 +140,11 @@ export interface WorldDef {
   scatter: number
   /** A landmark round each objective site (a pyramid, a shrine, a grove…). Absent means on. */
   landmarks?: boolean
+  /**
+   * Save plates (the stock checkpoint) spread over the island. Absent means
+   * by size: one per 160×160 tiles (`world/saves.ts worldSavePlates`).
+   */
+  savePlates?: number
   /** A countdown, then a whole-island hazard, like a floor's timer. */
   timer?: FloorTimer
   /** A `music/tracks.ts` id; absent plays nothing new. */

@@ -43,6 +43,7 @@ import { PORTAL_TEXT } from '../src/generator/world/objectives'
 import { MONSTER_THEMES, matchingTheme } from '../src/generator/world/monsterThemes'
 import { WORLD_PRESETS } from '../src/generator/world/presets'
 import { LANDMARK_DEFS, landmarksFor } from '../src/generator/world/landmarks'
+import { worldSavePlates } from '../src/generator/world/saves'
 import { isKnownFloorPoolKey } from '../src/generator/objects/monsterTypes'
 import { closureOf } from './closure'
 import { aeAssetsDir } from './aeInstall'
@@ -628,6 +629,34 @@ describe('free roam: no buttons and no bosses', () => {
     const w0 = levelsOf(generateOk(withWorlds([roam({ ambushes: 4, buttonAmbush: 0 })]), 2)).get('world0')!
     const wires = scriptsOf(w0, 'AreaTrigger').filter((s) => firedBy(w0, s).some((f) => f.script.cls === 'SpawnUnit'))
     expect(wires.length).toBeGreaterThan(0)
+  })
+})
+
+describe('save plates', () => {
+  it('writes each plate as stock does, with a spawn of its own answering to it', () => {
+    const result = generateOk(withWorlds([smallWorld({ savePlates: 2, minWidth: 160, maxWidth: 160, minHeight: 160, maxHeight: 160 })]), 4)
+    const text = lvlText(result, 'world0')
+    // [pos, id, null, null, {SpawnId}], as castle_hammerwatch level_1's button_save
+    expect(text).toMatch(/<array name="doodads\/generic\/button_save\.unit">\s*<array>\s*<vec2>[^<]*<\/vec2>\s*<int>\d+<\/int>\s*<null\/>\s*<null\/>\s*<dict>\s*<string name="SpawnId">world0_save_1<\/string>/)
+    const w0 = levelsOf(result).get('world0')!
+    const starts = scriptsOf(w0, 'LevelStart').map((s) => strParam(s, 'StartID'))
+    expect(starts).toEqual(expect.arrayContaining(['world0', 'world0_save_1', 'world0_save_2']))
+  })
+
+  it('gives a big island more by default, and none when set to 0', () => {
+    expect(worldSavePlates(defaultWorld(), 192, 192)).toBe(1)
+    expect(worldSavePlates(defaultWorld(), 512, 512)).toBe(10)
+    expect(worldSavePlates({ ...defaultWorld(), savePlates: 0 }, 512, 512)).toBe(0)
+    const none = levelsOf(generateOk(withWorlds([smallWorld({ savePlates: 0 })]), 4)).get('world0')!
+    expect(unitsOf(none, (u) => u.path === 'doodads/generic/button_save.unit')).toHaveLength(0)
+  })
+
+  it('validates and round-trips the count', () => {
+    const fields = validateParameters(withWorlds([smallWorld({ savePlates: 999 })])).errors.map((e) => e.field)
+    expect(fields).toContain('world.worlds.0.savePlates')
+    const p = withWorlds([smallWorld({ savePlates: 3 })])
+    const parsed = parseParametersTxt(serializeParametersTxt(p))
+    expect(parsed.params.world!.worlds[0].savePlates).toBe(3)
   })
 })
 

@@ -40,6 +40,7 @@ const WORLD_SITE_STYLE: Record<string, { color: string; label: string; legend: s
   button: { color: '#d0a53f', label: '●', legend: 'Button' },
   ambush: { color: '#e06030', label: '!', legend: 'Ambush' },
   mystery: { color: '#7fb8e0', label: '?', legend: 'Mystery plate' },
+  save: { color: '#f5f0e6', label: 'S', legend: 'Save plate' },
   pack: { color: '#b04a4a', label: '', legend: 'Pack' },
   loot: { color: '#e0d060', label: '', legend: 'Loot' }
 }

@@ -31,6 +31,8 @@ import {
   normalizeOrder,
   slotLabel,
   worldBossCount,
+  worldSavePlates,
+  WORLD_MAX_SAVE_PLATES,
   worldSiteCapacity
 } from '../../generator'
 import type { DungeonParameters, ValidationIssue, WorldAmbushType, WorldDef, WorldOptions } from '../../generator'
@@ -276,9 +278,31 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
                 { value: 'random', label: 'Random', title: 'A camp, a village or nothing, per seed (no village on a small island)' },
                 { value: 'camp', label: 'Camp', title: "The biome's tent, campfire and a few props round the portal" },
                 { value: 'bare', label: 'Bare', title: 'The middle of nowhere: only the portal frame' },
-                { value: 'village', label: 'Village', title: 'Stock town houses and a fountain round the portal (islands of 128 tiles and up)' }
+                { value: 'village', label: 'Village', title: 'Tents round a fountain or well, with a market, round the portal (islands of 128 tiles and up)' }
               ]}
             />
+            <BoolField
+              label={`Save plates by island size (${worldSavePlates(world, world.minWidth, world.minHeight)} here)`}
+              checked={world.savePlates === undefined}
+              onChange={(auto) =>
+                setWorld({ savePlates: auto ? undefined : worldSavePlates(world, world.minWidth, world.minHeight) })
+              }
+            />
+            {world.savePlates !== undefined && (
+              <NumberField
+                label="Save plates"
+                field={`${prefix}.savePlates`}
+                value={world.savePlates}
+                issues={issues}
+                min={0}
+                max={WORLD_MAX_SAVE_PLATES}
+                onChange={(savePlates) => setWorld({ savePlates })}
+              />
+            )}
+            <p className="hint">
+              A save plate is the game&apos;s own checkpoint: step on it to save, and a party that dies comes back there
+              instead of at the start.
+            </p>
           </Section>
 
           <Section title="Objectives" defaultOpen badge={`${world.buttons + worldBossCount(world)}`}>

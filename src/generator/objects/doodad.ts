@@ -193,6 +193,8 @@ export class Doodad {
   id: number
   path: string
   state?: Record<string, StateValue>
+  /** the unit behaviour's own parameters (a save plate's `SpawnId`), see `AeUnit.behavior` */
+  behavior?: Record<string, StateValue>
   /**
    * A barrier the party cannot cross while it stands — a seal wall piece on
    * corridor floor. Read by the seal check; walls from the grid are not doodads.

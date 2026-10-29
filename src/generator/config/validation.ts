@@ -61,6 +61,7 @@ import type { CampaignSlot } from '../campaign'
 import { SLOT_KINDS, defaultOrder } from '../campaign'
 import { biomeById, BIOME_IDS } from '../world/biomes'
 import { VILLAGE_MIN_SIZE } from '../world/hub'
+import { WORLD_MAX_SAVE_PLATES } from '../world/saves'
 import {
   WORLD_HUBS,
   WORLD_MAX_AMBUSHES,
@@ -521,6 +522,7 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
   whole('buttonAmbush', 'the button ambush chance', 0, 100)
   whole('loot', 'the loot cache count', 0, WORLD_MAX_LOOT)
   if (w.mysteryPlates !== undefined) whole('mysteryPlates', 'the mystery plate count', 0, WORLD_MAX_MYSTERY_PLATES)
+  if (w.savePlates !== undefined) whole('savePlates', 'the save plate count', 0, WORLD_MAX_SAVE_PLATES)
   for (const i of w.mysteryPool ?? []) {
     if (!Number.isInteger(i) || i < 0 || i >= poolSize) {
       errors.push({
