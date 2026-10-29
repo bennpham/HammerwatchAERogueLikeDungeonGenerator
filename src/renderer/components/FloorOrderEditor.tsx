@@ -1,5 +1,5 @@
 import React from 'react'
-import { arenaModes, campaignOrder, isDefaultOrder, slotLabeller } from '../../generator'
+import { arenaModes, campaignCounts, campaignOrder, isDefaultOrder, slotLabeller } from '../../generator'
 import type { CampaignCounts, CampaignSlot, DungeonParameters, ValidationIssue } from '../../generator'
 import { Section } from './fields'
 
@@ -27,8 +27,7 @@ interface FloorOrderEditorProps {
  * jszip, and a reorder this short does not justify a fourth.
  */
 export function FloorOrderEditor({ params, issues, onChange }: FloorOrderEditorProps) {
-  const fightCount = params.boss?.enabled === true ? (params.boss.fights?.length ?? 0) : 0
-  const counts: CampaignCounts = { levels: params.levels, fights: fightCount, lobbies: params.lobbies.length }
+  const counts: CampaignCounts = campaignCounts(params)
   const order = campaignOrder(counts, params.levelOrder)
   // Arena chips read AB1/AS2 — the prefix is that arena's mode, the number its
   // position in the fight list. See campaign.ts's slotLabel. A floor with a
@@ -94,11 +93,12 @@ export function FloorOrderEditor({ params, issues, onChange }: FloorOrderEditorP
       >
         <p className="hint">
           The order the campaign is played in. Arenas are <strong>AB1</strong> (boss) or{' '}
-          <strong>AS1</strong> (survival), lobbies are <strong>L1</strong>, <strong>L2</strong>…, and
+          <strong>AS1</strong> (survival), lobbies are <strong>L1</strong>, <strong>L2</strong>…, worlds
+          are <strong>W1</strong>, <strong>W2</strong>…, and
           a dungeon floor with a boss on it reads <strong>8B</strong>. Arenas and lobbies can go
-          anywhere except that a lobby can never be last, since only a dungeon floor or an arena
-          carries the victory orb.
-          Floors, fights and lobbies each keep their own order; only how the three interleave is up
+          anywhere except that a lobby can never be last, since only a dungeon floor, an arena or a
+          world carries the victory orb.
+          Floors, fights, lobbies and worlds each keep their own order; only how they interleave is up
           to you, so the ◀ ▶ buttons will not move a chip past another of the same kind, or move a
           lobby into the last slot.
         </p>
@@ -106,8 +106,8 @@ export function FloorOrderEditor({ params, issues, onChange }: FloorOrderEditorP
         {!hasMultipleKinds ? (
           <p className="hint">
             There is nothing to arrange yet: the campaign has only {soleKindNoun(kinds)}. Add a boss
-            fight (Boss tab), a lobby (Lobby tab), or more floors (Dungeon tab) to have something to
-            interleave.
+            fight (Arena tab), a lobby (Lobby tab), a world (World tab), or more floors (Dungeon tab) to
+            have something to interleave.
           </p>
         ) : (
           <FloorOrderChips order={order} label={label} onSwap={swap} canSwap={canSwap} />
@@ -139,6 +139,7 @@ function soleKindNoun(kinds: Set<CampaignSlot['kind']>): string {
   if (kinds.has('floor')) return 'dungeon floors'
   if (kinds.has('boss')) return 'boss fights'
   if (kinds.has('lobby')) return 'lobbies'
+  if (kinds.has('world')) return 'worlds'
   return 'nothing'
 }
 

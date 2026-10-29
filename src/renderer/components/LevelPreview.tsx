@@ -25,6 +25,62 @@ const ROOM_LABELS: Record<string, string> = {
   Storage: 'S'
 }
 
+/** A world's tiles by kind: the `WorldPreview.map` chars. */
+const WORLD_TILE_COLORS: Record<string, [number, number, number]> = {
+  '0': [32, 70, 110], // water
+  '1': [70, 110, 60], // land
+  '2': [120, 112, 100], // cliff
+  '3': [150, 120, 80], // trail
+  '4': [40, 75, 40] // trees, rocks
+}
+
+/** A world's marks: colour and the letter drawn on it. */
+const WORLD_SITE_STYLE: Record<string, { color: string; label: string; legend: string }> = {
+  boss: { color: '#c0455f', label: 'B', legend: 'Boss' },
+  button: { color: '#d0a53f', label: '●', legend: 'Button' },
+  ambush: { color: '#e06030', label: '!', legend: 'Ambush' },
+  mystery: { color: '#7fb8e0', label: '?', legend: 'Mystery plate' },
+  save: { color: '#f5f0e6', label: 'S', legend: 'Save plate' },
+  pack: { color: '#b04a4a', label: '', legend: 'Pack' },
+  loot: { color: '#e0d060', label: '', legend: 'Loot' }
+}
+
+/** A world: the island tile by tile, then its sites, then the portal. */
+function drawWorld(g: CanvasRenderingContext2D, level: LevelPreviewData, scale: number): void {
+  const world = level.world!
+  const image = g.createImageData(level.mapWidth, level.mapHeight)
+  for (let i = 0; i < world.map.length; i++) {
+    const [r, gr, b] = WORLD_TILE_COLORS[world.map[i]] ?? WORLD_TILE_COLORS['1']
+    image.data.set([r, gr, b, 255], i * 4)
+  }
+  const tiles = document.createElement('canvas')
+  tiles.width = level.mapWidth
+  tiles.height = level.mapHeight
+  tiles.getContext('2d')!.putImageData(image, 0, 0)
+  g.imageSmoothingEnabled = false
+  g.drawImage(tiles, 0, 0, level.mapWidth * scale, level.mapHeight * scale)
+
+  const mark = (x: number, y: number, radius: number, color: string, label: string) => {
+    g.fillStyle = color
+    g.beginPath()
+    g.arc((x + 0.5) * scale, (y + 0.5) * scale, radius, 0, Math.PI * 2)
+    g.fill()
+    if (label === '') return
+    g.fillStyle = '#14161c'
+    g.font = `bold ${Math.round(radius * 1.4)}px sans-serif`
+    g.textAlign = 'center'
+    g.textBaseline = 'middle'
+    g.fillText(label, (x + 0.5) * scale, (y + 0.5) * scale)
+  }
+  const big = Math.max(5, scale * 3)
+  for (const site of world.sites) {
+    const style = WORLD_SITE_STYLE[site.kind]
+    const small = site.kind === 'pack' || site.kind === 'loot'
+    mark(site.x, site.y, small ? Math.max(2, scale) : big, style.color, style.label)
+  }
+  mark(world.hub.x, world.hub.y, big, '#9b59d0', '◎')
+}
+
 interface LevelPreviewProps {
   levels: LevelPreviewData[]
   seed: number | null
@@ -49,6 +105,10 @@ export function LevelPreview({ levels, seed }: LevelPreviewProps) {
     canvas.width = level.mapWidth * scale
     canvas.height = level.mapHeight * scale
     const g = canvas.getContext('2d')!
+    if (level.world !== undefined) {
+      drawWorld(g, level, scale)
+      return
+    }
 
     // walls / floor from the rasterized grid
     g.fillStyle = '#14161c'
@@ -111,23 +171,38 @@ export function LevelPreview({ levels, seed }: LevelPreviewProps) {
           </button>
         ))}
         <span className="preview-meta">
-          theme {level.theme} · {level.rooms.length} rooms · {level.monsterCount} monsters ·{' '}
+          {level.world !== undefined ? `biome ${level.theme} · ${level.mapWidth}×${level.mapHeight}` : `theme ${level.theme} · ${level.rooms.length} rooms`} · {level.monsterCount} monsters ·{' '}
           {level.itemCount} items{seed !== null ? ` · seed ${seed}` : ''}
         </span>
       </div>
       <canvas ref={canvasRef} className="preview-canvas" />
-      <div className="legend">
-        {Object.entries(ROOM_COLORS)
-          .filter(([type]) => type !== 'None')
-          .map(([type, color]) => (
-            <span key={type} className="legend-item">
-              <span className="legend-swatch" style={{ background: color }} />
-              {type}
+      {level.world !== undefined ? (
+        <div className="legend">
+          <span className="legend-item">
+            <span className="legend-swatch" style={{ background: '#9b59d0' }} />
+            Start and portal
+          </span>
+          {Object.values(WORLD_SITE_STYLE).map((style) => (
+            <span key={style.legend} className="legend-item">
+              <span className="legend-swatch" style={{ background: style.color }} />
+              {style.legend}
             </span>
           ))}
-        <span className="legend-item">🔒 locked</span>
-        <span className="legend-item">🔘 button</span>
-      </div>
+        </div>
+      ) : (
+        <div className="legend">
+          {Object.entries(ROOM_COLORS)
+            .filter(([type]) => type !== 'None')
+            .map(([type, color]) => (
+              <span key={type} className="legend-item">
+                <span className="legend-swatch" style={{ background: color }} />
+                {type}
+              </span>
+            ))}
+          <span className="legend-item">🔒 locked</span>
+          <span className="legend-item">🔘 button</span>
+        </div>
+      )}
     </div>
   )
 }

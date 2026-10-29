@@ -10,9 +10,10 @@ description: Architecture and review bar for the Hammerwatch AE Dungeon Generato
 `generateDungeon(params, seed)` (`src/generator/index.ts`) builds the campaign:
 
 1. **Validate** (`config/validation.ts`). Invalid parameters return `{ok:false, errors}` and generation never starts.
-2. **Campaign order** (`campaign.ts`): slots are floors (`floorN`), boss fights (`bossN`) and lobbies (`lobbyN`). A slot's **stem** (`slotEntryId`) is its arrival StartID and what every exit names. Its **file** is named by play order (`slotFileName`): `levels/<scenarioId>/<NN>_<what>.lvl`, where `NN` is the 1-based position padded to the campaign size and `<what>` is `floorK`, `floorK_boss` (with a floor boss), `arena_bossK`, `arena_survivalK` or `lobbyK`. For example: `01_lobby1`, `02_floor1_boss`, `04_arena_boss1`. Always build a path with `ctx.levelPath(stem)`; the two names are independent because `LevelExit` carries the path and the StartID separately. The scenario id is `dungeon_<seed>`.
+2. **Campaign order** (`campaign.ts`): slots are floors (`floorN`), boss fights (`bossN`), lobbies (`lobbyN`) and worlds (`worldN`, labelled `W1`…). Build counts with `campaignCounts(params)`. A slot's **stem** (`slotEntryId`) is its arrival StartID and what every exit names. Its **file** is named by play order (`slotFileName`): `levels/<scenarioId>/<NN>_<what>.lvl`, where `NN` is the 1-based position padded to the campaign size and `<what>` is `floorK`, `floorK_boss` (with a floor boss), `arena_bossK`, `arena_survivalK`, `lobbyK` or `worldK`. For example: `01_lobby1`, `02_floor1_boss`, `04_arena_boss1`. Always build a path with `ctx.levelPath(stem)`; the two names are independent because `LevelExit` carries the path and the StartID separately. The scenario id is `dungeon_<seed>`.
 3. **Floors** (`map/level.ts`): rooms, passages, room types (Entrance, Exit/Orb, Shop, vaults), then the optional layers in a fixed order: floor bosses, traps, timer, buffs, mystery plates, music. `toAeLevel()` paints tiles and emits objects, then walls.
-4. **Arenas** (`boss/arena.ts`), **survival** (`survival/`), **lobbies** (`lobby/build.ts`: the generated stand-in or an imported template).
+4. **Arenas** (`boss/arena.ts`), **survival** (`survival/`), **worlds** (`world/build.ts`), **lobbies** (`lobby/build.ts`: the generated stand-in or an imported template).
+   A world is terrain, not rooms: an island mask (`world/island.ts`), a cliff ring and an invisible fence (`coast.ts`), sites and trails, then objectives, encounters and scatter. Its biomes are plain data (`world/biomes.ts`), stock assets only; custom content is post-1.0. Plan: `docs/plans/world-mode.md`.
 5. **Files**: one `.lvl` per slot, plus `info.xml` (start level and modifiers, with `NO_LIVES` forced) and `logos.png`.
 
 ## Emission
@@ -24,7 +25,7 @@ description: Architecture and review bar for the Hammerwatch AE Dungeon Generato
 
 ## RNG streams
 
-`rand` handles layout and population. The others each serve one layer: `cosmeticRand` (tile variants), `bossRand` (arenas), `floorBossRand`, `trapRand` and `mysteryRand`.
+`rand` handles layout and population. The others each serve one layer: `cosmeticRand` (tile variants), `bossRand` (arenas), `floorBossRand`, `trapRand`, `mysteryRand` and `worldRand` (worlds). Each world draws three seeds from `worldRand` up front, for its own `layout`, `scatter` and `encounters` streams (`world/build.ts`).
 
 A layer draws only from its own stream. When it's off, it draws nothing and allocates no id. That's why turning a layer on for one floor leaves every other floor identical; the tests check this for each layer.
 

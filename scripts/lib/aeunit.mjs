@@ -41,10 +41,16 @@ export function preprocess(assets, rel, defs = new Set(), replaces = new Map(), 
       if (dir === 'endif') { stack.pop(); continue }
       if (!active()) continue
       if (dir === 'define') { defs.add(arg.split(/\s+/)[0]); continue }
-      if (dir === 'replace') { const [a, ...b] = arg.split(/\s+/); replaces.set(a, b.join(' ')); continue }
+      if (dir === 'replace') {
+        // `%replace "0 -10" "0 6"`: a quoted argument may hold spaces (the cliff sets)
+        const [a, b = ''] = [...arg.matchAll(/"([^"]*)"|(\S+)/g)].map((t) => t[1] ?? t[2])
+        if (a !== undefined) replaces.set(a, b)
+        continue
+      }
       if (dir === 'include') {
-        // quoted or bare: `%include "a.inc"`, `%include doodads/carpeting/carpet_base.inc`
-        const inc = /"([^"]+)"/.exec(arg) ?? /^(\S+)/.exec(arg)
+        // quoted or bare: `%include "a.inc"`, `%include doodads/carpeting/carpet_base.inc`,
+        // and the cliff sets' unclosed `%include "doodads/cliffs/s_32.inc`
+        const inc = /"([^"]+)"/.exec(arg) ?? /^"?([^"\s]+)/.exec(arg)
         if (inc) out.push(preprocess(assets, inc[1], defs, replaces, depth + 1))
         continue
       }

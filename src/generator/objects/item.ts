@@ -1,5 +1,6 @@
 import { getTheme } from '../config/themes'
 import type { GenerationContext } from '../core/context'
+import type { StateValue } from '../ae/model'
 
 /**
  * Pickups and props placed in rooms, as Anniversary Edition units. The HW1
@@ -112,6 +113,8 @@ export class Item {
   theme: string
   /** a door: the cells it closes, for the seal check */
   blocks?: Array<[number, number]>
+  /** unit state, as a doodad's (a world's orb ships `hidden`) */
+  state?: Record<string, StateValue>
 
   constructor(
     ctx: GenerationContext,

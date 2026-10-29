@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import {
   DEFAULT_LOBBY_PRESET_ID,
+  campaignCounts,
   GOLD_SAFETY_MAX,
   LOBBY_DIAMOND_VALUE,
   LOBBY_PRESETS,
@@ -46,11 +47,7 @@ export function LobbyForm({ params, issues, onChange }: LobbyFormProps) {
   const setLobbies = (nextLobbies: LobbyOptions[]) => {
     const next: DungeonParameters = { ...params, lobbies: nextLobbies }
     if (params.levelOrder !== undefined) {
-      const counts: CampaignCounts = {
-        levels: params.levels,
-        fights: params.boss?.enabled === true ? (params.boss.fights?.length ?? 0) : 0,
-        lobbies: nextLobbies.length
-      }
+      const counts: CampaignCounts = campaignCounts(next)
       const repaired = normalizeOrder(params.levelOrder, counts)
       if (isDefaultOrder(repaired, counts)) delete next.levelOrder
       else next.levelOrder = repaired

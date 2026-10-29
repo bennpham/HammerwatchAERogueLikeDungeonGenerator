@@ -1186,3 +1186,91 @@ with upgrades (`players/ladder.ts`, `players/levels.ts`).
 - Consequence: seeds whose floors flip between rejected and accepted build different
   layouts. Shaftlocke Siege 1878922481's floor 2 (checklist #81) is now its first
   attempt; the independent probe (`tests/sealProbe.ts`) agrees the floor is sealed.
+
+### World mode, pass 1 (2026-10-28)
+
+The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discovery/world-mode.md`.
+
+- `[VERIFIED]` (scripts) `HideUnit.as`: `HideState` is Hide = 1, Show = 2, Toggle = 3, then
+  `Units`. Castle `level_12` places a `teleport_mt` with `hidden: t` (unit 2134) and a
+  `HideUnit` with `State 2` naming it among others.
+- `[VERIFIED]` (user, in game, 2026-10-27) A hidden portal doesn't react to F.
+- `[VERIFIED]` (unit file) `teleport_mt`'s `closed` scene is the base, the empty arch and the
+  minimap `teleport_off`; `open` adds the swirl, two lights, the front effect and
+  `teleport_on`.
+- `[VERIFIED]` (unit files, via `scripts/lib/aeunit.mjs`) The cliff sets
+  (`doodads/cliffs/{granite,granite2,basalt,silt}`) are plateau edge pieces, each drawn up
+  from a bottom-left anchor: `s_*`/`se`/`sw` a 16-px lip and a 32-px face, collision 40 px
+  up (corners 48); `n_*`/`ne`/`nw` a 16-px lip, collision its top 8 px; `e_*`/`w_*` a
+  16-px-wide lip, collision the outer 8 px; `*_i` an inner-corner lip with a triangle.
+  Stock town.lvl stacks `s_32` rows into tall faces.
+- `[VERIFIED]` (tooling) `aeunit.mjs` read every cliff unit as empty: their
+  `%include "doodads/cliffs/s_32.inc` has no closing quote, and their
+  `%replace "0 -10" "0 6"` arguments hold spaces. Both are parsed now.
+- `[EMITTED]` A world's coast: each coast land cell carries the piece for its water
+  neighbours, anchored three rows below the cell's top for a south piece, two for a
+  `_32` east/west, one otherwise; `_32` pieces pair straight runs. Behind it, a solid
+  invisible `:Physics_Rectangle` (`jam/shot/aim-through`) covers each horizontal run of
+  water tiles next to land. `tests/world.test.ts` floods every biome's island over the
+  install's colliders: no leak, the portal reached. In game: checklist #96.
+- `[EMITTED]` A world's portal: `frame` places `teleport_mt` (or `teleport_red` before a
+  fight) in `closed` and switches it to `open` with `SetUnitScene` when the objective
+  count reaches zero (an `appear` style, hidden then shown with `HideUnit` State 2, was
+  dropped 2026-10-28 at the user's call).
+  The exit `UseTrigger` ships disabled and a `ToggleScripts` (enable) wakes it at zero.
+  Last in the campaign, the orb ships hidden and is shown instead. In game: #98, #99.
+- `[EMITTED]` Ambush tripwire: a 4×4 sensor on a trail → `AreaTrigger` (once) →
+  `PlaySound` `event:/SFX/UI/puzzle/puzzle_fail` + a ring of `SpawnUnit`s with
+  `AggroEnemy`, after the HW1 mansion `test_yard` pattern. In game: #100.
+- `[EMITTED]` Biome lighting: grass `effects/env/day.env`, woods `dusk.env` (ambient
+  `25 25 60`, as dark as a dungeon; brightness lifts it), desert `egypt_outside.env`, mud
+  `outside.env`, snow `effects/lighting/outlook.env` (Shaftlocke's town). In game: #97.
+- `[UNVERIFIED]` (user, in game, 2026-10-28) One crash about a second after arriving in
+  W1 (grass, 192 tiles) of `dungeon_348868942`, from the first lobby: access violation
+  reading `-1` at `HW1A.exe+0x2d1dc9`, while drawing units (`_draw_units` in the dump),
+  with no `[ERR]` before it. Not reproduced: the same campaign replayed, the same W1
+  played first (`dungeon_3488689421`), and four 96-tile grass worlds (bare, trees,
+  monsters and a boss, camp) all ran. If it comes back, compare the dump's offset.
+- `[VERIFIED]` (user, in game, 2026-10-28; checklist #96–#98, #100) The world coast reads
+  as a coast and holds the party in; 192- and 384-tile islands load and play without
+  trouble; the empty frame comes alive at zero and F moves the party on; tripwires,
+  packs, boss bars and loot work. The orb-last case (#99), the camp and the timer (#101)
+  are not yet played.
+- `[VERIFIED]` (user, in game, 2026-10-28; checklist #99, #101) A world that ends the
+  campaign shows its hidden orb at zero (`HideUnit` State 2 on an item), and the orb
+  ends the run; the camp start and the world timer work. `dungeon_7200001`/`7200002`.
+
+### World mode, pass 2 (2026-10-28)
+
+- `[VERIFIED]` (asset snapshot) The stock town's houses (`prefabs/theme_town/building_*`)
+  are built from `doodads/walls/city_outlook_*`, which are not in the base assets
+  (`unpacked_assets_66`): they ship inside Shaftlocke Tower's own scenario. A generated
+  campaign can't use them, so the world's village is composed from base props instead
+  (tents, a fountain or well, market props). `cityofstone_fountain` is the same.
+- `[EMITTED]` World mystery plates: `doodads/generic/button_round.unit`, a 1×1 sensor,
+  `AreaTrigger` (once) → `PlaySound` + `SetUnitScene on` + the mystery payload
+  (`mystery/rig.ts emitPayload`, loot and monsters on open ground round the plate, no
+  spewers). Disguised portal buttons wear the same art and state and fire a pool button
+  too. In game: checklist #103.
+- `[EMITTED]` Ambush types: a tripwire spawns exactly one type's monsters (`SpawnUnit`
+  with `AggroEnemy`) on its ring. In game: #104.
+- `[EMITTED]` Village (#106) and landmarks (#107): base-game props only, each marking
+  its collider footprint solid in the world grid.
+- `[EMITTED]` (2026-10-28) A world with no buttons and no bosses is free roam: the portal
+  ships `open` with its `UseTrigger` enabled (the orb unhidden when last), and no
+  countdown. In game: #108.
+- `[EMITTED]` (2026-10-28, the user found world trap buttons doing nothing) A mystery
+  button's traps on a world plate: `ProjectileSpewer`s need no wall, so they stand on open
+  ground in a line 5 tiles off the plate on the far side from their direction, firing
+  across it (`world/encounters.ts spewerLine`), shipped disabled and enabled by the press.
+  Floors keep their wall slots. In game: #109.
+- `[VERIFIED]` (scripts, 2026-10-28) `doodads/generic/button_save.unit` is the floor
+  checkpoint. Its `SavePoint` behaviour (`scripts/Behaviors/Objects/SavePoint.as`) fires on a
+  player stepping on it: scene `on`, the last one used back `off`, `g_startId = SpawnId`,
+  and a save. `SpawnId` is a behaviour parameter, the fifth element of the unit entry:
+  `[pos, id, null, null, {SpawnId}]` (castle_hammerwatch level_1). It needs a `LevelStart`
+  with that StartID to respawn at.
+- `[EMITTED]` (2026-10-28) `AeUnit.behavior` writes that fifth element. A world has one
+  save plate, beside the arrival by the portal, with a `LevelStart` on its spot (the
+  user asked for one at the start only; plates spread over the island were a misread,
+  reverted the same day). In game: #110.

@@ -30,6 +30,7 @@ Enums and parameter names come from `<assets>/scripts/WorldScript/**/*.as`; neve
 | Death | `UnitDestroyedTrigger` | `Units` |
 | Counting | `Variable` / `ChangeVariables` / `CheckVariables` | `Value`; `Function` (3 subtract), `Variables`; `Variable` (singular), `OnTrue` |
 | Animate a unit | `SetUnitScene` | `Units`, `State` (scene) |
+| Hide or show units | `HideUnit` | `State` (**1 hide, 2 show**, 3 toggle), `Units`. A unit placed with `hidden: t` doesn't react to F until shown (a world's orb, when the world ends the campaign) |
 | Remove units | `DestroyUnits` | `Units` |
 | Spawn | `SpawnUnit` | `UnitType`, `AggroEnemy` |
 | Hazard / buff field | `DangerArea` | `Areas`, `Damage`, `Frequency`, `Filter` (2 players, 4 enemies, 6 both), `Buff` |

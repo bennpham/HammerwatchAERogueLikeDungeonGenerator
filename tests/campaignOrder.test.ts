@@ -27,8 +27,8 @@ const slots = (spec: string): CampaignSlot[] =>
 /** slots -> `1,2,B1,L1`, for readable expectations (no modes, so arenas read as the bare `B`). */
 const spec = (order: CampaignSlot[]): string => order.map((slot) => slotLabel(slot)).join(',')
 
-/** `counts(levels, fights, lobbies)` — `lobbies` defaults to 0, the pre-#48 shape. */
-const counts = (levels: number, fights: number, lobbies = 0): CampaignCounts => ({ levels, fights, lobbies })
+/** `counts(levels, fights, lobbies, worlds)` — `lobbies` and `worlds` default to 0, the pre-#48 shape. */
+const counts = (levels: number, fights: number, lobbies = 0, worlds = 0): CampaignCounts => ({ levels, fights, lobbies, worlds })
 
 describe('campaign level ids', () => {
   it('numbers the arena per fight and the room per lobby, out of the floors\' id space', () => {

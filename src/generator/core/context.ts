@@ -78,6 +78,15 @@ export class GenerationContext {
    */
   readonly mysteryRand: Rand
 
+  /**
+   * drives the optional WORLDS (`world/`) — a seventh stream, so adding,
+   * removing or editing a world moves no floor, arena or lobby. The worlds
+   * consume it in order, like the arenas `bossRand`: each draws its own
+   * `layout`, `scatter` and `encounters` seeds from it up front
+   * (`world/build.ts`), so world 0 never moves when world 1 changes.
+   */
+  readonly worldRand: Rand
+
   currentLevel = 0
   /**
    * The single per-level id counter units and scripts share (AE resolves script
@@ -216,6 +225,7 @@ export class GenerationContext {
     this.trapRand = new Rand(seed + 3)
     this.floorBossRand = new Rand(seed + 4)
     this.mysteryRand = new Rand(seed + 5)
+    this.worldRand = new Rand(seed + 6)
   }
 
   /**
