@@ -47,7 +47,7 @@ import { placeLandmarks } from './landmarks'
 import { buildObjectives } from './objectives'
 import { buildEncounters, placeLoot } from './encounters'
 import { scatterProps } from './scatter'
-import { placeSavePlates, worldSavePlates } from './saves'
+import { placeStartSave } from './saves'
 
 /** Fresh islands tried before the world gives up. */
 const MAX_WORLD_ATTEMPTS = 20
@@ -107,6 +107,7 @@ export function buildWorld(
     if (sites === null) continue
     for (const s of sites) grid.markDisc(s, SITE_RADIUS, WorldGrid.RESERVED)
     buildHub(ctx, layout, grid, biome, hubKind, hub)
+    const save = placeStartSave(ctx, grid, hub)
     grid.markDisc(hub, 1, WorldGrid.SOLID)
     if (!carveTrails(layout, grid, arrival, sites, def.trails)) continue
     if (def.landmarks !== false) placeLandmarks(ctx, layout, grid, biome, sites)
@@ -118,11 +119,6 @@ export function buildWorld(
     const reached = grid.reach(arrival)
     if (sites.some((s) => reached[s.y * width + s.x] !== 1)) continue
     const loot = placeLoot(ctx, encounters, grid, def, hub, reached, [...sites, ...met.packs, ...met.mystery])
-    const saves = placeSavePlates(ctx, encounters, grid, worldSavePlates(def, width, height), hub, reached, [
-      ...sites,
-      ...met.mystery,
-      ...met.ambushes
-    ])
 
     buildFloorHazardRig(ctx, def.timer, width, height)
     buildMusicRig(ctx, def.music, hub.x - 4, hub.y - 8)
@@ -135,7 +131,7 @@ export function buildWorld(
       ...met.packs.map((t) => ({ ...t, kind: 'pack' as const })),
       ...met.mystery.map((t) => ({ ...t, kind: 'mystery' as const })),
       ...loot.map((t) => ({ ...t, kind: 'loot' as const })),
-      ...saves.map((t) => ({ ...t, kind: 'save' as const }))
+      { ...save, kind: 'save' as const }
     ]
     return { level, preview: previewOf(ctx, grid, hub, levelNumber, biome, marks) }
   }

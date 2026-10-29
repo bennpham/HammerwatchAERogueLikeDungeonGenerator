@@ -31,8 +31,6 @@ import {
   normalizeOrder,
   slotLabel,
   worldBossCount,
-  worldSavePlates,
-  WORLD_MAX_SAVE_PLATES,
   worldSiteCapacity
 } from '../../generator'
 import type { DungeonParameters, ValidationIssue, WorldAmbushType, WorldDef, WorldOptions } from '../../generator'
@@ -281,27 +279,9 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
                 { value: 'village', label: 'Village', title: 'Tents round a fountain or well, with a market, round the portal (islands of 128 tiles and up)' }
               ]}
             />
-            <BoolField
-              label={`Save plates by island size (${worldSavePlates(world, world.minWidth, world.minHeight)} here)`}
-              checked={world.savePlates === undefined}
-              onChange={(auto) =>
-                setWorld({ savePlates: auto ? undefined : worldSavePlates(world, world.minWidth, world.minHeight) })
-              }
-            />
-            {world.savePlates !== undefined && (
-              <NumberField
-                label="Save plates"
-                field={`${prefix}.savePlates`}
-                value={world.savePlates}
-                issues={issues}
-                min={0}
-                max={WORLD_MAX_SAVE_PLATES}
-                onChange={(savePlates) => setWorld({ savePlates })}
-              />
-            )}
             <p className="hint">
-              A save plate is the game&apos;s own checkpoint: step on it to save, and a party that dies comes back there
-              instead of at the start.
+              A save plate lies beside the arrival, by the portal: the game&apos;s own checkpoint, to save before setting
+              out.
             </p>
           </Section>
 

@@ -137,7 +137,6 @@ export {
 export type { WorldAmbushType, WorldDef, WorldOptions, WorldHub } from './world/options'
 export { BIOME_DEFS, BIOME_IDS, biomeById } from './world/biomes'
 export { MONSTER_THEMES, matchingTheme } from './world/monsterThemes'
-export { WORLD_MAX_SAVE_PLATES, worldSavePlates } from './world/saves'
 export { WORLD_PRESETS } from './world/presets'
 export type { WorldPreset } from './world/presets'
 export type { MonsterTheme } from './world/monsterThemes'

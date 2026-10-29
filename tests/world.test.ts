@@ -43,7 +43,6 @@ import { PORTAL_TEXT } from '../src/generator/world/objectives'
 import { MONSTER_THEMES, matchingTheme } from '../src/generator/world/monsterThemes'
 import { WORLD_PRESETS } from '../src/generator/world/presets'
 import { LANDMARK_DEFS, landmarksFor } from '../src/generator/world/landmarks'
-import { worldSavePlates } from '../src/generator/world/saves'
 import { isKnownFloorPoolKey } from '../src/generator/objects/monsterTypes'
 import { closureOf } from './closure'
 import { aeAssetsDir } from './aeInstall'
@@ -632,31 +631,25 @@ describe('free roam: no buttons and no bosses', () => {
   })
 })
 
-describe('save plates', () => {
-  it('writes each plate as stock does, with a spawn of its own answering to it', () => {
-    const result = generateOk(withWorlds([smallWorld({ savePlates: 2, minWidth: 160, maxWidth: 160, minHeight: 160, maxHeight: 160 })]), 4)
-    const text = lvlText(result, 'world0')
-    // [pos, id, null, null, {SpawnId}], as castle_hammerwatch level_1's button_save
-    expect(text).toMatch(/<array name="doodads\/generic\/button_save\.unit">\s*<array>\s*<vec2>[^<]*<\/vec2>\s*<int>\d+<\/int>\s*<null\/>\s*<null\/>\s*<dict>\s*<string name="SpawnId">world0_save_1<\/string>/)
-    const w0 = levelsOf(result).get('world0')!
-    const starts = scriptsOf(w0, 'LevelStart').map((s) => strParam(s, 'StartID'))
-    expect(starts).toEqual(expect.arrayContaining(['world0', 'world0_save_1', 'world0_save_2']))
+describe('the save plate', () => {
+  it('lies by the portal, one per world, written as stock with a spawn answering to it', () => {
+    for (const hub of ['bare', 'camp', 'village'] as const) {
+      const result = generateOk(withWorlds([smallWorld({ hub, minWidth: 160, maxWidth: 160, minHeight: 160, maxHeight: 160 })]), 4)
+      const w0 = levelsOf(result).get('world0')!
+      const plates = unitsOf(w0, (u) => u.path === 'doodads/generic/button_save.unit')
+      expect(plates, hub).toHaveLength(1)
+      const portal = unitsOf(w0, (u) => u.path === 'doodads/generic/teleport_mt.unit')[0]
+      expect(Math.hypot(plates[0].x - portal.x, plates[0].y - portal.y), hub).toBeLessThan(6 * 16)
+      // [pos, id, null, null, {SpawnId}], as castle_hammerwatch level_1's button_save
+      expect(lvlText(result, 'world0')).toMatch(
+        /<array name="doodads\/generic\/button_save\.unit">\s*<array>\s*<vec2>[^<]*<\/vec2>\s*<int>\d+<\/int>\s*<null\/>\s*<null\/>\s*<dict>\s*<string name="SpawnId">world0_save<\/string>/
+      )
+      expect(scriptsOf(w0, 'LevelStart').map((s) => strParam(s, 'StartID'))).toContain('world0_save')
+    }
   })
 
-  it('gives a big island more by default, and none when set to 0', () => {
-    expect(worldSavePlates(defaultWorld(), 192, 192)).toBe(1)
-    expect(worldSavePlates(defaultWorld(), 512, 512)).toBe(10)
-    expect(worldSavePlates({ ...defaultWorld(), savePlates: 0 }, 512, 512)).toBe(0)
-    const none = levelsOf(generateOk(withWorlds([smallWorld({ savePlates: 0 })]), 4)).get('world0')!
-    expect(unitsOf(none, (u) => u.path === 'doodads/generic/button_save.unit')).toHaveLength(0)
-  })
-
-  it('validates and round-trips the count', () => {
-    const fields = validateParameters(withWorlds([smallWorld({ savePlates: 999 })])).errors.map((e) => e.field)
-    expect(fields).toContain('world.worlds.0.savePlates')
-    const p = withWorlds([smallWorld({ savePlates: 3 })])
-    const parsed = parseParametersTxt(serializeParametersTxt(p))
-    expect(parsed.params.world!.worlds[0].savePlates).toBe(3)
+  it('still reads a retired world<i>SavePlates line without complaint', () => {
+    expect(parseParametersTxt('world=1\r\nworlds=1\r\nworld0SavePlates=5\r\n').unknownKeys).toEqual([])
   })
 })
 

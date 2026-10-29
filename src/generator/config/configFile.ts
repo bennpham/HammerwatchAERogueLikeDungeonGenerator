@@ -314,7 +314,6 @@ const WORLD_INT_KEYS = {
   buttonambush: 'buttonAmbush',
   loot: 'loot',
   mysteryplates: 'mysteryPlates',
-  saveplates: 'savePlates',
   scatter: 'scatter'
 } as const satisfies Record<string, keyof WorldDef>
 
@@ -389,6 +388,9 @@ function parseWorldKey(suffix: string, key: string, value: string, world: WorldD
       return true
     case 'landmarks':
       world.landmarks = value === '1'
+      return true
+    case 'saveplates':
+      // retired: a world has one save plate, at the start. Read and ignored.
       return true
     case 'mysterypool': {
       const indices = value.split(',').map((t) => t.trim()).filter((t) => t !== '')
@@ -469,8 +471,6 @@ function worldLines(w: number, world: WorldDef): string[] {
     k('Disguise', world.disguise === true ? 1 : 0),
     k('Landmarks', world.landmarks === false ? 0 : 1)
   )
-  // absent is "by size", so only an explicit count is written
-  if (world.savePlates !== undefined) out.push(k('SavePlates', world.savePlates))
   // 1-based, as the mystery buttons are numbered on the form
   if (world.mysteryPool !== undefined) out.push(k('MysteryPool', world.mysteryPool.map((i) => i + 1).join(',')))
   for (const [t, type] of (world.ambushTypes ?? []).entries()) {

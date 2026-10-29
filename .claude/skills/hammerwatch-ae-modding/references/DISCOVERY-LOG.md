@@ -1270,6 +1270,7 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
   and a save. `SpawnId` is a behaviour parameter, the fifth element of the unit entry:
   `[pos, id, null, null, {SpawnId}]` (castle_hammerwatch level_1). It needs a `LevelStart`
   with that StartID to respawn at.
-- `[EMITTED]` (2026-10-28) `AeUnit.behavior` writes that fifth element. A world spreads
-  save plates over the island (one per 160×160 tiles by default), each with a
-  `LevelStart` on its own spot. In game: #110.
+- `[EMITTED]` (2026-10-28) `AeUnit.behavior` writes that fifth element. A world has one
+  save plate, beside the arrival by the portal, with a `LevelStart` on its spot (the
+  user asked for one at the start only; plates spread over the island were a misread,
+  reverted the same day). In game: #110.
