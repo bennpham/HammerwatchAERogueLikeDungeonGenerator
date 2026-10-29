@@ -1627,7 +1627,7 @@ export function floorBossCount(boss: DungeonBoss): number {
 
 /** A world's boss count, with the same lineup-aware rule as `arenaBossCount`. */
 export function worldBossCount(world: WorldDef): number {
-  return bossSelection(world) === 'lineup' ? lineupTotal(world.bossLineup) : world.bossCount
+  return bossSelection(world) === 'lineup' ? lineupTotal(world.bossLineup) : world.bossCount ?? 1
 }
 
 export type { WorldDef, WorldOptions }

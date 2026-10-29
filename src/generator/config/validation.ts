@@ -76,6 +76,7 @@ import {
   WORLD_MIN_SAFE_RADIUS,
   WORLD_MIN_SIZE,
   WORLD_WARN_SIZE,
+  WORLD_SLOW_SIZE,
   worldList,
   worldMysteryPool,
   worldSiteCapacity,
@@ -544,8 +545,8 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
   if (bossSelection(w) === 'lineup') {
     validateBossLineup(w.bossLineup, at('bossLineup'), MOBILE_BOSS_IDS, errors, subject)
   } else {
-    whole('bossCount', 'the boss count', 0, MAX_BOSS_COUNT)
-    if (w.bossCount > 0 && w.bossPool.length === 0) {
+    if (w.bossCount !== undefined) whole('bossCount', 'the boss count', 0, MAX_BOSS_COUNT)
+    if (bosses > 0 && w.bossPool.length === 0) {
       errors.push({ field: at('bossPool'), message: `${subject}: pick at least one boss for the pool.` })
     }
     for (const id of w.bossPool) {
@@ -628,7 +629,13 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
 
   if (errors.length > before) return
 
-  if (Math.max(w.maxWidth, w.maxHeight) > WORLD_WARN_SIZE) {
+  const side = Math.max(w.maxWidth, w.maxHeight)
+  if (side > WORLD_SLOW_SIZE) {
+    warnings.push({
+      field: at('maxWidth'),
+      message: `${subject}: an island above ${WORLD_SLOW_SIZE} tiles across takes up to a minute and a lot of memory to generate, and is untested in game.`
+    })
+  } else if (side > WORLD_WARN_SIZE) {
     warnings.push({
       field: at('maxWidth'),
       message: `${subject}: islands above ${WORLD_WARN_SIZE} tiles across are untested in game; they may load slowly.`

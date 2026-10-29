@@ -120,7 +120,7 @@ describe('world validation', () => {
   it.each<[Partial<WorldDef>, string]>([
     [{ biome: 'lava' }, 'biome'],
     [{ minWidth: 40 }, 'minWidth'],
-    [{ maxWidth: 900 }, 'maxWidth'],
+    [{ maxWidth: 3000 }, 'maxWidth'],
     [{ minWidth: 200, maxWidth: 150 }, 'minWidth'],
     [{ coast: 101 }, 'coast'],
     [{ waterMargin: 2 }, 'waterMargin'],
@@ -148,8 +148,24 @@ describe('world validation', () => {
     expect(fieldsOf(withWorlds([{ ...defaultWorld(), ...patch }]))).toContain(`world.worlds.0.${field}`)
   })
 
+  it('reads an absent boss count as one boss, the way the boss picker stores 1', () => {
+    const def: WorldDef = { ...smallWorld({ buttons: 2 }) }
+    delete def.bossCount
+    const p = withWorlds([def])
+    expect(validateParameters(p).errors).toEqual([])
+    const w0 = levelsOf(generateOk(p, 3)).get('world0')!
+    expect(intParam(scriptsOf(w0, 'Variable')[0], 'Value')).toBe(3)
+    expect(serializeParametersTxt(p)).toContain('world0Bosses=1')
+  })
+
+  it('allows islands up to 2048 tiles, warning past 1024', () => {
+    const big = validateParameters(withWorlds([{ ...defaultWorld(), minWidth: 2048, maxWidth: 2048 }]))
+    expect(big.errors).toEqual([])
+    expect(big.warnings.some((w) => /minute/.test(w.message))).toBe(true)
+  })
+
   it('warns, without blocking, about an island past the tested size', () => {
-    const result = validateParameters(withWorlds([{ ...defaultWorld(), minWidth: 400, maxWidth: 400 }]))
+    const result = validateParameters(withWorlds([{ ...defaultWorld(), minWidth: 600, maxWidth: 600 }]))
     expect(result.errors).toEqual([])
     expect(result.warnings.map((w) => w.field)).toContain('world.worlds.0.maxWidth')
   })

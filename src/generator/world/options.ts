@@ -16,10 +16,17 @@ export const WORLD_HUBS = ['random', 'camp', 'bare', 'village'] as const
 export type WorldHub = (typeof WORLD_HUBS)[number]
 
 
-/** Size bounds, in tiles. Above the warning size, load time and frame rate are unverified. */
+/**
+ * Size bounds, in tiles. 512 is played (user, 2026-10-28: "big and barren for
+ * explorer", no trouble); above it the game's load time and frame rate are
+ * unverified. Generation is the other cost: measured 2026-10-28, a 1024
+ * island takes about 10 s and 0.6 GB in the app, a 2048 one about 45 s and
+ * 1.7 GB, so the cap is 2048 and both are warned about, not refused.
+ */
 export const WORLD_MIN_SIZE = 96
-export const WORLD_MAX_SIZE = 512
-export const WORLD_WARN_SIZE = 384
+export const WORLD_MAX_SIZE = 2048
+export const WORLD_WARN_SIZE = 512
+export const WORLD_SLOW_SIZE = 1024
 
 /** Water between the coast and the map edge, in tiles. */
 export const WORLD_MIN_MARGIN = 4
@@ -79,8 +86,12 @@ export interface WorldDef {
   hub: WorldHub
   /** Floor buttons to press; each counts toward the portal. */
   buttons: number
-  /** Bosses to kill; each counts toward the portal. Ignored in `lineup` mode. */
-  bossCount: number
+  /**
+   * Bosses to kill; each counts toward the portal. Ignored in `lineup` mode.
+   * Absent means 1, as an arena's: the shared boss picker stores 1 as absent.
+   * Read through `worldBossCount`.
+   */
+  bossCount?: number
   /** Bosses a site may roll, a subset of `MOBILE_BOSS_IDS`. */
   bossPool: string[]
   /** Absent means `random`, read through `bossSelection()`. */

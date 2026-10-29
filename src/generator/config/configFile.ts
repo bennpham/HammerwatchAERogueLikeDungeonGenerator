@@ -448,7 +448,7 @@ function worldLines(w: number, world: WorldDef): string[] {
     k('WaterMargin', world.waterMargin),
     k('Hub', world.hub),
     k('Buttons', world.buttons),
-    k('Bosses', world.bossCount),
+    k('Bosses', world.bossCount ?? 1),
     k('BossPool', world.bossPool.join(','))
   ]
   if (world.bossSelection !== undefined) out.push(k('BossSelection', world.bossSelection))

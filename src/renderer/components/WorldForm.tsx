@@ -262,7 +262,7 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
               <NumberField label="Min height" field={`${prefix}.minHeight`} value={world.minHeight} issues={issues} min={WORLD_MIN_SIZE} max={WORLD_MAX_SIZE} onChange={(minHeight) => setWorld({ minHeight })} />
               <NumberField label="Max height" field={`${prefix}.maxHeight`} value={world.maxHeight} issues={issues} min={WORLD_MIN_SIZE} max={WORLD_MAX_SIZE} onChange={(maxHeight) => setWorld({ maxHeight })} />
             </div>
-            <p className="hint">In tiles. 192 is about four Shaftlocke towns; above 384 is untested in game.</p>
+            <p className="hint">In tiles, up to 2048. 192 is about four Shaftlocke towns; 512 is played and fine; above 1024 takes up to a minute to generate.</p>
             <NumberField label="Coast roughness (%)" field={`${prefix}.coast`} value={world.coast} issues={issues} min={0} max={100} onChange={(coast) => setWorld({ coast })} />
             <NumberField label="Water to the map edge" field={`${prefix}.waterMargin`} value={world.waterMargin} issues={issues} min={WORLD_MIN_MARGIN} max={WORLD_MAX_MARGIN} onChange={(waterMargin) => setWorld({ waterMargin })} />
           </Section>

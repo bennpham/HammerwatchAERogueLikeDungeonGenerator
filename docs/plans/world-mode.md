@@ -186,7 +186,7 @@ These are preferences, not in-game proof. The probe still has to show them.
 
 ### Generation pipeline (`buildWorld`)
 
-1. **Size and island.** The size is W×H tiles: default 192, min 96, cap 512, with a warning above 384. Draw an island
+1. **Size and island.** The size is W×H tiles: default 192, min 96, cap 2048 (raised from 512, 2026-10-28), with a warning above 512 and a slower-generation one above 1024. Draw an island
    mask from a deterministic value noise (permutation seeded from `worldRand`) with a radial falloff and a
    `coastRoughness` knob. Keep the largest component, fill lakes inside it, and smooth with a bounded number of
    cellular passes until each edge cell matches a shape the edge-set table covers. If that never happens, the attempt

@@ -28,6 +28,8 @@ export interface LandmarkPiece {
   dy: number
   /** collision radius in tiles; 0 = walk-through */
   solid: number
+  /** the unit's start scene, for one with no default (the armour statue faces a way) */
+  scene?: string
 }
 
 export interface LandmarkDef {
@@ -83,7 +85,7 @@ export const LANDMARK_DEFS: readonly LandmarkDef[] = [
     pieces: [
       { path: `${T}/castle_debris_pile_rock.unit`, dx: -6, dy: -3, solid: 2 },
       { path: `${T}/castle_debris_pile_rock.unit`, dx: 6, dy: 2, solid: 2 },
-      { path: `${G}/statue_armor.unit`, dx: 5, dy: -5, solid: 1 },
+      { path: `${G}/statue_armor.unit`, dx: 5, dy: -5, solid: 1, scene: 's' },
       { path: `${G}/fence_stone_single.unit`, dx: -4, dy: 6, solid: 1 },
       { path: `${G}/fence_stone_single.unit`, dx: -2, dy: 6, solid: 1 }
     ]
@@ -170,7 +172,7 @@ export function placeLandmarks(ctx: GenerationContext, rand: Rand, grid: WorldGr
       // clear of the path, the coast and every prop, a tile beyond its own footprint
       const clear = grid.discAll(at, piece.solid + 1, (x, y) => grid.walkable(x, y) && !grid.has(x, y, WorldGrid.PATH))
       if (!clear) continue
-      Doodad.prop(ctx, at.x + 0.5, at.y + 0.5, piece.path)
+      Doodad.prop(ctx, at.x + 0.5, at.y + 0.5, piece.path, piece.scene === undefined ? undefined : { start: { kind: 'string', value: piece.scene } })
       if (piece.solid > 0) grid.markDisc(at, piece.solid, WorldGrid.SOLID)
       grid.markDisc(at, Math.max(1, piece.solid), WorldGrid.RESERVED)
     }
