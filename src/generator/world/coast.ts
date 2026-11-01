@@ -22,8 +22,9 @@
  * the 32-px pieces. `island.ts` cleans the mask until every coast cell has a
  * piece here, and leaves room under every south face.
  *
- * Stock fences its plateaus with physics shapes as well as the pieces' own
- * collision (121 `:Physics_Freeform`s in town.lvl), so this does too: solid,
+ * Stock closes its plateaus with the pieces' own collision (town.lvl's 15
+ * `:Physics_Freeform`s are mostly sensors; 3 solid ones patch its stairs).
+ * The coast adds a fence anyway, since water blocks nothing: solid,
  * invisible `:Physics_Rectangle`s cover every water tile next to land,
  * one per horizontal run. They let shots through, as stock's fences do.
  *

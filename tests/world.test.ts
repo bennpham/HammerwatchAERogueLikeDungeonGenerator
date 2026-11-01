@@ -47,6 +47,8 @@ import { isKnownFloorPoolKey } from '../src/generator/objects/monsterTypes'
 import { closureOf } from './closure'
 import { aeAssetsDir } from './aeInstall'
 import { plainParameters } from './params'
+// @ts-expect-error untyped dev helper shared with scripts/render-level.mjs
+import { loadUnit } from '../scripts/lib/aeunit.mjs'
 
 /** A small, fast world: 96 tiles square. */
 function smallWorld(patch: Partial<WorldDef> = {}): WorldDef {
@@ -256,6 +258,17 @@ describe('the island', () => {
       ]
       for (const path of paths) expect(aeAssetExists(path), `${b.id}: ${path}`).toBe(true)
     }
+  })
+
+  it.skipIf(aeAssetsDir() === null)('reads the stairs as two offset walls with a 16-px walkway between', () => {
+    const { shapes } = loadUnit(aeAssetsDir()!, 'doodads/cliffs/granite2/_stairs.unit') as { shapes: { polygons: number[][][] } }
+    expect(shapes.polygons).toHaveLength(2)
+    const xs = shapes.polygons.map((pts) => pts.map(([x]) => x))
+    const ys = shapes.polygons.flatMap((pts) => pts.map(([, y]) => y))
+    expect(Math.max(...xs[0])).toBe(8)
+    expect(Math.min(...xs[1])).toBe(24)
+    expect(Math.min(...ys)).toBe(-40)
+    expect(Math.max(...ys)).toBe(0)
   })
 
   it('cleans every mask until each coast cell has a piece, water to the edge', () => {
