@@ -8,12 +8,14 @@ import type { Brightness, TorchDensity } from '../lighting'
 import { noUpgrades } from '../lobby/payout'
 import { DEFAULT_LOBBY_PRESET_ID, RETIRED_LOBBY_IDS } from '../lobby/presets'
 import type { UpgradeCounts } from '../lobby/payout'
-import type { ArenaMode, CampaignSlot } from '../campaign'
+import type { ArenaMode, CampaignCounts, CampaignSlot } from '../campaign'
 import { ARENA_MODES, campaignOrder, gatewayAfter } from '../campaign'
 // Type-only: boss/bosses.ts imports BOSS_IDS/MOBILE_BOSS_IDS FROM this file at
 // runtime, so a runtime import back here would cycle. `import type` is erased
 // at compile time and carries no such risk — see BossArenaOptions.bossLineup.
 import type { BossId } from '../boss/bosses'
+import { defaultWorldOptions, worldList } from '../world/options'
+import type { WorldDef, WorldOptions } from '../world/options'
 
 /** Ids of every theme the generator can emit — see themes.ts for the registry. */
 export const THEMES: readonly string[] = THEME_DEFS.map((t) => t.id)
@@ -621,6 +623,20 @@ export function mysteryStarterPool(): MysteryButton[] {
 }
 
 /**
+ * How many slots of each kind `params` builds — what its order is repaired and
+ * validated against. Floors by `levels`, fights and worlds only while switched
+ * on, lobbies by the list.
+ */
+export function campaignCounts(params: DungeonParameters): CampaignCounts {
+  return {
+    levels: params.levels,
+    fights: bossFights(params.boss).length,
+    lobbies: (params.lobbies ?? []).length,
+    worlds: worldList(params.world).length
+  }
+}
+
+/**
  * The floors the old campaign-wide `lockFinalRoom` flag sealed, as per-floor
  * data: every floor whose way out is NOT stairs — the victory orb, the red
  * portal into an arena, or the blue one into a lobby — and that has no boss.
@@ -631,12 +647,7 @@ export function mysteryStarterPool(): MysteryButton[] {
  * CURRENT order: rearranging the campaign afterwards moves no lock.
  */
 export function gatewayLockedFloors(params: DungeonParameters): FloorLock[] {
-  const counts = {
-    levels: params.levels,
-    fights: bossFights(params.boss).length,
-    lobbies: (params.lobbies ?? []).length
-  }
-  const order = campaignOrder(counts, params.levelOrder)
+  const order = campaignOrder(campaignCounts(params), params.levelOrder)
   const locks = Array.from({ length: params.levels }, () => defaultFloorLock())
   order.forEach((slot, position) => {
     if (slot.kind !== 'floor' || slot.index >= params.levels) return
@@ -900,6 +911,12 @@ export interface DungeonParameters {
    * RNG stream, so every existing seed's dungeon is unchanged.
    */
   boss: BossOptions
+  /**
+   * The open islands (`world/`), each a `world` slot in `levelOrder`. Optional:
+   * absent or switched off reproduces the campaign without worlds byte for
+   * byte, since the worlds draw only from `ctx.worldRand`.
+   */
+  world?: WorldOptions
 }
 
 /**
@@ -1608,6 +1625,13 @@ export function floorBossCount(boss: DungeonBoss): number {
   return bossSelection(boss) === 'lineup' ? lineupTotal(boss.bossLineup) : boss.bossCount ?? 1
 }
 
+/** A world's boss count, with the same lineup-aware rule as `arenaBossCount`. */
+export function worldBossCount(world: WorldDef): number {
+  return bossSelection(world) === 'lineup' ? lineupTotal(world.bossLineup) : world.bossCount ?? 1
+}
+
+export type { WorldDef, WorldOptions }
+
 /**
  * `arena.bodyguardVariants`, with the absent-means-on default applied (issue
  * #64 part 2) — read every arena's toggle through this, never off the field.
@@ -2192,7 +2216,8 @@ export function defaultParameters(): DungeonParameters {
       defaultLobby('BETA-dungeon-prep'),
       { ...defaultLobby('BETA-boss-prep'), music: 'boss_1' }
     ],
-    boss: defaultBossOptions()
+    boss: defaultBossOptions(),
+    world: defaultWorldOptions()
   }
   // Locks exactly the floors the old campaign-wide `lockFinalRoom` default
   // sealed — every floor that ends in a portal or the orb — so the stock

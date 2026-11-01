@@ -331,6 +331,34 @@ export class NodeChangeDoodadState extends ScriptNode {
   }
 }
 
+/** What a `HideUnit` does to its units. */
+export type HideAction = 'hide' | 'show' | 'toggle'
+
+/** `HideUnit.as`'s `HideState`: Hide = 1, Show, Toggle. [VERIFIED] the script source. */
+const HIDE_STATE: Record<HideAction, number> = { hide: 1, show: 2, toggle: 3 }
+
+/**
+ * `HideUnit` — hides or shows units. Stock Castle Hammerwatch `level_12`
+ * places its portal `hidden` and shows it with State 2. A hidden unit doesn't
+ * react to F (user, in game, 2026-10-27). A named action, as `ToggleScripts`.
+ */
+export class NodeHideUnit extends ScriptNode {
+  action: HideAction = 'show'
+  units: HasId[] = []
+
+  constructor(ctx: GenerationContext, x: number, y: number) {
+    super(ctx, x, y, 'HideUnit')
+  }
+
+  setTarget(u: HasId): void {
+    this.units.push(u)
+  }
+
+  params(): Param[] {
+    return [P.int('State', HIDE_STATE[this.action]), P.ids('Units', ids(this.units))]
+  }
+}
+
 // --- Variables -----------------------------------------------------------------
 
 /** `Variable` — an integer that persists with the level save. */

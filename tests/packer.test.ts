@@ -15,7 +15,7 @@ import {
   unpackedAssetsDir,
   writeCampaign
 } from '../src/main/packer'
-import { defaultLobby, generateDungeon } from '../src/generator'
+import { BIOME_IDS, defaultLobby, defaultWorld, generateDungeon } from '../src/generator'
 import { applyEverythingFree, applyGroupFactor, playerOverrides, shopKey, skillKey, statKey } from '../src/generator/players'
 import type { DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
@@ -184,6 +184,27 @@ describe.skipIf(!HAS_AE || process.env.HWAE_PACK !== '1')('packer — real PACKA
       for (const name of ['classes.sval', 'warlock_dagger.sval', 'shared_speed_priest.sval', env]) {
         expect(readFileSync(packed).includes(Buffer.from(name)), name).toBe(true)
       }
+      expect(existsSync(join(AE_ROOT, 'scenarios', result.campaignName))).toBe(false)
+    } finally {
+      rmSync(packed, { force: true })
+      rmSync(join(AE_ROOT, 'scenarios', result.campaignName), { recursive: true, force: true })
+    }
+  }, 180_000)
+
+  it('packs a world of every biome', async () => {
+    const params = plainParameters()
+    params.levels = 1
+    params.themes = ['prison']
+    params.levelMonsters = [['bat']]
+    params.boss = { ...params.boss, enabled: false }
+    params.world = { enabled: true, worlds: BIOME_IDS.map((biome) => ({ ...defaultWorld(), biome })) }
+    const result = generateDungeon(params, 99003) as DungeonResult
+    expect(result.ok).toBe(true)
+    const packed = join(AE_ROOT, 'scenarios', `${result.campaignName}.h1c`)
+    try {
+      const install = await installScenario(AE_ROOT, result.campaignName, result.files, false, result.assetOverrides)
+      expect(install.ok, install.message).toBe(true)
+      expect(hasH1cMagic(packed)).toBe(true)
       expect(existsSync(join(AE_ROOT, 'scenarios', result.campaignName))).toBe(false)
     } finally {
       rmSync(packed, { force: true })

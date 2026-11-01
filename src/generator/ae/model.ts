@@ -58,6 +58,13 @@ export interface AeUnit {
   id: number
   /** per-instance settings (layer, start scene, physics size…) */
   state?: Record<string, StateValue>
+  /**
+   * The unit's script behaviour's own parameters, the editor's "Editable"
+   * fields: a save plate's `SpawnId` (`SavePoint.as`). Written as stock writes
+   * them, the fifth element after the state and a null: `[pos, id, state|null,
+   * null, {…}]` (castle_hammerwatch level_1's `button_save`).
+   */
+  behavior?: Record<string, StateValue>
 }
 
 export interface AeScript {

@@ -14,6 +14,7 @@ import { ParameterForm } from './components/ParameterForm'
 import { PlayerForm } from './components/PlayerForm'
 import { LobbyForm } from './components/LobbyForm'
 import { BossForm } from './components/BossForm'
+import { WorldForm } from './components/WorldForm'
 import { FloorOrderEditor } from './components/FloorOrderEditor'
 import { LevelPreview } from './components/LevelPreview'
 import { LoadoutSheet } from './components/LoadoutSheet'
@@ -42,7 +43,7 @@ export function App() {
   const [llmConfig, setLlmConfig] = useState<LlmConfig | null>(null)
   // the lobby is where a run starts, so it is where the app opens; the dungeon
   // and player passes are the optional ones
-  const [leftTab, setLeftTab] = useState<'lobby' | 'dungeon' | 'boss' | 'order' | 'player'>('lobby')
+  const [leftTab, setLeftTab] = useState<'lobby' | 'dungeon' | 'boss' | 'world' | 'order' | 'player'>('lobby')
   const [rightTab, setRightTab] = useState<'preview' | 'loadout'>('preview')
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -78,6 +79,11 @@ export function App() {
     ].filter((p): p is string => p !== false)
     return parts.join(' · ')
   }, [params.boss])
+
+  const worldTabBadge = useMemo(() => {
+    const worlds = params.world?.enabled === true ? (params.world.worlds ?? []).length : 0
+    return worlds === 0 ? 'off' : `${worlds} world${worlds === 1 ? '' : 's'}`
+  }, [params.world])
 
   const showToast = (kind: Toast['kind'], text: string, undo?: () => void) => {
     setToast({ kind, text, undo })
@@ -157,13 +163,22 @@ export function App() {
     } else if (leftTab === 'boss') {
       next = { ...params, boss: defaultParameters().boss }
       message = 'Arena tab reset to defaults.'
+    } else if (leftTab === 'world') {
+      next = { ...params, world: defaultParameters().world }
+      message = 'World tab reset to defaults.'
     } else if (leftTab === 'order') {
       // Absent IS the default order, so resetting means dropping the key.
       next = { ...params }
       delete next.levelOrder
       message = 'Floor order reset — every floor, then every boss fight.'
     } else {
-      next = { ...defaultParameters(), playerTweaks: params.playerTweaks, lobbies: params.lobbies, boss: params.boss }
+      next = {
+        ...defaultParameters(),
+        playerTweaks: params.playerTweaks,
+        lobbies: params.lobbies,
+        boss: params.boss,
+        world: params.world
+      }
       message = 'Dungeon parameters reset to defaults.'
     }
     setParams(next)
@@ -178,6 +193,7 @@ export function App() {
     player: { label: 'Reset player settings', tab: 'Player' },
     lobby: { label: 'Reset lobbies', tab: 'Lobby' },
     boss: { label: 'Reset arena tab', tab: 'Arena' },
+    world: { label: 'Reset world tab', tab: 'World' },
     order: { label: 'Reset floor order', tab: 'Floor order' },
     dungeon: { label: 'Reset defaults', tab: 'Dungeon' }
   }[leftTab]
@@ -368,7 +384,7 @@ export function App() {
               variant="danger"
               title="Reset every tab to the defaults"
               heading="Reset everything?"
-              body="This puts the Lobby, Dungeon, Arena, Floor order and Player tabs back to the defaults. Anything you have not exported to parameters.txt will be lost, unless you press Undo right afterwards."
+              body="This puts the Lobby, Dungeon, Arena, World, Floor order and Player tabs back to the defaults. Anything you have not exported to parameters.txt will be lost, unless you press Undo right afterwards."
               confirmLabel="Reset everything"
               disabled={busy}
               onConfirm={resetAll}
@@ -402,6 +418,13 @@ export function App() {
               <span className="tab-count">{arenaTabBadge}</span>
             </button>
             <button
+              className={leftTab === 'world' ? 'tab active' : 'tab'}
+              onClick={() => setLeftTab('world')}
+            >
+              World
+              <span className="tab-count">{worldTabBadge}</span>
+            </button>
+            <button
               className={leftTab === 'order' ? 'tab active' : 'tab'}
               onClick={() => setLeftTab('order')}
             >
@@ -432,6 +455,9 @@ export function App() {
           )}
           {leftTab === 'boss' && (
             <BossForm params={params} issues={validation.errors} onChange={setParams} />
+          )}
+          {leftTab === 'world' && (
+            <WorldForm params={params} issues={validation.errors} onChange={setParams} />
           )}
           {leftTab === 'order' && (
             <FloorOrderEditor params={params} issues={validation.errors} onChange={setParams} />

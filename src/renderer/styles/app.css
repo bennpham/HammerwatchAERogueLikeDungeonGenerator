@@ -1788,6 +1788,10 @@ button.danger:hover:not(:disabled) {
   border-color: #4a90c0;
 }
 
+.floor-chip-world {
+  border-color: #5a9e5a;
+}
+
 .floor-chip .chip-label {
   min-width: 20px;
   text-align: center;
@@ -1800,6 +1804,10 @@ button.danger:hover:not(:disabled) {
 
 .floor-chip-lobby .chip-label {
   color: #7fb8e0;
+}
+
+.floor-chip-world .chip-label {
+  color: #8fcf8f;
 }
 
 .chip-move {

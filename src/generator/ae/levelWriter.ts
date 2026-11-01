@@ -122,7 +122,7 @@ function writeState(w: SvalWriter, name: string, v: StateValue): void {
 }
 
 function writeUnit(w: SvalWriter, u: AeUnit): void {
-  if (u.state === undefined) {
+  if (u.state === undefined && u.behavior === undefined) {
     w.vec2(u.x, u.y)
     w.int(u.id)
     return
@@ -130,9 +130,18 @@ function writeUnit(w: SvalWriter, u: AeUnit): void {
   w.open('array')
   w.vec2(u.x, u.y)
   w.int(u.id)
-  w.open('dict')
-  for (const [name, v] of Object.entries(u.state)) writeState(w, name, v)
-  w.close('dict')
+  if (u.state === undefined) w.null()
+  else {
+    w.open('dict')
+    for (const [name, v] of Object.entries(u.state)) writeState(w, name, v)
+    w.close('dict')
+  }
+  if (u.behavior !== undefined) {
+    w.null()
+    w.open('dict')
+    for (const [name, v] of Object.entries(u.behavior)) writeState(w, name, v)
+    w.close('dict')
+  }
   w.close('array')
 }
 

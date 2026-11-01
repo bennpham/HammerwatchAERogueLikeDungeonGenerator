@@ -145,7 +145,7 @@ describe('campaign presets', () => {
 
         it(`${preset.id}: plays it last, after the boss fight`, () => {
           expect(params.levelOrder).toBeDefined()
-          const counts = { levels: params.levels, fights: params.boss.fights.length, lobbies: params.lobbies.length }
+          const counts = { levels: params.levels, fights: params.boss.fights.length, lobbies: params.lobbies.length, worlds: 0 }
           expect(isDefaultOrder(params.levelOrder!, counts)).toBe(false)
           expect(params.levelOrder!.at(-1)).toEqual({ kind: 'floor', index: last })
           expect(params.levelOrder!.at(-2)).toEqual({ kind: 'boss', index: 0 })

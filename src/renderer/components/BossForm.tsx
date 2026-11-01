@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import {
   ARENA_PATTERN_LABELS,
+  campaignCounts,
   BOSS_COVER_DENSITY_MAX,
   BOSS_COVER_PATTERNS,
   BOSS_DEATH_WAVE,
@@ -92,11 +93,7 @@ export function BossForm({ params, issues, onChange }: BossFormProps) {
     const nextBoss = { ...boss, ...patch }
     const next: DungeonParameters = { ...params, boss: nextBoss }
     if (params.levelOrder !== undefined) {
-      const counts: CampaignCounts = {
-        levels: params.levels,
-        fights: nextBoss.enabled ? (nextBoss.fights?.length ?? 0) : 0,
-        lobbies: params.lobbies.length
-      }
+      const counts: CampaignCounts = campaignCounts(next)
       const repaired = normalizeOrder(params.levelOrder, counts)
       if (isDefaultOrder(repaired, counts)) delete next.levelOrder
       else next.levelOrder = repaired
