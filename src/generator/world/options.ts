@@ -60,6 +60,19 @@ export const WORLD_AMBUSH_LEVELS = [
   { id: 'normal', label: 'Normal', ambushes: 8, ambushSize: 6, buttonAmbush: 50 },
   { id: 'heavy', label: 'Heavy', ambushes: 16, ambushSize: 10, buttonAmbush: 100 }
 ] as const
+/** Bounds on the plateaus: how many, and how far across one is, in tiles. */
+export const WORLD_MAX_PLATEAUS = 40
+export const WORLD_MIN_PLATEAU_SIZE = 12
+export const WORLD_MAX_PLATEAU_SIZE = 96
+export const WORLD_MAX_PLATEAU_STAIRS = 4
+
+/** The Terrain row's shortcuts: plateaus, their size range and their stairs. */
+export const WORLD_TERRAIN_LEVELS = [
+  { id: 'flat', label: 'Flat', plateaus: 0, plateauMinSize: 14, plateauMaxSize: 24, plateauStairs: 1 },
+  { id: 'hills', label: 'Hills', plateaus: 3, plateauMinSize: 12, plateauMaxSize: 20, plateauStairs: 1 },
+  { id: 'highlands', label: 'Highlands', plateaus: 6, plateauMinSize: 18, plateauMaxSize: 32, plateauStairs: 2 }
+] as const
+
 export const WORLD_MIN_SAFE_RADIUS = 8
 export const WORLD_MAX_SAFE_RADIUS = 64
 /** A world timer emits one node per second; this keeps the level under ~2000 of them. */
@@ -140,6 +153,16 @@ export interface WorldDef {
   scatter: number
   /** A landmark round each objective site (a pyramid, a shrine, a grove…). Absent means on. */
   landmarks?: boolean
+  /**
+   * Raised plateaus: high ground ringed by cliffs, climbed by stairs in a
+   * south face. Absent means none, a flat island. Read through `worldTerrain`.
+   */
+  plateaus?: number
+  /** A plateau's width across, in tiles: absent means 14 and 24. */
+  plateauMinSize?: number
+  plateauMaxSize?: number
+  /** Stairways up each plateau; absent means 1. */
+  plateauStairs?: number
   /** A countdown, then a whole-island hazard, like a floor's timer. */
   timer?: FloorTimer
   /** A `music/tracks.ts` id; absent plays nothing new. */
@@ -196,6 +219,27 @@ export function defaultWorldOptions(): WorldOptions {
 export function worldList(world: WorldOptions | undefined): WorldDef[] {
   if (world === undefined || !world.enabled) return []
   return world.worlds ?? []
+}
+
+/** A world's plateaus with every absent field at its default. */
+export function worldTerrain(world: WorldDef): { plateaus: number; minSize: number; maxSize: number; stairs: number } {
+  const flat = WORLD_TERRAIN_LEVELS[0]
+  return {
+    plateaus: world.plateaus ?? 0,
+    minSize: world.plateauMinSize ?? flat.plateauMinSize,
+    maxSize: world.plateauMaxSize ?? flat.plateauMaxSize,
+    stairs: world.plateauStairs ?? flat.plateauStairs
+  }
+}
+
+/**
+ * How many plateaus fit, roughly: the island's rough land (as
+ * `worldSiteCapacity`), half of it left low, each plateau a square of its
+ * largest size plus the gap round it.
+ */
+export function worldPlateauCapacity(width: number, height: number, margin: number, maxSize: number): number {
+  const land = Math.max(0, width - 2 * margin) * Math.max(0, height - 2 * margin) * 0.5
+  return Math.floor((land * 0.5) / (maxSize + 8) ** 2)
 }
 
 /**

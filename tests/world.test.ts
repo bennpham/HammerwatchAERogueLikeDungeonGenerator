@@ -19,8 +19,8 @@ import {
 } from '../src/generator/campaign'
 import { defaultWorld, worldList } from '../src/generator/world/options'
 import type { WorldDef } from '../src/generator/world/options'
-import { BIOME_DEFS } from '../src/generator/world/biomes'
-import { COAST_PIECE_NAMES, EDGE_SETS, coastPiece } from '../src/generator/world/coast'
+import { BIOME_DEFS, plateauEdgeSet } from '../src/generator/world/biomes'
+import { COAST_PIECE_NAMES, EDGE_SETS, PLATEAU_EDGE_SETS, coastPiece } from '../src/generator/world/coast'
 import { buildIsland } from '../src/generator/world/island'
 import { Rand } from '../src/generator/core/rand'
 import { aeAssetExists } from '../src/generator/catalog/assets'
@@ -530,6 +530,142 @@ describe('the encounters', () => {
     expect(tents('camp')).toBe(1)
     expect(tents('bare')).toBe(0)
   })
+})
+
+describe('raised plateaus', () => {
+  /** A 160-tile world with four plateaus, two stairways each where they fit. */
+  const hilly = (patch: Partial<WorldDef> = {}) =>
+    smallWorld({
+      minWidth: 160,
+      maxWidth: 160,
+      minHeight: 160,
+      maxHeight: 160,
+      plateaus: 4,
+      plateauMinSize: 14,
+      plateauMaxSize: 22,
+      plateauStairs: 2,
+      ...patch
+    })
+  const run = (def: WorldDef, seed: number) => {
+    const result = generateOk(withWorlds([def], 'W1,1,2,3,B1'), seed)
+    const preview = result.levels.find((l) => l.world !== undefined)!
+    return { result, level: levelsOf(result).get('world0')!, preview, map: preview.world!.map, w: preview.mapWidth, h: preview.mapHeight }
+  }
+  /** The plateau tops, each a 4-connected group of '5' tiles. */
+  const plateausOf = (map: string, w: number, h: number): number[][] => {
+    const label = new Int32Array(w * h).fill(-1)
+    const groups: number[][] = []
+    for (let start = 0; start < map.length; start++) {
+      if (map[start] !== '5' || label[start] !== -1) continue
+      const group = [start]
+      label[start] = groups.length
+      for (let k = 0; k < group.length; k++) {
+        const i = group[k]
+        const x = i % w
+        for (const j of [i - 1, i + 1, i - w, i + w]) {
+          if (j < 0 || j >= map.length || label[j] !== -1 || map[j] !== '5') continue
+          if (Math.abs((j % w) - x) > 1) continue
+          label[j] = groups.length
+          group.push(j)
+        }
+      }
+      groups.push(group)
+    }
+    // trees and rocks on a plateau split no top: only groups of some size count
+    return groups.filter((g) => g.length >= 20)
+  }
+
+  it('changes nothing when there are none', () => {
+    const flat = lvlText(generateOk(withWorlds([smallWorld()]), 4), 'world0')
+    expect(lvlText(generateOk(withWorlds([smallWorld({ plateaus: 0 })]), 4), 'world0')).toBe(flat)
+    expect(lvlText(generateOk(withWorlds([smallWorld({ plateaus: 0, plateauMinSize: 30, plateauStairs: 3 })]), 4), 'world0')).toBe(flat)
+    expect(flat).not.toContain('_stairs')
+  })
+
+  it('is the same terrain for the same seed', () => {
+    expect(lvlText(generateOk(withWorlds([hilly()]), 12), 'world0')).toBe(lvlText(generateOk(withWorlds([hilly()]), 12), 'world0'))
+  })
+
+  it('raises plateaus, each climbed by stairs from the low ground', () => {
+    for (const seed of [1, 2, 3, 4]) {
+      const { level, map, w, h } = run(hilly(), seed)
+      const tops = plateausOf(map, w, h)
+      expect(tops.length, `seed ${seed}`).toBeGreaterThan(0)
+      expect(tops.length, `seed ${seed}`).toBeLessThanOrEqual(4)
+      const stairs = unitsOf(level, (u) => u.path.endsWith('/_stairs.unit'))
+      for (const s of stairs) expect(s.path, `seed ${seed}`).toBe('doodads/cliffs/granite2/_stairs.unit')
+      for (const top of tops) {
+        const cells = new Set(top)
+        // a stairway's head row is the rim; the row above it is the plateau's top
+        const climbed = stairs.some((s) => {
+          const x = s.x / 16
+          const y = s.y / 16 - 4
+          return cells.has(y * w + x) || cells.has(y * w + x + 1)
+        })
+        expect(climbed, `seed ${seed}: a plateau with no stairs`).toBe(true)
+      }
+    }
+  })
+
+  it('keeps low ground between a plateau and the sea or the start', () => {
+    for (const seed of [1, 2, 3]) {
+      const { preview, map, w, h } = run(hilly(), seed)
+      const hub = preview.world!.hub
+      for (let i = 0; i < map.length; i++) {
+        if (map[i] !== '5') continue
+        const x = i % w
+        const y = (i - x) / w
+        expect(Math.hypot(x - hub.x, y - hub.y), `seed ${seed}`).toBeGreaterThan(7 + 4)
+        for (let dy = -5; dy <= 5; dy++) {
+          for (let dx = -5; dx <= 5; dx++) {
+            const nx = x + dx
+            const ny = y + dy
+            if (nx >= 0 && ny >= 0 && nx < w && ny < h) expect(map[ny * w + nx], `seed ${seed} at ${x},${y}`).not.toBe('0')
+          }
+        }
+      }
+    }
+  })
+
+  it('reaches every site, on high ground or low', () => {
+    for (const seed of [1, 2, 3]) {
+      const { preview } = run(hilly({ buttons: 4 }), seed)
+      const world = preview.world!
+      const blocked = Uint8Array.from(preview.walls, (c) => (c === '1' ? 1 : 0))
+      const reached = floodFill(blocked, preview.mapWidth, preview.mapHeight, { x: world.hub.x, y: world.hub.y + 3 })
+      for (const s of world.sites.filter((t) => t.kind === 'button' || t.kind === 'boss')) {
+        expect(reached[s.y * preview.mapWidth + s.x], `seed ${seed} ${s.kind}`).toBe(1)
+      }
+    }
+  })
+
+  it('rims a plateau with a set whose stairs are drawn, in every biome', () => {
+    for (const b of BIOME_DEFS) {
+      const set = plateauEdgeSet(b)
+      expect(PLATEAU_EDGE_SETS, b.id).toContain(set)
+      for (const piece of [...COAST_PIECE_NAMES, '_stairs']) expect(aeAssetExists(`doodads/cliffs/${set}/${piece}.unit`), `${set}/${piece}`).toBe(true)
+    }
+    const { level } = run(hilly({ biome: 'woods' }), 2)
+    expect(unitsOf(level, (u) => u.path.startsWith('doodads/cliffs/granite2/')).length).toBeGreaterThan(0)
+    for (const u of level.units) expect(aeAssetExists(u.path), u.path).toBe(true)
+  })
+
+  it.skipIf(aeAssetsDir() === null)('lets the party up only by the stairs: the rim alone closes each plateau', () => {
+    for (const seed of [1, 2]) {
+      const { level, preview, map, w, h } = run(hilly({ scatter: 0 }), seed)
+      const box = { x0: 0, y0: 0, x1: preview.mapWidth * 16, y1: preview.mapHeight * 16 }
+      const tops = plateausOf(map, w, h)
+      const share = (closure: ReturnType<typeof closureOf>, top: number[]) =>
+        top.filter((i) => closure.reaches((i % w) * 16 + 8, Math.floor(i / w) * 16 + 8)).length / top.length
+      const open = closureOf(level, box, aeAssetsDir()!)
+      expect(open.leak, `seed ${seed}`).toBeNull()
+      for (const top of tops) expect(share(open, top), `seed ${seed}`).toBeGreaterThan(0.8)
+      // every stairway walled up: no plateau can be climbed
+      const walled = { ...level, units: level.units.map((u) => (u.path.endsWith('/_stairs.unit') ? { ...u, path: u.path.replace('_stairs', 's_32') } : u)) }
+      const shut = closureOf(walled as typeof level, box, aeAssetsDir()!)
+      for (const top of tops) expect(share(shut, top), `seed ${seed}`).toBe(0)
+    }
+  }, 120_000)
 })
 
 describe('the village start', () => {

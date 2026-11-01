@@ -36,8 +36,13 @@ export interface BiomeDef {
   trail: string
   /** everything off the island, out to the map edge */
   water: string
-  /** a `world/edgeSets.ts` id: the cliff pieces round the coast */
+  /** a `coast.ts` `EDGE_SETS` id: the cliff pieces round the coast */
   edgeSet: string
+  /**
+   * The cliff pieces round a plateau, one of `PLATEAU_EDGE_SETS`. Absent
+   * means `edgeSet`; a granite coast needs one, as granite's stairs are broken.
+   */
+  plateauEdgeSet?: string
   /** the level's lighting environment */
   environment: string
   /** clumped, mostly solid: trees, rocks */
@@ -109,6 +114,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     trail: 'tilesets/cold_dirt.tileset',
     water: 'tilesets/water_clear.tileset',
     edgeSet: 'granite',
+    plateauEdgeSet: 'granite2',
     environment: 'effects/env/dusk.env',
     clumpDensity: 3,
     clumps: [
@@ -287,6 +293,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     trail: 'tilesets/outlook_dirt.tileset',
     water: 'tilesets/water_clear.tileset',
     edgeSet: 'granite',
+    plateauEdgeSet: 'granite2',
     environment: 'effects/env/_evening.env',
     clumpDensity: 2,
     clumps: [
@@ -371,6 +378,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     trail: 'tilesets/stones_river.tileset',
     water: 'tilesets/water_river_clear.tileset',
     edgeSet: 'granite',
+    plateauEdgeSet: 'granite2',
     environment: 'effects/env/rain.env',
     clumpDensity: 1.3,
     clumps: [
@@ -448,3 +456,8 @@ export function biomeById(id: string): BiomeDef | undefined {
 
 /** Every biome id, in table order. */
 export const BIOME_IDS: readonly string[] = BIOME_DEFS.map((b) => b.id)
+
+/** The cliff set round `biome`'s plateaus. */
+export function plateauEdgeSet(biome: BiomeDef): string {
+  return biome.plateauEdgeSet ?? biome.edgeSet
+}

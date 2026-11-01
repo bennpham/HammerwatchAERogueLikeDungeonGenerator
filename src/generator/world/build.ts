@@ -4,6 +4,7 @@
  *
  *   1. size, then the island mask (`island.ts`), retried until clean
  *   2. the start at the center: kept clear, then the camp (`hub.ts`)
+ *      and, when asked for, raised plateaus round it (`plateau.ts`)
  *   3. the objective sites round it (`place.ts`) and the trails to them (`paths.ts`)
  *   4. the objectives and the way out (`objectives.ts`)
  *   5. packs and ambushes (`encounters.ts`), then the scatter (`scatter.ts`)
@@ -16,8 +17,8 @@
  * a floor, an arena or another world, and how dense the scatter is never moves
  * a site, a trail or a monster.
  *
- * Ids follow invariant 7: every object first, then the cliff pieces and the
- * fence, which nothing references.
+ * Ids follow invariant 7: every object first, then the cliff pieces (the
+ * coast's, then the plateaus') and the fence, which nothing references.
  */
 
 import type { GenerationContext } from '../core/context'
@@ -32,11 +33,12 @@ import { buildMusicRig } from '../music/rig'
 import type { LevelPreview } from '../index'
 import { worldBossCount } from '../config/parameters'
 import type { WorldDef } from './options'
-import { biomeById, BIOME_DEFS } from './biomes'
+import { biomeById, BIOME_DEFS, plateauEdgeSet } from './biomes'
 import type { BiomeDef } from './biomes'
 import { buildIsland } from './island'
 import type { IslandMask } from './island'
 import { coastFence, coastPiece, coastUnits } from './coast'
+import type { CoastUnit } from './coast'
 import { ValueNoise } from './noise'
 import { WorldGrid } from './grid'
 import type { Tile } from './grid'
@@ -48,13 +50,15 @@ import { buildObjectives } from './objectives'
 import { buildEncounters, placeLoot } from './encounters'
 import { scatterProps } from './scatter'
 import { placeStartSave } from './saves'
+import { placePlateaus } from './plateau'
+import { worldTerrain } from './options'
 
 /** Fresh islands tried before the world gives up. */
 const MAX_WORLD_ATTEMPTS = 20
 
 /** A world's map for the preview. */
 export interface WorldPreview {
-  /** one char per tile, row-major: '0' water, '1' land, '2' cliff, '3' trail, '4' solid */
+  /** one char per tile, row-major: '0' water, '1' land, '2' cliff, '3' trail, '4' solid, '5' plateau */
   map: string
   hub: Tile
   sites: Array<Tile & { kind: 'button' | 'boss' | 'ambush' | 'pack' | 'loot' | 'mystery' | 'save' }>
@@ -102,6 +106,9 @@ export function buildWorld(
     // the portal's own ground must be open; a village's ring may meet the coast
     if (!grid.discAll(hub, HUB_RADIUS, (x, y) => grid.walkable(x, y))) continue
     grid.markDisc(hub, hubRadius(hubKind), WorldGrid.RESERVED)
+    // a flat world draws nothing here, so it is the same island it always was
+    const plateaus =
+      worldTerrain(def).plateaus > 0 ? placePlateaus(new Rand(layout.nextInt(2147483647)), grid, def, plateauEdgeSet(biome)) : []
 
     const sites = placeSites(layout, grid, hub, objectives, def.safeRadius)
     if (sites === null) continue
@@ -123,7 +130,7 @@ export function buildWorld(
     buildFloorHazardRig(ctx, def.timer, width, height)
     buildMusicRig(ctx, def.music, hub.x - 4, hub.y - 8)
 
-    const level = emitWorld(ctx, biome, island, grid, scatter)
+    const level = emitWorld(ctx, biome, island, grid, scatter, plateaus)
     const marks: WorldPreview['sites'] = [
       ...placed.bosses.map((t) => ({ ...t, kind: 'boss' as const })),
       ...placed.buttons.map((t) => ({ ...t, kind: 'button' as const })),
@@ -153,7 +160,14 @@ function gridOf(island: IslandMask): WorldGrid {
 }
 
 /** The finished island as an AE level: tiles, every placed object, then the cliffs and the fence. */
-function emitWorld(ctx: GenerationContext, biome: BiomeDef, island: IslandMask, grid: WorldGrid, scatter: Rand): AeLevel {
+function emitWorld(
+  ctx: GenerationContext,
+  biome: BiomeDef,
+  island: IslandMask,
+  grid: WorldGrid,
+  scatter: Rand,
+  plateaus: readonly CoastUnit[]
+): AeLevel {
   const { width, height } = island
   const level = new AeLevel(biome.environment)
   const layers = new TileLayers(tilesetSize)
@@ -181,7 +195,7 @@ function emitWorld(ctx: GenerationContext, biome: BiomeDef, island: IslandMask, 
   level.tileCells = layers.cells()
 
   emitObjects(level, ctx)
-  for (const u of coastUnits(biome.edgeSet, width, height, island.land)) {
+  for (const u of [...coastUnits(biome.edgeSet, width, height, island.land), ...plateaus]) {
     level.units.push({ path: u.path, x: u.x, y: u.y, id: ctx.idCounter++ })
   }
   for (const u of coastFence(width, height, island.land)) {
@@ -210,7 +224,9 @@ function previewOf(
             ? '3'
             : grid.has(x, y, WorldGrid.SOLID)
               ? '4'
-              : '1'
+              : grid.has(x, y, WorldGrid.HIGH)
+                ? '5'
+                : '1'
       map += c
       walls += grid.walkable(x, y) ? '0' : '1'
     }

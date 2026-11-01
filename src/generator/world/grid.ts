@@ -25,6 +25,8 @@ export class WorldGrid {
   static readonly RESERVED = 16
   /** the corridor from the start to a site, painted as a trail or not */
   static readonly PATH = 32
+  /** raised ground: a plateau's land, rim included (`plateau.ts`) */
+  static readonly HIGH = 64
 
   readonly flags: Uint8Array
 

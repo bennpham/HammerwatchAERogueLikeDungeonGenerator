@@ -140,6 +140,12 @@ export const COAST_PIECE_NAMES: readonly string[] = [
 /** The cliff sets a biome may name. */
 export const EDGE_SETS: readonly string[] = ['granite', 'granite2', 'basalt', 'silt']
 
+/**
+ * The sets a plateau may use: those whose `_stairs` art is drawn. granite's
+ * stairs, caps and ramps point at an older texture layout.
+ */
+export const PLATEAU_EDGE_SETS: readonly string[] = ['granite2', 'basalt', 'silt']
+
 /** The fence's state: solid, invisible, shots and aim pass, as `lobby/crystalShop.ts`'s fences. */
 function fenceState(w: number, h: number): Record<string, StateValue> {
   return {
