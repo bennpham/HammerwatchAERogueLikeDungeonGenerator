@@ -24,7 +24,7 @@ Both must pass before every commit. `HWAE_PACK=1 npm test -- tests/packer.test.t
   - `lighting/`: wall torches and the brightness setting. The brightness setting patches the theme lighting environments, from a snapshot (`envs.generated.ts`; regenerate it with `node scripts/run-ts.mjs scripts/scan-ae-lighting.ts`).
   - `players/`: the Players tab. A snapshot of AE's `players/` balance (`stock.generated.ts`; regenerate it with `node scripts/run-ts.mjs scripts/scan-ae-players.ts`), the `player.*` keys, the quick setup, move speed, presets, tier counts (`ladder.ts` values the tiers added past stock, `levels.ts` turns them into `clone`/`drop` edits), and `playerOverrides`, which turns edits into line patches the install applies to the game's own files.
   - `boss/`, `dungeonBoss/`, `survival/`, `traps/`, `timer/`, `buffs/`, `mystery/`, `music/`, `lobby/`: the rigs.
-  - `world/`: the World tab's open islands (`W1`…), built from terrain, not rooms: the island mask, the cliff ring and its fence (`coast.ts`), sites and trails, objectives, encounters and scatter. Biomes are plain data (`biomes.ts`). Plan: `docs/plans/world-mode.md`.
+  - `world/`: the World tab's open islands (`W1`…), built from terrain, not rooms: the island mask, the cliff ring and its fence (`coast.ts`), raised plateaus climbed by stairs (`plateau.ts`), sites and trails, objectives, encounters and scatter. Biomes are plain data (`biomes.ts`). Plan: `docs/plans/world-mode.md`.
 - `src/main/`: Electron main. `packer.ts` does the install and AE detection.
 - `src/renderer/`: React UI.
 - `tests/`: the suites read emitted levels back through `tests/ae.ts`. `sealProbe.ts` flood-fills levels.
