@@ -50,6 +50,7 @@
  */
 
 import type { GenerationContext } from '../core/context'
+import type { Rand } from '../core/rand'
 import type { Level } from '../map/level'
 import type { ScriptNode } from '../objects/scriptNode'
 import type { DungeonParameters, MysteryButton, TrapDirection } from '../config/parameters'
@@ -122,8 +123,13 @@ const MONSTER_GAP = 3
  * `plateTiles` is read AND written to by neither this function's caller
  * contract — the caller decides what counts as "a plate" for spawn avoidance
  * (see `buildMysteryButtonRig`'s Phase C/D comment on lock tiles).
+ *
+ * `rand` is the stream the "one of these" loot and the spewer slots draw
+ * from: a floor's `ctx.mysteryRand`, a world's own encounter stream
+ * (`world/encounters.ts`, which passes a disc of open ground as the "room" and
+ * no wall slots, so a world plate places no spewer).
  */
-function emitPayload(
+export function emitPayload(
   ctx: GenerationContext,
   trigger: ScriptNode,
   tile: Slot,
@@ -132,7 +138,8 @@ function emitPayload(
   plateTiles: readonly Slot[],
   interiorOf: (roomIndex: number) => Slot[],
   wallPoolOf: (roomIndex: number, direction: TrapDirection) => Slot[],
-  textType: number
+  textType: number,
+  rand: Rand = ctx.mysteryRand
 ): void {
   const text = def.text?.trim() ?? ''
   if (text !== '') {
@@ -162,7 +169,7 @@ function emitPayload(
     if (item.equipment === undefined) {
       spawn = new NodeSpawnObject(ctx, x, y, item.path)
     } else if ('anyOf' in item.equipment) {
-      const pick = item.equipment.anyOf[ctx.mysteryRand.iRand(0, item.equipment.anyOf.length)]
+      const pick = item.equipment.anyOf[rand.iRand(0, item.equipment.anyOf.length)]
       spawn = new NodeSpawnEquipment(ctx, x, y, { id: pick })
     } else {
       spawn = new NodeSpawnEquipment(ctx, x, y, item.equipment)
@@ -192,7 +199,7 @@ function emitPayload(
       // Wall full: stop this row. No draw, so the stream stays tied to the
       // spewers actually placed.
       if (pool.length === 0) break
-      const slot = takeSlot(ctx.mysteryRand, pool)
+      const slot = takeSlot(rand, pool)
       const spewer = new NodeProjectileSpewer(
         ctx,
         slot.x + TILE_CENTRE,

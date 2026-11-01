@@ -1,4 +1,4 @@
-// Snapshot the ambient lines of every lighting environment a theme uses into
+// Snapshot the ambient lines of every lighting environment a theme or a world biome uses into
 // src/generator/lighting/envs.generated.ts, so the brightness setting can
 // name the lines to patch without the game installed.
 //
@@ -9,6 +9,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { THEME_DEFS } from '../src/generator/config/themes'
+import { BIOME_DEFS } from '../src/generator/world/biomes'
 import type { EnvSnapshot } from '../src/generator/lighting/envs'
 
 const root = process.env.HWAE_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch Anniversary Edition'
@@ -20,7 +21,7 @@ if (dirs.length === 0) {
 }
 const assets = path.join(root, dirs[0])
 
-const paths = [...new Set(THEME_DEFS.flatMap((t) => t.environments))].sort()
+const paths = [...new Set([...THEME_DEFS.flatMap((t) => t.environments), ...BIOME_DEFS.map((b) => b.environment)])].sort()
 const envs: EnvSnapshot[] = []
 for (const p of paths) {
   const file = path.join(assets, p)

@@ -24,6 +24,7 @@ Both must pass before every commit. `HWAE_PACK=1 npm test -- tests/packer.test.t
   - `lighting/`: wall torches and the brightness setting. The brightness setting patches the theme lighting environments, from a snapshot (`envs.generated.ts`; regenerate it with `node scripts/run-ts.mjs scripts/scan-ae-lighting.ts`).
   - `players/`: the Players tab. A snapshot of AE's `players/` balance (`stock.generated.ts`; regenerate it with `node scripts/run-ts.mjs scripts/scan-ae-players.ts`), the `player.*` keys, the quick setup, move speed, presets, tier counts (`ladder.ts` values the tiers added past stock, `levels.ts` turns them into `clone`/`drop` edits), and `playerOverrides`, which turns edits into line patches the install applies to the game's own files.
   - `boss/`, `dungeonBoss/`, `survival/`, `traps/`, `timer/`, `buffs/`, `mystery/`, `music/`, `lobby/`: the rigs.
+  - `world/`: the World tab's open islands (`W1`…), built from terrain, not rooms: the island mask, the cliff ring and its fence (`coast.ts`), sites and trails, objectives, encounters and scatter. Biomes are plain data (`biomes.ts`). Plan: `docs/plans/world-mode.md`.
 - `src/main/`: Electron main. `packer.ts` does the install and AE detection.
 - `src/renderer/`: React UI.
 - `tests/`: the suites read emitted levels back through `tests/ae.ts`. `sealProbe.ts` flood-fills levels.
@@ -32,12 +33,12 @@ Both must pass before every commit. `HWAE_PACK=1 npm test -- tests/packer.test.t
 ## Invariants
 
 1. **Pure and deterministic.** The same parameters and seed always produce byte-identical files.
-2. **Six RNG streams:** `rand` (layout), `cosmeticRand`, `bossRand`, `trapRand`, `floorBossRand`, `mysteryRand`. A feature draws only from its own stream. An optional layer that's switched off draws nothing and allocates no id.
+2. **Seven RNG streams:** `rand` (layout), `cosmeticRand`, `bossRand`, `trapRand`, `floorBossRand`, `mysteryRand`, `worldRand`. A feature draws only from its own stream. An optional layer that's switched off draws nothing and allocates no id.
 3. **Bounded loops.** Never raise a bound to make bad input work; add a validation rule instead.
 4. **Validate, don't crash.** A new parameter needs a validation rule and a test.
 5. **Every floor is finishable.** The exit is reachable and every seal opens; `sealCheck` and the reachability check enforce this.
 6. **Every emitted asset path exists** in the snapshot (`aeAssetExists`).
-7. **Ids are one counter per level**, shared by units and scripts. Wall units take theirs at emit time, after every object.
+7. **Ids are one counter per level**, shared by units and scripts. Wall units take theirs at emit time, after every object (a world's cliffs and fence too).
 
 ## AE facts that bit us
 
@@ -52,6 +53,7 @@ The full record is `.claude/skills/hammerwatch-ae-modding/references/DISCOVERY-L
 - **Wall-top cover** (`__color_N`, `map/aeCover.ts`) draws over walls and actors. Its squares often anchor on floor cells, so never read them as wall pieces (`isWallPiece` in `tests/ae.ts`). It takes its ids after the walls and before the torches.
 - **`PACKAGER.exe`** exits 127 even on success; judge the install by the `.h1c` and its `HW1S` header.
 - **Lobbies** are hand-made AE editor levels: `docs/LOBBY-AUTHORING.md`. The user's `house` is the default.
+- **Hidden units:** a unit placed with `hidden: t` is shown by `HideUnit` State 2 (`NodeHideUnit`, action `show`), as Castle `level_12` reveals its portal. Hidden, it doesn't react to F.
 - **Collision comes from units alone.** Tiles block nothing, so a room cut out of a stock level must be closed by its own colliders; `tests/closure.ts` flood-fills it.
 
 ## Working here
