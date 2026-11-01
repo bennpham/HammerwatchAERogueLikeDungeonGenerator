@@ -4,11 +4,16 @@
 import type { EnvSnapshot } from './envs'
 
 export const ENV_SNAPSHOT: readonly EnvSnapshot[] = [
+  {"path":"effects/env/_evening.env","ambients":[{"line":2,"text":"150 100 100 0","value":[150,100,100,0]}]},
+  {"path":"effects/env/_morning.env","ambients":[{"line":2,"text":"150 120 120 0","value":[150,120,120,0]}]},
   {"path":"effects/env/day.env","ambients":[{"line":2,"text":"190 170 170 0","value":[190,170,170,0]}]},
   {"path":"effects/env/dusk.env","ambients":[{"line":2,"text":"25 25 60 0","value":[25,25,60,0]}]},
   {"path":"effects/env/egypt_outside.env","ambients":[{"line":2,"text":"170 170 170 0","value":[170,170,170,0]}]},
   {"path":"effects/env/grotto.env","ambients":[{"line":2,"text":"10 25 55 0","value":[10,25,55,0]}]},
+  {"path":"effects/env/night2.env","ambients":[{"line":2,"text":"30 30 75 0","value":[30,30,75,0]}]},
+  {"path":"effects/env/obsidian_spire.env","ambients":[{"line":2,"text":"150 30 60 0","value":[150,30,60,0]}]},
   {"path":"effects/env/outside.env","ambients":[{"line":2,"text":"190 170 170 0","value":[190,170,170,0]}]},
+  {"path":"effects/env/rain.env","ambients":[{"line":2,"text":"150 150 150 0","value":[150,150,150,0]}]},
   {"path":"effects/env/wolfcave.env","ambients":[{"line":2,"text":"10 25 55 0","value":[10,25,55,0]}]},
   {"path":"effects/lighting/archives2_2.env","ambients":[{"line":2,"text":"90 35 20 0","value":[90,35,20,0]}]},
   {"path":"effects/lighting/archives2_3.env","ambients":[{"line":2,"text":"100 20 20 0","value":[100,20,20,0]}]},

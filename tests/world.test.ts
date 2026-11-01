@@ -444,7 +444,8 @@ describe('the objectives and the portal', () => {
         for (const s of objectives) expect(reached[s.y * preview.mapWidth + s.x], `${b.id} seed ${seed} ${s.kind}`).toBe(1)
       }
     }
-  })
+    // three whole campaigns per biome
+  }, 120_000)
 })
 
 describe('the encounters', () => {
