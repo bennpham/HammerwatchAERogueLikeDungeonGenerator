@@ -17,7 +17,7 @@ import {
   stemOfFileName,
   worldId
 } from '../src/generator/campaign'
-import { defaultWorld, worldList } from '../src/generator/world/options'
+import { WORLD_TERRAIN_LEVELS, defaultWorld, worldList } from '../src/generator/world/options'
 import type { WorldDef } from '../src/generator/world/options'
 import { BIOME_DEFS, plateauEdgeSet } from '../src/generator/world/biomes'
 import { COAST_PIECE_NAMES, EDGE_SETS, PLATEAU_EDGE_SETS, coastPiece } from '../src/generator/world/coast'
@@ -144,9 +144,28 @@ describe('world validation', () => {
     [{ monsters: ['not_a_monster'] }, 'monsters'],
     [{ monsters: [] }, 'monsters'],
     [{ timer: { enabled: true, seconds: 5000, damage: 1, freqMs: 1000, countdown: true } }, 'timer.seconds'],
-    [{ music: 'kazoo' }, 'music']
+    [{ music: 'kazoo' }, 'music'],
+    [{ plateaus: -1 }, 'plateaus'],
+    [{ plateaus: 41 }, 'plateaus'],
+    [{ plateauMinSize: 8 }, 'plateauMinSize'],
+    [{ plateauMaxSize: 200 }, 'plateauMaxSize'],
+    [{ plateauMinSize: 30, plateauMaxSize: 20 }, 'plateauMinSize'],
+    [{ plateauStairs: 0 }, 'plateauStairs'],
+    [{ plateauStairs: 5 }, 'plateauStairs'],
+    [{ plateaus: 2, plateauMaxSize: 80 }, 'plateauMaxSize']
   ])('rejects %j on field %s', (patch, field) => {
     expect(fieldsOf(withWorlds([{ ...defaultWorld(), ...patch }]))).toContain(`world.worlds.0.${field}`)
+  })
+
+  it('accepts every terrain shortcut on the default island, and warns when plateaus crowd it', () => {
+    for (const { id, label: _label, ...terrain } of WORLD_TERRAIN_LEVELS) {
+      const result = validateParameters(withWorlds([{ ...defaultWorld(), ...terrain }]))
+      expect(result.errors, id).toEqual([])
+      expect(result.warnings.map((w) => w.field), id).not.toContain('world.worlds.0.plateaus')
+    }
+    const crowded = validateParameters(withWorlds([{ ...defaultWorld(), plateaus: 40, plateauMaxSize: 40 }]))
+    expect(crowded.errors).toEqual([])
+    expect(crowded.warnings.map((w) => w.field)).toContain('world.worlds.0.plateaus')
   })
 
   it('reads an absent boss count as one boss, the way the boss picker stores 1', () => {
@@ -202,7 +221,19 @@ describe('world parameters.txt keys', () => {
   it('round-trips every world field', () => {
     const p = withWorlds(
       [
-        smallWorld({ biome: 'desert', hub: 'camp', coast: 80, music: 'temple_hub', mysteryPlates: 5, disguise: true, mysteryPool: [0, 2] }),
+        smallWorld({
+          biome: 'desert',
+          hub: 'camp',
+          coast: 80,
+          music: 'temple_hub',
+          mysteryPlates: 5,
+          disguise: true,
+          mysteryPool: [0, 2],
+          plateaus: 3,
+          plateauMinSize: 12,
+          plateauMaxSize: 20,
+          plateauStairs: 2
+        }),
         smallWorld({
           biome: 'snow',
           bossSelection: 'lineup',
@@ -578,7 +609,7 @@ describe('raised plateaus', () => {
   it('changes nothing when there are none', () => {
     const flat = lvlText(generateOk(withWorlds([smallWorld()]), 4), 'world0')
     expect(lvlText(generateOk(withWorlds([smallWorld({ plateaus: 0 })]), 4), 'world0')).toBe(flat)
-    expect(lvlText(generateOk(withWorlds([smallWorld({ plateaus: 0, plateauMinSize: 30, plateauStairs: 3 })]), 4), 'world0')).toBe(flat)
+    expect(lvlText(generateOk(withWorlds([smallWorld({ plateaus: 0, plateauMinSize: 20, plateauStairs: 3 })]), 4), 'world0')).toBe(flat)
     expect(flat).not.toContain('_stairs')
   })
 

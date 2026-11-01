@@ -314,7 +314,11 @@ const WORLD_INT_KEYS = {
   buttonambush: 'buttonAmbush',
   loot: 'loot',
   mysteryplates: 'mysteryPlates',
-  scatter: 'scatter'
+  scatter: 'scatter',
+  plateaus: 'plateaus',
+  plateaumin: 'plateauMinSize',
+  plateaumax: 'plateauMaxSize',
+  plateaustairs: 'plateauStairs'
 } as const satisfies Record<string, keyof WorldDef>
 
 /**
@@ -471,6 +475,11 @@ function worldLines(w: number, world: WorldDef): string[] {
     k('Disguise', world.disguise === true ? 1 : 0),
     k('Landmarks', world.landmarks === false ? 0 : 1)
   )
+  // terrain only when set, so a flat world's file is as it was
+  if (world.plateaus !== undefined) out.push(k('Plateaus', world.plateaus))
+  if (world.plateauMinSize !== undefined) out.push(k('PlateauMin', world.plateauMinSize))
+  if (world.plateauMaxSize !== undefined) out.push(k('PlateauMax', world.plateauMaxSize))
+  if (world.plateauStairs !== undefined) out.push(k('PlateauStairs', world.plateauStairs))
   // 1-based, as the mystery buttons are numbered on the form
   if (world.mysteryPool !== undefined) out.push(k('MysteryPool', world.mysteryPool.map((i) => i + 1).join(',')))
   for (const [t, type] of (world.ambushTypes ?? []).entries()) {

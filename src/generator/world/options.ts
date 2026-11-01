@@ -70,7 +70,7 @@ export const WORLD_MAX_PLATEAU_STAIRS = 4
 export const WORLD_TERRAIN_LEVELS = [
   { id: 'flat', label: 'Flat', plateaus: 0, plateauMinSize: 14, plateauMaxSize: 24, plateauStairs: 1 },
   { id: 'hills', label: 'Hills', plateaus: 3, plateauMinSize: 12, plateauMaxSize: 20, plateauStairs: 1 },
-  { id: 'highlands', label: 'Highlands', plateaus: 6, plateauMinSize: 18, plateauMaxSize: 32, plateauStairs: 2 }
+  { id: 'highlands', label: 'Highlands', plateaus: 5, plateauMinSize: 16, plateauMaxSize: 28, plateauStairs: 2 }
 ] as const
 
 export const WORLD_MIN_SAFE_RADIUS = 8

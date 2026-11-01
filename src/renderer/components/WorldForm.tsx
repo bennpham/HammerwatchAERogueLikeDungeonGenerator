@@ -23,6 +23,12 @@ import {
   WORLD_MIN_MARGIN,
   WORLD_MIN_SAFE_RADIUS,
   WORLD_MIN_SIZE,
+  WORLD_TERRAIN_LEVELS,
+  WORLD_MAX_PLATEAUS,
+  WORLD_MIN_PLATEAU_SIZE,
+  WORLD_MAX_PLATEAU_SIZE,
+  WORLD_MAX_PLATEAU_STAIRS,
+  worldTerrain,
   bossSelection,
   campaignCounts,
   defaultFloorTimer,
@@ -99,6 +105,14 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
       world.ambushes === level.ambushes &&
       world.buttonAmbush === level.buttonAmbush &&
       (level.ambushes === 0 || world.ambushSize === level.ambushSize)
+  )
+  const terrain = world === undefined ? undefined : worldTerrain(world)
+  const terrainLevel = WORLD_TERRAIN_LEVELS.find(
+    (level) =>
+      terrain !== undefined &&
+      terrain.plateaus === level.plateaus &&
+      (level.plateaus === 0 ||
+        (terrain.minSize === level.plateauMinSize && terrain.maxSize === level.plateauMaxSize && terrain.stairs === level.plateauStairs))
   )
   const setAmbushType = (t: number, patch: Partial<WorldAmbushType>) =>
     setWorld({ ambushTypes: (world?.ambushTypes ?? []).map((type, k) => (k === t ? { ...type, ...patch } : type)) })
@@ -251,6 +265,35 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
               checked={world.landmarks !== false}
               onChange={(landmarks) => setWorld({ landmarks })}
             />
+            <span className="field-label">Terrain</span>
+            <div className="quick-setup-presets">
+              {WORLD_TERRAIN_LEVELS.map((level) => (
+                <button
+                  key={level.id}
+                  type="button"
+                  className={`toggle ${terrainLevel?.id === level.id ? 'active' : ''}`}
+                  onClick={() =>
+                    setWorld({
+                      plateaus: level.plateaus,
+                      plateauMinSize: level.plateauMinSize,
+                      plateauMaxSize: level.plateauMaxSize,
+                      plateauStairs: level.plateauStairs
+                    })
+                  }
+                >
+                  {level.label}
+                </button>
+              ))}
+            </div>
+            <p className="hint">Raised ground ringed by cliffs, climbed by stairs on its south face.</p>
+            <div className="field-grid">
+              <NumberField label="Plateaus" field={`${prefix}.plateaus`} value={terrain!.plateaus} issues={issues} min={0} max={WORLD_MAX_PLATEAUS} onChange={(plateaus) => setWorld({ plateaus })} />
+              <NumberField label="Stairs each" field={`${prefix}.plateauStairs`} value={terrain!.stairs} issues={issues} min={1} max={WORLD_MAX_PLATEAU_STAIRS} onChange={(plateauStairs) => setWorld({ plateauStairs })} />
+            </div>
+            <div className="field-grid">
+              <NumberField label="Smallest across" field={`${prefix}.plateauMinSize`} value={terrain!.minSize} issues={issues} min={WORLD_MIN_PLATEAU_SIZE} max={WORLD_MAX_PLATEAU_SIZE} onChange={(plateauMinSize) => setWorld({ plateauMinSize })} />
+              <NumberField label="Largest across" field={`${prefix}.plateauMaxSize`} value={terrain!.maxSize} issues={issues} min={WORLD_MIN_PLATEAU_SIZE} max={WORLD_MAX_PLATEAU_SIZE} onChange={(plateauMaxSize) => setWorld({ plateauMaxSize })} />
+            </div>
           </Section>
 
           <Section title="Size and coast" badge={`${world.minWidth}×${world.minHeight}`}>
