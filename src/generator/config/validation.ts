@@ -82,7 +82,13 @@ import {
   worldSiteCapacity,
   WORLD_MAX_MYSTERY_PLATES,
   WORLD_MAX_AMBUSH_TYPES,
-  WORLD_MAX_AMBUSH_WEIGHT
+  WORLD_MAX_AMBUSH_WEIGHT,
+  WORLD_MAX_PLATEAUS,
+  WORLD_MIN_PLATEAU_SIZE,
+  WORLD_MAX_PLATEAU_SIZE,
+  WORLD_MAX_PLATEAU_STAIRS,
+  worldPlateauCapacity,
+  worldTerrain
 } from '../world/options'
 import type { WorldDef } from '../world/options'
 import { getTheme } from './themes'
@@ -536,6 +542,33 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
     })
   }
   whole('scatter', 'the scatter density', 0, 100)
+
+  // plateaus: absent fields mean a flat island
+  if (w.plateaus !== undefined) whole('plateaus', 'the plateau count', 0, WORLD_MAX_PLATEAUS)
+  if (w.plateauMinSize !== undefined) whole('plateauMinSize', 'the smallest plateau', WORLD_MIN_PLATEAU_SIZE, WORLD_MAX_PLATEAU_SIZE)
+  if (w.plateauMaxSize !== undefined) whole('plateauMaxSize', 'the largest plateau', WORLD_MIN_PLATEAU_SIZE, WORLD_MAX_PLATEAU_SIZE)
+  if (w.plateauStairs !== undefined) whole('plateauStairs', 'the stairs per plateau', 1, WORLD_MAX_PLATEAU_STAIRS)
+  const terrain = worldTerrain(w)
+  if (terrain.minSize > terrain.maxSize) {
+    errors.push({ field: at('plateauMinSize'), message: `${subject}: the smallest plateau is above the largest.` })
+  }
+  if (terrain.plateaus > 0) {
+    const side = Math.min(w.minWidth, w.minHeight)
+    if (terrain.maxSize * 3 > side) {
+      errors.push({
+        field: at('plateauMaxSize'),
+        message: `${subject}: a plateau ${terrain.maxSize} tiles across is too big for a ${w.minWidth}×${w.minHeight} island; keep it to a third of the island (${Math.floor(side / 3)}).`
+      })
+    } else {
+      const fits = worldPlateauCapacity(w.minWidth, w.minHeight, w.waterMargin, terrain.maxSize)
+      if (terrain.plateaus > fits) {
+        warnings.push({
+          field: at('plateaus'),
+          message: `${subject}: about ${fits} plateaus this size fit on a ${w.minWidth}×${w.minHeight} island, so only some of the ${terrain.plateaus} will be raised.`
+        })
+      }
+    }
+  }
 
   // bosses: the floors' rule, since a world doesn't confine a fight either
   if (w.bossSelection !== undefined && !(BOSS_SELECTIONS as readonly string[]).includes(w.bossSelection)) {

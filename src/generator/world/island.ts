@@ -30,7 +30,15 @@ const MAX_PASSES = 24
 /** Tiles of land always kept round the center, so the start never falls in the sea. */
 const CORE_RADIUS = 10
 
-export function buildIsland(rand: Rand, width: number, height: number, margin: number, coast: number): IslandMask | null {
+/** `core`: the radius of land always kept round the center (a plateau keeps less). */
+export function buildIsland(
+  rand: Rand,
+  width: number,
+  height: number,
+  margin: number,
+  coast: number,
+  core = CORE_RADIUS
+): IslandMask | null {
   const noise = new ValueNoise(rand, width, height, Math.max(8, Math.round(Math.min(width, height) / 8)), 3)
   const land = new Uint8Array(width * height)
   const cx = (width - 1) / 2
@@ -42,8 +50,8 @@ export function buildIsland(rand: Rand, width: number, height: number, margin: n
     for (let x = 0; x < width; x++) {
       const d = Math.hypot((x - cx) / rx, (y - cy) / ry)
       const h = 1 - d + (noise.at(x, y) - 0.5) * 2 * rough
-      const core = Math.hypot(x - cx, y - cy) <= CORE_RADIUS
-      land[y * width + x] = core || h > 0.12 ? 1 : 0
+      const kept = Math.hypot(x - cx, y - cy) <= core
+      land[y * width + x] = kept || h > 0.12 ? 1 : 0
     }
   }
   const mask: IslandMask = { width, height, land }

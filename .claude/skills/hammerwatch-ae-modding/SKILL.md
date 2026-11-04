@@ -47,6 +47,7 @@ There are **no engine-wide boss events**: every boss trigger lists the boss unit
 - `src/generator/catalog/aeAssets.generated.ts` is the snapshot (every actor, item and doodad unit, tileset, env and prefab). Use `aeAssetExists(path)` to check a path.
 - An HW1 id with no AE counterpart gets a row in `catalog/substitutions.ts`, with the reason.
 - Walls are `doodads/walls/<set>/<piece>.unit`. The pieces are `h_16`/`h_32`, `v_16`/`v_32` (anchored a row up), `crn_*`, `x_*`, `cap_*` and `exit_up`/`exit_dn`. Legacy sets use `h`/`v`/`cap_n`… and the bonus sets fall back to `x_x`.
+- Cliffs are `doodads/cliffs/{granite,granite2,basalt,silt}/<piece>.unit`, plateau edges drawn up from a bottom-left anchor (`world/coast.ts`). The only walk-up stock uses is `_stairs`: `s_32`'s footprint with a 16-px walkway. Ramps are unused in stock, and granite's stairs and ramp art is broken, so plateaus rim with granite2, basalt or silt (DISCOVERY-LOG, 2026-10-31).
 
 ## Lives
 
