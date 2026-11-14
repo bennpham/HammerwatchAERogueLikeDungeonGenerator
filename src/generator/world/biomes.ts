@@ -36,8 +36,13 @@ export interface BiomeDef {
   trail: string
   /** everything off the island, out to the map edge */
   water: string
-  /** a `world/edgeSets.ts` id: the cliff pieces round the coast */
+  /** a `coast.ts` `EDGE_SETS` id: the cliff pieces round the coast */
   edgeSet: string
+  /**
+   * The cliff pieces round a plateau, one of `PLATEAU_EDGE_SETS`. Absent
+   * means `edgeSet`; a granite coast needs one, as granite's stairs are broken.
+   */
+  plateauEdgeSet?: string
   /** the level's lighting environment */
   environment: string
   /** clumped, mostly solid: trees, rocks */
@@ -109,6 +114,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     trail: 'tilesets/cold_dirt.tileset',
     water: 'tilesets/water_clear.tileset',
     edgeSet: 'granite',
+    plateauEdgeSet: 'granite2',
     environment: 'effects/env/dusk.env',
     clumpDensity: 3,
     clumps: [
@@ -240,6 +246,204 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
       ],
       props: MARKET
     }
+  },
+  {
+    id: 'coast',
+    label: 'Beach',
+    ground: 'tilesets/beach.tileset',
+    patches: ['tilesets/beach_spots.tileset', 'tilesets/outlook_grass_16.tileset'],
+    trail: 'tilesets/stones_river.tileset',
+    water: 'tilesets/water_clear.tileset',
+    edgeSet: 'silt',
+    environment: 'effects/env/_morning.env',
+    clumpDensity: 0.7,
+    clumps: [
+      { path: 'doodads/terrain/tree_palm.unit', weight: 4, solid: 1 },
+      { path: 'doodads/terrain/rock.unit', weight: 2, solid: 1 },
+      { path: 'doodads/terrain/stone_desert_large.unit', weight: 2, solid: 2 },
+      { path: 'doodads/generic/boat_small_wreck.unit', weight: 1, solid: 2 },
+      { path: 'doodads/terrain/castle_debris_pile_water.unit', weight: 1, solid: 2 }
+    ],
+    cover: [
+      { path: 'doodads/terrain/beach_shells.unit', weight: 3, solid: 0 },
+      { path: 'doodads/terrain/beach_stars.unit', weight: 2, solid: 0 },
+      { path: 'doodads/terrain/beach_holes_small.unit', weight: 2, solid: 0 },
+      { path: 'doodads/terrain/stone_desert_small_light.unit', weight: 2, solid: 0 },
+      { path: 'doodads/terrain/grass_switch.unit', weight: 2, solid: 0 }
+    ],
+    camp: {
+      tent: 'doodads/generic/tent_desert.unit',
+      fire: 'doodads/generic/campfire.unit',
+      extras: ['doodads/generic/boat_small.unit', 'doodads/generic/containers/barrel_wood.unit']
+    },
+    village: {
+      centre: { path: 'doodads/generic/well_desert.unit', weight: 1, solid: 1 },
+      tents: [
+        { path: 'doodads/generic/tent_desert.unit', weight: 1, solid: 2 },
+        { path: 'doodads/generic/tent_shaman.unit', weight: 1, solid: 2 }
+      ],
+      props: [...MARKET, { path: 'doodads/generic/containers/sack_big.unit', weight: 2, solid: 1 }]
+    }
+  },
+  {
+    id: 'autumn',
+    label: 'Autumn forest',
+    ground: 'tilesets/grass_2_default.tileset',
+    patches: ['tilesets/leaf_dry.tileset', 'tilesets/coniferneedle.tileset'],
+    trail: 'tilesets/outlook_dirt.tileset',
+    water: 'tilesets/water_clear.tileset',
+    edgeSet: 'granite',
+    plateauEdgeSet: 'granite2',
+    environment: 'effects/env/_evening.env',
+    clumpDensity: 2,
+    clumps: [
+      { path: 'doodads/terrain/tree_oak_red.unit', weight: 4, solid: 1 },
+      { path: 'doodads/terrain/tree_ash_red.unit', weight: 3, solid: 1 },
+      { path: 'doodads/terrain/tree_oak_shadowed.unit', weight: 2, solid: 1 },
+      { path: 'doodads/terrain/tree_oak_stump.unit', weight: 1, solid: 1 },
+      { path: 'doodads/terrain/bush_rough.unit', weight: 2, solid: 2 }
+    ],
+    cover: [
+      { path: 'doodads/terrain/clover_orange.unit', weight: 3, solid: 0 },
+      { path: 'doodads/terrain/mushroom_brown.unit', weight: 2, solid: 0 },
+      { path: 'doodads/terrain/flower_calluna.unit', weight: 2, solid: 0 },
+      { path: 'doodads/terrain/grass_2_thin.unit', weight: 3, solid: 0 },
+      { path: 'doodads/terrain/grass_foxtail.unit', weight: 2, solid: 0 }
+    ],
+    camp: {
+      tent: 'doodads/generic/tent_shaman.unit',
+      fire: 'doodads/generic/campfire.unit',
+      extras: ['doodads/terrain/log.unit', 'doodads/generic/fire_wood.unit']
+    },
+    village: {
+      centre: { path: 'doodads/generic/outlook_fountain.unit', weight: 1, solid: 2 },
+      tents: [{ path: 'doodads/generic/tent_shaman.unit', weight: 1, solid: 2 }],
+      props: [
+        ...MARKET,
+        { path: 'doodads/generic/scarecrow.unit', weight: 1, solid: 1 },
+        { path: 'doodads/generic/pitchfork.unit', weight: 1, solid: 0 },
+        { path: 'doodads/terrain/crop_wheat.unit', weight: 2, solid: 0 },
+        { path: 'doodads/terrain/crop_cabbage.unit', weight: 1, solid: 0 },
+        { path: 'doodads/generic/containers/sack_big.unit', weight: 1, solid: 1 }
+      ]
+    }
+  },
+  {
+    id: 'ashland',
+    label: 'Ashland',
+    ground: 'tilesets/cave_basalt.tileset',
+    patches: ['tilesets/cave_dark_stone.tileset', 'tilesets/corrupted.tileset', 'tilesets/stones_basalt.tileset'],
+    trail: 'tilesets/mud_6.tileset',
+    water: 'tilesets/water_clear.tileset',
+    edgeSet: 'basalt',
+    environment: 'effects/env/obsidian_spire.env',
+    clumpDensity: 1,
+    clumps: [
+      { path: 'doodads/terrain/rock_cave_dark.unit', weight: 3, solid: 1 },
+      { path: 'doodads/terrain/rock_cave_dark_small.unit', weight: 3, solid: 1 },
+      { path: 'doodads/terrain/boulder_cave.unit', weight: 2, solid: 2 },
+      { path: 'doodads/terrain/troll_cave_boulder.unit', weight: 1, solid: 2 },
+      { path: 'doodads/terrain/stalagmite_cave_dark_big.unit', weight: 2, solid: 1 }
+    ],
+    cover: [
+      { path: 'doodads/terrain/stone_cave_basalt_small.unit', weight: 4, solid: 0 },
+      { path: 'doodads/terrain/skulls.unit', weight: 1, solid: 0 },
+      { path: 'doodads/terrain/castle_debris.unit', weight: 2, solid: 0 },
+      { path: 'doodads/terrain/mushroom_poison.unit', weight: 1, solid: 0 },
+      { path: 'doodads/generic/skeleton.unit', weight: 1, solid: 0 }
+    ],
+    camp: {
+      tent: 'doodads/generic/tent_shaman.unit',
+      fire: 'doodads/generic/troll_bonfire.unit',
+      extras: ['doodads/generic/troll_kettle.unit', 'doodads/troll/troll_drum.unit']
+    },
+    village: {
+      centre: { path: 'doodads/generic/troll_rock_table.unit', weight: 1, solid: 3 },
+      tents: [{ path: 'doodads/generic/tent_shaman.unit', weight: 1, solid: 2 }],
+      props: [
+        { path: 'doodads/generic/troll_kettle.unit', weight: 2, solid: 2 },
+        { path: 'doodads/troll/troll_drum.unit', weight: 2, solid: 1 },
+        { path: 'doodads/generic/troll_meat.unit', weight: 1, solid: 0 },
+        { path: 'doodads/generic/troll_bed.unit', weight: 1, solid: 0 },
+        { path: 'doodads/generic/lamp_brazier_red.unit', weight: 2, solid: 1 },
+        { path: 'doodads/generic/instrument_drum_skull.unit', weight: 1, solid: 1 }
+      ]
+    }
+  },
+  {
+    id: 'marsh',
+    label: 'Marsh',
+    ground: 'tilesets/mud_4.tileset',
+    patches: ['tilesets/mud_2.tileset', 'tilesets/moss.tileset'],
+    trail: 'tilesets/stones_river.tileset',
+    water: 'tilesets/water_river_clear.tileset',
+    edgeSet: 'granite',
+    plateauEdgeSet: 'granite2',
+    environment: 'effects/env/rain.env',
+    clumpDensity: 1.3,
+    clumps: [
+      { path: 'doodads/terrain/tree_oak_shadowed.unit', weight: 3, solid: 1 },
+      { path: 'doodads/terrain/tree_ash.unit', weight: 3, solid: 1 },
+      { path: 'doodads/terrain/tree_fir_stump.unit', weight: 2, solid: 1 },
+      { path: 'doodads/terrain/bush_rough.unit', weight: 3, solid: 2 },
+      { path: 'doodads/terrain/rock_cave_dark_small.unit', weight: 1, solid: 1 }
+    ],
+    cover: [
+      { path: 'doodads/terrain/grass_reed.unit', weight: 4, solid: 0 },
+      { path: 'doodads/terrain/fern.unit', weight: 2, solid: 0 },
+      { path: 'doodads/terrain/mushroom_poison.unit', weight: 1, solid: 0 },
+      { path: 'doodads/terrain/moss_bits.unit', weight: 3, solid: 0 },
+      { path: 'doodads/terrain/grass_cotton.unit', weight: 2, solid: 0 },
+      { path: 'doodads/terrain/flower_small.unit', weight: 1, solid: 0 }
+    ],
+    camp: {
+      tent: 'doodads/generic/tent_shaman.unit',
+      fire: 'doodads/generic/campfire.unit',
+      extras: ['doodads/terrain/log.unit', 'doodads/generic/cauldron.unit']
+    },
+    village: {
+      centre: { path: 'doodads/generic/cauldron.unit', weight: 1, solid: 1 },
+      tents: [{ path: 'doodads/generic/tent_shaman.unit', weight: 1, solid: 2 }],
+      props: MARKET
+    }
+  },
+  {
+    id: 'crystal',
+    label: 'Crystal frost',
+    ground: 'tilesets/cave_crystal_fine.tileset',
+    patches: ['tilesets/cave_crystal.tileset', 'tilesets/cave_crystal_frozen.tileset', 'tilesets/outlook_snow_16.tileset'],
+    trail: 'tilesets/cave_crystal_path.tileset',
+    water: 'tilesets/water_clear.tileset',
+    edgeSet: 'granite2',
+    environment: 'effects/env/night2.env',
+    clumpDensity: 1,
+    clumps: [
+      { path: 'doodads/terrain/rock_cave.unit', weight: 3, solid: 1 },
+      { path: 'doodads/terrain/rock_cave_small.unit', weight: 3, solid: 1 },
+      { path: 'doodads/terrain/stalagmite_big.unit', weight: 2, solid: 1 },
+      { path: 'doodads/terrain/ice_rock.unit', weight: 2, solid: 1 },
+      { path: 'doodads/terrain/tree_fir.unit', weight: 2, solid: 1 }
+    ],
+    cover: [
+      // each crystal is a light, so they stay rare against the stones
+      { path: 'doodads/generic/deco_crystal_small.unit', weight: 1, solid: 0 },
+      { path: 'doodads/generic/deco_crystal_small_v2.unit', weight: 1, solid: 0 },
+      { path: 'doodads/terrain/stone_cave_small.unit', weight: 6, solid: 0 },
+      { path: 'doodads/terrain/snow_chunk.unit', weight: 4, solid: 0 }
+    ],
+    camp: {
+      tent: 'doodads/generic/tent_snow.unit',
+      fire: 'doodads/generic/campfire.unit',
+      extras: ['doodads/generic/lamps/brazier_big.unit']
+    },
+    village: {
+      centre: { path: 'doodads/generic/lamps/brazier_big.unit', weight: 1, solid: 2 },
+      tents: [
+        { path: 'doodads/generic/tent_snow.unit', weight: 1, solid: 2 },
+        { path: 'doodads/generic/tent_snow_round.unit', weight: 1, solid: 2 }
+      ],
+      props: MARKET
+    }
   }
 ]
 
@@ -252,3 +456,8 @@ export function biomeById(id: string): BiomeDef | undefined {
 
 /** Every biome id, in table order. */
 export const BIOME_IDS: readonly string[] = BIOME_DEFS.map((b) => b.id)
+
+/** The cliff set round `biome`'s plateaus. */
+export function plateauEdgeSet(biome: BiomeDef): string {
+  return biome.plateauEdgeSet ?? biome.edgeSet
+}

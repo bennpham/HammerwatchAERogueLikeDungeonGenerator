@@ -1274,3 +1274,28 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
   save plate, beside the arrival by the portal, with a `LevelStart` on its spot (the
   user asked for one at the start only; plates spread over the island were a misread,
   reverted the same day). In game: #110.
+- `[VERIFIED]` (stock, 2026-10-31) Cliff stairs: `doodads/cliffs/<set>/_stairs.unit`
+  (`cliffs/_stairs.inc`) has `s_32`'s footprint and anchor (2 cells wide, hanging 3 rows) and
+  two shoot-through wall polygons at `offset="0 -40"` / `"24 -40"`, leaving a 16-px walkway at
+  x 8–24. It's the only walk-up stock uses: one `granite2/_stairs` in Shaftlocke `town.lvl`
+  (and `town_ending.lvl`), at the head of a 2-cell inlet, with 3 small solid
+  `:Physics_Freeform`s patching its flanks. Inline (`s_32 | _stairs | s_32`) the walls butt
+  the neighbours' rects.
+- `[VERIFIED]` (stock) No stock level uses any `*_cap_*_ramp`, `_exit*` or `_jump` cliff
+  piece. granite's caps, ramps and stairs point at an older `base.png` layout (wrong art or
+  none); silt's `n_cap_l_ramp`/`n_cap_r_ramp` frames are blank. granite2, basalt and silt
+  draw their stairs.
+- `[VERIFIED]` (stock) Plateaus are closed by the cliff pieces' own collision: town.lvl has
+  15 `:Physics_Freeform`s (12 sensors, 3 at the stairs), no fence. Ground above and below a
+  cliff is the same tilesets. `granite/___shadow` is an editor-only directional shadow caster.
+- `[VERIFIED]` (repo, 2026-10-31) `scripts/lib/aeunit.mjs` ignored `<polygon offset>`, so
+  `_stairs` read closed; fixed, and `tests/closure.ts` sees its walkway.
+- `[EMITTED]` (2026-10-31) World plateaus (`world/plateau.ts`): a mask from `buildIsland` in a
+  small window, rimmed by `coastUnits` with the low ground for water, 1–4 `s_32`s under the
+  plateau top swapped for `_stairs`, no fence; granite biomes rim them with granite2. The
+  install closure test floods each from the low ground: reached through the stairs, and
+  unreachable with every stairway walled up. In game: #111–#113.
+- `[EMITTED]` (2026-10-31) Five more biomes (beach, autumn forest, ashland, marsh, crystal
+  frost), base assets only. There's no lava or swamp-water tileset: `water_clear` and
+  `water_river_clear` are the only water. `doodads/terrain/tree_oak`'s default scene has no
+  collision; the other oaks do. In game: #114–#115.

@@ -4,8 +4,9 @@ Status: **pass 1 implemented and verified in game** (2026-10-28, `docs/BOOT-CHEC
 the slot, the World tab, five biomes, the cliff coast and fence, sites, trails (off by default), scatter, buttons
 and bosses, the portal frame and the orb, packs, ambushes, loot, the timer, music, and the `camp`/`bare` starts.
 **Pass 2** is implemented (2026-10-28, checklist #102–#107): monster themes, mystery plates and the treasure hunt,
-ambush shortcuts and types, whole-world presets, the village start and landmarks. PR #15 stays open until the World
-content is done. The in-game questions are in `docs/discovery/world-mode.md`.
+ambush shortcuts and types, whole-world presets, the village start and landmarks. PR #15 merged.
+**Terrain** is implemented (2026-10-31, branch `world-terrain`, checklist #111–#115): raised plateaus climbed by stairs,
+and five more biomes. See "Terrain" at the end. The in-game questions are in `docs/discovery/world-mode.md`.
 
 **Custom content is out of scope until after the 1.0 release** (the user's call, 2026-10-28): no custom tilesets,
 doodads, content packs or defs loaded from disk. Don't plan or build it before 1.0.
@@ -320,8 +321,7 @@ These are preferences, not in-game proof. The probe still has to show them.
 - **Later, not in scope:**
   - teleport shortcuts between sites;
   - rivers, shallow lakes and bridges;
-  - raised plateaus using the cliff sets' ramps and `_stairs`;
-  - more biomes.
+  - raised plateaus and more biomes: done, see "Terrain" below.
 
 ## Pass 2 (implemented 2026-10-28)
 
@@ -452,3 +452,36 @@ left out: their 512-px colliders would wall off whole stretches of island. `worl
 - **Visual:** `node scripts/render-level.mjs <world.lvl> out.png --collision` for each biome.
 - **Real pack:** `HWAE_PACK=1 npm test -- tests/packer.test.ts` with a world slot in the order.
 - **In game:** the probe items above, then boot checklist entries for each phase, verified by the user.
+
+## Terrain (implemented 2026-10-31)
+
+Opt-in per world: with no plateau fields the island is flat and byte-identical to before.
+
+### Raised plateaus
+
+- **What stock has.** Every cliff set ships `_stairs`, `_exit`, `_jump`, caps and `*_ramp` pieces, but stock
+  uses only one `granite2/_stairs` (Shaftlocke `town.lvl`) and never a ramp. granite's stairs, caps and ramps
+  point at an old texture layout, so plateaus use **stairs only**, from granite2, basalt or silt
+  (`PLATEAU_EDGE_SETS`). A biome with a granite coast names `plateauEdgeSet: 'granite2'`.
+- **How one is built** (`world/plateau.ts`): the coast one level up. A mask from `buildIsland` in a small window
+  (a small `core`), kept `PLATEAU_GAP` tiles of low ground off the coast, the hub and other plateaus; rimmed by
+  `coastUnits` with the low ground for water; 1–4 `s_32`s under plateau top swapped for `_stairs`. No fence:
+  stock closes plateaus with the pieces alone, and the install closure test proves ours close.
+- **The grid.** Plateau land is `HIGH`; rim cells and the two low rows under a south face are `CLIFF`; stairs
+  cells are open and `RESERVED`, with a landing above and below. Sites, packs, loot and scatter go anywhere
+  walkable, high or low, and the existing flood proves every site reachable.
+- **Stream.** A plateau world draws one seed from its `layout` stream after the hub; a flat one draws nothing.
+- **Settings.** `plateaus` (0–40), `plateauMinSize`/`plateauMaxSize` (12–96, at most a third of the island),
+  `plateauStairs` (1–4); keys `world<i>Plateaus`, `PlateauMin`, `PlateauMax`, `PlateauStairs`. Shortcuts
+  Flat / Hills / Highlands (`WORLD_TERRAIN_LEVELS`) in the Biome section.
+
+### More biomes
+
+Beach (`coast`), Autumn forest (`autumn`), Ashland (`ashland`), Marsh (`marsh`) and Crystal frost (`crystal`),
+base assets only. There's no lava or swamp-water tileset, so every biome keeps clear water. A partial "ruined
+highlands" candidate was left out.
+
+### Not done
+
+- Ramps: no stock example, and broken art in granite and silt.
+- Teleport shortcuts between sites; rivers, lakes and bridges.

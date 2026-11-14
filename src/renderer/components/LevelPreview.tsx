@@ -31,7 +31,8 @@ const WORLD_TILE_COLORS: Record<string, [number, number, number]> = {
   '1': [70, 110, 60], // land
   '2': [120, 112, 100], // cliff
   '3': [150, 120, 80], // trail
-  '4': [40, 75, 40] // trees, rocks
+  '4': [40, 75, 40], // trees, rocks
+  '5': [105, 145, 85] // plateau
 }
 
 /** A world's marks: colour and the letter drawn on it. */

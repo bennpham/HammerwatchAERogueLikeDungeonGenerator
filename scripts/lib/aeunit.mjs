@@ -144,7 +144,9 @@ export function loadUnit(assets, unitPath, scene) {
     }
     for (const p of m[1].matchAll(/<polygon\b([^>]*)>([\s\S]*?)<\/polygon>/g)) {
       if (sensor(p[1])) continue
-      const pts = [...p[2].matchAll(/<point>\s*([-\d.]+)\s+([-\d.]+)\s*<\/point>/g)].map((q) => [Number(q[1]), Number(q[2])])
+      // a polygon's `offset` moves every point, as `_stairs`' two walls use it
+      const [px, py] = (attrs(p[1]).offset ?? '0 0').split(/\s+/).map(Number)
+      const pts = [...p[2].matchAll(/<point>\s*([-\d.]+)\s+([-\d.]+)\s*<\/point>/g)].map((q) => [Number(q[1]) + px, Number(q[2]) + py])
       if (pts.length === 0) continue
       const xs = pts.map(([x]) => x), ys = pts.map(([, y]) => y)
       rects.push([Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)])
