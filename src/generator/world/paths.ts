@@ -8,7 +8,8 @@
  * reachable whatever grows round it. With trails switched off the same
  * corridor is still kept clear (`RESERVED`), just not painted.
  *
- * Bounded by the grid: every cell is settled at most once.
+ * Bounded by the grid: every cell is settled at most once, and the search
+ * stops as soon as the last site is settled.
  */
 
 import type { Rand } from '../core/rand'
@@ -26,17 +27,18 @@ export function carveTrails(rand: Rand, grid: WorldGrid, from: Tile, sites: read
   const start = from.y * width + from.x
   dist[start] = 0
   heap.push(start, 0)
-  while (heap.size > 0) {
-    const [i, d] = heap.pop()
+  // stop once every site is settled: a settled cell's path never changes
+  const pending = new Set(sites.map((s) => s.y * width + s.x))
+  while (heap.size > 0 && pending.size > 0) {
+    const d = heap.topPriority()
+    const i = heap.pop()
     if (d > dist[i]) continue
+    pending.delete(i)
     const x = i % width
     const y = (i - x) / width
-    for (const [nx, ny] of [
-      [x + 1, y],
-      [x - 1, y],
-      [x, y + 1],
-      [x, y - 1]
-    ]) {
+    for (let k = 0; k < 4; k++) {
+      const nx = x + DX[k]
+      const ny = y + DY[k]
       if (!grid.walkable(nx, ny)) continue
       const j = ny * width + nx
       const nd = d + cost(nx, ny)
@@ -64,44 +66,80 @@ export function carveTrails(rand: Rand, grid: WorldGrid, from: Tile, sites: read
   return true
 }
 
-/** A binary min-heap of (index, priority). */
+/** The four neighbours, in the order the search has always visited them. */
+const DX = [1, -1, 0, 0]
+const DY = [0, 0, 1, -1]
+
+/**
+ * A binary min-heap of (index, priority) on typed arrays. Its sift order is
+ * the same as the tuple heap it replaced, so ties pop in the same order and
+ * every trail comes out unchanged.
+ */
 class MinHeap {
-  private items: Array<[number, number]> = []
+  private idx = new Int32Array(1024)
+  private pri = new Float64Array(1024)
+  private n = 0
 
   get size(): number {
-    return this.items.length
+    return this.n
+  }
+
+  topPriority(): number {
+    return this.pri[0]
   }
 
   push(index: number, priority: number): void {
-    const a = this.items
-    a.push([index, priority])
-    let i = a.length - 1
+    if (this.n === this.idx.length) this.grow()
+    const pri = this.pri
+    let i = this.n++
+    this.idx[i] = index
+    pri[i] = priority
     while (i > 0) {
       const p = (i - 1) >> 1
-      if (a[p][1] <= a[i][1]) break
-      ;[a[p], a[i]] = [a[i], a[p]]
+      if (pri[p] <= pri[i]) break
+      this.swap(p, i)
       i = p
     }
   }
 
-  pop(): [number, number] {
-    const a = this.items
-    const top = a[0]
-    const last = a.pop()!
-    if (a.length > 0) {
-      a[0] = last
+  pop(): number {
+    const { idx, pri } = this
+    const top = idx[0]
+    this.n--
+    if (this.n > 0) {
+      idx[0] = idx[this.n]
+      pri[0] = pri[this.n]
       let i = 0
       for (;;) {
         const l = 2 * i + 1
         const r = l + 1
         let m = i
-        if (l < a.length && a[l][1] < a[m][1]) m = l
-        if (r < a.length && a[r][1] < a[m][1]) m = r
+        if (l < this.n && pri[l] < pri[m]) m = l
+        if (r < this.n && pri[r] < pri[m]) m = r
         if (m === i) break
-        ;[a[m], a[i]] = [a[i], a[m]]
+        this.swap(m, i)
         i = m
       }
     }
     return top
+  }
+
+  private swap(a: number, b: number): void {
+    const { idx, pri } = this
+    const ti = idx[a]
+    idx[a] = idx[b]
+    idx[b] = ti
+    const tp = pri[a]
+    pri[a] = pri[b]
+    pri[b] = tp
+  }
+
+  private grow(): void {
+    const idx = new Int32Array(this.idx.length * 2)
+    const pri = new Float64Array(this.pri.length * 2)
+    idx.set(this.idx)
+    pri.set(this.pri)
+    this.idx = idx
+    this.pri = pri
   }
 }
