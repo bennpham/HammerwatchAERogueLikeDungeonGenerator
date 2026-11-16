@@ -92,6 +92,9 @@ The short floors before it are meant to be steep, and there the party can still 
 
 **Proposed fix:** keep the 300 seconds but soften the hunt-floor hazard to about 5 damage per second (damage 1 every 200 ms), so a party that is mid-fight when it expires has 6 to 15 seconds to finish. Play one run of each first.
 
+
+**Ben take:** Well no one knows its a 5 damage per second since nothing indicates them. Why not give them more time to go kill the boss like 8 or 10 minutes? Depends on some build, yes it's kind of crazy since the boss might wreck them.
+
 ### B2. Random multi-boss finales swing too far (read)
 
 - Pandemonium's finale draws 6 bosses from all 14.
@@ -106,6 +109,8 @@ The dragons and the queen can each appear once, so a draw can stack both dragons
 Four presets pay 25000 gold and one of each of the twelve upgrades before the finale. For three of them the payout offsets a hard finale: Boss Rush (dragon and queen together), Arena Marathon (three bosses) and The Long Haul (13 floors in). Bonus Gauntlet's finale is one ordinary boss with stock waves.
 
 **Proposed fix:** drop Bonus Gauntlet's last lobby to 20000 gold with no free upgrades, matching the other classics, or keep the upgrades and make its finale two bosses.
+
+**Ben take:** HARD DISAGREE. I playtested many times and I did the 20000 gold with free upgrades ON PURPOSE. You're going to make some of my playtesters cry about being too hard again. Hard decline.
 
 ### B4. The Long Haul's third act has no town (read)
 
