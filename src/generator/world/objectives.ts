@@ -82,6 +82,14 @@ export function bossSiteIndexes(siteCount: number, bossCount: number): number[] 
   return Array.from({ length: b }, (_, i) => Math.floor((i * siteCount) / b))
 }
 
+/**
+ * Where the victory orb stands, in tiles from the centre: three tiles north.
+ * At the centre itself it was hidden behind the start's save plate and the
+ * arrival (user, 2026-11-16); north of the hub is clear of both, which lie
+ * south of it, and of the camp's tent and the village's centrepiece.
+ */
+export const ORB_AT: Tile = { x: 0, y: -3 }
+
 /** Where a boss's statue stands, in tiles from its site, and the disc kept for it. */
 export const STATUE_OFFSET: Tile = { x: 3, y: -3 }
 export const STATUE_RADIUS = Math.max(
@@ -106,7 +114,7 @@ export function objectivesRemainingText(k: number): string {
 }
 
 /**
- * The start: arrival, the portal (or the hidden orb) at `hub`, and every
+ * The start: arrival, the portal at `hub` (or the hidden orb just north of it), and every
  * objective on `sites` — bosses spread round them (`bossSiteIndexes`), buttons on the rest.
  *
  * With no objectives at all the world is free roam: the portal stands open
@@ -129,7 +137,9 @@ export function buildObjectives(
   // the way out, shut until the count reaches zero (or open from the start)
   let reveal: ScriptNode[] = []
   if (gateway.kind === 'orb') {
-    const orb = Item.create(ctx, hub.x + 0.5, hub.y + 0.5, 'Orb', 0)
+    const at = { x: hub.x + ORB_AT.x, y: hub.y + ORB_AT.y }
+    const orb = Item.create(ctx, at.x + 0.5, at.y + 0.5, 'Orb', 0)
+    grid.markDisc(at, 1, WorldGrid.RESERVED)
     if (!freeRoam) orb.state = { hidden: { kind: 'bool', value: true } }
     const picked = new NodeUnitPickedUpTrigger(ctx, hub.x, hub.y + 2)
     picked.units.push(orb)
