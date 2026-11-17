@@ -51,15 +51,18 @@ export function carveTrails(rand: Rand, grid: WorldGrid, from: Tile, sites: read
   }
 
   const flag = WorldGrid.PATH | (paint ? WorldGrid.TRAIL : WorldGrid.RESERVED)
+  // a trail climbs a plateau by its stairs, but its paint stops at their foot
+  const mark = (x: number, y: number) =>
+    grid.set(x, y, grid.has(x, y, WorldGrid.STAIR) ? WorldGrid.PATH | WorldGrid.RESERVED : flag)
   for (const site of sites) {
     let i = site.y * width + site.x
     if (prev[i] === -1 && i !== start) return false
     for (let steps = 0; i !== -1 && steps < width * height; steps++) {
       const x = i % width
       const y = (i - x) / width
-      grid.set(x, y, flag)
+      mark(x, y)
       // two wide: the trail's second column, where the land allows
-      if (grid.walkable(x + 1, y)) grid.set(x + 1, y, flag)
+      if (grid.walkable(x + 1, y)) mark(x + 1, y)
       i = prev[i]
     }
   }

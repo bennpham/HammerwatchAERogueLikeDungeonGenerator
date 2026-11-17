@@ -27,6 +27,8 @@ export class WorldGrid {
   static readonly PATH = 32
   /** raised ground: a plateau's land, rim included (`plateau.ts`) */
   static readonly HIGH = 64
+  /** a stairway's walkway up a plateau's south face (`plateau.ts`): never painted as trail */
+  static readonly STAIR = 128
 
   readonly flags: Uint8Array
 

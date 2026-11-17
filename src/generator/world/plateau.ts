@@ -120,7 +120,7 @@ function tryPlateau(rand: Rand, grid: WorldGrid, set: string, size: number, stai
     for (let dx = 0; dx <= 1; dx++) {
       for (let dy = -1; dy <= 3; dy++) {
         grid.clear(at.x + dx, at.y + dy, WorldGrid.CLIFF)
-        grid.set(at.x + dx, at.y + dy, WorldGrid.RESERVED)
+        grid.set(at.x + dx, at.y + dy, WorldGrid.RESERVED | WorldGrid.STAIR)
       }
     }
   }

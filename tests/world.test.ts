@@ -780,6 +780,24 @@ describe('raised plateaus', () => {
     expect(checked).toBeGreaterThan(100)
   })
 
+  it('runs a trail up the stairs without painting over them', () => {
+    let stairs = 0
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const { level, map, w } = run(hilly({ trails: true, buttons: 4 }), seed)
+      for (const u of unitsOf(level, (u) => u.path.endsWith('_stairs.unit'))) {
+        const ax = u.x / 16
+        const ay = u.y / 16 - 3
+        for (let dx = 0; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 3; dy++) {
+            stairs++
+            expect(map[(ay + dy) * w + ax + dx], `seed ${seed}: trail paint on the stairs at ${ax + dx},${ay + dy}`).not.toBe('3')
+          }
+        }
+      }
+    }
+    expect(stairs).toBeGreaterThan(0)
+  })
+
   it('says how many plateaus were raised, and when some did not fit', () => {
     const roomy = run(hilly(), 1).preview.world!
     expect(roomy.plateaus).toEqual({ asked: 4, placed: plateausOf(roomy.map, 160, 160).length })
