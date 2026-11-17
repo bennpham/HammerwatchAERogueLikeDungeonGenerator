@@ -59,3 +59,29 @@ Each A item gets a test in `tests/world.test.ts` or the validation suite and pas
 ## Original Hammerwatch
 
 A plan for an HW1 version of World mode is in the remake repo: `HammerwatchRogueLikeDungeonGeneratorRemake/docs/plans/world-mode.md`. This repo stays AE-only.
+
+## Status
+
+Implemented 2026-11-16 on `feature/pr17-audits`, one commit per item, each with a test:
+
+| Item | Done |
+|---|---|
+| A1, A2, C4 | Safe-radius rule (`worldMaxSafeRadius`); `worldSiteCapacityOf` counts the start's disc (the village's too, also for a random start), and the plateaus that fit; filling the island exactly is a warning; the failure names the step. |
+| A3 | Landmarks refuse reserved ground except their own site's disc; every boss site's statue spot is reserved first. |
+| A4 | `WorldGrid.sameGround`: pack members and ambush spawns stay on their centre's level. |
+| A5 | `emitPayload` returns its spawns and spewer lines; a world reserves them. |
+| A6 | The preview reads "3 of 5 plateaus fit". |
+| A7 | The loader already filled the lists; validation now reports a missing one instead of throwing. |
+| A8 | `MAX_WORLDS` (20) in validation, the loader and the form. |
+| B3 | Install-backed test of every prop's radius against its collider; the fir, the desert's minor stone and the pyramid were too small and are fixed. |
+| C1 | Generation runs in a worker thread; Generate turns into Cancel. |
+| C2 | The trail search stops at the last site, on a typed-array heap: byte-identical output. |
+| C3 | The preview is built in one pass and shrunk above 512 tiles for the window only. |
+| C5 | The real over-block was the village's walk-through props, not the clumps; fixed. |
+| D1 | Bosses take every (n/b)-th site. |
+| D2 | An explicit anchor table: byte-identical output. |
+| D3 | Each biome has a `highGround` for plateau tops (boot checklist #116). |
+| D4 | Trails keep the stairs as their corridor but paint no trail on them. |
+| D6 | Edge-of-validation runs on six seeds each; the plateau pack test. |
+
+Not done: D5 (harmless, as noted). B1, B2 and B4 need play: #111, #112 and #117. B5 is unchanged: plates and packs still aren't flood-checked after the scatter, though A5 now keeps the scatter off a plate's payload.
