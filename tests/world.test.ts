@@ -49,7 +49,7 @@ import {
   withStemPathsText
 } from './ae'
 import { floodFill } from '../src/generator/map/reachability'
-import { PORTAL_TEXT, STATUE_OFFSET, STATUE_RADIUS, bossSiteIndexes } from '../src/generator/world/objectives'
+import { ORB_AT, PORTAL_TEXT, STATUE_OFFSET, STATUE_RADIUS, bossSiteIndexes } from '../src/generator/world/objectives'
 import { SITE_RADIUS } from '../src/generator/world/place'
 import { WorldGrid } from '../src/generator/world/grid'
 import { HUB_RADIUS } from '../src/generator/world/hub'
@@ -567,6 +567,24 @@ describe('the objectives and the portal', () => {
   it('turns the portal red in front of a fight', () => {
     const w0 = worldOf(smallWorld(), '1,2,3,W1,B1')
     expect(unitsOf(w0, (u) => u.path === 'doodads/generic/teleport_red.unit')).toHaveLength(1)
+  })
+
+  it('stands the orb three tiles north of the centre, clear of the save plate', () => {
+    const big = { minWidth: 160, maxWidth: 160, minHeight: 160, maxHeight: 160 }
+    for (const [hub, biome] of [['camp', 'grass'], ['bare', 'snow'], ['village', 'ashland'], ['village', 'grass']] as const) {
+      const size = hub === 'village' ? big : {}
+      const result = generateOk(withWorlds([smallWorld({ hub, biome, ...size })], '1,2,3,B1,W1'), 4)
+      const w0 = levelsOf(result).get('world0')!
+      const preview = result.levels.find((l) => l.world !== undefined)!.world!
+      const orb = unitsOf(w0, (u) => u.path.includes('collectable_10_sphere'))[0]
+      const tile = { x: Math.floor(orb.x / 16), y: Math.floor(orb.y / 16) }
+      expect(tile, hub).toEqual({ x: preview.hub.x + ORB_AT.x, y: preview.hub.y + ORB_AT.y })
+      const save = preview.sites.find((s) => s.kind === 'save')!
+      expect(Math.hypot(save.x - tile.x, save.y - tile.y), hub).toBeGreaterThan(4)
+      // nothing solid stands on it
+      const level = result.levels.find((l) => l.world !== undefined)!
+      expect(level.walls[tile.y * level.mapWidth + tile.x], hub).toBe('0')
+    }
   })
 
   it('hides the orb until the count reaches zero when it ends the campaign', () => {
