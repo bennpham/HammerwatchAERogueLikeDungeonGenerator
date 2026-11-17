@@ -289,6 +289,28 @@ describe('world validation', () => {
 })
 
 describe('world parameters.txt keys', () => {
+  it('round-trips a campaign of islands alone: no floors, the arena off, a stored order', () => {
+    const p = withWorlds([smallWorld(), smallWorld({ biome: 'snow' })], 'L1,W1,L2,W2')
+    p.levels = 0
+    p.themes = []
+    p.levelMonsters = []
+    p.levelBuffs = []
+    p.levelTraps = []
+    p.levelTimers = []
+    p.floorMusic = []
+    delete p.levelLock
+    p.boss = { ...p.boss, enabled: false }
+    p.lobbies = defaultParameters().lobbies
+    expect(validateParameters(p).errors).toEqual([])
+    const back = parseParametersTxt(serializeParametersTxt(p))
+    expect(back.unknownKeys).toEqual([])
+    // the switched-off arena holds no slot, so the order comes back as written
+    expect(back.params.levelOrder!.map((s) => slotLabel(s))).toEqual(['L1', 'W1', 'L2', 'W2'])
+    expect(back.params.themes).toEqual([])
+    expect(back.params.levelMonsters).toEqual([])
+    expect(back.params).toEqual(p)
+  })
+
   it('writes nothing for the default, switched-off world', () => {
     expect(serializeParametersTxt(defaultParameters())).not.toMatch(/^world/m)
   })

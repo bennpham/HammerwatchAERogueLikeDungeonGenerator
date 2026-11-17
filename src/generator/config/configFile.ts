@@ -1595,7 +1595,8 @@ export function parseParametersTxt(content: string, base?: DungeonParameters): P
       continue
     }
     if (keyLower === 'themes') {
-      params.themes = value.split(',').map((t) => t.trim())
+      // a campaign with no floors writes `themes=`: no themes, not one empty one
+      params.themes = value.trim() === '' ? [] : value.split(',').map((t) => t.trim())
       continue
     }
     // `shopKinds=combo offense item` — the vendors a shop room rolls between
@@ -1995,6 +1996,11 @@ export function parseParametersTxt(content: string, base?: DungeonParameters): P
   // while `levels` stays short, then silently appended if the user raises it.
   if (highestPoolIndex >= 0) {
     params.levelMonsters.length = highestPoolIndex + 1
+  } else if (params.levelMonsters.length > params.levels) {
+    // ...and a file that declares none has no floors past `levels` to keep
+    // the base's for: trimmed the way the timers are below, so a campaign
+    // of islands and arenas alone doesn't inherit the castle's eight pools.
+    params.levelMonsters.length = params.levels
   }
 
   // Only floors carrying a buff get a `buffN=` line, so the same padding rule
@@ -2168,9 +2174,10 @@ export function parseParametersTxt(content: string, base?: DungeonParameters): P
   // byte-identical output, and a file saying "1,2,3,B1" should not behave
   // differently from one that says nothing.
   if (params.levelOrder !== undefined) {
+    // a switched-off arena's fights hold no slot, as validateLevelOrder counts them
     const counts = {
       levels: params.levels,
-      fights: params.boss.fights?.length ?? 0,
+      fights: params.boss.enabled ? (params.boss.fights?.length ?? 0) : 0,
       lobbies: params.lobbies.length,
       worlds: worldList(world).length
     }
@@ -2602,7 +2609,12 @@ export function serializeParametersTxt(params: DungeonParameters, path?: string,
   // `parseParametersTxt` repair the base's shipped order against this
   // campaign's own counts instead, which is not the same thing.
   const worldOptions = params.world ?? defaultWorldOptions()
-  const counts = { levels: params.levels, fights: fights.length, lobbies: lobbies.length, worlds: worldList(worldOptions).length }
+  const counts = {
+    levels: params.levels,
+    fights: params.boss.enabled ? fights.length : 0,
+    lobbies: lobbies.length,
+    worlds: worldList(worldOptions).length
+  }
   const order = campaignOrder(counts, params.levelOrder)
   const isRearranged = !isDefaultOrder(order, counts)
   const absentOrder =
