@@ -49,6 +49,7 @@ import {
 import { floodFill } from '../src/generator/map/reachability'
 import { PORTAL_TEXT, STATUE_OFFSET, STATUE_RADIUS, bossSiteIndexes } from '../src/generator/world/objectives'
 import { SITE_RADIUS } from '../src/generator/world/place'
+import { WorldGrid } from '../src/generator/world/grid'
 import { HUB_RADIUS } from '../src/generator/world/hub'
 import { MONSTER_THEMES, matchingTheme } from '../src/generator/world/monsterThemes'
 import { WORLD_PRESETS } from '../src/generator/world/presets'
@@ -754,6 +755,48 @@ describe('raised plateaus', () => {
         }
       }
     }
+  })
+
+  it('keeps every pack on its own level, never across a rim', () => {
+    // '5' is open plateau top and '1' open low ground; trails and cliffs are skipped
+    let checked = 0
+    for (const seed of [1, 2, 3, 4]) {
+      const { level, preview, map, w } = run(hilly({ packs: 80, packSize: 12, ambushes: 0 }), seed)
+      const packs = preview.world!.sites.filter((s) => s.kind === 'pack')
+      const actors = unitsOf(level, (u) => u.path.startsWith('actors/') && !u.path.includes('boss'))
+      for (const pack of packs) {
+        const home = map[pack.y * w + pack.x]
+        if (home !== '1' && home !== '5') continue
+        for (const a of actors) {
+          const t = { x: Math.floor(a.x / 16), y: Math.floor(a.y / 16) }
+          if (Math.max(Math.abs(t.x - pack.x), Math.abs(t.y - pack.y)) > 2) continue
+          const c = map[t.y * w + t.x]
+          if (c !== '1' && c !== '5') continue
+          checked++
+          expect(c, `seed ${seed}: a pack member at ${t.x},${t.y} off its pack's level`).toBe(home)
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(100)
+  })
+
+  it('calls two tiles one level only when no cliff lies between', () => {
+    // a 7×7 field: rows 0–2 a plateau, row 3 its cliff, rows 4–6 low ground
+    const grid = new WorldGrid(7, 7)
+    for (let y = 0; y < 7; y++) {
+      for (let x = 0; x < 7; x++) {
+        grid.set(x, y, WorldGrid.LAND)
+        if (y <= 3) grid.set(x, y, WorldGrid.HIGH)
+        if (y === 3 && x !== 6) grid.set(x, y, WorldGrid.CLIFF)
+      }
+    }
+    expect(grid.sameGround({ x: 1, y: 1 }, { x: 3, y: 0 })).toBe(true)
+    expect(grid.sameGround({ x: 1, y: 5 }, { x: 4, y: 6 })).toBe(true)
+    // across the rim: one high and one low
+    expect(grid.sameGround({ x: 1, y: 2 }, { x: 1, y: 4 })).toBe(false)
+    // both high, but the line crosses the cliff row
+    grid.set(2, 5, WorldGrid.HIGH)
+    expect(grid.sameGround({ x: 2, y: 1 }, { x: 2, y: 5 })).toBe(false)
   })
 
   it('reaches every site, on high ground or low', () => {

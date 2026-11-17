@@ -86,7 +86,8 @@ export function buildEncounters(
       const size = rand.iRand(Math.ceil(def.packSize / 2), def.packSize + 1)
       for (let m = 0; m < size; m++) {
         const spot = { x: at.x + rand.iRand(-2, 3), y: at.y + rand.iRand(-2, 3) }
-        if (!grid.walkable(spot.x, spot.y)) continue
+        // on the pack's own level: never across a plateau's rim
+        if (!grid.walkable(spot.x, spot.y) || !grid.sameGround(at, spot)) continue
         const { type, tier } = rollPoolKey(rand, key)
         Monster.create(ctx, spot.x + 0.5, spot.y + 0.5, type, tier)
       }
@@ -238,11 +239,12 @@ function springRing(ctx: GenerationContext, rand: Rand, grid: WorldGrid, def: Wo
   const size = exact === null ? def.ambushSize : exact.length
   for (let i = 0; i < size; i++) {
     const angle = offset + (i / size) * Math.PI * 2
-    // the ring point, or the nearest walkable tile toward the center
+    // the ring point, or the nearest walkable tile toward the center, on the
+    // tripwire's own level so the party it springs on can be reached
     let spot: Tile | null = null
     for (let r = AMBUSH_RING; r >= 1 && spot === null; r--) {
       const t = { x: Math.round(at.x + Math.cos(angle) * r), y: Math.round(at.y + Math.sin(angle) * r) }
-      if (grid.walkable(t.x, t.y)) spot = t
+      if (grid.walkable(t.x, t.y) && grid.sameGround(at, t)) spot = t
     }
     if (spot === null) continue
     let actor: string

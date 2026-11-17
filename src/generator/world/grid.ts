@@ -63,6 +63,22 @@ export class WorldGrid {
     return this.walkable(x, y) && !this.has(x, y, WorldGrid.RESERVED | WorldGrid.TRAIL)
   }
 
+  /**
+   * `b` stands on the same level as `a`: both on a plateau or both below,
+   * with no cliff cell on the straight line between them. A monster placed
+   * round a centre this way can always walk to it.
+   */
+  sameGround(a: Tile, b: Tile): boolean {
+    if (this.has(a.x, a.y, WorldGrid.HIGH) !== this.has(b.x, b.y, WorldGrid.HIGH)) return false
+    const steps = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y))
+    for (let s = 1; s <= steps; s++) {
+      const x = Math.round(a.x + ((b.x - a.x) * s) / steps)
+      const y = Math.round(a.y + ((b.y - a.y) * s) / steps)
+      if (this.has(x, y, WorldGrid.CLIFF)) return false
+    }
+    return true
+  }
+
   /** Every cell within `radius` (a disc) satisfies `ok`. */
   discAll(at: Tile, radius: number, ok: (x: number, y: number) => boolean): boolean {
     for (let dy = -radius; dy <= radius; dy++) {
