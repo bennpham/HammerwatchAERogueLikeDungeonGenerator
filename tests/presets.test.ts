@@ -23,7 +23,8 @@ import {
   mysteryStarterPool,
   MOBILE_BOSS_IDS,
   BOSS_CAMPAIGNS,
-  getTheme
+  getTheme,
+  worldList
 } from '../src/generator'
 import type { BossWave, DungeonParameters } from '../src/generator'
 import {
@@ -98,6 +99,87 @@ describe('campaign presets', () => {
     for (const group of PRESET_GROUPS) {
       expect(CAMPAIGN_PRESETS.some((p) => p.group === group.id), group.id).toBe(true)
     }
+  })
+
+  describe('Campaign Mode', () => {
+    const MODE = CAMPAIGN_PRESETS.filter((p) => p.group === 'campaign')
+    const TOWNS: Record<string, string> = {
+      'campaign-castle': 'castle_bridge',
+      'campaign-shaftlocke': 'shaftlocke_town',
+      'campaign-desert': 'sun_bazaar'
+    }
+    /** The highest skill tier a town sells, from its `combo1`…`combo5` columns. */
+    const skillTier = (shops: readonly string[]) => Math.max(0, ...shops.filter((c) => /^combo\d$/.test(c)).map((c) => Number(c.slice(5))))
+
+    it('is its own group, after Classic, with the three stock campaigns', () => {
+      const groups = PRESET_GROUPS.map((g) => g.id)
+      expect(groups.indexOf('campaign')).toBe(groups.indexOf('classic') + 1)
+      expect(MODE.map((p) => p.id)).toEqual(['campaign-castle', 'campaign-shaftlocke', 'campaign-desert'])
+    })
+
+    it('plays in acts: three floors, the town, then the boss', () => {
+      for (const preset of MODE) {
+        const order = preset.build().levelOrder!
+        order.forEach((slot, i) => {
+          if (slot.kind === 'boss') expect(order[i - 1].kind, `${preset.id} slot ${i}`).toBe('lobby')
+          if (slot.kind === 'lobby' && i > 0) {
+            expect(order.slice(i - 3, i).map((s) => s.kind), `${preset.id} slot ${i}`).toEqual(['floor', 'floor', 'floor'])
+            expect(order[i - 4].kind, `${preset.id} slot ${i}`).not.toBe('floor')
+          }
+        })
+        // and ends on the last act's boss
+        expect(order.at(-1)!.kind, preset.id).toBe('boss')
+      }
+    })
+
+    it('sells one more skill tier in each town, up to tier 5, cumulatively', () => {
+      for (const preset of MODE) {
+        const lobbies = preset.build().lobbies
+        const tiers = lobbies.map((l) => skillTier(l.shopCategories))
+        tiers.slice(1).forEach((t, i) => expect(t, `${preset.id} town ${i + 2}`).toBe(tiers[i] + 1))
+        expect(tiers.at(-1), preset.id).toBe(5)
+        for (const l of lobbies) {
+          for (let tier = 1; tier <= skillTier(l.shopCategories); tier++) {
+            for (const vendor of ['combo', 'def', 'misc', 'off']) expect(l.shopCategories, preset.id).toContain(`${vendor}${tier}`)
+          }
+          expect(l.shopCategories, preset.id).toContain('power')
+          // no free upgrades in any town
+          expect(Object.values(l.upgrades).every((n) => n === 0), preset.id).toBe(true)
+        }
+      }
+    })
+
+    it("shops in the family's own town every time", () => {
+      for (const preset of MODE) {
+        for (const l of preset.build().lobbies) expect(l.preset, preset.id).toBe(TOWNS[preset.id])
+      }
+    })
+
+    it('opens the desert on an island, and the other two underground', () => {
+      const desert = campaignPresetById('campaign-desert')!.build()
+      expect(desert.levelOrder!.slice(0, 2)).toEqual([{ kind: 'lobby', index: 0 }, { kind: 'world', index: 0 }])
+      const [world] = worldList(desert.world)
+      expect(world.biome).toBe('desert')
+      expect(world.bossCount).toBe(0)
+      expect(world.buttons).toBe(3)
+      for (const id of ['campaign-castle', 'campaign-shaftlocke']) expect(worldList(campaignPresetById(id)!.build().world), id).toEqual([])
+    })
+
+    it('never fields one boss in two acts', () => {
+      for (const preset of MODE) {
+        const pools = preset.build().boss.fights.map((f) => f.arena.bossPool)
+        const all = pools.flat()
+        expect(new Set(all).size, preset.id).toBe(all.length)
+      }
+    })
+
+    it('leaves the floor bosses off and locks the third floor of each act', () => {
+      for (const preset of MODE) {
+        const params = preset.build()
+        expect(params.levelBoss, preset.id).toBeUndefined()
+        expect(params.levelLock!.map((l) => l.enabled), preset.id).toEqual(params.themes.map((_, i) => i % 3 === 2))
+      }
+    })
   })
 
   // These shapes are specific to the four classic presets — they all
@@ -372,7 +454,7 @@ describe('campaign presets', () => {
         // Every fight is its own arena level in the preview — a chained-arena
         // preset like Arena Marathon has more than one, so the historical
         // "+1" only held because every preset shipped exactly one fight.
-        expect(result.levels).toHaveLength(params.levels + bossFights(params.boss).length)
+        expect(result.levels).toHaveLength(params.levels + bossFights(params.boss).length + worldList(params.world).length)
         const stems = stemsOf(result)
         for (let i = 0; i < params.levels; i++) expect(stems).toContain(`floor${i}`)
       })

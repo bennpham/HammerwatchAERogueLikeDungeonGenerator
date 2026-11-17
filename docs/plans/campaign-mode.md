@@ -136,3 +136,13 @@ Add to `docs/BOOT-CHECKLIST.md` when the presets are built:
 1. Whether Desert keeps its opening island (recommended: yes, but it is the first mixed campaign anyone will have played).
 2. Whether Shaftlocke should have five acts, since it has seven bosses and eight themes. Four keeps it the same length as Castle.
 3. The town gold, after floor gold has been measured.
+
+## Status
+
+Built 2026-11-16 in `src/generator/config/campaignModePresets.ts`, as planned, with the open questions settled:
+
+1. Desert keeps its opening island.
+2. Shaftlocke has four acts. Its stock campaign has six boss levels, but no open country outside the town, the bridge and the battlements, so it stays the length of Castle.
+3. The town gold stays the draft (5000 to 25000). The measured floor gold is in [preset-balance-audit.md](preset-balance-audit.md#b5-gold-placed-on-the-floors).
+
+Arena waves are light in act 1 and the family's own table after. Boot checklist #118–#121.

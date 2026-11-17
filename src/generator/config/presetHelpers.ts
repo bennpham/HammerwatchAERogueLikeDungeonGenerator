@@ -40,6 +40,8 @@ import type {
 } from './parameters'
 import type { CampaignSlot } from '../campaign'
 import { MUSIC_DEFAULT } from '../music/tracks'
+import { defaultWorld } from '../world/options'
+import type { WorldDef } from '../world/options'
 
 
 /**
@@ -263,4 +265,13 @@ export function survivalPickupRow(item: string, count: number, atSeconds: number
 
 export function survivalTrapRow(row: BossTrap, startSeconds: number, endSeconds: number): SurvivalTrap {
   return { ...row, startSeconds, endSeconds }
+}
+
+/**
+ * One island for a preset: `defaultWorld()` with overrides, a fresh object
+ * every call. The preset switches worlds on itself (`world.enabled`);
+ * `campaign()` inherits them switched off.
+ */
+export function island(overrides: Partial<WorldDef>): WorldDef {
+  return { ...defaultWorld(), ...overrides }
 }

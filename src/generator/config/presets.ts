@@ -19,6 +19,7 @@ import { MUSIC_DEFAULT } from '../music/tracks'
 import { desertWaves, shaftlockeWaves } from './familyWaves'
 import { BOSS_CAMPAIGNS } from '../boss/bosses'
 import { CLAUDE_PRESETS } from './claudePresets'
+import { CAMPAIGN_MODE_PRESETS } from './campaignModePresets'
 import { COLOSSEUM_PRESETS } from './colosseumPreset'
 import { deepLoot, escapePicks, midLoot, mysteryButton, mysteryKit, shallowLoot } from './presetMystery'
 import type { MysteryPicks } from './presetMystery'
@@ -29,11 +30,12 @@ import type { MysteryPicks } from './presetMystery'
  * campaign style first). `label` is the only user-visible text; the id is what
  * a preset's `group` field carries and is never shown.
  */
-export type PresetGroupId = 'preAlpha' | 'classic' | 'colosseum' | 'claude'
+export type PresetGroupId = 'preAlpha' | 'classic' | 'campaign' | 'colosseum' | 'claude'
 
 export const PRESET_GROUPS: readonly { id: PresetGroupId; label: string }[] = [
   { id: 'preAlpha', label: 'Pre-Alpha' },
   { id: 'classic', label: 'Classic' },
+  { id: 'campaign', label: 'Campaign Mode' },
   { id: 'colosseum', label: 'Colosseum' },
   { id: 'claude', label: 'Claude Generated' }
 ]
@@ -877,7 +879,8 @@ const PRE_ALPHA_PRESETS: readonly CampaignPreset[] = [
 
 /**
  * Every campaign preset the preset dialog offers: the four classics first (castle
- * is the app's default and stays at index 0), then Colosseum — see
+ * is the app's default and stays at index 0), then Campaign Mode — see
+ * `campaignModePresets.ts` — then Colosseum — see
  * `colosseumPreset.ts` — then the eleven Claude-generated ones — see
  * `claudePresets.ts` — then Pre-Alpha. `PRESET_GROUPS` is what the renderer
  * groups and orders them by; this array's order is the fallback within each
@@ -885,6 +888,7 @@ const PRE_ALPHA_PRESETS: readonly CampaignPreset[] = [
  */
 export const CAMPAIGN_PRESETS: readonly CampaignPreset[] = [
   ...CLASSIC_PRESETS,
+  ...CAMPAIGN_MODE_PRESETS,
   ...COLOSSEUM_PRESETS,
   ...CLAUDE_PRESETS,
   ...PRE_ALPHA_PRESETS

@@ -195,6 +195,7 @@ files.
 | --- | --- |
 | Pre-Alpha | Pre-Alpha (the original Java tool's settings) |
 | Classic | Castle (default), Desert, Shaftlocke Tower, Bonus Gauntlet |
+| Campaign Mode | Castle Campaign, Shaftlocke Campaign, Desert Campaign: the stock campaigns in acts of three floors, a town and a boss, each town selling one more tier of skills and items |
 | Colosseum | Survival in Colosseum: 16 survival rounds and 4 boss fights, with a lobby before each block |
 | Claude Generated | Arena Marathon, Beat the Clock, Boss Rush, Double or Nothing, Frozen Descent, Lunch Break, Pandemonium, Shaftlocke Siege, Shell Game, The Long Haul, Trap Gauntlet |
 
