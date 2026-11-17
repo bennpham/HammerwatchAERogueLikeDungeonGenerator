@@ -47,7 +47,7 @@ import {
   withStemPathsText
 } from './ae'
 import { floodFill } from '../src/generator/map/reachability'
-import { PORTAL_TEXT } from '../src/generator/world/objectives'
+import { PORTAL_TEXT, bossSiteIndexes } from '../src/generator/world/objectives'
 import { MONSTER_THEMES, matchingTheme } from '../src/generator/world/monsterThemes'
 import { WORLD_PRESETS } from '../src/generator/world/presets'
 import { LANDMARK_DEFS, landmarksFor } from '../src/generator/world/landmarks'
@@ -491,6 +491,21 @@ describe('a generated world', () => {
 
 describe('the objectives and the portal', () => {
   const worldOf = (def: WorldDef, order?: string, seed = 4) => levelsOf(generateOk(withWorlds([def], order), seed)).get('world0')!
+
+  it('spreads the bosses round the sites instead of taking the first few', () => {
+    expect(bossSiteIndexes(6, 2)).toEqual([0, 3])
+    expect(bossSiteIndexes(8, 4)).toEqual([0, 2, 4, 6])
+    expect(bossSiteIndexes(5, 1)).toEqual([0])
+    expect(bossSiteIndexes(3, 3)).toEqual([0, 1, 2])
+    expect(bossSiteIndexes(2, 5)).toEqual([0, 1])
+    // on an island: two bosses of six sites sit on far sides of the start
+    const def = { ...defaultWorld(), buttons: 4, bossCount: 2 }
+    const preview = generateOk(withWorlds([def]), 4).levels.find((l) => l.world !== undefined)!.world!
+    const [a, b] = preview.sites.filter((s) => s.kind === 'boss')
+    const angle = (t: { x: number; y: number }) => Math.atan2(t.y - preview.hub.y, t.x - preview.hub.x)
+    const apart = Math.abs(((angle(a) - angle(b) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI)
+    expect(apart).toBeGreaterThan(Math.PI / 3)
+  })
 
   it('counts every button and boss down one variable, and opens the shut portal at zero', () => {
     const w0 = worldOf(smallWorld({ buttons: 3, bossCount: 1 }))

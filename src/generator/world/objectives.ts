@@ -72,6 +72,16 @@ export interface WorldObjectives {
   plates: Array<{ at: Tile; trigger: ScriptNode }>
 }
 
+/**
+ * Which of `siteCount` sites the bosses take: spread evenly round the
+ * island. Site i lies in angle sector i (`place.ts`), so taking every
+ * (n/b)-th site keeps the bosses apart instead of on one shore. No draws.
+ */
+export function bossSiteIndexes(siteCount: number, bossCount: number): number[] {
+  const b = Math.min(bossCount, siteCount)
+  return Array.from({ length: b }, (_, i) => Math.floor((i * siteCount) / b))
+}
+
 /** "2 objectives remain", for the countdown's announcements. */
 export function objectivesRemainingText(k: number): string {
   return k === 1 ? '1 objective remains' : `${k} objectives remain`
@@ -79,7 +89,7 @@ export function objectivesRemainingText(k: number): string {
 
 /**
  * The start: arrival, the portal (or the hidden orb) at `hub`, and every
- * objective on `sites` — bosses on the first `bossCount`, buttons on the rest.
+ * objective on `sites` — bosses spread round them (`bossSiteIndexes`), buttons on the rest.
  *
  * With no objectives at all the world is free roam: the portal stands open
  * (or the orb in plain sight) from the start, and there is no countdown, so
@@ -143,8 +153,9 @@ export function buildObjectives(
   const ids: BossId[] =
     bossSelection(def) === 'lineup' ? expandLineup(def.bossLineup).slice(0, bossCount) : pickBosses(rand, def.bossPool, bossCount)
   const bosses: Tile[] = []
+  const bossSites = bossSiteIndexes(sites.length, ids.length)
   ids.forEach((id, i) => {
-    const site = sites[i]
+    const site = sites[bossSites[i]]
     const boss = BOSS_DEFS[id]
     const actor = Monster.create(
       ctx,
@@ -172,7 +183,7 @@ export function buildObjectives(
     triggers.push(died)
   })
 
-  const buttons = sites.slice(ids.length)
+  const buttons = sites.filter((_, i) => !bossSites.includes(i))
   const plates = buttons.map((at) => {
     // disguised, it wears the mystery plates' art and presses the way they do
     const plate = def.disguise === true ? Doodad.prop(ctx, at.x + 0.5, at.y + 0.5, MYSTERY_PLATE) : Doodad.prop(ctx, at.x, at.y, BUTTON_PLATE)
