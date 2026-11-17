@@ -122,7 +122,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     environment: 'effects/env/dusk.env',
     clumpDensity: 3,
     clumps: [
-      { path: 'doodads/terrain/tree_fir.unit', weight: 4, solid: 1 },
+      { path: 'doodads/terrain/tree_fir.unit', weight: 4, solid: 2 },
       { path: 'doodads/terrain/tree_pine.unit', weight: 3, solid: 2 },
       { path: 'doodads/terrain/tree_ash_red.unit', weight: 2, solid: 1 },
       { path: 'doodads/terrain/tree_fir_stump.unit', weight: 1, solid: 1 },
@@ -167,7 +167,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
       { path: 'doodads/terrain/stone_desert_small.unit', weight: 3, solid: 0 },
       { path: 'doodads/terrain/stone_desert_small_dark.unit', weight: 2, solid: 0 },
       { path: 'doodads/terrain/desert_grass_patch.unit', weight: 2, solid: 0 },
-      { path: 'doodads/terrain/stone_desert_minor.unit', weight: 2, solid: 0 }
+      { path: 'doodads/terrain/stone_desert_minor.unit', weight: 2, solid: 1 }
     ],
     camp: {
       tent: 'doodads/generic/tent_desert.unit',
@@ -230,7 +230,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     environment: 'effects/lighting/outlook.env',
     clumpDensity: 1.5,
     clumps: [
-      { path: 'doodads/terrain/tree_fir.unit', weight: 4, solid: 1 },
+      { path: 'doodads/terrain/tree_fir.unit', weight: 4, solid: 2 },
       { path: 'doodads/terrain/tree_pine.unit', weight: 2, solid: 2 },
       { path: 'doodads/terrain/ice_rock.unit', weight: 2, solid: 1 },
       { path: 'doodads/terrain/tree_fir_stump.unit', weight: 1, solid: 1 }
@@ -434,7 +434,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
       { path: 'doodads/terrain/rock_cave_small.unit', weight: 3, solid: 1 },
       { path: 'doodads/terrain/stalagmite_big.unit', weight: 2, solid: 1 },
       { path: 'doodads/terrain/ice_rock.unit', weight: 2, solid: 1 },
-      { path: 'doodads/terrain/tree_fir.unit', weight: 2, solid: 1 }
+      { path: 'doodads/terrain/tree_fir.unit', weight: 2, solid: 2 }
     ],
     cover: [
       // each crystal is a light, so they stay rare against the stones

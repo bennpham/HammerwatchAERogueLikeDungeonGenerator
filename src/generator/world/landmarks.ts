@@ -56,7 +56,7 @@ export const LANDMARK_DEFS: readonly LandmarkDef[] = [
     label: 'Pyramid',
     biomes: ['desert'],
     pieces: [
-      { path: `${G}/pyramid_small.unit`, dx: 0, dy: -12, solid: 6 },
+      { path: `${G}/pyramid_small.unit`, dx: 0, dy: -14, solid: 8 },
       { path: `${T}/stone_desert_large.unit`, dx: -7, dy: -3, solid: 2 },
       { path: `${T}/stone_desert_small.unit`, dx: 6, dy: -4, solid: 0 }
     ]

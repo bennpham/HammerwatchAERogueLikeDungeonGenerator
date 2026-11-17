@@ -1000,6 +1000,75 @@ describe('landmarks', () => {
   })
 })
 
+describe('prop footprints against the game', () => {
+  /** How far a unit's solid shapes reach from its origin, in px. */
+  const reachOf = (path: string, scene?: string): number => {
+    const { shapes } = loadUnit(aeAssetsDir()!, path, scene) as {
+      shapes: { rects: number[][]; polygons: number[][][]; circles: number[][] }
+    }
+    // a stock file may give a one-number offset (sign_pole: offset="0.5"); the missing part reads as 0
+    const n = (v: number) => (Number.isFinite(v) ? v : 0)
+    let r = 0
+    for (const [x, y, w, h] of shapes.rects.map((s) => s.map(n))) for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) r = Math.max(r, Math.hypot(px, py))
+    for (const poly of shapes.polygons) for (const [px, py] of poly) r = Math.max(r, Math.hypot(n(px), n(py)))
+    for (const [cx, cy, cr] of shapes.circles.map((s) => s.map(n))) r = Math.max(r, Math.hypot(cx, cy) + cr)
+    return r
+  }
+
+  it.skipIf(aeAssetsDir() === null)("gives every scatter, village and landmark prop a radius that covers its collider", () => {
+    const entries: Array<{ path: string; solid: number; where: string; scene?: string }> = []
+    for (const b of BIOME_DEFS) {
+      for (const e of [...b.clumps, ...b.cover]) entries.push({ ...e, where: `${b.id} scatter` })
+      for (const e of [b.village.centre, ...b.village.tents, ...b.village.props]) entries.push({ ...e, where: `${b.id} village` })
+    }
+    for (const l of LANDMARK_DEFS) for (const p of l.pieces) entries.push({ ...p, where: `landmark ${l.id}` })
+    for (const e of entries) {
+      // a prop stands at its tile's centre, so a collider r px out reaches tiles ceil((r - 8) / 16) away
+      const r = reachOf(e.path, e.scene)
+      const need = r <= 0 ? 0 : Math.ceil((r - 8) / 16)
+      expect(e.solid, `${e.where}: ${e.path} reaches ${r.toFixed(1)} px`).toBeGreaterThanOrEqual(need)
+    }
+  })
+})
+
+describe('what validates, generates', () => {
+  /** `patch` on the small world, with as many buttons as validation lets it hold. */
+  const full = (patch: Partial<WorldDef>): Partial<WorldDef> => {
+    const def = { ...smallWorld(), ...patch, bossCount: 0 }
+    return { ...patch, bossCount: 0, buttons: Math.max(1, worldSiteCapacityOf(def)) }
+  }
+  /** Settings at the edge of what validation allows, each on several seeds. */
+  const edges: Array<[string, Partial<WorldDef>]> = [
+    ['96, full of sites', { buttons: worldSiteCapacityOf(smallWorld()) - 1, bossCount: 1 }],
+    ['96, widest safe radius', full({ safeRadius: worldMaxSafeRadius(96, 96, 8) })],
+    ['96, rough coast and wide margin', full({ coast: 100, waterMargin: 16 })],
+    [
+      '128 village, full of sites',
+      (() => {
+        const v = { ...smallWorld(), minWidth: 128, maxWidth: 128, minHeight: 128, maxHeight: 128, hub: 'village' as const }
+        return { ...v, buttons: worldSiteCapacityOf(v) - 1, bossCount: 1 }
+      })()
+    ],
+    [
+      '160 highlands, full of sites',
+      (() => {
+        const h = { ...smallWorld(), minWidth: 160, maxWidth: 160, minHeight: 160, maxHeight: 160, hub: 'camp' as const, plateaus: 5, plateauMinSize: 16, plateauMaxSize: 28, plateauStairs: 2 }
+        return { ...h, buttons: worldSiteCapacityOf(h) - 1, bossCount: 1 }
+      })()
+    ]
+  ]
+
+  it.each(edges)('%s', (_name, patch) => {
+    const def = { ...smallWorld(), ...patch }
+    const p = withWorlds([def])
+    expect(validateParameters(p).errors).toEqual([])
+    for (let seed = 1; seed <= 6; seed++) {
+      const r = generateDungeon(p, seed)
+      expect(r.ok ? [] : r.errors, `seed ${seed}`).toEqual([])
+    }
+  }, 120_000)
+})
+
 describe('the preview sent to the window', () => {
   const fake = (w: number, h: number, tile: (x: number, y: number) => string): LevelPreview => {
     let map = ''
