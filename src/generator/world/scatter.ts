@@ -44,8 +44,9 @@ export function scatterProps(ctx: GenerationContext, rand: Rand, grid: WorldGrid
       const y = cy + rand.iRand(-CLUMP_SPREAD, CLUMP_SPREAD + 1)
       if (!fits(x, y, entry.solid)) continue
       Doodad.prop(ctx, x + 0.5, y + 0.5, entry.path)
+      // a walk-through clump blocks nothing; it only keeps the next prop off its tile
       if (entry.solid > 0) grid.markDisc({ x, y }, entry.solid, WorldGrid.SOLID)
-      else grid.set(x, y, WorldGrid.SOLID)
+      else grid.set(x, y, WorldGrid.RESERVED)
     }
   }
 
@@ -55,7 +56,16 @@ export function scatterProps(ctx: GenerationContext, rand: Rand, grid: WorldGrid
     const x = rand.iRand(0, grid.width)
     const y = rand.iRand(0, grid.height)
     if (!grid.free(x, y) || grid.has(x + 1, y, WorldGrid.CLIFF) || grid.has(x, y + 1, WorldGrid.CLIFF)) continue
-    Doodad.prop(ctx, x + rand.nextFloat(), y + rand.nextFloat(), entry.path)
+    const ox = rand.nextFloat()
+    const oy = rand.nextFloat()
+    if (entry.solid > 0) {
+      // cover with a collider of its own (a small stone) is placed as a clump is: centred, its footprint marked
+      if (!fits(x, y, entry.solid)) continue
+      Doodad.prop(ctx, x + 0.5, y + 0.5, entry.path)
+      grid.markDisc({ x, y }, entry.solid, WorldGrid.SOLID)
+      continue
+    }
+    Doodad.prop(ctx, x + ox, y + oy, entry.path)
   }
 }
 

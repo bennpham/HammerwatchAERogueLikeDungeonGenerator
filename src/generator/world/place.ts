@@ -13,10 +13,10 @@
 import type { Rand } from '../core/rand'
 import type { Tile } from './grid'
 import { WorldGrid, dist2 } from './grid'
-import { WORLD_SITE_SPACING } from './options'
+import { WORLD_SITE_RADIUS, WORLD_SITE_SPACING } from './options'
 
 /** The clear disc round a site's center: room for a boss, a plate and a fight. */
-export const SITE_RADIUS = 4
+export const SITE_RADIUS = WORLD_SITE_RADIUS
 
 const SECTOR_TRIES = 200
 const ANYWHERE_TRIES = 2000

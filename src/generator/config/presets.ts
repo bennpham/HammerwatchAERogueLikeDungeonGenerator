@@ -16,8 +16,11 @@ import {
 import { oneOfEachUpgrade } from '../lobby/payout'
 import type { BossTrap, BossWave, DungeonParameters, FloorTrap } from './parameters'
 import { MUSIC_DEFAULT } from '../music/tracks'
+import { desertWaves, shaftlockeWaves } from './familyWaves'
 import { BOSS_CAMPAIGNS } from '../boss/bosses'
 import { CLAUDE_PRESETS } from './claudePresets'
+import { CAMPAIGN_MODE_PRESETS } from './campaignModePresets'
+import { WORLD_CAMPAIGN_PRESETS } from './worldCampaignPresets'
 import { COLOSSEUM_PRESETS } from './colosseumPreset'
 import { deepLoot, escapePicks, midLoot, mysteryButton, mysteryKit, shallowLoot } from './presetMystery'
 import type { MysteryPicks } from './presetMystery'
@@ -28,13 +31,15 @@ import type { MysteryPicks } from './presetMystery'
  * campaign style first). `label` is the only user-visible text; the id is what
  * a preset's `group` field carries and is never shown.
  */
-export type PresetGroupId = 'preAlpha' | 'classic' | 'colosseum' | 'claude'
+export type PresetGroupId = 'preAlpha' | 'classic' | 'campaign' | 'colosseum' | 'claude' | 'claudeWorld'
 
 export const PRESET_GROUPS: readonly { id: PresetGroupId; label: string }[] = [
   { id: 'preAlpha', label: 'Pre-Alpha' },
   { id: 'classic', label: 'Classic' },
+  { id: 'campaign', label: 'Campaign Mode' },
   { id: 'colosseum', label: 'Colosseum' },
-  { id: 'claude', label: 'Claude Generated' }
+  { id: 'claude', label: 'Claude Generated' },
+  { id: 'claudeWorld', label: 'Claude Generated Open World' }
 ]
 
 /**
@@ -83,216 +88,12 @@ function withBoss(theme: string, bossPool: string[], waves: BossWave[], music?: 
 /**
  * A preset's per-floor timers: every floor untimed except the last, which is
  * the escape floor played after the boss and carries the 90-second clock. Same
- * shape in all three presets, so it lives here rather than three times over.
+ * shape in all four classic presets, so it lives here rather than four times over.
  */
 function escapeTimers(levels: number): ReturnType<typeof defaultFloorTimer>[] {
   return [
     ...Array.from({ length: Math.max(0, levels - 1) }, () => defaultFloorTimer()),
     escapeFloorTimer()
-  ]
-}
-
-/**
- * Desert's wave tiers. Guards alone at 100%, mummies from 75% on, and the
- * fire pillars/floaters held back until the boss is dead. Every entry is
- * scattered — nothing here leaves a blocking wreck, so nothing has to stay on
- * the anchors. The boss-death tier is the send-off: kamikazes, fire and all
- * three desert liches at once — see BOSS_DEATH_WAVE in parameters.ts.
- */
-function desertWaves(): BossWave[] {
-  const drops = stockWavePickups()
-  return [
-    scatterWave(
-      [
-        ['mummy_guard', 120],
-        ['mummy_guard', 60]
-      ],
-      [],
-      4000
-    ),
-    scatterWave(
-      [
-        ['mummy_guard', 60],
-        ['mummy_guard', 30],
-        ['mummy', 80],
-        ['mummy', 120],
-        ['mummy_mage', 60],
-        ['mummy#0', 4],
-        ['mummy_mage#0', 2]
-      ],
-      [],
-      3000
-    ),
-    scatterWave(
-      [
-        ['mummy', 120],
-        ['mummy', 60],
-        ['mummy#3', 40],
-        ['mummy_mage', 40],
-        ['mummy_mage#2', 60],
-        ['mummy#0', 8],
-        ['mummy_mage#0', 4],
-        ['spider#0', 13],
-        ['mb_mummy', 4]
-      ],
-      [],
-      2000,
-      [],
-      drops.half
-    ),
-    scatterWave(
-      [
-        ['beheaded_kamikaze', 4],
-        ['mummy#3', 80],
-        ['mummy_mage#2', 60],
-        ['spider#0', 60],
-        ['mb_mummy', 8],
-        ['mummy_lich#0', 4],
-        ['mummy_lich#2', 24]
-      ],
-      [],
-      1000,
-      [],
-      drops.quarter,
-      SHOOTER_ARROW_TRAPS
-    ),
-    // boss death — the fire pillars and floaters wait for the kill, see
-    // BOSS_DEATH_WAVE, and the whole send-off is bloodlusted, see bossDeathBuffs()
-    scatterWave(
-      [
-        ['beheaded_kamikaze', 40],
-        ['pillar_fire', 30],
-        ['wisp#3', 60],
-        ['spider#0', 30],
-        ['mummy_lich', 6],
-        ['mummy_lich#0', 6],
-        ['mummy_lich#2', 6]
-      ],
-      [],
-      1000,
-      bossDeathBuffs(),
-      drops.death,
-      SHOOTER_ARROW_TRAPS
-    )
-  ]
-}
-
-/**
- * Shaftlocke's wave tiers: castleWaves() entry for entry. A Shaftlocke unit
- * with the castle one's stats keeps its count (the prison warriors and
- * archers, the footmen, the maggots); anything else is swapped for a
- * Shaftlocke unit of similar hp and role, scaled where it hits harder:
- *
- * - the sentry is the ranger firing every 450ms instead of 750, so 0.6× the count;
- * - the lich ladder starts at its spawner (`#0`, whose wreck blocks — never
- *   in a wave), so castle `skeleton_lich#n` is `shaftlocke_lich#(n+1)`, and
- *   its sorcerer has 250 hp to the castle's 75, so a third of the count;
- * - the guardian (150 hp) stands in for the knight's 150 hp guard, the
- *   Eye's adds and the Vampire's thralls and bats for the castle bosses'
- *   bodyguards, the battlemage for the elite battlements and imps for the
- *   flower beds;
- * - a pair of bannermen rides with each tier from 75% to 25%, the stock
- *   chambers' mobile banners.
- *
- * The anchored tail is the beamo tower, kept off the scatter like castle's novas.
- */
-function shaftlockeWaves(): BossWave[] {
-  const drops = stockWavePickups()
-  return [
-    scatterWave(
-      [
-        ['bat', 42],
-        ['bat', 24],
-        ['shaftlocke_maggot', 20],
-        ['shaftlocke_maggot#2', 12],
-        ['shaftlocke_maggot#3', 6],
-        ['tick', 24],
-        ['tick#2', 16],
-        ['tick#0', 2],
-        ['flower_small', 6]
-      ],
-      [],
-      4000
-    ),
-    scatterWave(
-      [
-        ['prison_archer', 14],
-        ['skeleton_sentry', 4],
-        ['prison_warrior', 24],
-        ['prison_warrior#2', 28],
-        ['slime', 44],
-        ['trapper', 4],
-        ['mb_tick', 3],
-        ['mb_shaftlocke_maggot', 1],
-        ['prison_warrior#0', 2],
-        ['prison_archer#0', 2],
-        ['slime#0', 6],
-        ['guardian', 4],
-        ['bannerman_bloodlust', 2]
-      ],
-      [],
-      3000
-    ),
-    scatterWave(
-      [
-        ['eye', 44],
-        ['eye#2', 30],
-        ['wisp', 12],
-        ['wisp#2', 4],
-        ['wisp#3', 8],
-        ['shaftlocke_lich#4', 8],
-        ['gargoyle#0', 3],
-        ['mb_shaftlocke_guard', 4],
-        ['mb_eye', 1],
-        ['bannerman_protection', 2],
-        ['bannerman_healing', 2],
-        // bodyguards — the Eye's own adds
-        ['eye_add', 4]
-      ],
-      [],
-      2000,
-      [],
-      drops.half
-    ),
-    scatterWave(
-      [
-        ['shaftlocke_lich#2', 4],
-        ['shaftlocke_lich', 4],
-        ['shaftlocke_lich#3', 2],
-        ['mb_eye', 2],
-        ['mb_shaftlocke_wizard', 1],
-        ['battlemage', 3],
-        ['eye#0', 5],
-        ['skeleton_sentry#0', 4],
-        ['skeleton_footman#0', 4],
-        ['bannerman_drain', 2],
-        // bodyguards — the Vampire's thrall and bats
-        ['vampire_thrall', 1],
-        ['vampire_bat', 4]
-      ],
-      [['tower_beamo', 3]],
-      1000,
-      [],
-      drops.quarter,
-      SHOOTER_ARROW_TRAPS
-    ),
-    // boss death — the arena keeps fighting after the kill, bloodlusted, see
-    // BOSS_DEATH_WAVE and bossDeathBuffs()
-    scatterWave(
-      [
-        ['shaftlocke_lich#3', 2],
-        ['shaftlocke_lich#2', 2],
-        ['shaftlocke_lich', 2],
-        ['mb_shaftlocke_wizard', 1],
-        ['mb_doomspawner', 2],
-        ['vampire_thrall', 1]
-      ],
-      [['tower_beamo', 2]],
-      1000,
-      bossDeathBuffs(),
-      drops.death,
-      SHOOTER_ARROW_TRAPS
-    )
   ]
 }
 
@@ -642,7 +443,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
     id: 'castle',
     label: 'Castle (default)',
     description:
-      '7 floors through the mixed castle themes — four act floors, then three boss rushes, with two mystery buttons hidden on every floor.',
+      '7 floors through the mixed castle themes — four act floors, then three boss rushes — then the boss and an escape floor, with two mystery buttons hidden on every floor.',
     group: 'classic',
     // shops on Castle Hammerwatch's own bridge; defaultParameters() keeps the house
     build: () => ({
@@ -658,7 +459,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
     id: 'desert',
     label: 'Desert',
     description:
-      '7 floors from the outdoor bug swarms through Temple of the Sun mobs and a mummy mini-boss rush, then Anubis or the worm, with the temple treasury hidden under mystery buttons.',
+      '6 floors from the outdoor bug swarms through Temple of the Sun mobs and a mummy mini-boss rush, then Anubis or the worm and an escape floor, with the temple treasury hidden under mystery buttons.',
     group: 'classic',
     // Floor 0 is an outdoor bug/beast floor ahead of the desert proper. The
     // two guard floors mob the party in numbers but barely scratch it, so the
@@ -795,7 +596,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
     id: 'shaftlocke',
     label: 'Shaftlocke Tower',
     description:
-      '7 floors up Shaftlocke Tower — prison, crypt, the gold-beetle mines, archives and chambers — then a random Shaftlocke boss and an escape back through the chambers, with two mystery buttons hidden on every floor.',
+      '7 floors up Shaftlocke Tower — prison, crypt, the gold-beetle mines, archives and chambers — then a random Shaftlocke boss and an escape floor back through the chambers, with two mystery buttons hidden on every floor.',
     group: 'classic',
     // Castle's shape on Shaftlocke's own tilesets, music and roster: the same
     // 8 levels, order, escape-floor timer and fireball rig (inherited from
@@ -898,7 +699,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
     id: 'bonus',
     label: 'Bonus Gauntlet',
     description:
-      '5 floors of the bonus tilesets, escalating from bonus mobs to a mixed boss floor, with two mystery buttons hidden on every floor.',
+      '5 floors of the bonus tilesets, escalating from bonus mobs to a mixed boss floor, then the boss and an escape floor, with two mystery buttons hidden on every floor.',
     group: 'classic',
     build: () => withGatewayLocks({
       ...defaultParameters(),
@@ -1079,17 +880,21 @@ const PRE_ALPHA_PRESETS: readonly CampaignPreset[] = [
 ]
 
 /**
- * Every campaign preset the preset dialog offers: the three classics first (castle
- * is the app's default and stays at index 0), then Colosseum — see
+ * Every campaign preset the preset dialog offers: the four classics first (castle
+ * is the app's default and stays at index 0), then Campaign Mode — see
+ * `campaignModePresets.ts` — then Colosseum — see
  * `colosseumPreset.ts` — then the eleven Claude-generated ones — see
- * `claudePresets.ts` — then Pre-Alpha. `PRESET_GROUPS` is what the renderer
+ * `claudePresets.ts` — then the six Open World ones — see
+ * `worldCampaignPresets.ts` — then Pre-Alpha. `PRESET_GROUPS` is what the renderer
  * groups and orders them by; this array's order is the fallback within each
  * group.
  */
 export const CAMPAIGN_PRESETS: readonly CampaignPreset[] = [
   ...CLASSIC_PRESETS,
+  ...CAMPAIGN_MODE_PRESETS,
   ...COLOSSEUM_PRESETS,
   ...CLAUDE_PRESETS,
+  ...WORLD_CAMPAIGN_PRESETS,
   ...PRE_ALPHA_PRESETS
 ]
 

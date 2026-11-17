@@ -71,11 +71,33 @@ export interface CoastUnit {
   y: number
 }
 
-/** Rows below the land cell's top at which each kind of piece is anchored. */
+/**
+ * Rows below the land cell's top at which each piece is anchored, one entry
+ * per name in `COAST_PIECE_NAMES`. The south faces hang two rows below their
+ * lip, and the south inner corners are anchored with them (verified in game,
+ * boot checklist #96); a `_32` side piece spans two rows.
+ */
+const ANCHOR_ROWS: Readonly<Record<string, number>> = {
+  n_16: 1,
+  n_32: 1,
+  s_16: 3,
+  s_32: 3,
+  e_16: 1,
+  e_32: 2,
+  w_16: 1,
+  w_32: 2,
+  ne: 1,
+  nw: 1,
+  se: 3,
+  sw: 3,
+  ne_i: 1,
+  nw_i: 1,
+  se_i: 3,
+  sw_i: 3
+}
+
 function anchorRows(piece: string): number {
-  if (piece.startsWith('s')) return 3
-  if (piece === 'e_32' || piece === 'w_32') return 2
-  return 1
+  return ANCHOR_ROWS[piece] ?? 1
 }
 
 /**

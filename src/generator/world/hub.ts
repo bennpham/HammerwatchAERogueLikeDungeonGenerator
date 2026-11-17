@@ -16,16 +16,15 @@ import type { Rand } from '../core/rand'
 import { Doodad } from '../objects/doodad'
 import type { BiomeDef, ScatterEntry } from './biomes'
 import type { WorldHub } from './options'
+import { VILLAGE_MIN_SIZE, VILLAGE_RADIUS } from './options'
 import type { Tile } from './grid'
 import { WorldGrid, dist2 } from './grid'
 import { pick } from './scatter'
 
 /** Tiles kept clear round the start before anything else is placed. */
 export const HUB_RADIUS = 7
-/** A village's clear radius: room for its ring of tents and its market. */
-export const VILLAGE_RADIUS = 22
-/** The smallest island side a village fits on; `random` doesn't pick one below it. */
-export const VILLAGE_MIN_SIZE = 128
+// the village's sizes live with the other world bounds, which validation reads
+export { VILLAGE_MIN_SIZE, VILLAGE_RADIUS }
 
 export type HubKind = 'camp' | 'bare' | 'village'
 
@@ -85,7 +84,9 @@ function buildVillage(ctx: GenerationContext, rand: Rand, grid: WorldGrid, biome
   const place = (entry: ScatterEntry, t: Tile): boolean => {
     if (!grid.discAll(t, entry.solid + 1, (x, y) => grid.walkable(x, y))) return false
     Doodad.prop(ctx, t.x + 0.5, t.y + 0.5, entry.path)
-    grid.markDisc(t, Math.max(1, entry.solid), WorldGrid.SOLID)
+    // a walk-through prop (crops, a pitchfork) blocks nothing; it only keeps others off
+    if (entry.solid > 0) grid.markDisc(t, entry.solid, WorldGrid.SOLID)
+    else grid.markDisc(t, 1, WorldGrid.RESERVED)
     return true
   }
   place(centre, { x: at.x + VILLAGE_CENTRE.x, y: at.y + VILLAGE_CENTRE.y })

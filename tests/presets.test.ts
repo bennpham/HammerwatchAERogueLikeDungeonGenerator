@@ -23,7 +23,8 @@ import {
   mysteryStarterPool,
   MOBILE_BOSS_IDS,
   BOSS_CAMPAIGNS,
-  getTheme
+  getTheme,
+  worldList
 } from '../src/generator'
 import type { BossWave, DungeonParameters } from '../src/generator'
 import {
@@ -34,6 +35,8 @@ import {
   parseMonsterKey,
   resolveActorPath
 } from '../src/generator/objects/monsterTypes'
+import { campaignOrder, slotLabel } from '../src/generator/campaign'
+import { escapeFloorTimer, worldBossCount } from '../src/generator/config/parameters'
 import { corpseCollision } from '../src/generator/objects/actorCollision'
 import { levelsOf, lvlText, scriptsOf, stemsOf, strParam } from './ae'
 import type { AeLevel } from '../src/generator/ae/model'
@@ -99,7 +102,179 @@ describe('campaign presets', () => {
     }
   })
 
-  // These shapes are specific to the three beta-classic presets — they all
+  describe('Claude Generated Open World', () => {
+    const OPEN = CAMPAIGN_PRESETS.filter((p) => p.group === 'claudeWorld')
+    const orderOf = (params: DungeonParameters) =>
+      campaignOrder(
+        {
+          levels: params.levels,
+          fights: bossFights(params.boss).length,
+          lobbies: params.lobbies.length,
+          worlds: worldList(params.world).length
+        },
+        params.levelOrder
+      )
+    const labelsOf = (id: string) => orderOf(campaignPresetById(id)!.build()).map((s) => slotLabel(s))
+
+    it('is its own group, after Claude Generated, alphabetical, every preset with an island', () => {
+      const groups = PRESET_GROUPS.map((g) => g.id)
+      expect(groups.indexOf('claudeWorld')).toBe(groups.indexOf('claude') + 1)
+      expect(OPEN).toHaveLength(6)
+      const labels = OPEN.map((p) => p.label)
+      expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b)))
+      for (const preset of OPEN) {
+        const params = preset.build()
+        expect(params.world?.enabled, preset.id).toBe(true)
+        expect(orderOf(params).some((s) => s.kind === 'world'), preset.id).toBe(true)
+      }
+    })
+
+    it('keeps every island to what has been played: 256 tiles, one boss, no village, the default safe radius', () => {
+      for (const preset of OPEN) {
+        for (const w of worldList(preset.build().world)) {
+          expect(Math.max(w.maxWidth, w.maxHeight), preset.id).toBeLessThanOrEqual(256)
+          expect(worldBossCount(w), preset.id).toBeLessThanOrEqual(1)
+          expect(['camp', 'bare'], preset.id).toContain(w.hub)
+          expect(w.safeRadius, preset.id).toBeLessThanOrEqual(20)
+          expect(w.plateaus ?? 0, preset.id).toBe(0)
+        }
+      }
+    })
+
+    it('Breakout: no town, the island mid-run, ending on the timed escape floor', () => {
+      const params = campaignPresetById('world-breakout')!.build()
+      expect(params.lobbies).toEqual([])
+      expect(labelsOf('world-breakout')).toEqual(['1', '2', 'W1', '3'])
+      const last = params.levels - 1
+      expect(params.levelTimers![last]).toEqual(escapeFloorTimer())
+      expect(worldList(params.world)[0].timer?.enabled).toBe(true)
+      const result = generateDungeon(params, 4242)
+      expect(result.ok, result.ok ? '' : result.errors.join(' ')).toBe(true)
+      if (!result.ok) return
+      expect(endsGame(levelsOf(result).get(`floor${last}`)!)).toBe(true)
+    })
+
+    it('Manhunt: islands with no buttons and one named boss each, then the ringleader', () => {
+      const params = campaignPresetById('world-manhunt')!.build()
+      const worlds = worldList(params.world)
+      expect(worlds.map((w) => w.buttons)).toEqual([0, 0, 0])
+      expect(worlds.map((w) => w.bossLineup)).toEqual([{ boss_warden: 1 }, { boss_wraith: 1 }, { boss_golem: 1 }])
+      expect(worlds.every((w) => w.trails === false)).toBe(true)
+      expect(params.boss.fights[0].arena.bossPool).toEqual(['boss_vampire'])
+    })
+
+    it('Storm Front: three islands on shrinking timers, then a survival arena', () => {
+      const params = campaignPresetById('world-storm-front')!.build()
+      const seconds = worldList(params.world).map((w) => w.timer!.seconds)
+      expect(seconds).toEqual([300, 240, 180])
+      expect(worldList(params.world).every((w) => w.trails === true)).toBe(true)
+      expect(arenaMode(params.boss.fights[0])).toBe('survival')
+      expect(labelsOf('world-storm-front')).toEqual(['L1', 'W1', 'W2', 'W3', 'B1'])
+    })
+
+    it('Surface and Depths: island and floor in turn three times, from the very first slot', () => {
+      expect(labelsOf('world-surface-and-depths')).toEqual(['W1', '1', 'W2', '2', 'W3', '3', 'L1', 'B1'])
+      const result = generateDungeon(campaignPresetById('world-surface-and-depths')!.build(), 4242)
+      expect(result.ok, result.ok ? '' : result.errors.join(' ')).toBe(true)
+      if (!result.ok) return
+      // the island that opens the campaign leads down to floor 1, whose way out comes up on the next island
+      const levels = levelsOf(result)
+      expect(exitsTo(levels.get('world0')!)).toContain('floor0')
+      expect(exitsTo(levels.get('floor0')!)).toContain('world1')
+    })
+
+    it('runs an island straight into a town (Manhunt, Archipelago)', () => {
+      for (const [id, world, town] of [['world-manhunt', 'world1', 'lobby1'], ['world-archipelago', 'world1', 'lobby1']] as const) {
+        const result = generateDungeon(campaignPresetById(id)!.build(), 4242)
+        expect(result.ok, result.ok ? '' : result.errors.join(' ')).toBe(true)
+        if (!result.ok) continue
+        expect(exitsTo(levelsOf(result).get(world)!), id).toContain(town)
+      }
+    })
+  })
+
+  describe('Campaign Mode', () => {
+    const MODE = CAMPAIGN_PRESETS.filter((p) => p.group === 'campaign')
+    const TOWNS: Record<string, string> = {
+      'campaign-castle': 'castle_bridge',
+      'campaign-shaftlocke': 'shaftlocke_town',
+      'campaign-desert': 'sun_bazaar'
+    }
+    /** The highest skill tier a town sells, from its `combo1`…`combo5` columns. */
+    const skillTier = (shops: readonly string[]) => Math.max(0, ...shops.filter((c) => /^combo\d$/.test(c)).map((c) => Number(c.slice(5))))
+
+    it('is its own group, after Classic, with the three stock campaigns', () => {
+      const groups = PRESET_GROUPS.map((g) => g.id)
+      expect(groups.indexOf('campaign')).toBe(groups.indexOf('classic') + 1)
+      expect(MODE.map((p) => p.id)).toEqual(['campaign-castle', 'campaign-shaftlocke', 'campaign-desert'])
+    })
+
+    it('plays in acts: three floors, the town, then the boss', () => {
+      for (const preset of MODE) {
+        const order = preset.build().levelOrder!
+        order.forEach((slot, i) => {
+          if (slot.kind === 'boss') expect(order[i - 1].kind, `${preset.id} slot ${i}`).toBe('lobby')
+          if (slot.kind === 'lobby' && i > 0) {
+            expect(order.slice(i - 3, i).map((s) => s.kind), `${preset.id} slot ${i}`).toEqual(['floor', 'floor', 'floor'])
+            expect(order[i - 4].kind, `${preset.id} slot ${i}`).not.toBe('floor')
+          }
+        })
+        // and ends on the last act's boss
+        expect(order.at(-1)!.kind, preset.id).toBe('boss')
+      }
+    })
+
+    it('sells one more skill tier in each town, up to tier 5, cumulatively', () => {
+      for (const preset of MODE) {
+        const lobbies = preset.build().lobbies
+        const tiers = lobbies.map((l) => skillTier(l.shopCategories))
+        tiers.slice(1).forEach((t, i) => expect(t, `${preset.id} town ${i + 2}`).toBe(tiers[i] + 1))
+        expect(tiers.at(-1), preset.id).toBe(5)
+        for (const l of lobbies) {
+          for (let tier = 1; tier <= skillTier(l.shopCategories); tier++) {
+            for (const vendor of ['combo', 'def', 'misc', 'off']) expect(l.shopCategories, preset.id).toContain(`${vendor}${tier}`)
+          }
+          expect(l.shopCategories, preset.id).toContain('power')
+          // no free upgrades in any town
+          expect(Object.values(l.upgrades).every((n) => n === 0), preset.id).toBe(true)
+        }
+      }
+    })
+
+    it("shops in the family's own town every time", () => {
+      for (const preset of MODE) {
+        for (const l of preset.build().lobbies) expect(l.preset, preset.id).toBe(TOWNS[preset.id])
+      }
+    })
+
+    it('opens the desert on an island, and the other two underground', () => {
+      const desert = campaignPresetById('campaign-desert')!.build()
+      expect(desert.levelOrder!.slice(0, 2)).toEqual([{ kind: 'lobby', index: 0 }, { kind: 'world', index: 0 }])
+      const [world] = worldList(desert.world)
+      expect(world.biome).toBe('desert')
+      expect(world.bossCount).toBe(0)
+      expect(world.buttons).toBe(3)
+      for (const id of ['campaign-castle', 'campaign-shaftlocke']) expect(worldList(campaignPresetById(id)!.build().world), id).toEqual([])
+    })
+
+    it('never fields one boss in two acts', () => {
+      for (const preset of MODE) {
+        const pools = preset.build().boss.fights.map((f) => f.arena.bossPool)
+        const all = pools.flat()
+        expect(new Set(all).size, preset.id).toBe(all.length)
+      }
+    })
+
+    it('leaves the floor bosses off and locks the third floor of each act (Campaign Mode)', () => {
+      for (const preset of MODE) {
+        const params = preset.build()
+        expect(params.levelBoss, preset.id).toBeUndefined()
+        expect(params.levelLock!.map((l) => l.enabled), preset.id).toEqual(params.themes.map((_, i) => i % 3 === 2))
+      }
+    })
+  })
+
+  // These shapes are specific to the four classic presets — they all
   // share one arena size/cover figure and ship a populated boss-death tier by
   // convention, not by any rule the Claude-generated presets are bound to.
   describe('classic presets share one arena shape', () => {
@@ -116,7 +291,7 @@ describe('campaign presets', () => {
 
     it('gives every preset the same arena size and cover — a preset overrides neither', () => {
       // withBoss() re-points only theme, pool and waves, so the 2026-08-28
-      // playtest figures have to reach all three presets unchanged.
+      // playtest figures have to reach all four presets unchanged.
       const arena = defaultParameters().boss.fights[0].arena
       expect([arena.minWidth, arena.maxWidth, arena.minHeight, arena.maxHeight]).toEqual([42, 64, 42, 64])
       expect(arena.cover).toEqual({ pattern: 'symmetric', density: 0.08, ringSpacing: 4, clusters: 3 })
@@ -133,7 +308,7 @@ describe('campaign presets', () => {
     })
 
     // The escape floor: one extra dungeon floor played AFTER the boss arena, on
-    // a 90-second hazard timer, stuffed with breakable battlements. All three
+    // a 90-second hazard timer, stuffed with breakable battlements. All four
     // classic presets ship it, and it is what makes the last slot a run for
     // the exit rather than another floor to clear. The Claude-generated
     // presets are not bound to this shape (only Long Haul happens to echo it,
@@ -371,7 +546,7 @@ describe('campaign presets', () => {
         // Every fight is its own arena level in the preview — a chained-arena
         // preset like Arena Marathon has more than one, so the historical
         // "+1" only held because every preset shipped exactly one fight.
-        expect(result.levels).toHaveLength(params.levels + bossFights(params.boss).length)
+        expect(result.levels).toHaveLength(params.levels + bossFights(params.boss).length + worldList(params.world).length)
         const stems = stemsOf(result)
         for (let i = 0; i < params.levels; i++) expect(stems).toContain(`floor${i}`)
       })
@@ -388,7 +563,9 @@ describe('campaign presets', () => {
       // Plates and enhanced lock buttons are purely additive (invariant 8):
       // stripping them must leave every floor's tilemap byte-identical.
       it.runIf(params.mysteryButtons !== undefined)('moves no floor — its mystery plates are added after each floor is built', () => {
-        const plain = { ...params, mysteryButtons: undefined, levelMystery: undefined, levelLockMystery: undefined }
+        // an island's plates go too: without the pool they would not validate (islands move no floor anyway)
+        const world = params.world && { ...params.world, worlds: params.world.worlds.map((w) => ({ ...w, mysteryPlates: 0, mysteryPool: undefined })) }
+        const plain = { ...params, mysteryButtons: undefined, levelMystery: undefined, levelLockMystery: undefined, world }
         const a = generateDungeon(plain, 4242)
         const b = generateDungeon(params, 4242)
         expect(a.ok && b.ok).toBe(true)
@@ -590,14 +767,14 @@ describe('campaign presets', () => {
     })
 
     // A boss hunted against a hazard clock is picked for stock AE attack speed
-    it('hunts only the lighter bosses, for five minutes, on both clock presets', () => {
+    it('hunts only the lighter bosses, for ten minutes, on both clock presets', () => {
       const hunt = ['boss_knight', 'boss_krilith', 'boss_worm', 'boss_wraith', 'boss_golem']
       for (const id of ['claude-beat-the-clock', 'claude-shell-game']) {
         const params = campaignPresetById(id)!.build()
         const last = params.levels - 1
         expect(floorBossAt(params, last)!.bossPool, id).toEqual(hunt)
-        expect(params.levelTimers![last].seconds, id).toBe(300)
-        // a five-minute countdown passes without the file-size warning
+        expect(params.levelTimers![last].seconds, id).toBe(600)
+        // a ten-minute countdown passes without the file-size warning
         expect(validateParameters(params).warnings.map((w) => w.field), id).not.toContain(`levelTimers.${last}.countdown`)
       }
       for (const boss of hunt) expect(MOBILE_BOSS_IDS as readonly string[]).toContain(boss)
@@ -610,6 +787,25 @@ describe('campaign presets', () => {
         expect(floorBossAt(params, level)!.bossPool, `floor ${level + 1}`).not.toContain('boss_vampire')
       }
       for (const level of [2, 3]) expect(floorBossAt(params, level)!.bossPool).toEqual([...MOBILE_BOSS_IDS])
+    })
+
+    it('gives every floor of the once-thin presets at least three monster types', () => {
+      for (const id of ['claude-boss-rush', 'claude-pandemonium', 'claude-double-or-nothing', 'claude-shell-game', 'claude-long-haul']) {
+        const params = campaignPresetById(id)!.build()
+        // the escape floor's pool is its own breakable battlements
+        const floors = id === 'claude-long-haul' ? params.levelMonsters.slice(0, -1) : params.levelMonsters
+        floors.forEach((pool, i) => expect(new Set(pool).size, `${id} floor ${i + 1}`).toBeGreaterThanOrEqual(3))
+      }
+    })
+
+    it('draws the random multi-boss finales from the mobile roster only', () => {
+      for (const [id, count] of [['claude-pandemonium', 6], ['claude-arena-marathon', 3]] as const) {
+        const fights = campaignPresetById(id)!.build().boss.fights
+        const finale = fights[fights.length - 1]
+        expect(finale.arena.bossPool, id).toEqual([...MOBILE_BOSS_IDS])
+        expect(finale.arena.bossCount, id).toBe(count)
+        for (const big of ['boss_dragon', 'boss_queen', 'boss_dragon_hwr']) expect(finale.arena.bossPool, id).not.toContain(big)
+      }
     })
 
     it('Boss Rush: one floor boss from each campaign', () => {
@@ -720,6 +916,21 @@ describe('campaign presets', () => {
       const finalArena = levels.get('boss1')!
       expect(endsGame(finalArena)).toBe(false)
       expect(exitsTo(finalArena)).toContain('floor12')
+    })
+
+    it('Long Haul: a town before every act, the lich alone in the first arena, floor 8 counted down', () => {
+      const params = campaignPresetById('claude-long-haul')!.build()
+      const order = params.levelOrder!.map((s) => slotLabel(s))
+      expect(order).toEqual(['L1', '1', '2', '3', 'L2', '4', '5', '6', 'L3', 'B1', '7', '8', '9', 'L4', '10', '11', '12', 'L5', 'B2', '13'])
+      // never more than three floors between towns
+      let run = 0
+      for (const slot of params.levelOrder!) {
+        run = slot.kind === 'floor' ? run + 1 : slot.kind === 'lobby' ? 0 : run
+        expect(run).toBeLessThanOrEqual(3)
+      }
+      expect(params.lobbies[3].startingGold).toBe(20000)
+      expect(params.boss.fights[0].arena.bossPool).toEqual(['boss_lich'])
+      expect(params.levelTimers![7].countdown).toBe(true)
     })
   })
 

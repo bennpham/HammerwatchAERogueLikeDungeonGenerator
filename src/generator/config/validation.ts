@@ -60,8 +60,9 @@ import type { BossFight, BossOptions } from './parameters'
 import type { CampaignSlot } from '../campaign'
 import { SLOT_KINDS, defaultOrder } from '../campaign'
 import { biomeById, BIOME_IDS } from '../world/biomes'
-import { VILLAGE_MIN_SIZE } from '../world/hub'
 import {
+  MAX_WORLDS,
+  VILLAGE_MIN_SIZE,
   WORLD_HUBS,
   WORLD_MAX_AMBUSHES,
   WORLD_MAX_BUTTONS,
@@ -79,7 +80,8 @@ import {
   WORLD_SLOW_SIZE,
   worldList,
   worldMysteryPool,
-  worldSiteCapacity,
+  worldMaxSafeRadius,
+  worldSiteCapacityOf,
   WORLD_MAX_MYSTERY_PLATES,
   WORLD_MAX_AMBUSH_TYPES,
   WORLD_MAX_AMBUSH_WEIGHT,
@@ -487,6 +489,10 @@ function validateWorlds(p: DungeonParameters, errors: ValidationIssue[], warning
     errors.push({ field: 'world.worlds', message: 'Worlds are switched on but there are none. Add one, or switch them off.' })
     return
   }
+  if (world.worlds.length > MAX_WORLDS) {
+    errors.push({ field: 'world.worlds', message: `At most ${MAX_WORLDS} worlds; each is a whole level. Remove ${world.worlds.length - MAX_WORLDS}.` })
+    return
+  }
   const poolSize = (p.mysteryButtons ?? []).length
   world.worlds.forEach((w, i) => validateWorld(w, i, poolSize, errors, warnings))
 }
@@ -501,6 +507,16 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
       errors.push({ field: at(field), message: `${subject}: ${label} must be a whole number from ${min} to ${max}.` })
     }
   }
+
+  // a world from a hand-built object may lack a list the loader always fills
+  const listOf = <T,>(field: 'bossPool' | 'monsters', label: string): T[] => {
+    const v = w[field] as unknown
+    if (Array.isArray(v)) return v as T[]
+    errors.push({ field: at(field), message: `${subject}: the ${label} is missing; give it a list, even an empty one.` })
+    return []
+  }
+  const bossPool = listOf<string>('bossPool', 'boss pool')
+  const monsters = listOf<string>('monsters', 'monster pool')
 
   if (biomeById(w.biome) === undefined) {
     errors.push({ field: at('biome'), message: `${subject}: unknown biome "${w.biome}". Use one of: ${BIOME_IDS.join(', ')}.` })
@@ -579,10 +595,10 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
     validateBossLineup(w.bossLineup, at('bossLineup'), MOBILE_BOSS_IDS, errors, subject)
   } else {
     if (w.bossCount !== undefined) whole('bossCount', 'the boss count', 0, MAX_BOSS_COUNT)
-    if (bosses > 0 && w.bossPool.length === 0) {
+    if (bosses > 0 && bossPool.length === 0) {
       errors.push({ field: at('bossPool'), message: `${subject}: pick at least one boss for the pool.` })
     }
-    for (const id of w.bossPool) {
+    for (const id of bossPool) {
       if (!(MOBILE_BOSS_IDS as readonly string[]).includes(id)) {
         errors.push({
           field: at('bossPool'),
@@ -592,11 +608,24 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
     }
   }
   // 0 buttons and 0 bosses is free roam: the portal is open from the start
-  const capacity = worldSiteCapacity(w.minWidth, w.minHeight, w.waterMargin)
-  if (w.buttons + bosses > capacity) {
+  const objectives = w.buttons + bosses
+  const reach = worldMaxSafeRadius(w.minWidth, w.minHeight, w.waterMargin)
+  if (objectives > 0 && Number.isInteger(w.safeRadius) && w.safeRadius > reach) {
+    errors.push({
+      field: at('safeRadius'),
+      message: `${subject}: a safe radius of ${w.safeRadius} leaves no land for buttons or bosses on a ${w.minWidth}×${w.minHeight} island; keep it to ${Math.max(0, reach)} or less, or use a larger map.`
+    })
+  }
+  const capacity = worldSiteCapacityOf(w)
+  if (objectives > capacity) {
     errors.push({
       field: at('buttons'),
-      message: `${subject}: ${w.buttons + bosses} buttons and bosses won't fit on a ${w.minWidth}×${w.minHeight} island; it holds about ${capacity}. Use fewer, or a larger map.`
+      message: `${subject}: ${objectives} buttons and bosses won't fit on a ${w.minWidth}×${w.minHeight} island with this start, safe radius and terrain; it holds about ${capacity}. Use fewer, or a larger map.`
+    })
+  } else if (objectives > 0 && objectives === capacity && capacity > 1) {
+    warnings.push({
+      field: at('buttons'),
+      message: `${subject}: ${objectives} buttons and bosses is as many as a ${w.minWidth}×${w.minHeight} island holds; on a ragged coast some seeds may not fit them. One fewer, or a larger map, is safer.`
     })
   }
 
@@ -610,10 +639,11 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
     if (!Number.isInteger(type.weight) || type.weight < 1 || type.weight > WORLD_MAX_AMBUSH_WEIGHT) {
       errors.push({ field: tf('weight'), message: `${subject}, ambush ${t + 1}: the weight must be a whole number from 1 to ${WORLD_MAX_AMBUSH_WEIGHT}.` })
     }
-    if (type.monsters.length === 0) {
+    const rows = Array.isArray(type.monsters) ? type.monsters : []
+    if (rows.length === 0) {
       errors.push({ field: tf('monsters'), message: `${subject}, ambush ${t + 1}: add at least one monster.` })
     }
-    type.monsters.forEach((row, m) => {
+    rows.forEach((row, m) => {
       if (!isKnownMonsterKey(row.monster)) {
         errors.push({ field: tf(`monsters.${m}.monster`), message: `${subject}, ambush ${t + 1}: unknown monster "${row.monster}".` })
       }
@@ -626,10 +656,10 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
     })
   })
   const poolAmbushes = (w.ambushes > 0 || w.buttonAmbush > 0) && types.length === 0
-  if ((w.packs > 0 || poolAmbushes) && w.monsters.length === 0) {
+  if ((w.packs > 0 || poolAmbushes) && monsters.length === 0) {
     errors.push({ field: at('monsters'), message: `${subject}: packs and ambushes need at least one monster in the pool.` })
   }
-  for (const key of w.monsters) {
+  for (const key of monsters) {
     if (!isKnownFloorPoolKey(key)) errors.push({ field: at('monsters'), message: `${subject}: unknown monster "${key}".` })
   }
 

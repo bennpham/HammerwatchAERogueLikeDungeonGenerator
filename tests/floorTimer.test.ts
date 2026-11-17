@@ -225,10 +225,10 @@ describe('timer mode — validation', () => {
   })
 
   it('warns about a countdown long enough to bloat the level file', () => {
-    // five minutes is the clock presets' hunt and stays quiet; a second more warns
-    expect(check({ seconds: 300 }).warnings.map((w) => w.field)).not.toContain('levelTimers.0.countdown')
-    expect(check({ seconds: 301 }).warnings.map((w) => w.field)).toContain('levelTimers.0.countdown')
-    expect(check({ seconds: 301, countdown: false }).warnings.map((w) => w.field)).not.toContain(
+    // ten minutes is the clock presets' hunt and stays quiet; a second more warns
+    expect(check({ seconds: 600 }).warnings.map((w) => w.field)).not.toContain('levelTimers.0.countdown')
+    expect(check({ seconds: 601 }).warnings.map((w) => w.field)).toContain('levelTimers.0.countdown')
+    expect(check({ seconds: 601, countdown: false }).warnings.map((w) => w.field)).not.toContain(
       'levelTimers.0.countdown'
     )
   })

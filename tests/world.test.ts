@@ -5,9 +5,11 @@ import {
   generateDungeon,
   parseParametersTxt,
   serializeParametersTxt,
-  validateParameters
+  validateParameters,
+  downsamplePreview,
+  PREVIEW_MAX_SIDE
 } from '../src/generator'
-import type { DungeonParameters } from '../src/generator'
+import type { DungeonParameters, LevelPreview } from '../src/generator'
 import {
   campaignOrder,
   normalizeOrder,
@@ -17,7 +19,15 @@ import {
   stemOfFileName,
   worldId
 } from '../src/generator/campaign'
-import { WORLD_TERRAIN_LEVELS, defaultWorld, worldList } from '../src/generator/world/options'
+import {
+  MAX_WORLDS,
+  WORLD_TERRAIN_LEVELS,
+  defaultWorld,
+  worldList,
+  worldMaxSafeRadius,
+  worldSiteCapacityOf
+} from '../src/generator/world/options'
+import { WORLD_STEPS, WORLD_STEP_ADVICE } from '../src/generator/world/build'
 import type { WorldDef } from '../src/generator/world/options'
 import { BIOME_DEFS, plateauEdgeSet } from '../src/generator/world/biomes'
 import { COAST_PIECE_NAMES, EDGE_SETS, PLATEAU_EDGE_SETS, coastPiece } from '../src/generator/world/coast'
@@ -39,7 +49,10 @@ import {
   withStemPathsText
 } from './ae'
 import { floodFill } from '../src/generator/map/reachability'
-import { PORTAL_TEXT } from '../src/generator/world/objectives'
+import { ORB_AT, PORTAL_TEXT, STATUE_OFFSET, STATUE_RADIUS, bossSiteIndexes } from '../src/generator/world/objectives'
+import { SITE_RADIUS } from '../src/generator/world/place'
+import { WorldGrid } from '../src/generator/world/grid'
+import { HUB_RADIUS } from '../src/generator/world/hub'
 import { MONSTER_THEMES, matchingTheme } from '../src/generator/world/monsterThemes'
 import { WORLD_PRESETS } from '../src/generator/world/presets'
 import { LANDMARK_DEFS, landmarksFor } from '../src/generator/world/landmarks'
@@ -205,6 +218,68 @@ describe('world validation', () => {
     expect(fieldsOf(p)).toContain('levels')
   })
 
+  it('reports a world missing a list instead of throwing', () => {
+    for (const field of ['bossPool', 'monsters'] as const) {
+      const def = smallWorld() as Partial<WorldDef>
+      delete def[field]
+      expect(() => validateParameters(withWorlds([def as WorldDef])), field).not.toThrow()
+      expect(fieldsOf(withWorlds([def as WorldDef])), field).toContain(`world.worlds.0.${field}`)
+    }
+    const typeless = smallWorld({ ambushTypes: [{ weight: 1 } as never] })
+    expect(() => validateParameters(withWorlds([typeless]))).not.toThrow()
+    expect(fieldsOf(withWorlds([typeless]))).toContain('world.worlds.0.ambushTypes.0.monsters')
+  })
+
+  it(`refuses more than ${MAX_WORLDS} worlds`, () => {
+    expect(fieldsOf(withWorlds(Array.from({ length: MAX_WORLDS }, () => smallWorld())))).not.toContain('world.worlds')
+    expect(fieldsOf(withWorlds(Array.from({ length: MAX_WORLDS + 1 }, () => smallWorld())))).toContain('world.worlds')
+  })
+
+  it('never grows a loaded file past the world cap', () => {
+    const stray = parseParametersTxt('world=1\nworld99999Biome=desert\n')
+    expect(stray.params.world!.worlds.length).toBeLessThanOrEqual(1)
+    expect(stray.unknownKeys).toContain('world99999Biome')
+    const count = parseParametersTxt(`world=1\nworlds=${MAX_WORLDS + 1}\n`)
+    expect(count.params.world!.worlds.length).toBeLessThanOrEqual(1)
+    expect(count.unknownKeys.some((k) => k.startsWith('worlds'))).toBe(true)
+    // the cap itself still loads
+    const last = parseParametersTxt(`world=1\nworlds=${MAX_WORLDS}\nworld${MAX_WORLDS - 1}Biome=desert\n`)
+    expect(last.params.world!.worlds).toHaveLength(MAX_WORLDS)
+    expect(last.params.world!.worlds[MAX_WORLDS - 1].biome).toBe('desert')
+  })
+
+  it('refuses a safe radius that leaves no land for the sites, unless the world is free roam', () => {
+    const small = { minWidth: 96, maxWidth: 96, minHeight: 96, maxHeight: 96 }
+    const limit = worldMaxSafeRadius(96, 96, 8)
+    expect(limit).toBeGreaterThanOrEqual(defaultWorld().safeRadius)
+    expect(fieldsOf(withWorlds([{ ...defaultWorld(), ...small, buttons: 1, bossCount: 0, safeRadius: limit }]))).toEqual([])
+    const wide = withWorlds([{ ...defaultWorld(), ...small, buttons: 1, bossCount: 0, safeRadius: limit + 1 }])
+    expect(fieldsOf(wide)).toContain('world.worlds.0.safeRadius')
+    // with nothing to find, the radius only keeps packs off the start
+    const roam = withWorlds([{ ...defaultWorld(), ...small, buttons: 0, bossCount: 0, safeRadius: 64 }])
+    expect(fieldsOf(roam)).not.toContain('world.worlds.0.safeRadius')
+  })
+
+  it('counts the safe radius, the village and the plateaus against the sites', () => {
+    const base = { ...defaultWorld(), minWidth: 160, maxWidth: 160, minHeight: 160, maxHeight: 160, hub: 'camp' as const }
+    const plain = worldSiteCapacityOf(base)
+    expect(worldSiteCapacityOf({ ...base, safeRadius: 40 })).toBeLessThan(plain)
+    expect(worldSiteCapacityOf({ ...base, hub: 'village' })).toBeLessThan(plain)
+    // random may pick the village on an island this big, so it is counted the same
+    expect(worldSiteCapacityOf({ ...base, hub: 'random' })).toBe(worldSiteCapacityOf({ ...base, hub: 'village' }))
+    expect(worldSiteCapacityOf({ ...base, plateaus: 5, plateauMaxSize: 28 })).toBeLessThan(plain)
+    // and validation refuses what the smaller count can't hold
+    const crowded = withWorlds([{ ...base, hub: 'village', buttons: worldSiteCapacityOf({ ...base, hub: 'village' }) + 1, bossCount: 0 }])
+    expect(fieldsOf(crowded)).toContain('world.worlds.0.buttons')
+  })
+
+  it('warns when the sites fill the island exactly', () => {
+    const full = { ...smallWorld(), buttons: worldSiteCapacityOf(smallWorld()) - 1, bossCount: 1 }
+    const result = validateParameters(withWorlds([full]))
+    expect(result.errors).toEqual([])
+    expect(result.warnings.map((w) => w.field)).toContain('world.worlds.0.buttons')
+  })
+
   it('rejects an order that names a world the campaign does not have', () => {
     const p = withWorlds([smallWorld()], 'W1,1,2,3,B1')
     expect(fieldsOf(p)).toEqual([])
@@ -214,6 +289,28 @@ describe('world validation', () => {
 })
 
 describe('world parameters.txt keys', () => {
+  it('round-trips a campaign of islands alone: no floors, the arena off, a stored order', () => {
+    const p = withWorlds([smallWorld(), smallWorld({ biome: 'snow' })], 'L1,W1,L2,W2')
+    p.levels = 0
+    p.themes = []
+    p.levelMonsters = []
+    p.levelBuffs = []
+    p.levelTraps = []
+    p.levelTimers = []
+    p.floorMusic = []
+    delete p.levelLock
+    p.boss = { ...p.boss, enabled: false }
+    p.lobbies = defaultParameters().lobbies
+    expect(validateParameters(p).errors).toEqual([])
+    const back = parseParametersTxt(serializeParametersTxt(p))
+    expect(back.unknownKeys).toEqual([])
+    // the switched-off arena holds no slot, so the order comes back as written
+    expect(back.params.levelOrder!.map((s) => slotLabel(s))).toEqual(['L1', 'W1', 'L2', 'W2'])
+    expect(back.params.themes).toEqual([])
+    expect(back.params.levelMonsters).toEqual([])
+    expect(back.params).toEqual(p)
+  })
+
   it('writes nothing for the default, switched-off world', () => {
     expect(serializeParametersTxt(defaultParameters())).not.toMatch(/^world/m)
   })
@@ -274,6 +371,7 @@ describe('the island', () => {
     for (const b of BIOME_DEFS) {
       const paths = [
         b.ground,
+        b.highGround,
         ...b.patches,
         b.trail,
         b.water,
@@ -406,10 +504,36 @@ describe('a generated world', () => {
     const r = generateDungeon(p, 1)
     expect(r.ok === true || r.errors.some((e) => /world 1/i.test(e))).toBe(true)
   })
+
+  it('names the step that failed when no island works out', () => {
+    // free roam passes validation on any island, so only the build can refuse it
+    for (const seed of [1, 2, 3]) {
+      const r = generateDungeon(withWorlds([smallWorld({ waterMargin: 32, coast: 100, buttons: 0, bossCount: 0, safeRadius: 8 })]), seed)
+      if (r.ok) continue
+      expect(r.errors).toHaveLength(1)
+      expect(Object.values(WORLD_STEP_ADVICE).some((advice) => r.errors[0] === `Could not generate world 1: ${advice}.`)).toBe(true)
+    }
+    for (const step of WORLD_STEPS) expect(WORLD_STEP_ADVICE[step].length).toBeGreaterThan(0)
+  })
 })
 
 describe('the objectives and the portal', () => {
   const worldOf = (def: WorldDef, order?: string, seed = 4) => levelsOf(generateOk(withWorlds([def], order), seed)).get('world0')!
+
+  it('spreads the bosses round the sites instead of taking the first few', () => {
+    expect(bossSiteIndexes(6, 2)).toEqual([0, 3])
+    expect(bossSiteIndexes(8, 4)).toEqual([0, 2, 4, 6])
+    expect(bossSiteIndexes(5, 1)).toEqual([0])
+    expect(bossSiteIndexes(3, 3)).toEqual([0, 1, 2])
+    expect(bossSiteIndexes(2, 5)).toEqual([0, 1])
+    // on an island: two bosses of six sites sit on far sides of the start
+    const def = { ...defaultWorld(), buttons: 4, bossCount: 2 }
+    const preview = generateOk(withWorlds([def]), 4).levels.find((l) => l.world !== undefined)!.world!
+    const [a, b] = preview.sites.filter((s) => s.kind === 'boss')
+    const angle = (t: { x: number; y: number }) => Math.atan2(t.y - preview.hub.y, t.x - preview.hub.x)
+    const apart = Math.abs(((angle(a) - angle(b) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI)
+    expect(apart).toBeGreaterThan(Math.PI / 3)
+  })
 
   it('counts every button and boss down one variable, and opens the shut portal at zero', () => {
     const w0 = worldOf(smallWorld({ buttons: 3, bossCount: 1 }))
@@ -443,6 +567,24 @@ describe('the objectives and the portal', () => {
   it('turns the portal red in front of a fight', () => {
     const w0 = worldOf(smallWorld(), '1,2,3,W1,B1')
     expect(unitsOf(w0, (u) => u.path === 'doodads/generic/teleport_red.unit')).toHaveLength(1)
+  })
+
+  it('stands the orb three tiles north of the centre, clear of the save plate', () => {
+    const big = { minWidth: 160, maxWidth: 160, minHeight: 160, maxHeight: 160 }
+    for (const [hub, biome] of [['camp', 'grass'], ['bare', 'snow'], ['village', 'ashland'], ['village', 'grass']] as const) {
+      const size = hub === 'village' ? big : {}
+      const result = generateOk(withWorlds([smallWorld({ hub, biome, ...size })], '1,2,3,B1,W1'), 4)
+      const w0 = levelsOf(result).get('world0')!
+      const preview = result.levels.find((l) => l.world !== undefined)!.world!
+      const orb = unitsOf(w0, (u) => u.path.includes('collectable_10_sphere'))[0]
+      const tile = { x: Math.floor(orb.x / 16), y: Math.floor(orb.y / 16) }
+      expect(tile, hub).toEqual({ x: preview.hub.x + ORB_AT.x, y: preview.hub.y + ORB_AT.y })
+      const save = preview.sites.find((s) => s.kind === 'save')!
+      expect(Math.hypot(save.x - tile.x, save.y - tile.y), hub).toBeGreaterThan(4)
+      // nothing solid stands on it
+      const level = result.levels.find((l) => l.world !== undefined)!
+      expect(level.walls[tile.y * level.mapWidth + tile.x], hub).toBe('0')
+    }
   })
 
   it('hides the orb until the count reaches zero when it ends the campaign', () => {
@@ -658,6 +800,89 @@ describe('raised plateaus', () => {
     }
   })
 
+  it('keeps every pack on its own level, never across a rim', () => {
+    // '5' is open plateau top and '1' open low ground; trails and cliffs are skipped
+    let checked = 0
+    for (const seed of [1, 2, 3, 4]) {
+      const { level, preview, map, w } = run(hilly({ packs: 80, packSize: 12, ambushes: 0 }), seed)
+      const packs = preview.world!.sites.filter((s) => s.kind === 'pack')
+      const actors = unitsOf(level, (u) => u.path.startsWith('actors/') && !u.path.includes('boss'))
+      for (const pack of packs) {
+        const home = map[pack.y * w + pack.x]
+        if (home !== '1' && home !== '5') continue
+        for (const a of actors) {
+          const t = { x: Math.floor(a.x / 16), y: Math.floor(a.y / 16) }
+          if (Math.max(Math.abs(t.x - pack.x), Math.abs(t.y - pack.y)) > 2) continue
+          const c = map[t.y * w + t.x]
+          if (c !== '1' && c !== '5') continue
+          checked++
+          expect(c, `seed ${seed}: a pack member at ${t.x},${t.y} off its pack's level`).toBe(home)
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(100)
+  })
+
+  it('gives plateau tops their own ground, in every biome, and a flat island none of it', () => {
+    for (const b of BIOME_DEFS) {
+      expect(b.highGround, b.id).not.toBe(b.ground)
+      expect(b.patches, b.id).not.toContain(b.highGround)
+      const hills = lvlText(run(hilly({ biome: b.id }), 1).result, 'world0')
+      expect(hills, b.id).toContain(b.highGround)
+    }
+    const flat = lvlText(generateOk(withWorlds([smallWorld({ biome: 'grass' })]), 1), 'world0')
+    expect(flat).not.toContain(BIOME_DEFS.find((b) => b.id === 'grass')!.highGround)
+  }, 120_000)
+
+  it('runs a trail up the stairs without painting over them', () => {
+    let stairs = 0
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const { level, map, w } = run(hilly({ trails: true, buttons: 4 }), seed)
+      for (const u of unitsOf(level, (u) => u.path.endsWith('_stairs.unit'))) {
+        const ax = u.x / 16
+        const ay = u.y / 16 - 3
+        for (let dx = 0; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 3; dy++) {
+            stairs++
+            expect(map[(ay + dy) * w + ax + dx], `seed ${seed}: trail paint on the stairs at ${ax + dx},${ay + dy}`).not.toBe('3')
+          }
+        }
+      }
+    }
+    expect(stairs).toBeGreaterThan(0)
+  })
+
+  it('says how many plateaus were raised, and when some did not fit', () => {
+    const roomy = run(hilly(), 1).preview.world!
+    expect(roomy.plateaus).toEqual({ asked: 4, placed: plateausOf(roomy.map, 160, 160).length })
+    // forty big plateaus can't all fit on a 160 island: fewer are raised, and the count says so
+    const crowded = run(hilly({ plateaus: 40, plateauMinSize: 40, plateauMaxSize: 50 }), 1).preview.world!
+    expect(crowded.plateaus!.asked).toBe(40)
+    expect(crowded.plateaus!.placed).toBeLessThan(40)
+    expect(crowded.plateaus!.placed).toBe(plateausOf(crowded.map, 160, 160).length)
+    // a flat island carries no count
+    expect(run(smallWorld(), 1).preview.world!.plateaus).toBeUndefined()
+  })
+
+  it('calls two tiles one level only when no cliff lies between', () => {
+    // a 7×7 field: rows 0–2 a plateau, row 3 its cliff, rows 4–6 low ground
+    const grid = new WorldGrid(7, 7)
+    for (let y = 0; y < 7; y++) {
+      for (let x = 0; x < 7; x++) {
+        grid.set(x, y, WorldGrid.LAND)
+        if (y <= 3) grid.set(x, y, WorldGrid.HIGH)
+        if (y === 3 && x !== 6) grid.set(x, y, WorldGrid.CLIFF)
+      }
+    }
+    expect(grid.sameGround({ x: 1, y: 1 }, { x: 3, y: 0 })).toBe(true)
+    expect(grid.sameGround({ x: 1, y: 5 }, { x: 4, y: 6 })).toBe(true)
+    // across the rim: one high and one low
+    expect(grid.sameGround({ x: 1, y: 2 }, { x: 1, y: 4 })).toBe(false)
+    // both high, but the line crosses the cliff row
+    grid.set(2, 5, WorldGrid.HIGH)
+    expect(grid.sameGround({ x: 2, y: 1 }, { x: 2, y: 5 })).toBe(false)
+  })
+
   it('reaches every site, on high ground or low', () => {
     for (const seed of [1, 2, 3]) {
       const { preview } = run(hilly({ buttons: 4 }), seed)
@@ -719,6 +944,32 @@ describe('the village start', () => {
     }
   })
 
+  it('leaves a walk-through market prop walkable', () => {
+    const autumn = BIOME_DEFS.find((b) => b.id === 'autumn')!
+    const through = new Set(autumn.village.props.filter((e) => e.solid === 0).map((e) => e.path))
+    expect(through.size).toBeGreaterThan(0)
+    const solidOf = new Map(
+      [autumn.village.centre, ...autumn.village.tents, ...autumn.village.props].filter((e) => e.solid > 0).map((e) => [e.path, e.solid] as const)
+    )
+    let checked = 0
+    for (const seed of [1, 2, 3, 4]) {
+      const result = generateOk(withWorlds([village({ biome: 'autumn', scatter: 0 })]), seed)
+      const w0 = levelsOf(result).get('world0')!
+      const preview = result.levels.find((l) => l.world !== undefined)!
+      const tile = (u: { x: number; y: number }) => ({ x: Math.floor(u.x / 16), y: Math.floor(u.y / 16) })
+      const solids = unitsOf(w0, (u) => solidOf.has(u.path)).map((u) => ({ ...tile(u), r: solidOf.get(u.path)! }))
+      for (const u of unitsOf(w0, (u) => through.has(u.path))) {
+        const t = tile(u)
+        // under a solid neighbour's footprint it is blocked by that, not by itself
+        if (solids.some((s) => (s.x - t.x) ** 2 + (s.y - t.y) ** 2 <= s.r * s.r)) continue
+        const i = t.y * preview.mapWidth + t.x
+        checked++
+        expect(preview.walls[i], `seed ${seed} ${u.path}`).toBe('0')
+      }
+    }
+    expect(checked).toBeGreaterThan(0)
+  })
+
   it('refuses a village on an island too small for one', () => {
     const fields = validateParameters(withWorlds([smallWorld({ hub: 'village' })])).errors.map((e) => e.field)
     expect(fields).toContain('world.worlds.0.hub')
@@ -756,12 +1007,149 @@ describe('landmarks', () => {
     expect(count(false)).toBe(0)
   })
 
+  it('keeps every piece off the start, the save plate, the statue spots and the other sites', () => {
+    const solidOf = new Map(LANDMARK_DEFS.flatMap((l) => l.pieces.map((p) => [p.path, p.solid] as const)))
+    for (let seed = 1; seed <= 24; seed++) {
+      const def = { ...defaultWorld(), biome: 'desert', hub: 'camp' as const, scatter: 0, buttons: 5, bossCount: 2, minWidth: 160, maxWidth: 160, minHeight: 160, maxHeight: 160 }
+      const result = generateOk(withWorlds([def]), seed)
+      const w0 = levelsOf(result).get('world0')!
+      const preview = result.levels.find((l) => l.world !== undefined)!.world!
+      const sites = preview.sites.filter((s) => s.kind === 'button' || s.kind === 'boss')
+      const save = preview.sites.find((s) => s.kind === 'save')!
+      const statues = preview.sites.filter((s) => s.kind === 'boss').map((s) => ({ x: s.x + STATUE_OFFSET.x, y: s.y + STATUE_OFFSET.y }))
+      const d2 = (a: { x: number; y: number }, b: { x: number; y: number }) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2
+      for (const u of unitsOf(w0, (u) => landmarkPaths.has(u.path))) {
+        // a piece's footprint, not just its centre, keeps off what is kept
+        const at = { x: Math.floor(u.x / 16), y: Math.floor(u.y / 16) }
+        const r = solidOf.get(u.path) ?? 0
+        const own = sites.reduce((a, b) => (d2(a, at) <= d2(b, at) ? a : b))
+        for (const s of sites) if (s !== own) expect(d2(s, at), `${seed} ${u.path}`).toBeGreaterThan((SITE_RADIUS + r) ** 2)
+        expect(d2(preview.hub, at), `${seed} ${u.path} on the start`).toBeGreaterThan((HUB_RADIUS + r) ** 2)
+        expect(d2(save, at), `${seed} ${u.path} on the save plate`).toBeGreaterThan((1 + r) ** 2)
+        for (const t of statues) expect(d2(t, at), `${seed} ${u.path} on a statue spot`).toBeGreaterThan((STATUE_RADIUS + r) ** 2)
+      }
+    }
+  })
+
   it('moves no site, trail or monster', () => {
     const where = (landmarks: boolean) => {
       const preview = generateOk(withWorlds([smallWorld({ landmarks })]), 5).levels.find((l) => l.world !== undefined)!
       return JSON.stringify(preview.world!.sites.filter((s) => s.kind !== 'loot'))
     }
     expect(where(true)).toBe(where(false))
+  })
+})
+
+describe('prop footprints against the game', () => {
+  /** How far a unit's solid shapes reach from its origin, in px. */
+  const reachOf = (path: string, scene?: string): number => {
+    const { shapes } = loadUnit(aeAssetsDir()!, path, scene) as {
+      shapes: { rects: number[][]; polygons: number[][][]; circles: number[][] }
+    }
+    // a stock file may give a one-number offset (sign_pole: offset="0.5"); the missing part reads as 0
+    const n = (v: number) => (Number.isFinite(v) ? v : 0)
+    let r = 0
+    for (const [x, y, w, h] of shapes.rects.map((s) => s.map(n))) for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) r = Math.max(r, Math.hypot(px, py))
+    for (const poly of shapes.polygons) for (const [px, py] of poly) r = Math.max(r, Math.hypot(n(px), n(py)))
+    for (const [cx, cy, cr] of shapes.circles.map((s) => s.map(n))) r = Math.max(r, Math.hypot(cx, cy) + cr)
+    return r
+  }
+
+  it.skipIf(aeAssetsDir() === null)("gives every scatter, village and landmark prop a radius that covers its collider", () => {
+    const entries: Array<{ path: string; solid: number; where: string; scene?: string }> = []
+    for (const b of BIOME_DEFS) {
+      for (const e of [...b.clumps, ...b.cover]) entries.push({ ...e, where: `${b.id} scatter` })
+      for (const e of [b.village.centre, ...b.village.tents, ...b.village.props]) entries.push({ ...e, where: `${b.id} village` })
+    }
+    for (const l of LANDMARK_DEFS) for (const p of l.pieces) entries.push({ ...p, where: `landmark ${l.id}` })
+    for (const e of entries) {
+      // a prop stands at its tile's centre, so a collider r px out reaches tiles ceil((r - 8) / 16) away
+      const r = reachOf(e.path, e.scene)
+      const need = r <= 0 ? 0 : Math.ceil((r - 8) / 16)
+      expect(e.solid, `${e.where}: ${e.path} reaches ${r.toFixed(1)} px`).toBeGreaterThanOrEqual(need)
+    }
+  })
+})
+
+describe('what validates, generates', () => {
+  /** `patch` on the small world, with as many buttons as validation lets it hold. */
+  const full = (patch: Partial<WorldDef>): Partial<WorldDef> => {
+    const def = { ...smallWorld(), ...patch, bossCount: 0 }
+    return { ...patch, bossCount: 0, buttons: Math.max(1, worldSiteCapacityOf(def)) }
+  }
+  /** Settings at the edge of what validation allows, each on several seeds. */
+  const edges: Array<[string, Partial<WorldDef>]> = [
+    ['96, full of sites', { buttons: worldSiteCapacityOf(smallWorld()) - 1, bossCount: 1 }],
+    ['96, widest safe radius', full({ safeRadius: worldMaxSafeRadius(96, 96, 8) })],
+    ['96, rough coast and wide margin', full({ coast: 100, waterMargin: 16 })],
+    [
+      '128 village, full of sites',
+      (() => {
+        const v = { ...smallWorld(), minWidth: 128, maxWidth: 128, minHeight: 128, maxHeight: 128, hub: 'village' as const }
+        return { ...v, buttons: worldSiteCapacityOf(v) - 1, bossCount: 1 }
+      })()
+    ],
+    [
+      '160 highlands, full of sites',
+      (() => {
+        const h = { ...smallWorld(), minWidth: 160, maxWidth: 160, minHeight: 160, maxHeight: 160, hub: 'camp' as const, plateaus: 5, plateauMinSize: 16, plateauMaxSize: 28, plateauStairs: 2 }
+        return { ...h, buttons: worldSiteCapacityOf(h) - 1, bossCount: 1 }
+      })()
+    ]
+  ]
+
+  it.each(edges)('%s', (_name, patch) => {
+    const def = { ...smallWorld(), ...patch }
+    const p = withWorlds([def])
+    expect(validateParameters(p).errors).toEqual([])
+    for (let seed = 1; seed <= 6; seed++) {
+      const r = generateDungeon(p, seed)
+      expect(r.ok ? [] : r.errors, `seed ${seed}`).toEqual([])
+    }
+  }, 120_000)
+})
+
+describe('the preview sent to the window', () => {
+  const fake = (w: number, h: number, tile: (x: number, y: number) => string): LevelPreview => {
+    let map = ''
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) map += tile(x, y)
+    return {
+      level: 0,
+      label: 'W1',
+      theme: 'grass',
+      mapWidth: w,
+      mapHeight: h,
+      rooms: [],
+      passages: [],
+      monsterCount: 0,
+      itemCount: 0,
+      walls: map.replace(/[^0]/g, '1'),
+      world: { map, hub: { x: w / 2, y: h / 2 }, sites: [{ x: w - 1, y: h - 1, kind: 'boss' }] }
+    }
+  }
+
+  it('leaves an island up to the limit as it is', () => {
+    const small = fake(PREVIEW_MAX_SIDE, 200, () => '1')
+    expect(downsamplePreview(small)).toBe(small)
+    const dungeon = { ...small, mapWidth: 4000, world: undefined }
+    expect(downsamplePreview(dungeon)).toBe(dungeon)
+  })
+
+  it('shrinks a big island to blocks of its commonest tile, and moves the marks onto them', () => {
+    // water on the left half, land on the right, a 1030×600 island: blocks of 3
+    const big = fake(1030, 600, (x) => (x < 515 ? '0' : '1'))
+    const out = downsamplePreview(big)
+    expect(out.world!.scale).toBe(3)
+    expect(out.world!.size).toEqual({ width: 1030, height: 600 })
+    expect([out.mapWidth, out.mapHeight]).toEqual([344, 200])
+    expect(out.world!.map).toHaveLength(344 * 200)
+    expect(out.walls).toHaveLength(344 * 200)
+    expect(out.world!.map[0]).toBe('0')
+    expect(out.world!.map[343]).toBe('1')
+    expect(out.world!.hub).toEqual({ x: 171, y: 100 })
+    expect(out.world!.sites[0]).toEqual({ x: 343, y: 199, kind: 'boss' })
+    // the generator's own copy is untouched
+    expect(big.world!.map).toHaveLength(1030 * 600)
   })
 })
 
@@ -831,6 +1219,43 @@ describe('the save plate', () => {
 
   it('still reads a retired world<i>SavePlates line without complaint', () => {
     expect(parseParametersTxt('world=1\r\nworlds=1\r\nworld0SavePlates=5\r\n').unknownKeys).toEqual([])
+  })
+})
+
+describe('mystery payloads on an island', () => {
+  it('grows no solid scatter on a payload spawn or across a line of fire', () => {
+    const grass = BIOME_DEFS.find((b) => b.id === 'grass')!
+    const solid = new Set(grass.clumps.filter((e) => e.solid > 0).map((e) => e.path))
+    let spawnsChecked = 0
+    let linesChecked = 0
+    for (const seed of [1, 2, 3, 4]) {
+      const p = withWorlds([smallWorld({ biome: 'grass', scatter: 100, mysteryPlates: 4, buttonAmbush: 0, ambushes: 0, packs: 0, landmarks: false })])
+      p.mysteryButtons = [
+        {
+          name: 'Ambush and loot',
+          loot: [{ item: 'valuable_diamond_small_red', count: 3 }],
+          monsters: [{ monster: 'mummy', count: 4 }],
+          traps: [{ projectile: 'shooter_arrow', direction: 'down', spread: 0, spawnRateMs: 1000, count: 2 }]
+        }
+      ]
+      const w0 = levelsOf(generateOk(p, seed)).get('world0')!
+      const tileOf = (o: { x: number; y: number }) => `${Math.floor(o.x / 16)},${Math.floor(o.y / 16)}`
+      const props = unitsOf(w0, (u) => solid.has(u.path)).map((u) => ({ x: Math.floor(u.x / 16), y: Math.floor(u.y / 16) }))
+      const propTiles = new Set(props.map((t) => `${t.x},${t.y}`))
+      for (const spawn of [...scriptsOf(w0, 'SpawnObject'), ...scriptsOf(w0, 'SpawnUnit')]) {
+        spawnsChecked++
+        expect(propTiles.has(tileOf(spawn)), `seed ${seed}: a tree on a spawn`).toBe(false)
+      }
+      // a down spewer fires south; no prop centre stands in its column for the next ten tiles
+      for (const spewer of scriptsOf(w0, 'ProjectileSpewer')) {
+        linesChecked++
+        const sx = Math.floor(spewer.x / 16)
+        const sy = Math.floor(spewer.y / 16)
+        for (const t of props) expect(t.x === sx && t.y >= sy && t.y <= sy + 10, `seed ${seed}: a tree in a line of fire`).toBe(false)
+      }
+    }
+    expect(spawnsChecked).toBeGreaterThan(0)
+    expect(linesChecked).toBeGreaterThan(0)
   })
 })
 

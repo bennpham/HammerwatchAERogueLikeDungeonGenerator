@@ -209,11 +209,12 @@ export const MAX_TIMER_DAMAGE = 10_000
 /**
  * A countdown longer than this emits more than this many AnnounceText nodes on
  * that one floor, which bloats the level XML — warned about, not rejected.
- * Five minutes: the clock presets' boss hunts run that long on stock AE attack
- * speed, and measured on Beat the Clock's hunt floor (seed 4242) 300 ticks
- * against 180 cost about 35 KB on a 105 KB level (2026-10-18).
+ * Ten minutes: the clock presets' boss hunts run that long (balance audit B1,
+ * 2026-11-16). Measured on Beat the Clock's hunt floor (seed 4242), 600 ticks
+ * make a 246 KB level against 160 KB at 300; Shell Game's is 243 against 157.
+ * An island is several times that, so the warning is for longer clocks still.
  */
-export const TIMER_COUNTDOWN_NODE_WARN = 300
+export const TIMER_COUNTDOWN_NODE_WARN = 600
 
 /** A fresh, disabled floor timer — the stock value for every floor. */
 export function defaultFloorTimer(): FloorTimer {
@@ -703,7 +704,7 @@ export function escapeFloorTraps(): FloorTrap[] {
  * Stored explicitly because it is genuinely NOT the default order (which,
  * with two lobbies, would put BOTH of them before any floor — see
  * `defaultOrder` in campaign.ts), so `isDefaultOrder` is false for it and a
- * stock export writes a `levelOrder=` line. All three presets use it, and each
+ * stock export writes a `levelOrder=` line. All four classic presets use it, and each
  * ships exactly one fight and the same two stock lobbies `defaultParameters()`
  * does.
  */
@@ -1980,7 +1981,7 @@ export const SHOOTER_ARROW_TRAPS: BossTrap[] = [
  * quantity. Totals were 152 / 137 / 117 / 38 / 15; issue #64 part 2 added the
  * knight's own bodyguards on top (4 / 4 / 4 / 1), giving 152 / 141 / 121 / 42 / 16.
  */
-function castleWaves(): BossWave[] {
+export function castleWaves(): BossWave[] {
   const drops = stockWavePickups()
   return [
     scatterWave(
@@ -2085,7 +2086,7 @@ function castleWaves(): BossWave[] {
  * The built-in default is the "Castle" campaign preset — 7 floors of castle
  * themes a..g, each in its `- mixed` variant, so every floor varies its tileset
  * region by region and the boss floor lands on `g - mixed`. See config/presets.ts
- * for the other two presets, which override only `levels`, `themes` and
+ * for the other three classic presets, which override only `levels`, `themes` and
  * `levelMonsters` on top of this.
  *
  * Floors 1-4 are ordinary act mobs; 5-7 are boss rushes, which is why every

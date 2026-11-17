@@ -193,10 +193,15 @@ files.
 
 | Group | Presets |
 | --- | --- |
-| Classic | Castle (default), Desert, Bonus Gauntlet |
 | Pre-Alpha | Pre-Alpha (the original Java tool's settings) |
+| Classic | Castle (default), Desert, Shaftlocke Tower, Bonus Gauntlet |
+| Campaign Mode | Castle Campaign, Shaftlocke Campaign, Desert Campaign: the stock campaigns in acts of three floors, a town and a boss, each town selling one more tier of skills and items |
 | Colosseum | Survival in Colosseum: 16 survival rounds and 4 boss fights, with a lobby before each block |
-| Claude Generated | Arena Marathon, Beat the Clock, Boss Rush, Double or Nothing, Frozen Descent, Lunch Break, Pandemonium, Shell Game, The Long Haul, Trap Gauntlet |
+| Claude Generated | Arena Marathon, Beat the Clock, Boss Rush, Double or Nothing, Frozen Descent, Lunch Break, Pandemonium, Shaftlocke Siege, Shell Game, The Long Haul, Trap Gauntlet |
+| Claude Generated Open World | Archipelago, Breakout, Manhunt, Storm Front, Surface and Depths, The Lost Entrance: campaigns that use islands as the way in, the way out, a hunting ground or a race |
+
+A classic preset's floor count leaves out its escape floor, the extra floor
+played after the boss on a 90-second clock.
 
 The **(i)** in the header explains every header button, including how
 `parameters.txt` and `playersettings.txt` differ.

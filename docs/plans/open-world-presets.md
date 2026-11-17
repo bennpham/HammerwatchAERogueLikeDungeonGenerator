@@ -130,3 +130,14 @@ Left out on purpose, in rough order of value:
 2. **A boss that flees** to another site at each health threshold.
 3. **A shop on the island**, so the village start sells something.
 4. **Survival waves on an island.**
+
+## Status
+
+Built 2026-11-16 in `src/generator/config/worldCampaignPresets.ts`, as planned. Breakout is `1, 2, W1, 3`, ending on the escape floor. Notes from building it:
+
+- Surface and Depths' two-boss finale draws from the knight, the lich, Krilith, the worm and the golem, on the stock wave table.
+- Storm Front's order is the default for its slots (one town, three islands, one fight), so it is stored as absent.
+- A campaign with no floors keeps one placeholder theme and pool, as the Colosseum does, so that it round-trips.
+- Building them found a loader bug: a stored order lost its shape when the arena was off (the parser counted the disabled fight's slot). Fixed in its own commit.
+
+Boot checklist #122–#127.

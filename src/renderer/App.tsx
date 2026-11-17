@@ -37,6 +37,8 @@ export function App() {
   const [settings, setSettings] = useState<AppSettings>({ hammerwatchPath: '', cleanupFiles: true })
   const [seedInput, setSeedInput] = useState('')
   const [busy, setBusy] = useState(false)
+  /** a generation is running in main's worker; the Generate button turns into Cancel */
+  const [generating, setGenerating] = useState(false)
   const [result, setResult] = useState<GenerateResponse | null>(null)
   const [toast, setToast] = useState<Toast | null>(null)
   // null until main answers; the chat icon is not drawn before then
@@ -122,6 +124,7 @@ export function App() {
       }
     }
     setBusy(true)
+    setGenerating(true)
     try {
       const response = await window.api.generate(params, seed)
       if (response.ok) {
@@ -134,6 +137,7 @@ export function App() {
       }
     } finally {
       setBusy(false)
+      setGenerating(false)
     }
   }
 
@@ -478,9 +482,15 @@ export function App() {
                 <button onClick={rerollSeed} title="Roll a new random seed">🎲</button>
               </div>
             </label>
-            <button className="primary generate-button" disabled={busy || !validation.valid} onClick={generate}>
-              {busy ? 'Working…' : 'Generate dungeon'}
-            </button>
+            {generating ? (
+              <button className="generate-button" onClick={() => void window.api.cancelGenerate()} title="Stop this generation">
+                Generating… Cancel
+              </button>
+            ) : (
+              <button className="primary generate-button" disabled={busy || !validation.valid} onClick={generate}>
+                {busy ? 'Working…' : 'Generate dungeon'}
+              </button>
+            )}
           </div>
 
           {validation.errors.length > 0 && (

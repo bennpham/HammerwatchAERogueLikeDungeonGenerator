@@ -64,6 +64,8 @@ export interface ImportPlayerSettingsResult {
 export interface RendererApi {
   getInitialState(): Promise<InitialState>
   generate(params: DungeonParameters, seed?: number): Promise<GenerateResponse | DungeonError>
+  /** stop the generation running now; its generate call resolves as cancelled */
+  cancelGenerate(): Promise<void>
   installToHammerwatch(): Promise<ActionResult>
   exportFolder(): Promise<ActionResult>
   exportZip(): Promise<ActionResult>

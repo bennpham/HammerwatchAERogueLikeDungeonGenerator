@@ -6,8 +6,11 @@
  *
  * A piece is placed at its offset from the site's center, in tiles. Every
  * offset sits outside the site's clear disc (`SITE_RADIUS`), and a piece whose
- * footprint would touch the path to the site, another prop or the coast is
- * left out, so a landmark never cuts a site off. A `ring` landmark stands the
+ * footprint would touch the path to the site, another prop, the coast, or
+ * ground kept for something else (the start, the save plate, another site's
+ * disc or landmark, a stairway, a boss's statue spot) is left out, so a
+ * landmark never cuts a site off or covers another object. Its own site's
+ * disc and its own pieces' margins don't count against it. A `ring` landmark stands the
  * biome's own trees or rocks evenly round the site instead.
  *
  * Placed after the trails, from the world's layout stream, which nothing after
@@ -21,6 +24,8 @@ import type { BiomeDef } from './biomes'
 import type { Tile } from './grid'
 import { WorldGrid } from './grid'
 import { pick } from './scatter'
+import { SITE_RADIUS } from './place'
+import { dist2 } from './grid'
 
 export interface LandmarkPiece {
   path: string
@@ -51,7 +56,7 @@ export const LANDMARK_DEFS: readonly LandmarkDef[] = [
     label: 'Pyramid',
     biomes: ['desert'],
     pieces: [
-      { path: `${G}/pyramid_small.unit`, dx: 0, dy: -12, solid: 6 },
+      { path: `${G}/pyramid_small.unit`, dx: 0, dy: -14, solid: 8 },
       { path: `${T}/stone_desert_large.unit`, dx: -7, dy: -3, solid: 2 },
       { path: `${T}/stone_desert_small.unit`, dx: 6, dy: -4, solid: 0 }
     ]
@@ -148,10 +153,31 @@ export function landmarksFor(biome: string): LandmarkDef[] {
  * A landmark for each site, picked from those suiting the biome (one draw per
  * site, made whether or not a piece fits). Returns which landmark each site got.
  */
-export function placeLandmarks(ctx: GenerationContext, rand: Rand, grid: WorldGrid, biome: BiomeDef, sites: readonly Tile[]): string[] {
+export function placeLandmarks(
+  ctx: GenerationContext,
+  rand: Rand,
+  grid: WorldGrid,
+  biome: BiomeDef,
+  sites: readonly Tile[],
+  keepOut: readonly { at: Tile; radius: number }[] = []
+): string[] {
   const options = landmarksFor(biome.id)
   if (options.length === 0) return sites.map(() => '')
-  return sites.map((site) => {
+  // what was kept before any landmark, and which landmark kept each tile since
+  const { width } = grid
+  const before = Uint8Array.from(grid.flags, (f) => ((f & WorldGrid.RESERVED) !== 0 ? 1 : 0))
+  const owner = new Int32Array(grid.flags.length)
+  const kept = (x: number, y: number) => keepOut.some((k) => dist2({ x, y }, k.at) <= k.radius * k.radius)
+  return sites.map((site, k) => {
+    const mine = k + 1
+    const open = (x: number, y: number): boolean => {
+      if (!grid.walkable(x, y) || grid.has(x, y, WorldGrid.PATH) || kept(x, y)) return false
+      const i = y * width + x
+      // kept before the landmarks: only this site's own disc is open to it
+      if (before[i] === 1 && dist2({ x, y }, site) > SITE_RADIUS * SITE_RADIUS) return false
+      // kept by a landmark since: only by this site's own
+      return owner[i] === 0 || owner[i] === mine
+    }
     const def = options[rand.iRand(0, options.length)]
     const pieces: LandmarkPiece[] = [...def.pieces]
     if (def.ring !== undefined && biome.clumps.length > 0) {
@@ -169,12 +195,19 @@ export function placeLandmarks(ctx: GenerationContext, rand: Rand, grid: WorldGr
     }
     for (const piece of pieces) {
       const at = { x: site.x + piece.dx, y: site.y + piece.dy }
-      // clear of the path, the coast and every prop, a tile beyond its own footprint
-      const clear = grid.discAll(at, piece.solid + 1, (x, y) => grid.walkable(x, y) && !grid.has(x, y, WorldGrid.PATH))
-      if (!clear) continue
+      // clear of the path, the coast, every prop and all kept ground, a tile beyond its own footprint
+      if (!grid.discAll(at, piece.solid + 1, open)) continue
       Doodad.prop(ctx, at.x + 0.5, at.y + 0.5, piece.path, piece.scene === undefined ? undefined : { start: { kind: 'string', value: piece.scene } })
       if (piece.solid > 0) grid.markDisc(at, piece.solid, WorldGrid.SOLID)
-      grid.markDisc(at, Math.max(1, piece.solid), WorldGrid.RESERVED)
+      const r = Math.max(1, piece.solid)
+      grid.markDisc(at, r, WorldGrid.RESERVED)
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const x = at.x + dx
+          const y = at.y + dy
+          if (dx * dx + dy * dy <= r * r && x >= 0 && y >= 0 && x < width && y < grid.height) owner[y * width + x] ||= mine
+        }
+      }
     }
     return def.id
   })

@@ -30,6 +30,8 @@ export interface BiomeDef {
   label: string
   /** the land's base tileset */
   ground: string
+  /** a plateau top's ground, so raised land reads as raised away from its rim */
+  highGround: string
   /** tilesets painted in noise patches over the ground (never under a trail) */
   patches: string[]
   /** the trails from the start to each site */
@@ -75,6 +77,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     id: 'grass',
     label: 'Grassland',
     ground: 'tilesets/grass_1_default.tileset',
+    highGround: 'tilesets/grass_3_default.tileset',
     patches: ['tilesets/grass_4_default.tileset'],
     trail: 'tilesets/outlook_dirt.tileset',
     water: 'tilesets/water_clear.tileset',
@@ -110,6 +113,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     id: 'woods',
     label: 'Woods',
     ground: 'tilesets/mud_3.tileset',
+    highGround: 'tilesets/mud_1.tileset',
     patches: ['tilesets/moss.tileset', 'tilesets/leaf_dry.tileset'],
     trail: 'tilesets/cold_dirt.tileset',
     water: 'tilesets/water_clear.tileset',
@@ -118,7 +122,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     environment: 'effects/env/dusk.env',
     clumpDensity: 3,
     clumps: [
-      { path: 'doodads/terrain/tree_fir.unit', weight: 4, solid: 1 },
+      { path: 'doodads/terrain/tree_fir.unit', weight: 4, solid: 2 },
       { path: 'doodads/terrain/tree_pine.unit', weight: 3, solid: 2 },
       { path: 'doodads/terrain/tree_ash_red.unit', weight: 2, solid: 1 },
       { path: 'doodads/terrain/tree_fir_stump.unit', weight: 1, solid: 1 },
@@ -146,6 +150,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     id: 'desert',
     label: 'Desert',
     ground: 'tilesets/desert.tileset',
+    highGround: 'tilesets/desert_fine.tileset',
     patches: ['tilesets/desert_rough.tileset'],
     trail: 'tilesets/desert_cobble.tileset',
     water: 'tilesets/water_clear.tileset',
@@ -162,7 +167,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
       { path: 'doodads/terrain/stone_desert_small.unit', weight: 3, solid: 0 },
       { path: 'doodads/terrain/stone_desert_small_dark.unit', weight: 2, solid: 0 },
       { path: 'doodads/terrain/desert_grass_patch.unit', weight: 2, solid: 0 },
-      { path: 'doodads/terrain/stone_desert_minor.unit', weight: 2, solid: 0 }
+      { path: 'doodads/terrain/stone_desert_minor.unit', weight: 2, solid: 1 }
     ],
     camp: {
       tent: 'doodads/generic/tent_desert.unit',
@@ -182,6 +187,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     id: 'mud',
     label: 'Mudlands',
     ground: 'tilesets/mud_7.tileset',
+    highGround: 'tilesets/mud_5.tileset',
     patches: ['tilesets/mud_3.tileset', 'tilesets/moss.tileset'],
     trail: 'tilesets/outlook_dirt.tileset',
     water: 'tilesets/water_clear.tileset',
@@ -216,6 +222,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     id: 'snow',
     label: 'Snowfield',
     ground: 'tilesets/snow.tileset',
+    highGround: 'tilesets/temple_frost.tileset',
     patches: ['tilesets/snow_grass_tall.tileset'],
     trail: 'tilesets/temple_snow.tileset',
     water: 'tilesets/water_clear.tileset',
@@ -223,7 +230,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     environment: 'effects/lighting/outlook.env',
     clumpDensity: 1.5,
     clumps: [
-      { path: 'doodads/terrain/tree_fir.unit', weight: 4, solid: 1 },
+      { path: 'doodads/terrain/tree_fir.unit', weight: 4, solid: 2 },
       { path: 'doodads/terrain/tree_pine.unit', weight: 2, solid: 2 },
       { path: 'doodads/terrain/ice_rock.unit', weight: 2, solid: 1 },
       { path: 'doodads/terrain/tree_fir_stump.unit', weight: 1, solid: 1 }
@@ -251,6 +258,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     id: 'coast',
     label: 'Beach',
     ground: 'tilesets/beach.tileset',
+    highGround: 'tilesets/desert_flat.tileset',
     patches: ['tilesets/beach_spots.tileset', 'tilesets/outlook_grass_16.tileset'],
     trail: 'tilesets/stones_river.tileset',
     water: 'tilesets/water_clear.tileset',
@@ -289,6 +297,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     id: 'autumn',
     label: 'Autumn forest',
     ground: 'tilesets/grass_2_default.tileset',
+    highGround: 'tilesets/grass_4_default.tileset',
     patches: ['tilesets/leaf_dry.tileset', 'tilesets/coniferneedle.tileset'],
     trail: 'tilesets/outlook_dirt.tileset',
     water: 'tilesets/water_clear.tileset',
@@ -332,6 +341,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     id: 'ashland',
     label: 'Ashland',
     ground: 'tilesets/cave_basalt.tileset',
+    highGround: 'tilesets/cave_dark.tileset',
     patches: ['tilesets/cave_dark_stone.tileset', 'tilesets/corrupted.tileset', 'tilesets/stones_basalt.tileset'],
     trail: 'tilesets/mud_6.tileset',
     water: 'tilesets/water_clear.tileset',
@@ -374,6 +384,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     id: 'marsh',
     label: 'Marsh',
     ground: 'tilesets/mud_4.tileset',
+    highGround: 'tilesets/mud_1.tileset',
     patches: ['tilesets/mud_2.tileset', 'tilesets/moss.tileset'],
     trail: 'tilesets/stones_river.tileset',
     water: 'tilesets/water_river_clear.tileset',
@@ -411,6 +422,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
     id: 'crystal',
     label: 'Crystal frost',
     ground: 'tilesets/cave_crystal_fine.tileset',
+    highGround: 'tilesets/snow.tileset',
     patches: ['tilesets/cave_crystal.tileset', 'tilesets/cave_crystal_frozen.tileset', 'tilesets/outlook_snow_16.tileset'],
     trail: 'tilesets/cave_crystal_path.tileset',
     water: 'tilesets/water_clear.tileset',
@@ -422,7 +434,7 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
       { path: 'doodads/terrain/rock_cave_small.unit', weight: 3, solid: 1 },
       { path: 'doodads/terrain/stalagmite_big.unit', weight: 2, solid: 1 },
       { path: 'doodads/terrain/ice_rock.unit', weight: 2, solid: 1 },
-      { path: 'doodads/terrain/tree_fir.unit', weight: 2, solid: 1 }
+      { path: 'doodads/terrain/tree_fir.unit', weight: 2, solid: 2 }
     ],
     cover: [
       // each crystal is a light, so they stay rare against the stones

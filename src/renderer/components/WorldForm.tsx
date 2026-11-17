@@ -37,7 +37,8 @@ import {
   normalizeOrder,
   slotLabel,
   worldBossCount,
-  worldSiteCapacity
+  worldSiteCapacityOf,
+  MAX_WORLDS
 } from '../../generator'
 import type { DungeonParameters, ValidationIssue, WorldAmbushType, WorldDef, WorldOptions } from '../../generator'
 import { BoolField, NumberField, Section, ToggleGroup } from './fields'
@@ -143,7 +144,7 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
   // Zero switches worlds off and keeps the list, so 0 -> 1 gives back the
   // world already tuned; growing clones the last one, as the arenas do.
   const setCount = (raw: number) => {
-    const n = Math.max(0, Math.trunc(raw))
+    const n = Math.min(MAX_WORLDS, Math.max(0, Math.trunc(raw)))
     if (Number.isNaN(n)) return
     if (n === 0) {
       if (options.enabled) set({ enabled: false })
@@ -172,7 +173,7 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
           the portal comes alive. Each world draws from its own RNG stream, so the dungeon itself is
           identical with or without one, for the same seed.
         </p>
-        <NumberField label="Number of worlds" field="world.worlds" value={count} issues={issues} min={0} step={1} onChange={setCount} />
+        <NumberField label="Number of worlds" field="world.worlds" value={count} issues={issues} min={0} max={MAX_WORLDS} step={1} onChange={setCount} />
         <p className="hint">Place each world among the floors and arenas on the Floor order tab.</p>
       </Section>
 
@@ -331,7 +332,7 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
           <Section title="Objectives" defaultOpen badge={`${world.buttons + worldBossCount(world)}`}>
             <p className="hint">
               Every button pressed and every boss killed counts toward the portal. With none at all the world is free roam: the portal is open from the start. This size fits about{' '}
-              {worldSiteCapacity(world.minWidth, world.minHeight, world.waterMargin)}.
+              {worldSiteCapacityOf(world)}.
             </p>
             <NumberField label="Floor buttons" field={`${prefix}.buttons`} value={world.buttons} issues={issues} min={0} max={WORLD_MAX_BUTTONS} onChange={(buttons) => setWorld({ buttons })} />
             <BossSelectionEditor

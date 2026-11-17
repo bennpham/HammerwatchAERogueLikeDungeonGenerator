@@ -5,7 +5,7 @@ import type { DungeonParameters } from './config/parameters'
 import { validateParameters, ValidationResult } from './config/validation'
 import { DEFAULT_LOBBY_PRESET_ID, buildLobby, lobbyPresetById } from './lobby'
 import { buildBossArena } from './boss'
-import { buildWorld } from './world/build'
+import { WORLD_STEP_ADVICE, buildWorld } from './world/build'
 import type { WorldPreview } from './world/build'
 import { worldList } from './world/options'
 import { campaignFileNames, campaignOrder, floorId, gatewayAfter, slotEntryId, slotLabeller } from './campaign'
@@ -138,10 +138,15 @@ export {
   defaultWorldOptions,
   worldList,
   worldMysteryPool,
-  worldSiteCapacity
+  worldSiteCapacity,
+  worldSiteCapacityOf,
+  worldMaxSafeRadius,
+  worldStartClearance,
+  MAX_WORLDS
 } from './world/options'
 export type { WorldAmbushType, WorldDef, WorldOptions, WorldHub } from './world/options'
 export { BIOME_DEFS, BIOME_IDS, biomeById } from './world/biomes'
+export { PREVIEW_MAX_SIDE, downsamplePreview } from './world/previewScale'
 export { MONSTER_THEMES, matchingTheme } from './world/monsterThemes'
 export { WORLD_PRESETS } from './world/presets'
 export type { WorldPreset } from './world/presets'
@@ -498,13 +503,10 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
     ctx.clearLevel()
     enter(slot)
     const built = buildWorld(ctx, worlds[i], params.levels + fights.length + i, gateway, next?.kind === 'boss')
-    if (built === null) {
+    if ('failed' in built) {
       return {
         ok: false,
-        errors: [
-          `Could not generate world ${i + 1}. ` +
-            `The island is likely too crowded — try fewer buttons or bosses, a smaller safe radius, or a larger map.`
-        ]
+        errors: [`Could not generate world ${i + 1}: ${WORLD_STEP_ADVICE[built.failed]}.`]
       }
     }
     files.push({ path: ctx.levelPath(ctx.currentStem), content: renderLevel(built.level) })

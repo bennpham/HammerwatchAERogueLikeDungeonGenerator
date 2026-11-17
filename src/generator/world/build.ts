@@ -46,7 +46,7 @@ import { HUB_RADIUS, VILLAGE_MIN_SIZE, buildHub, hubRadius, resolveHub } from '.
 import { SITE_RADIUS, placeSites } from './place'
 import { carveTrails } from './paths'
 import { placeLandmarks } from './landmarks'
-import { buildObjectives } from './objectives'
+import { STATUE_RADIUS, buildObjectives, reserveStatueSpots } from './objectives'
 import { buildEncounters, placeLoot } from './encounters'
 import { scatterProps } from './scatter'
 import { placeStartSave } from './saves'
@@ -56,12 +56,34 @@ import { worldTerrain } from './options'
 /** Fresh islands tried before the world gives up. */
 const MAX_WORLD_ATTEMPTS = 20
 
+/**
+ * The steps a try at an island can fail on, in the order they run. A world
+ * that fails every try reports the step that failed most, so the message can
+ * say what to change.
+ */
+export const WORLD_STEPS = ['island', 'start', 'sites', 'trails', 'reach'] as const
+export type WorldStep = (typeof WORLD_STEPS)[number]
+
+/** What to change when `step` keeps failing, for the error message. */
+export const WORLD_STEP_ADVICE: Record<WorldStep, string> = {
+  island: 'no island could be grown at this size and coast; try a calmer coast or a larger map',
+  start: 'the start kept landing on broken ground; try a calmer coast or a larger map',
+  sites: 'the buttons and bosses would not fit; try fewer of them, a smaller safe radius, fewer plateaus or a larger map',
+  trails: 'a site could not be reached from the start; try a calmer coast or fewer plateaus',
+  reach: 'props or plateaus cut a site off from the start; try less scatter or fewer plateaus'
+}
+
 /** A world's map for the preview. */
 export interface WorldPreview {
   /** one char per tile, row-major: '0' water, '1' land, '2' cliff, '3' trail, '4' solid, '5' plateau */
   map: string
   hub: Tile
   sites: Array<Tile & { kind: 'button' | 'boss' | 'ambush' | 'pack' | 'loot' | 'mystery' | 'save' }>
+  /** plateaus asked for and raised, when the world asks for any */
+  plateaus?: { asked: number; placed: number }
+  /** set on a downsampled copy (`previewScale.ts`): tiles per preview cell, and the real size */
+  scale?: number
+  size?: { width: number; height: number }
 }
 
 /** A world's three streams, each seeded from one `ctx.worldRand` draw. */
@@ -80,7 +102,7 @@ export function worldStreams(worldRand: Rand): WorldStreams {
  * Build world `def` for the slot `ctx` was just `enter`ed with. `gateway` is
  * where its portal leads (anything but `orb` leads to `gateway.target`);
  * `nextIsFight` turns the portal red. Null when no island worked out in
- * `MAX_WORLD_ATTEMPTS` tries.
+ * `MAX_WORLD_ATTEMPTS` tries, with the step that failed most often.
  */
 export function buildWorld(
   ctx: GenerationContext,
@@ -88,43 +110,66 @@ export function buildWorld(
   levelNumber: number,
   gateway: Gateway,
   nextIsFight: boolean
-): { level: AeLevel; preview: LevelPreview } | null {
+): { level: AeLevel; preview: LevelPreview } | { failed: WorldStep } {
   const { layout, scatter, encounters } = worldStreams(ctx.worldRand)
   const biome = biomeById(def.biome) ?? BIOME_DEFS[0]
   const width = layout.iRand(def.minWidth, def.maxWidth + 1)
   const height = layout.iRand(def.minHeight, def.maxHeight + 1)
   const objectives = def.buttons + worldBossCount(def)
+  const failures: Record<WorldStep, number> = { island: 0, start: 0, sites: 0, trails: 0, reach: 0 }
+  const fail = (step: WorldStep) => failures[step]++
 
   for (let attempt = 0; attempt < MAX_WORLD_ATTEMPTS; attempt++) {
     ctx.clearLevel()
     const island = buildIsland(layout, width, height, def.waterMargin, def.coast)
-    if (island === null) continue
+    if (island === null) {
+      fail('island')
+      continue
+    }
     const grid = gridOf(island)
     const hub = { x: Math.floor(width / 2), y: Math.floor(height / 2) }
     const arrival = { x: hub.x, y: hub.y + 3 }
     const hubKind = resolveHub(layout, def.hub, Math.min(width, height) >= VILLAGE_MIN_SIZE)
     // the portal's own ground must be open; a village's ring may meet the coast
-    if (!grid.discAll(hub, HUB_RADIUS, (x, y) => grid.walkable(x, y))) continue
+    if (!grid.discAll(hub, HUB_RADIUS, (x, y) => grid.walkable(x, y))) {
+      fail('start')
+      continue
+    }
     grid.markDisc(hub, hubRadius(hubKind), WorldGrid.RESERVED)
     // a flat world draws nothing here, so it is the same island it always was
-    const plateaus =
-      worldTerrain(def).plateaus > 0 ? placePlateaus(new Rand(layout.nextInt(2147483647)), grid, def, plateauEdgeSet(biome)) : []
+    const asked = worldTerrain(def).plateaus
+    const raised = asked > 0 ? placePlateaus(new Rand(layout.nextInt(2147483647)), grid, def, plateauEdgeSet(biome)) : { units: [], placed: 0 }
+    const plateaus = raised.units
 
     const sites = placeSites(layout, grid, hub, objectives, def.safeRadius)
-    if (sites === null) continue
+    if (sites === null) {
+      fail('sites')
+      continue
+    }
     for (const s of sites) grid.markDisc(s, SITE_RADIUS, WorldGrid.RESERVED)
     buildHub(ctx, layout, grid, biome, hubKind, hub)
     const save = placeStartSave(ctx, grid, hub)
     grid.markDisc(hub, 1, WorldGrid.SOLID)
-    if (!carveTrails(layout, grid, arrival, sites, def.trails)) continue
-    if (def.landmarks !== false) placeLandmarks(ctx, layout, grid, biome, sites)
+    if (!carveTrails(layout, grid, arrival, sites, def.trails)) {
+      fail('trails')
+      continue
+    }
+    // the boss statues' spots first, so no landmark grows over one
+    const statues = reserveStatueSpots(grid, sites, worldBossCount(def))
+    if (def.landmarks !== false) {
+      const keepOut = [...statues.map((at) => ({ at, radius: STATUE_RADIUS })), { at: save, radius: 1 }]
+      placeLandmarks(ctx, layout, grid, biome, sites, keepOut)
+    }
 
     const placed = buildObjectives(ctx, encounters, grid, def, hub, sites, gateway, nextIsFight)
     const met = buildEncounters(ctx, encounters, grid, def, hub, sites, placed.plates, ctx.params.mysteryButtons ?? [])
     scatterProps(ctx, scatter, grid, biome, def.scatter)
 
     const reached = grid.reach(arrival)
-    if (sites.some((s) => reached[s.y * width + s.x] !== 1)) continue
+    if (sites.some((s) => reached[s.y * width + s.x] !== 1)) {
+      fail('reach')
+      continue
+    }
     const loot = placeLoot(ctx, encounters, grid, def, hub, reached, [...sites, ...met.packs, ...met.mystery])
 
     buildFloorHazardRig(ctx, def.timer, width, height)
@@ -140,9 +185,13 @@ export function buildWorld(
       ...loot.map((t) => ({ ...t, kind: 'loot' as const })),
       { ...save, kind: 'save' as const }
     ]
-    return { level, preview: previewOf(ctx, grid, hub, levelNumber, biome, marks) }
+    const preview = previewOf(ctx, grid, hub, levelNumber, biome, marks)
+    if (asked > 0) preview.world!.plateaus = { asked, placed: raised.placed }
+    return { level, preview }
   }
-  return null
+  // the step that failed most; ties go to the earlier step
+  const failed = WORLD_STEPS.reduce((a, b) => (failures[b] > failures[a] ? b : a))
+  return { failed }
 }
 
 function gridOf(island: IslandMask): WorldGrid {
@@ -184,10 +233,13 @@ function emitWorld(
   }
   // the ground grown a tile, so it reaches under the cliff lips
   layers.paint16(biome.ground, land, [1, 1, 1, 1])
-  // patches: one noise field per tileset, never under a trail or a cliff
+  // plateau tops: their own ground inside the rim, so height reads away from the edge
+  const tops = land.filter(([x, y]) => grid.has(x, y, WorldGrid.HIGH) && !grid.has(x, y, WorldGrid.CLIFF))
+  if (tops.length > 0) layers.paint16(biome.highGround, tops)
+  // patches: one noise field per tileset, never under a trail, a cliff or a plateau top
   for (const tileset of biome.patches) {
     const noise = new ValueNoise(scatter, width, height, 12, 2)
-    const cells = land.filter(([x, y]) => !grid.has(x, y, WorldGrid.TRAIL | WorldGrid.CLIFF) && noise.at(x, y) > 0.62)
+    const cells = land.filter(([x, y]) => !grid.has(x, y, WorldGrid.TRAIL | WorldGrid.CLIFF | WorldGrid.HIGH) && noise.at(x, y) > 0.62)
     if (cells.length > 0) layers.paint16(tileset, cells)
   }
   if (trail.length > 0) layers.paint16(biome.trail, trail)
@@ -212,25 +264,31 @@ function previewOf(
   biome: BiomeDef,
   sites: WorldPreview['sites']
 ): LevelPreview {
-  let map = ''
-  let walls = ''
+  // one byte per tile, decoded once: a 2048 island is 4M tiles, too many for +=
+  const ZERO = 48
+  const mapCodes = new Uint8Array(grid.width * grid.height)
+  const wallCodes = new Uint8Array(grid.width * grid.height)
   for (let y = 0; y < grid.height; y++) {
     for (let x = 0; x < grid.width; x++) {
       const c = !grid.has(x, y, WorldGrid.LAND)
-        ? '0'
+        ? 0
         : grid.has(x, y, WorldGrid.CLIFF)
-          ? '2'
+          ? 2
           : grid.has(x, y, WorldGrid.TRAIL)
-            ? '3'
+            ? 3
             : grid.has(x, y, WorldGrid.SOLID)
-              ? '4'
+              ? 4
               : grid.has(x, y, WorldGrid.HIGH)
-                ? '5'
-                : '1'
-      map += c
-      walls += grid.walkable(x, y) ? '0' : '1'
+                ? 5
+                : 1
+      const i = y * grid.width + x
+      mapCodes[i] = ZERO + c
+      wallCodes[i] = ZERO + (grid.walkable(x, y) ? 0 : 1)
     }
   }
+  const decoder = new TextDecoder()
+  const map = decoder.decode(mapCodes)
+  const walls = decoder.decode(wallCodes)
   return {
     level: levelNumber,
     // generateDungeon relabels it with the slot's own label

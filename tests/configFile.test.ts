@@ -1504,24 +1504,23 @@ describe('parameters.txt — levelOrder (issue #43)', () => {
     expect(serializeParametersTxt(defaultParameters())).toMatch(/^levelOrder=L1,1,2,3,4,5,6,7,L2,AB1,8$/m)
   })
 
-  // The bug this guards: with no lobbies and the boss off, the campaign's own
-  // order genuinely IS the plain "every floor, then the (disabled) fight"
-  // default shape — but OMITTING the line does not reconstruct that. The
-  // base `parseParametersTxt(content)` (no base) overlays onto —
-  // `defaultParameters()` — ships the SHIPPED order (`L1,1..7,L2,B1,8`), and
-  // repairing THAT against a lobby-less, boss-off campaign's own counts drops
-  // the lobbies but keeps the escape floor played AFTER the fight, which is
-  // not the same as the naive default (every floor, then the fight) this
-  // campaign actually wants. An explicit `levelOrder=` line naming the true
-  // default is the only way to say so.
-  it('writes an explicit default order when the base\'s own shipped order would repair to something else', () => {
+  // With no lobbies and the boss off, the campaign's own order is every
+  // floor and nothing else: a switched-off arena holds no slot, as
+  // validateLevelOrder counts it. The base `parseParametersTxt(content)`
+  // overlays onto — `defaultParameters()` — ships the SHIPPED order
+  // (`L1,1..7,L2,B1,8`), and repairing THAT against these counts drops the
+  // lobbies and the fight, leaving `1..8`: the same thing. So no line is
+  // written, and the file still reads back exactly. (Before the fight's slot
+  // was counted only when enabled, this needed an explicit
+  // `levelOrder=1,…,8,AB1` naming a fight that never runs.)
+  it('needs no order line for a lobby-less campaign with the arena off', () => {
     const params = defaultParameters()
     params.boss.enabled = false
     params.lobbies = []
     params.levelOrder = undefined
 
     const text = serializeParametersTxt(params)
-    expect(text).toMatch(/^levelOrder=1,2,3,4,5,6,7,8,AB1$/m)
+    expect(text).not.toMatch(/^levelOrder=/m)
 
     const parsed = parseParametersTxt(text)
     expect(parsed.unknownKeys).toEqual([])

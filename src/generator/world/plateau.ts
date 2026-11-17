@@ -43,21 +43,25 @@ const PLATEAU_COAST = 50
 const STAIR_SPACING = 4
 
 /**
- * Raise `def`'s plateaus on `grid` with cliff pieces from `set`, and return
- * the pieces to emit (after every object, with the coast's).
+ * Raise `def`'s plateaus on `grid` with cliff pieces from `set`. Returns the
+ * pieces to emit (after every object, with the coast's) and how many
+ * plateaus were raised: one that doesn't fit in `PLATEAU_TRIES` is left out,
+ * and the preview says so.
  */
-export function placePlateaus(rand: Rand, grid: WorldGrid, def: WorldDef, set: string): CoastUnit[] {
+export function placePlateaus(rand: Rand, grid: WorldGrid, def: WorldDef, set: string): { units: CoastUnit[]; placed: number } {
   const terrain = worldTerrain(def)
   const out: CoastUnit[] = []
+  let placed = 0
   for (let p = 0; p < terrain.plateaus; p++) {
     for (let t = 0; t < PLATEAU_TRIES; t++) {
       const units = tryPlateau(rand, grid, set, rand.iRand(terrain.minSize, terrain.maxSize + 1), terrain.stairs)
       if (units === null) continue
       out.push(...units)
+      placed++
       break
     }
   }
-  return out
+  return { units: out, placed }
 }
 
 function tryPlateau(rand: Rand, grid: WorldGrid, set: string, size: number, stairs: number): CoastUnit[] | null {
@@ -116,7 +120,7 @@ function tryPlateau(rand: Rand, grid: WorldGrid, set: string, size: number, stai
     for (let dx = 0; dx <= 1; dx++) {
       for (let dy = -1; dy <= 3; dy++) {
         grid.clear(at.x + dx, at.y + dy, WorldGrid.CLIFF)
-        grid.set(at.x + dx, at.y + dy, WorldGrid.RESERVED)
+        grid.set(at.x + dx, at.y + dy, WorldGrid.RESERVED | WorldGrid.STAIR)
       }
     }
   }

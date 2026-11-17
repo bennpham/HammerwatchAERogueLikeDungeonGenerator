@@ -72,14 +72,50 @@ export interface WorldObjectives {
   plates: Array<{ at: Tile; trigger: ScriptNode }>
 }
 
+/**
+ * Which of `siteCount` sites the bosses take: spread evenly round the
+ * island. Site i lies in angle sector i (`place.ts`), so taking every
+ * (n/b)-th site keeps the bosses apart instead of on one shore. No draws.
+ */
+export function bossSiteIndexes(siteCount: number, bossCount: number): number[] {
+  const b = Math.min(bossCount, siteCount)
+  return Array.from({ length: b }, (_, i) => Math.floor((i * siteCount) / b))
+}
+
+/**
+ * Where the victory orb stands, in tiles from the centre: three tiles north.
+ * At the centre itself it was hidden behind the start's save plate and the
+ * arrival (user, 2026-11-16); north of the hub is clear of both, which lie
+ * south of it, and of the camp's tent and the village's centrepiece.
+ */
+export const ORB_AT: Tile = { x: 0, y: -3 }
+
+/** Where a boss's statue stands, in tiles from its site, and the disc kept for it. */
+export const STATUE_OFFSET: Tile = { x: 3, y: -3 }
+export const STATUE_RADIUS = Math.max(
+  0,
+  ...Object.values(BOSS_DEFS).map((b) => (b.statue === undefined ? 0 : Math.ceil(b.statue.footprint / 2)))
+)
+
+/**
+ * The statue spots of every site a boss may take, reserved before the
+ * landmarks so none grows over one. Which boss stands there is drawn later,
+ * so every boss site keeps the spot. No draws.
+ */
+export function reserveStatueSpots(grid: WorldGrid, sites: readonly Tile[], bossCount: number): Tile[] {
+  const spots = bossSiteIndexes(sites.length, bossCount).map((i) => ({ x: sites[i].x + STATUE_OFFSET.x, y: sites[i].y + STATUE_OFFSET.y }))
+  for (const spot of spots) grid.markDisc(spot, STATUE_RADIUS, WorldGrid.RESERVED)
+  return spots
+}
+
 /** "2 objectives remain", for the countdown's announcements. */
 export function objectivesRemainingText(k: number): string {
   return k === 1 ? '1 objective remains' : `${k} objectives remain`
 }
 
 /**
- * The start: arrival, the portal (or the hidden orb) at `hub`, and every
- * objective on `sites` — bosses on the first `bossCount`, buttons on the rest.
+ * The start: arrival, the portal at `hub` (or the hidden orb just north of it), and every
+ * objective on `sites` — bosses spread round them (`bossSiteIndexes`), buttons on the rest.
  *
  * With no objectives at all the world is free roam: the portal stands open
  * (or the orb in plain sight) from the start, and there is no countdown, so
@@ -101,7 +137,9 @@ export function buildObjectives(
   // the way out, shut until the count reaches zero (or open from the start)
   let reveal: ScriptNode[] = []
   if (gateway.kind === 'orb') {
-    const orb = Item.create(ctx, hub.x + 0.5, hub.y + 0.5, 'Orb', 0)
+    const at = { x: hub.x + ORB_AT.x, y: hub.y + ORB_AT.y }
+    const orb = Item.create(ctx, at.x + 0.5, at.y + 0.5, 'Orb', 0)
+    grid.markDisc(at, 1, WorldGrid.RESERVED)
     if (!freeRoam) orb.state = { hidden: { kind: 'bool', value: true } }
     const picked = new NodeUnitPickedUpTrigger(ctx, hub.x, hub.y + 2)
     picked.units.push(orb)
@@ -143,8 +181,9 @@ export function buildObjectives(
   const ids: BossId[] =
     bossSelection(def) === 'lineup' ? expandLineup(def.bossLineup).slice(0, bossCount) : pickBosses(rand, def.bossPool, bossCount)
   const bosses: Tile[] = []
+  const bossSites = bossSiteIndexes(sites.length, ids.length)
   ids.forEach((id, i) => {
-    const site = sites[i]
+    const site = sites[bossSites[i]]
     const boss = BOSS_DEFS[id]
     const actor = Monster.create(
       ctx,
@@ -158,7 +197,7 @@ export function buildObjectives(
     if (boss.statue !== undefined) {
       buildBossStatue(ctx, boss, actor, site.x + 3.5, site.y - 2.5, site.x, site.y - 6)
       // breakable, so not solid; reserved so nothing grows over it
-      grid.markDisc({ x: site.x + 3, y: site.y - 3 }, Math.ceil(boss.statue.footprint / 2), WorldGrid.RESERVED)
+      grid.markDisc({ x: site.x + STATUE_OFFSET.x, y: site.y + STATUE_OFFSET.y }, Math.ceil(boss.statue.footprint / 2), WorldGrid.RESERVED)
     }
     const near = new SensorShape(ctx, site.x + 0.5, site.y + 0.5)
     near.radius = BOSS_BAR_RADIUS
@@ -172,7 +211,7 @@ export function buildObjectives(
     triggers.push(died)
   })
 
-  const buttons = sites.slice(ids.length)
+  const buttons = sites.filter((_, i) => !bossSites.includes(i))
   const plates = buttons.map((at) => {
     // disguised, it wears the mystery plates' art and presses the way they do
     const plate = def.disguise === true ? Doodad.prop(ctx, at.x + 0.5, at.y + 0.5, MYSTERY_PLATE) : Doodad.prop(ctx, at.x, at.y, BUTTON_PLATE)
