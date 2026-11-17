@@ -56,6 +56,23 @@ import { worldTerrain } from './options'
 /** Fresh islands tried before the world gives up. */
 const MAX_WORLD_ATTEMPTS = 20
 
+/**
+ * The steps a try at an island can fail on, in the order they run. A world
+ * that fails every try reports the step that failed most, so the message can
+ * say what to change.
+ */
+export const WORLD_STEPS = ['island', 'start', 'sites', 'trails', 'reach'] as const
+export type WorldStep = (typeof WORLD_STEPS)[number]
+
+/** What to change when `step` keeps failing, for the error message. */
+export const WORLD_STEP_ADVICE: Record<WorldStep, string> = {
+  island: 'no island could be grown at this size and coast; try a calmer coast or a larger map',
+  start: 'the start kept landing on broken ground; try a calmer coast or a larger map',
+  sites: 'the buttons and bosses would not fit; try fewer of them, a smaller safe radius, fewer plateaus or a larger map',
+  trails: 'a site could not be reached from the start; try a calmer coast or fewer plateaus',
+  reach: 'props or plateaus cut a site off from the start; try less scatter or fewer plateaus'
+}
+
 /** A world's map for the preview. */
 export interface WorldPreview {
   /** one char per tile, row-major: '0' water, '1' land, '2' cliff, '3' trail, '4' solid, '5' plateau */
@@ -80,7 +97,7 @@ export function worldStreams(worldRand: Rand): WorldStreams {
  * Build world `def` for the slot `ctx` was just `enter`ed with. `gateway` is
  * where its portal leads (anything but `orb` leads to `gateway.target`);
  * `nextIsFight` turns the portal red. Null when no island worked out in
- * `MAX_WORLD_ATTEMPTS` tries.
+ * `MAX_WORLD_ATTEMPTS` tries, with the step that failed most often.
  */
 export function buildWorld(
   ctx: GenerationContext,
@@ -88,35 +105,49 @@ export function buildWorld(
   levelNumber: number,
   gateway: Gateway,
   nextIsFight: boolean
-): { level: AeLevel; preview: LevelPreview } | null {
+): { level: AeLevel; preview: LevelPreview } | { failed: WorldStep } {
   const { layout, scatter, encounters } = worldStreams(ctx.worldRand)
   const biome = biomeById(def.biome) ?? BIOME_DEFS[0]
   const width = layout.iRand(def.minWidth, def.maxWidth + 1)
   const height = layout.iRand(def.minHeight, def.maxHeight + 1)
   const objectives = def.buttons + worldBossCount(def)
+  const failures: Record<WorldStep, number> = { island: 0, start: 0, sites: 0, trails: 0, reach: 0 }
+  const fail = (step: WorldStep) => failures[step]++
 
   for (let attempt = 0; attempt < MAX_WORLD_ATTEMPTS; attempt++) {
     ctx.clearLevel()
     const island = buildIsland(layout, width, height, def.waterMargin, def.coast)
-    if (island === null) continue
+    if (island === null) {
+      fail('island')
+      continue
+    }
     const grid = gridOf(island)
     const hub = { x: Math.floor(width / 2), y: Math.floor(height / 2) }
     const arrival = { x: hub.x, y: hub.y + 3 }
     const hubKind = resolveHub(layout, def.hub, Math.min(width, height) >= VILLAGE_MIN_SIZE)
     // the portal's own ground must be open; a village's ring may meet the coast
-    if (!grid.discAll(hub, HUB_RADIUS, (x, y) => grid.walkable(x, y))) continue
+    if (!grid.discAll(hub, HUB_RADIUS, (x, y) => grid.walkable(x, y))) {
+      fail('start')
+      continue
+    }
     grid.markDisc(hub, hubRadius(hubKind), WorldGrid.RESERVED)
     // a flat world draws nothing here, so it is the same island it always was
     const plateaus =
       worldTerrain(def).plateaus > 0 ? placePlateaus(new Rand(layout.nextInt(2147483647)), grid, def, plateauEdgeSet(biome)) : []
 
     const sites = placeSites(layout, grid, hub, objectives, def.safeRadius)
-    if (sites === null) continue
+    if (sites === null) {
+      fail('sites')
+      continue
+    }
     for (const s of sites) grid.markDisc(s, SITE_RADIUS, WorldGrid.RESERVED)
     buildHub(ctx, layout, grid, biome, hubKind, hub)
     const save = placeStartSave(ctx, grid, hub)
     grid.markDisc(hub, 1, WorldGrid.SOLID)
-    if (!carveTrails(layout, grid, arrival, sites, def.trails)) continue
+    if (!carveTrails(layout, grid, arrival, sites, def.trails)) {
+      fail('trails')
+      continue
+    }
     if (def.landmarks !== false) placeLandmarks(ctx, layout, grid, biome, sites)
 
     const placed = buildObjectives(ctx, encounters, grid, def, hub, sites, gateway, nextIsFight)
@@ -124,7 +155,10 @@ export function buildWorld(
     scatterProps(ctx, scatter, grid, biome, def.scatter)
 
     const reached = grid.reach(arrival)
-    if (sites.some((s) => reached[s.y * width + s.x] !== 1)) continue
+    if (sites.some((s) => reached[s.y * width + s.x] !== 1)) {
+      fail('reach')
+      continue
+    }
     const loot = placeLoot(ctx, encounters, grid, def, hub, reached, [...sites, ...met.packs, ...met.mystery])
 
     buildFloorHazardRig(ctx, def.timer, width, height)
@@ -142,7 +176,9 @@ export function buildWorld(
     ]
     return { level, preview: previewOf(ctx, grid, hub, levelNumber, biome, marks) }
   }
-  return null
+  // the step that failed most; ties go to the earlier step
+  const failed = WORLD_STEPS.reduce((a, b) => (failures[b] > failures[a] ? b : a))
+  return { failed }
 }
 
 function gridOf(island: IslandMask): WorldGrid {

@@ -83,6 +83,20 @@ export const WORLD_MAX_TIMER_SECONDS = 1800
  * bounds how many sites fit (`worldSiteCapacity`).
  */
 export const WORLD_SITE_SPACING = 20
+/** The clear disc round a site's center: room for a boss, a plate and a fight. */
+export const WORLD_SITE_RADIUS = 4
+/** A village's clear radius: room for its ring of tents and its market. */
+export const VILLAGE_RADIUS = 22
+/** The smallest island side a village fits on; `random` doesn't pick one below it. */
+export const VILLAGE_MIN_SIZE = 128
+/**
+ * How far land reaches from the island's centre, as a share of the half-side
+ * inside the water margin. `island.ts` keeps land out to about 0.88 of it; a
+ * little less allows for a ragged coast.
+ */
+const LAND_REACH = 0.85
+/** The most worlds one campaign carries. Each is a full level. */
+export const MAX_WORLDS = 20
 
 /** One open island. Sizes in tiles; percentages 0–100. */
 export interface WorldDef {
@@ -242,14 +256,68 @@ export function worldPlateauCapacity(width: number, height: number, margin: numb
   return Math.floor((land * 0.5) / (maxSize + 8) ** 2)
 }
 
+/** What keeps sites off part of the land, for `worldSiteCapacity`. */
+export interface SiteClearance {
+  /** tiles round the start no site may use: the safe radius, or the village's disc */
+  radius?: number
+  /** plateaus raised, and the largest one's side: a site's disc can't straddle a rim */
+  plateaus?: number
+  plateauSize?: number
+}
+
 /**
- * How many objective sites a world of this size can hold, roughly: the
- * island covers about half the area inside the water margin, and each site
- * needs a `WORLD_SITE_SPACING` square. The start takes one.
+ * How many objective sites a world of this size can hold, roughly. The
+ * island is the ellipse `island.ts` grows, less the disc round the start
+ * that no site may use and the band round each plateau's rim that a site's
+ * disc can't straddle, and never more than the older rule of half the area
+ * inside the water margin. Each site needs a `WORLD_SITE_SPACING` square,
+ * and the start takes one.
  */
-export function worldSiteCapacity(width: number, height: number, margin: number): number {
-  const land = Math.max(0, width - 2 * margin) * Math.max(0, height - 2 * margin) * 0.5
-  return Math.max(0, Math.floor(land / (WORLD_SITE_SPACING * WORLD_SITE_SPACING)) - 1)
+export function worldSiteCapacity(width: number, height: number, margin: number, clear: SiteClearance = {}): number {
+  const square = WORLD_SITE_SPACING * WORLD_SITE_SPACING
+  // the rough rule: half the area inside the margin, the start taking one
+  const rough = Math.max(0, width - 2 * margin) * Math.max(0, height - 2 * margin) * 0.5
+  // the island as the ellipse `island.ts` grows, less the disc round the start
+  const a = Math.max(0, width / 2 - margin) * LAND_REACH
+  const b = Math.max(0, height / 2 - margin) * LAND_REACH
+  const r = Math.min(clear.radius ?? 0, a, b)
+  let land = Math.PI * (a * b - r * r)
+  const side = clear.plateauSize ?? 0
+  land -= (clear.plateaus ?? 0) * Math.min(side * side, 8 * WORLD_SITE_RADIUS * side)
+  // the tighter of the two, so counting the start never loosens the old rule
+  const sites = Math.min(rough, Math.max(0, land))
+  return Math.max(0, Math.floor(sites / square) - 1)
+}
+
+/**
+ * The radius round the start that no site can use on world `w`: its safe
+ * radius, or the village's disc plus a site's own, whichever is wider. A
+ * `random` start counts as a village when the island is big enough for one.
+ */
+export function worldStartClearance(w: WorldDef): number {
+  const village = w.hub === 'village' || (w.hub === 'random' && Math.min(w.minWidth, w.minHeight) >= VILLAGE_MIN_SIZE)
+  return Math.max(w.safeRadius, village ? VILLAGE_RADIUS + WORLD_SITE_RADIUS + 1 : 0)
+}
+
+/** `worldSiteCapacity` for world `w` at its smallest size, counting its start and plateaus. */
+export function worldSiteCapacityOf(w: WorldDef): number {
+  const terrain = worldTerrain(w)
+  // only the plateaus that fit are raised (`worldPlateauCapacity`)
+  const raised = Math.min(terrain.plateaus, worldPlateauCapacity(w.minWidth, w.minHeight, w.waterMargin, terrain.maxSize))
+  return worldSiteCapacity(w.minWidth, w.minHeight, w.waterMargin, {
+    radius: worldStartClearance(w),
+    plateaus: raised,
+    plateauSize: terrain.maxSize
+  })
+}
+
+/**
+ * The widest safe radius that still leaves land for sites on an island of
+ * this smallest size: land reaches about `LAND_REACH` of the half-side inside
+ * the margin, and a site's disc must fit beyond the radius.
+ */
+export function worldMaxSafeRadius(minWidth: number, minHeight: number, margin: number): number {
+  return Math.floor((Math.min(minWidth, minHeight) / 2 - margin) * LAND_REACH) - WORLD_SITE_RADIUS - 1
 }
 
 /**

@@ -37,7 +37,7 @@ import {
   normalizeOrder,
   slotLabel,
   worldBossCount,
-  worldSiteCapacity
+  worldSiteCapacityOf
 } from '../../generator'
 import type { DungeonParameters, ValidationIssue, WorldAmbushType, WorldDef, WorldOptions } from '../../generator'
 import { BoolField, NumberField, Section, ToggleGroup } from './fields'
@@ -331,7 +331,7 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
           <Section title="Objectives" defaultOpen badge={`${world.buttons + worldBossCount(world)}`}>
             <p className="hint">
               Every button pressed and every boss killed counts toward the portal. With none at all the world is free roam: the portal is open from the start. This size fits about{' '}
-              {worldSiteCapacity(world.minWidth, world.minHeight, world.waterMargin)}.
+              {worldSiteCapacityOf(world)}.
             </p>
             <NumberField label="Floor buttons" field={`${prefix}.buttons`} value={world.buttons} issues={issues} min={0} max={WORLD_MAX_BUTTONS} onChange={(buttons) => setWorld({ buttons })} />
             <BossSelectionEditor

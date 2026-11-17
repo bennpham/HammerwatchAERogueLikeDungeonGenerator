@@ -17,7 +17,8 @@ import {
   stemOfFileName,
   worldId
 } from '../src/generator/campaign'
-import { WORLD_TERRAIN_LEVELS, defaultWorld, worldList } from '../src/generator/world/options'
+import { WORLD_TERRAIN_LEVELS, defaultWorld, worldList, worldMaxSafeRadius, worldSiteCapacityOf } from '../src/generator/world/options'
+import { WORLD_STEPS, WORLD_STEP_ADVICE } from '../src/generator/world/build'
 import type { WorldDef } from '../src/generator/world/options'
 import { BIOME_DEFS, plateauEdgeSet } from '../src/generator/world/biomes'
 import { COAST_PIECE_NAMES, EDGE_SETS, PLATEAU_EDGE_SETS, coastPiece } from '../src/generator/world/coast'
@@ -203,6 +204,38 @@ describe('world validation', () => {
     // still refused with neither an arena nor a world
     p.world!.enabled = false
     expect(fieldsOf(p)).toContain('levels')
+  })
+
+  it('refuses a safe radius that leaves no land for the sites, unless the world is free roam', () => {
+    const small = { minWidth: 96, maxWidth: 96, minHeight: 96, maxHeight: 96 }
+    const limit = worldMaxSafeRadius(96, 96, 8)
+    expect(limit).toBeGreaterThanOrEqual(defaultWorld().safeRadius)
+    expect(fieldsOf(withWorlds([{ ...defaultWorld(), ...small, buttons: 1, bossCount: 0, safeRadius: limit }]))).toEqual([])
+    const wide = withWorlds([{ ...defaultWorld(), ...small, buttons: 1, bossCount: 0, safeRadius: limit + 1 }])
+    expect(fieldsOf(wide)).toContain('world.worlds.0.safeRadius')
+    // with nothing to find, the radius only keeps packs off the start
+    const roam = withWorlds([{ ...defaultWorld(), ...small, buttons: 0, bossCount: 0, safeRadius: 64 }])
+    expect(fieldsOf(roam)).not.toContain('world.worlds.0.safeRadius')
+  })
+
+  it('counts the safe radius, the village and the plateaus against the sites', () => {
+    const base = { ...defaultWorld(), minWidth: 160, maxWidth: 160, minHeight: 160, maxHeight: 160, hub: 'camp' as const }
+    const plain = worldSiteCapacityOf(base)
+    expect(worldSiteCapacityOf({ ...base, safeRadius: 40 })).toBeLessThan(plain)
+    expect(worldSiteCapacityOf({ ...base, hub: 'village' })).toBeLessThan(plain)
+    // random may pick the village on an island this big, so it is counted the same
+    expect(worldSiteCapacityOf({ ...base, hub: 'random' })).toBe(worldSiteCapacityOf({ ...base, hub: 'village' }))
+    expect(worldSiteCapacityOf({ ...base, plateaus: 5, plateauMaxSize: 28 })).toBeLessThan(plain)
+    // and validation refuses what the smaller count can't hold
+    const crowded = withWorlds([{ ...base, hub: 'village', buttons: worldSiteCapacityOf({ ...base, hub: 'village' }) + 1, bossCount: 0 }])
+    expect(fieldsOf(crowded)).toContain('world.worlds.0.buttons')
+  })
+
+  it('warns when the sites fill the island exactly', () => {
+    const full = { ...smallWorld(), buttons: worldSiteCapacityOf(smallWorld()) - 1, bossCount: 1 }
+    const result = validateParameters(withWorlds([full]))
+    expect(result.errors).toEqual([])
+    expect(result.warnings.map((w) => w.field)).toContain('world.worlds.0.buttons')
   })
 
   it('rejects an order that names a world the campaign does not have', () => {
@@ -405,6 +438,17 @@ describe('a generated world', () => {
     const p = withWorlds([smallWorld({ waterMargin: 32, coast: 100 })])
     const r = generateDungeon(p, 1)
     expect(r.ok === true || r.errors.some((e) => /world 1/i.test(e))).toBe(true)
+  })
+
+  it('names the step that failed when no island works out', () => {
+    // free roam passes validation on any island, so only the build can refuse it
+    for (const seed of [1, 2, 3]) {
+      const r = generateDungeon(withWorlds([smallWorld({ waterMargin: 32, coast: 100, buttons: 0, bossCount: 0, safeRadius: 8 })]), seed)
+      if (r.ok) continue
+      expect(r.errors).toHaveLength(1)
+      expect(Object.values(WORLD_STEP_ADVICE).some((advice) => r.errors[0] === `Could not generate world 1: ${advice}.`)).toBe(true)
+    }
+    for (const step of WORLD_STEPS) expect(WORLD_STEP_ADVICE[step].length).toBeGreaterThan(0)
   })
 })
 

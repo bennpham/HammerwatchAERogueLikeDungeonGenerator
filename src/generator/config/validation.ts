@@ -60,8 +60,8 @@ import type { BossFight, BossOptions } from './parameters'
 import type { CampaignSlot } from '../campaign'
 import { SLOT_KINDS, defaultOrder } from '../campaign'
 import { biomeById, BIOME_IDS } from '../world/biomes'
-import { VILLAGE_MIN_SIZE } from '../world/hub'
 import {
+  VILLAGE_MIN_SIZE,
   WORLD_HUBS,
   WORLD_MAX_AMBUSHES,
   WORLD_MAX_BUTTONS,
@@ -79,7 +79,8 @@ import {
   WORLD_SLOW_SIZE,
   worldList,
   worldMysteryPool,
-  worldSiteCapacity,
+  worldMaxSafeRadius,
+  worldSiteCapacityOf,
   WORLD_MAX_MYSTERY_PLATES,
   WORLD_MAX_AMBUSH_TYPES,
   WORLD_MAX_AMBUSH_WEIGHT,
@@ -592,11 +593,24 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
     }
   }
   // 0 buttons and 0 bosses is free roam: the portal is open from the start
-  const capacity = worldSiteCapacity(w.minWidth, w.minHeight, w.waterMargin)
-  if (w.buttons + bosses > capacity) {
+  const objectives = w.buttons + bosses
+  const reach = worldMaxSafeRadius(w.minWidth, w.minHeight, w.waterMargin)
+  if (objectives > 0 && Number.isInteger(w.safeRadius) && w.safeRadius > reach) {
+    errors.push({
+      field: at('safeRadius'),
+      message: `${subject}: a safe radius of ${w.safeRadius} leaves no land for buttons or bosses on a ${w.minWidth}×${w.minHeight} island; keep it to ${Math.max(0, reach)} or less, or use a larger map.`
+    })
+  }
+  const capacity = worldSiteCapacityOf(w)
+  if (objectives > capacity) {
     errors.push({
       field: at('buttons'),
-      message: `${subject}: ${w.buttons + bosses} buttons and bosses won't fit on a ${w.minWidth}×${w.minHeight} island; it holds about ${capacity}. Use fewer, or a larger map.`
+      message: `${subject}: ${objectives} buttons and bosses won't fit on a ${w.minWidth}×${w.minHeight} island with this start, safe radius and terrain; it holds about ${capacity}. Use fewer, or a larger map.`
+    })
+  } else if (objectives > 0 && objectives === capacity && capacity > 1) {
+    warnings.push({
+      field: at('buttons'),
+      message: `${subject}: ${objectives} buttons and bosses is as many as a ${w.minWidth}×${w.minHeight} island holds; on a ragged coast some seeds may not fit them. One fewer, or a larger map, is safer.`
     })
   }
 

@@ -16,16 +16,15 @@ import type { Rand } from '../core/rand'
 import { Doodad } from '../objects/doodad'
 import type { BiomeDef, ScatterEntry } from './biomes'
 import type { WorldHub } from './options'
+import { VILLAGE_MIN_SIZE, VILLAGE_RADIUS } from './options'
 import type { Tile } from './grid'
 import { WorldGrid, dist2 } from './grid'
 import { pick } from './scatter'
 
 /** Tiles kept clear round the start before anything else is placed. */
 export const HUB_RADIUS = 7
-/** A village's clear radius: room for its ring of tents and its market. */
-export const VILLAGE_RADIUS = 22
-/** The smallest island side a village fits on; `random` doesn't pick one below it. */
-export const VILLAGE_MIN_SIZE = 128
+// the village's sizes live with the other world bounds, which validation reads
+export { VILLAGE_MIN_SIZE, VILLAGE_RADIUS }
 
 export type HubKind = 'camp' | 'bare' | 'village'
 
