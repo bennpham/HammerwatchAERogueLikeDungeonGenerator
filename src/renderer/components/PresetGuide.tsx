@@ -144,6 +144,10 @@ export function PresetGuide({ onLoad, onLoadPlayer, disabled }: PresetGuideProps
               <p className="preset-guide-note">
                 Loading a player preset replaces only the Player tab, so load a campaign preset first.
               </p>
+              <p className="preset-guide-note">
+                No campaign preset is tuned for these. Hammerwatch 2&apos;s Endgame (level 50) bodies have several times
+                stock health, and outlast every timer and boss in the campaign presets.
+              </p>
               {PLAYER_PRESETS.length === 0 ? (
                 <p className="preset-guide-empty">No player presets yet.</p>
               ) : (
