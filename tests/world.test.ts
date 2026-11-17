@@ -780,6 +780,18 @@ describe('raised plateaus', () => {
     expect(checked).toBeGreaterThan(100)
   })
 
+  it('says how many plateaus were raised, and when some did not fit', () => {
+    const roomy = run(hilly(), 1).preview.world!
+    expect(roomy.plateaus).toEqual({ asked: 4, placed: plateausOf(roomy.map, 160, 160).length })
+    // forty big plateaus can't all fit on a 160 island: fewer are raised, and the count says so
+    const crowded = run(hilly({ plateaus: 40, plateauMinSize: 40, plateauMaxSize: 50 }), 1).preview.world!
+    expect(crowded.plateaus!.asked).toBe(40)
+    expect(crowded.plateaus!.placed).toBeLessThan(40)
+    expect(crowded.plateaus!.placed).toBe(plateausOf(crowded.map, 160, 160).length)
+    // a flat island carries no count
+    expect(run(smallWorld(), 1).preview.world!.plateaus).toBeUndefined()
+  })
+
   it('calls two tiles one level only when no cliff lies between', () => {
     // a 7×7 field: rows 0–2 a plateau, row 3 its cliff, rows 4–6 low ground
     const grid = new WorldGrid(7, 7)

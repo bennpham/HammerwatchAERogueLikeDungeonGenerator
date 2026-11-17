@@ -79,6 +79,8 @@ export interface WorldPreview {
   map: string
   hub: Tile
   sites: Array<Tile & { kind: 'button' | 'boss' | 'ambush' | 'pack' | 'loot' | 'mystery' | 'save' }>
+  /** plateaus asked for and raised, when the world asks for any */
+  plateaus?: { asked: number; placed: number }
 }
 
 /** A world's three streams, each seeded from one `ctx.worldRand` draw. */
@@ -132,8 +134,9 @@ export function buildWorld(
     }
     grid.markDisc(hub, hubRadius(hubKind), WorldGrid.RESERVED)
     // a flat world draws nothing here, so it is the same island it always was
-    const plateaus =
-      worldTerrain(def).plateaus > 0 ? placePlateaus(new Rand(layout.nextInt(2147483647)), grid, def, plateauEdgeSet(biome)) : []
+    const asked = worldTerrain(def).plateaus
+    const raised = asked > 0 ? placePlateaus(new Rand(layout.nextInt(2147483647)), grid, def, plateauEdgeSet(biome)) : { units: [], placed: 0 }
+    const plateaus = raised.units
 
     const sites = placeSites(layout, grid, hub, objectives, def.safeRadius)
     if (sites === null) {
@@ -179,7 +182,9 @@ export function buildWorld(
       ...loot.map((t) => ({ ...t, kind: 'loot' as const })),
       { ...save, kind: 'save' as const }
     ]
-    return { level, preview: previewOf(ctx, grid, hub, levelNumber, biome, marks) }
+    const preview = previewOf(ctx, grid, hub, levelNumber, biome, marks)
+    if (asked > 0) preview.world!.plateaus = { asked, placed: raised.placed }
+    return { level, preview }
   }
   // the step that failed most; ties go to the earlier step
   const failed = WORLD_STEPS.reduce((a, b) => (failures[b] > failures[a] ? b : a))

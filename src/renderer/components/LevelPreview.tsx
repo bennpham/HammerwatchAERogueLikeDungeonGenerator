@@ -46,6 +46,13 @@ const WORLD_SITE_STYLE: Record<string, { color: string; label: string; legend: s
   loot: { color: '#e0d060', label: '', legend: 'Loot' }
 }
 
+/** " · 3 of 5 plateaus fit" when some were left out, " · 5 plateaus" when all were raised. */
+function plateauNote(world: NonNullable<LevelPreviewData['world']>): string {
+  const p = world.plateaus
+  if (p === undefined) return ''
+  return p.placed < p.asked ? ` · ${p.placed} of ${p.asked} plateaus fit` : ` · ${p.placed} plateaus`
+}
+
 /** A world: the island tile by tile, then its sites, then the portal. */
 function drawWorld(g: CanvasRenderingContext2D, level: LevelPreviewData, scale: number): void {
   const world = level.world!
@@ -172,7 +179,7 @@ export function LevelPreview({ levels, seed }: LevelPreviewProps) {
           </button>
         ))}
         <span className="preview-meta">
-          {level.world !== undefined ? `biome ${level.theme} · ${level.mapWidth}×${level.mapHeight}` : `theme ${level.theme} · ${level.rooms.length} rooms`} · {level.monsterCount} monsters ·{' '}
+          {level.world !== undefined ? `biome ${level.theme} · ${level.mapWidth}×${level.mapHeight}${plateauNote(level.world)}` : `theme ${level.theme} · ${level.rooms.length} rooms`} · {level.monsterCount} monsters ·{' '}
           {level.itemCount} items{seed !== null ? ` · seed ${seed}` : ''}
         </span>
       </div>
