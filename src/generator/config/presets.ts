@@ -83,7 +83,7 @@ function withBoss(theme: string, bossPool: string[], waves: BossWave[], music?: 
 /**
  * A preset's per-floor timers: every floor untimed except the last, which is
  * the escape floor played after the boss and carries the 90-second clock. Same
- * shape in all three presets, so it lives here rather than three times over.
+ * shape in all four classic presets, so it lives here rather than four times over.
  */
 function escapeTimers(levels: number): ReturnType<typeof defaultFloorTimer>[] {
   return [
@@ -642,7 +642,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
     id: 'castle',
     label: 'Castle (default)',
     description:
-      '7 floors through the mixed castle themes — four act floors, then three boss rushes, with two mystery buttons hidden on every floor.',
+      '7 floors through the mixed castle themes — four act floors, then three boss rushes — then the boss and an escape floor, with two mystery buttons hidden on every floor.',
     group: 'classic',
     // shops on Castle Hammerwatch's own bridge; defaultParameters() keeps the house
     build: () => ({
@@ -658,7 +658,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
     id: 'desert',
     label: 'Desert',
     description:
-      '7 floors from the outdoor bug swarms through Temple of the Sun mobs and a mummy mini-boss rush, then Anubis or the worm, with the temple treasury hidden under mystery buttons.',
+      '6 floors from the outdoor bug swarms through Temple of the Sun mobs and a mummy mini-boss rush, then Anubis or the worm and an escape floor, with the temple treasury hidden under mystery buttons.',
     group: 'classic',
     // Floor 0 is an outdoor bug/beast floor ahead of the desert proper. The
     // two guard floors mob the party in numbers but barely scratch it, so the
@@ -795,7 +795,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
     id: 'shaftlocke',
     label: 'Shaftlocke Tower',
     description:
-      '7 floors up Shaftlocke Tower — prison, crypt, the gold-beetle mines, archives and chambers — then a random Shaftlocke boss and an escape back through the chambers, with two mystery buttons hidden on every floor.',
+      '7 floors up Shaftlocke Tower — prison, crypt, the gold-beetle mines, archives and chambers — then a random Shaftlocke boss and an escape floor back through the chambers, with two mystery buttons hidden on every floor.',
     group: 'classic',
     // Castle's shape on Shaftlocke's own tilesets, music and roster: the same
     // 8 levels, order, escape-floor timer and fireball rig (inherited from
@@ -898,7 +898,7 @@ const CLASSIC_PRESETS: readonly CampaignPreset[] = [
     id: 'bonus',
     label: 'Bonus Gauntlet',
     description:
-      '5 floors of the bonus tilesets, escalating from bonus mobs to a mixed boss floor, with two mystery buttons hidden on every floor.',
+      '5 floors of the bonus tilesets, escalating from bonus mobs to a mixed boss floor, then the boss and an escape floor, with two mystery buttons hidden on every floor.',
     group: 'classic',
     build: () => withGatewayLocks({
       ...defaultParameters(),
@@ -1079,7 +1079,7 @@ const PRE_ALPHA_PRESETS: readonly CampaignPreset[] = [
 ]
 
 /**
- * Every campaign preset the preset dialog offers: the three classics first (castle
+ * Every campaign preset the preset dialog offers: the four classics first (castle
  * is the app's default and stays at index 0), then Colosseum — see
  * `colosseumPreset.ts` — then the eleven Claude-generated ones — see
  * `claudePresets.ts` — then Pre-Alpha. `PRESET_GROUPS` is what the renderer

@@ -49,7 +49,7 @@ import type { CampaignPreset } from './presets'
  * classics: floor bosses, multi-boss arenas and lineups, survival arenas,
  * chained arenas, per-floor traps/timers/buffs, and mystery buttons and
  * enhanced/disguised lock buttons. Grouped separately from
- * the three classic presets in the preset dialog (see `PRESET_GROUPS` in
+ * the four classic presets in the preset dialog (see `PRESET_GROUPS` in
  * `presets.ts`).
  *
  * Same rules as the classic presets: `build()` must return a fresh object

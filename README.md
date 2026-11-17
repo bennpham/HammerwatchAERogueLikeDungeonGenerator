@@ -193,10 +193,13 @@ files.
 
 | Group | Presets |
 | --- | --- |
-| Classic | Castle (default), Desert, Bonus Gauntlet |
 | Pre-Alpha | Pre-Alpha (the original Java tool's settings) |
+| Classic | Castle (default), Desert, Shaftlocke Tower, Bonus Gauntlet |
 | Colosseum | Survival in Colosseum: 16 survival rounds and 4 boss fights, with a lobby before each block |
-| Claude Generated | Arena Marathon, Beat the Clock, Boss Rush, Double or Nothing, Frozen Descent, Lunch Break, Pandemonium, Shell Game, The Long Haul, Trap Gauntlet |
+| Claude Generated | Arena Marathon, Beat the Clock, Boss Rush, Double or Nothing, Frozen Descent, Lunch Break, Pandemonium, Shaftlocke Siege, Shell Game, The Long Haul, Trap Gauntlet |
+
+A classic preset's floor count leaves out its escape floor, the extra floor
+played after the boss on a 90-second clock.
 
 The **(i)** in the header explains every header button, including how
 `parameters.txt` and `playersettings.txt` differ.

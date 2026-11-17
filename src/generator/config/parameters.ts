@@ -704,7 +704,7 @@ export function escapeFloorTraps(): FloorTrap[] {
  * Stored explicitly because it is genuinely NOT the default order (which,
  * with two lobbies, would put BOTH of them before any floor — see
  * `defaultOrder` in campaign.ts), so `isDefaultOrder` is false for it and a
- * stock export writes a `levelOrder=` line. All three presets use it, and each
+ * stock export writes a `levelOrder=` line. All four classic presets use it, and each
  * ships exactly one fight and the same two stock lobbies `defaultParameters()`
  * does.
  */
@@ -2086,7 +2086,7 @@ function castleWaves(): BossWave[] {
  * The built-in default is the "Castle" campaign preset — 7 floors of castle
  * themes a..g, each in its `- mixed` variant, so every floor varies its tileset
  * region by region and the boss floor lands on `g - mixed`. See config/presets.ts
- * for the other two presets, which override only `levels`, `themes` and
+ * for the other three classic presets, which override only `levels`, `themes` and
  * `levelMonsters` on top of this.
  *
  * Floors 1-4 are ordinary act mobs; 5-7 are boss rushes, which is why every

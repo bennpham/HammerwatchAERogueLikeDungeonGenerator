@@ -100,7 +100,7 @@ describe('campaign presets', () => {
     }
   })
 
-  // These shapes are specific to the three beta-classic presets — they all
+  // These shapes are specific to the four classic presets — they all
   // share one arena size/cover figure and ship a populated boss-death tier by
   // convention, not by any rule the Claude-generated presets are bound to.
   describe('classic presets share one arena shape', () => {
@@ -117,7 +117,7 @@ describe('campaign presets', () => {
 
     it('gives every preset the same arena size and cover — a preset overrides neither', () => {
       // withBoss() re-points only theme, pool and waves, so the 2026-08-28
-      // playtest figures have to reach all three presets unchanged.
+      // playtest figures have to reach all four presets unchanged.
       const arena = defaultParameters().boss.fights[0].arena
       expect([arena.minWidth, arena.maxWidth, arena.minHeight, arena.maxHeight]).toEqual([42, 64, 42, 64])
       expect(arena.cover).toEqual({ pattern: 'symmetric', density: 0.08, ringSpacing: 4, clusters: 3 })
@@ -134,7 +134,7 @@ describe('campaign presets', () => {
     })
 
     // The escape floor: one extra dungeon floor played AFTER the boss arena, on
-    // a 90-second hazard timer, stuffed with breakable battlements. All three
+    // a 90-second hazard timer, stuffed with breakable battlements. All four
     // classic presets ship it, and it is what makes the last slot a run for
     // the exit rather than another floor to clear. The Claude-generated
     // presets are not bound to this shape (only Long Haul happens to echo it,
