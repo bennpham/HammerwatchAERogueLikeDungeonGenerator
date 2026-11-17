@@ -44,8 +44,9 @@ export function scatterProps(ctx: GenerationContext, rand: Rand, grid: WorldGrid
       const y = cy + rand.iRand(-CLUMP_SPREAD, CLUMP_SPREAD + 1)
       if (!fits(x, y, entry.solid)) continue
       Doodad.prop(ctx, x + 0.5, y + 0.5, entry.path)
+      // a walk-through clump blocks nothing; it only keeps the next prop off its tile
       if (entry.solid > 0) grid.markDisc({ x, y }, entry.solid, WorldGrid.SOLID)
-      else grid.set(x, y, WorldGrid.SOLID)
+      else grid.set(x, y, WorldGrid.RESERVED)
     }
   }
 

@@ -872,6 +872,32 @@ describe('the village start', () => {
     }
   })
 
+  it('leaves a walk-through market prop walkable', () => {
+    const autumn = BIOME_DEFS.find((b) => b.id === 'autumn')!
+    const through = new Set(autumn.village.props.filter((e) => e.solid === 0).map((e) => e.path))
+    expect(through.size).toBeGreaterThan(0)
+    const solidOf = new Map(
+      [autumn.village.centre, ...autumn.village.tents, ...autumn.village.props].filter((e) => e.solid > 0).map((e) => [e.path, e.solid] as const)
+    )
+    let checked = 0
+    for (const seed of [1, 2, 3, 4]) {
+      const result = generateOk(withWorlds([village({ biome: 'autumn', scatter: 0 })]), seed)
+      const w0 = levelsOf(result).get('world0')!
+      const preview = result.levels.find((l) => l.world !== undefined)!
+      const tile = (u: { x: number; y: number }) => ({ x: Math.floor(u.x / 16), y: Math.floor(u.y / 16) })
+      const solids = unitsOf(w0, (u) => solidOf.has(u.path)).map((u) => ({ ...tile(u), r: solidOf.get(u.path)! }))
+      for (const u of unitsOf(w0, (u) => through.has(u.path))) {
+        const t = tile(u)
+        // under a solid neighbour's footprint it is blocked by that, not by itself
+        if (solids.some((s) => (s.x - t.x) ** 2 + (s.y - t.y) ** 2 <= s.r * s.r)) continue
+        const i = t.y * preview.mapWidth + t.x
+        checked++
+        expect(preview.walls[i], `seed ${seed} ${u.path}`).toBe('0')
+      }
+    }
+    expect(checked).toBeGreaterThan(0)
+  })
+
   it('refuses a village on an island too small for one', () => {
     const fields = validateParameters(withWorlds([smallWorld({ hub: 'village' })])).errors.map((e) => e.field)
     expect(fields).toContain('world.worlds.0.hub')

@@ -84,7 +84,9 @@ function buildVillage(ctx: GenerationContext, rand: Rand, grid: WorldGrid, biome
   const place = (entry: ScatterEntry, t: Tile): boolean => {
     if (!grid.discAll(t, entry.solid + 1, (x, y) => grid.walkable(x, y))) return false
     Doodad.prop(ctx, t.x + 0.5, t.y + 0.5, entry.path)
-    grid.markDisc(t, Math.max(1, entry.solid), WorldGrid.SOLID)
+    // a walk-through prop (crops, a pitchfork) blocks nothing; it only keeps others off
+    if (entry.solid > 0) grid.markDisc(t, entry.solid, WorldGrid.SOLID)
+    else grid.markDisc(t, 1, WorldGrid.RESERVED)
     return true
   }
   place(centre, { x: at.x + VILLAGE_CENTRE.x, y: at.y + VILLAGE_CENTRE.y })
