@@ -4,6 +4,7 @@ import { join } from 'path'
 import JSZip from 'jszip'
 import {
   defaultParameters,
+  downsamplePreview,
   generateDungeon,
   parseParametersTxt,
   parsePlayerSettingsTxt,
@@ -66,7 +67,8 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
     if (result.ok) {
       lastResult = result
       // strip the file contents from the renderer payload
-      return { ok: true, seed: result.seed, campaignName: result.campaignName, levels: result.levels }
+      // a big island's preview is shrunk for the window; lastResult keeps the full one
+      return { ok: true, seed: result.seed, campaignName: result.campaignName, levels: result.levels.map((l) => downsamplePreview(l)) }
     }
     return result
   })

@@ -81,6 +81,9 @@ export interface WorldPreview {
   sites: Array<Tile & { kind: 'button' | 'boss' | 'ambush' | 'pack' | 'loot' | 'mystery' | 'save' }>
   /** plateaus asked for and raised, when the world asks for any */
   plateaus?: { asked: number; placed: number }
+  /** set on a downsampled copy (`previewScale.ts`): tiles per preview cell, and the real size */
+  scale?: number
+  size?: { width: number; height: number }
 }
 
 /** A world's three streams, each seeded from one `ctx.worldRand` draw. */
@@ -261,25 +264,31 @@ function previewOf(
   biome: BiomeDef,
   sites: WorldPreview['sites']
 ): LevelPreview {
-  let map = ''
-  let walls = ''
+  // one byte per tile, decoded once: a 2048 island is 4M tiles, too many for +=
+  const ZERO = 48
+  const mapCodes = new Uint8Array(grid.width * grid.height)
+  const wallCodes = new Uint8Array(grid.width * grid.height)
   for (let y = 0; y < grid.height; y++) {
     for (let x = 0; x < grid.width; x++) {
       const c = !grid.has(x, y, WorldGrid.LAND)
-        ? '0'
+        ? 0
         : grid.has(x, y, WorldGrid.CLIFF)
-          ? '2'
+          ? 2
           : grid.has(x, y, WorldGrid.TRAIL)
-            ? '3'
+            ? 3
             : grid.has(x, y, WorldGrid.SOLID)
-              ? '4'
+              ? 4
               : grid.has(x, y, WorldGrid.HIGH)
-                ? '5'
-                : '1'
-      map += c
-      walls += grid.walkable(x, y) ? '0' : '1'
+                ? 5
+                : 1
+      const i = y * grid.width + x
+      mapCodes[i] = ZERO + c
+      wallCodes[i] = ZERO + (grid.walkable(x, y) ? 0 : 1)
     }
   }
+  const decoder = new TextDecoder()
+  const map = decoder.decode(mapCodes)
+  const walls = decoder.decode(wallCodes)
   return {
     level: levelNumber,
     // generateDungeon relabels it with the slot's own label

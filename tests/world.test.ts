@@ -5,9 +5,11 @@ import {
   generateDungeon,
   parseParametersTxt,
   serializeParametersTxt,
-  validateParameters
+  validateParameters,
+  downsamplePreview,
+  PREVIEW_MAX_SIDE
 } from '../src/generator'
-import type { DungeonParameters } from '../src/generator'
+import type { DungeonParameters, LevelPreview } from '../src/generator'
 import {
   campaignOrder,
   normalizeOrder,
@@ -995,6 +997,50 @@ describe('landmarks', () => {
       return JSON.stringify(preview.world!.sites.filter((s) => s.kind !== 'loot'))
     }
     expect(where(true)).toBe(where(false))
+  })
+})
+
+describe('the preview sent to the window', () => {
+  const fake = (w: number, h: number, tile: (x: number, y: number) => string): LevelPreview => {
+    let map = ''
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) map += tile(x, y)
+    return {
+      level: 0,
+      label: 'W1',
+      theme: 'grass',
+      mapWidth: w,
+      mapHeight: h,
+      rooms: [],
+      passages: [],
+      monsterCount: 0,
+      itemCount: 0,
+      walls: map.replace(/[^0]/g, '1'),
+      world: { map, hub: { x: w / 2, y: h / 2 }, sites: [{ x: w - 1, y: h - 1, kind: 'boss' }] }
+    }
+  }
+
+  it('leaves an island up to the limit as it is', () => {
+    const small = fake(PREVIEW_MAX_SIDE, 200, () => '1')
+    expect(downsamplePreview(small)).toBe(small)
+    const dungeon = { ...small, mapWidth: 4000, world: undefined }
+    expect(downsamplePreview(dungeon)).toBe(dungeon)
+  })
+
+  it('shrinks a big island to blocks of its commonest tile, and moves the marks onto them', () => {
+    // water on the left half, land on the right, a 1030×600 island: blocks of 3
+    const big = fake(1030, 600, (x) => (x < 515 ? '0' : '1'))
+    const out = downsamplePreview(big)
+    expect(out.world!.scale).toBe(3)
+    expect(out.world!.size).toEqual({ width: 1030, height: 600 })
+    expect([out.mapWidth, out.mapHeight]).toEqual([344, 200])
+    expect(out.world!.map).toHaveLength(344 * 200)
+    expect(out.walls).toHaveLength(344 * 200)
+    expect(out.world!.map[0]).toBe('0')
+    expect(out.world!.map[343]).toBe('1')
+    expect(out.world!.hub).toEqual({ x: 171, y: 100 })
+    expect(out.world!.sites[0]).toEqual({ x: 343, y: 199, kind: 'boss' })
+    // the generator's own copy is untouched
+    expect(big.world!.map).toHaveLength(1030 * 600)
   })
 })
 
