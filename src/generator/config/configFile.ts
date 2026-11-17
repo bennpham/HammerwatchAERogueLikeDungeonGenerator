@@ -39,7 +39,7 @@ import {
   bossSelection,
   arenaUsesBodyguards
 } from './parameters'
-import { WORLD_HUBS, WORLD_MAX_AMBUSH_TYPES, defaultWorld, defaultWorldOptions, worldList } from '../world/options'
+import { MAX_WORLDS, WORLD_HUBS, WORLD_MAX_AMBUSH_TYPES, defaultWorld, defaultWorldOptions, worldList } from '../world/options'
 import type { WorldDef } from '../world/options'
 import { UPGRADE_KINDS, noUpgrades } from '../lobby/payout'
 import type { UpgradeCounts } from '../lobby/payout'
@@ -1717,12 +1717,18 @@ export function parseParametersTxt(content: string, base?: DungeonParameters): P
     }
     if (keyLower === 'worlds') {
       const n = parseInt(value, 10)
-      if (Number.isNaN(n) || n < 0) result.unknownKeys.push(`${key} value "${value}"`)
+      // past the cap is refused here, so a stray count can't allocate thousands of worlds
+      if (Number.isNaN(n) || n < 0 || n > MAX_WORLDS) result.unknownKeys.push(`${key} value "${value}"`)
       else declaredWorldCount = n
       continue
     }
     const worldMatch = keyLower.match(/^world(\d+)(.+)$/)
     if (worldMatch) {
+      // a world past the cap is never grown: the key is reported as unknown
+      if (parseInt(worldMatch[1], 10) >= MAX_WORLDS) {
+        result.unknownKeys.push(key)
+        continue
+      }
       if (parseWorldKey(worldMatch[2], key, value, worldAt(parseInt(worldMatch[1], 10), key), result.unknownKeys)) continue
       // an unknown world<i> suffix: reported by the catch-all below
     }

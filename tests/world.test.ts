@@ -17,7 +17,14 @@ import {
   stemOfFileName,
   worldId
 } from '../src/generator/campaign'
-import { WORLD_TERRAIN_LEVELS, defaultWorld, worldList, worldMaxSafeRadius, worldSiteCapacityOf } from '../src/generator/world/options'
+import {
+  MAX_WORLDS,
+  WORLD_TERRAIN_LEVELS,
+  defaultWorld,
+  worldList,
+  worldMaxSafeRadius,
+  worldSiteCapacityOf
+} from '../src/generator/world/options'
 import { WORLD_STEPS, WORLD_STEP_ADVICE } from '../src/generator/world/build'
 import type { WorldDef } from '../src/generator/world/options'
 import { BIOME_DEFS, plateauEdgeSet } from '../src/generator/world/biomes'
@@ -204,6 +211,24 @@ describe('world validation', () => {
     // still refused with neither an arena nor a world
     p.world!.enabled = false
     expect(fieldsOf(p)).toContain('levels')
+  })
+
+  it(`refuses more than ${MAX_WORLDS} worlds`, () => {
+    expect(fieldsOf(withWorlds(Array.from({ length: MAX_WORLDS }, () => smallWorld())))).not.toContain('world.worlds')
+    expect(fieldsOf(withWorlds(Array.from({ length: MAX_WORLDS + 1 }, () => smallWorld())))).toContain('world.worlds')
+  })
+
+  it('never grows a loaded file past the world cap', () => {
+    const stray = parseParametersTxt('world=1\nworld99999Biome=desert\n')
+    expect(stray.params.world!.worlds.length).toBeLessThanOrEqual(1)
+    expect(stray.unknownKeys).toContain('world99999Biome')
+    const count = parseParametersTxt(`world=1\nworlds=${MAX_WORLDS + 1}\n`)
+    expect(count.params.world!.worlds.length).toBeLessThanOrEqual(1)
+    expect(count.unknownKeys.some((k) => k.startsWith('worlds'))).toBe(true)
+    // the cap itself still loads
+    const last = parseParametersTxt(`world=1\nworlds=${MAX_WORLDS}\nworld${MAX_WORLDS - 1}Biome=desert\n`)
+    expect(last.params.world!.worlds).toHaveLength(MAX_WORLDS)
+    expect(last.params.world!.worlds[MAX_WORLDS - 1].biome).toBe('desert')
   })
 
   it('refuses a safe radius that leaves no land for the sites, unless the world is free roam', () => {

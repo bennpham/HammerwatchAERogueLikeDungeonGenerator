@@ -61,6 +61,7 @@ import type { CampaignSlot } from '../campaign'
 import { SLOT_KINDS, defaultOrder } from '../campaign'
 import { biomeById, BIOME_IDS } from '../world/biomes'
 import {
+  MAX_WORLDS,
   VILLAGE_MIN_SIZE,
   WORLD_HUBS,
   WORLD_MAX_AMBUSHES,
@@ -486,6 +487,10 @@ function validateWorlds(p: DungeonParameters, errors: ValidationIssue[], warning
   if (world === undefined || !world.enabled) return
   if ((world.worlds ?? []).length === 0) {
     errors.push({ field: 'world.worlds', message: 'Worlds are switched on but there are none. Add one, or switch them off.' })
+    return
+  }
+  if (world.worlds.length > MAX_WORLDS) {
+    errors.push({ field: 'world.worlds', message: `At most ${MAX_WORLDS} worlds; each is a whole level. Remove ${world.worlds.length - MAX_WORLDS}.` })
     return
   }
   const poolSize = (p.mysteryButtons ?? []).length

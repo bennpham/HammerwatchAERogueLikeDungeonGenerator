@@ -37,7 +37,8 @@ import {
   normalizeOrder,
   slotLabel,
   worldBossCount,
-  worldSiteCapacityOf
+  worldSiteCapacityOf,
+  MAX_WORLDS
 } from '../../generator'
 import type { DungeonParameters, ValidationIssue, WorldAmbushType, WorldDef, WorldOptions } from '../../generator'
 import { BoolField, NumberField, Section, ToggleGroup } from './fields'
@@ -143,7 +144,7 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
   // Zero switches worlds off and keeps the list, so 0 -> 1 gives back the
   // world already tuned; growing clones the last one, as the arenas do.
   const setCount = (raw: number) => {
-    const n = Math.max(0, Math.trunc(raw))
+    const n = Math.min(MAX_WORLDS, Math.max(0, Math.trunc(raw)))
     if (Number.isNaN(n)) return
     if (n === 0) {
       if (options.enabled) set({ enabled: false })
@@ -172,7 +173,7 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
           the portal comes alive. Each world draws from its own RNG stream, so the dungeon itself is
           identical with or without one, for the same seed.
         </p>
-        <NumberField label="Number of worlds" field="world.worlds" value={count} issues={issues} min={0} step={1} onChange={setCount} />
+        <NumberField label="Number of worlds" field="world.worlds" value={count} issues={issues} min={0} max={MAX_WORLDS} step={1} onChange={setCount} />
         <p className="hint">Place each world among the floors and arenas on the Floor order tab.</p>
       </Section>
 
