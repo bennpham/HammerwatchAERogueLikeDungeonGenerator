@@ -59,6 +59,9 @@ const PAYLOAD_REACH = 6
 const TRAP_REACH = 5
 const TRAP_SPAN = 5
 
+/** The way each spewer direction fires, a tile at a time. */
+const FIRE_STEP: Record<TrapDirection, [number, number]> = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] }
+
 export interface WorldEncounters {
   packs: Tile[]
   ambushes: Tile[]
@@ -149,7 +152,7 @@ export function buildEncounters(
         }
         return line
       }
-      emitPayload(
+      const used = emitPayload(
         ctx,
         trigger,
         at,
@@ -161,6 +164,12 @@ export function buildEncounters(
         MYSTERY_ANNOUNCE_TYPE,
         rand
       )
+      // kept clear before the scatter: nothing grows on a spawn or in a line of fire
+      for (const t of used.spawns) grid.set(t.x, t.y, WorldGrid.RESERVED)
+      for (const { slot, direction } of used.spewers) {
+        const [dx, dy] = FIRE_STEP[direction]
+        for (let k = 0; k <= 2 * TRAP_REACH; k++) grid.set(slot.x + dx * k, slot.y + dy * k, WorldGrid.RESERVED)
+      }
     }
     for (let i = 0; i < (def.mysteryPlates ?? 0); i++) {
       const at = freeTile(rand, grid, hub, def.safeRadius, [...mystery, ...sites, ...ambushes], MYSTERY_SPACING, PLACE_TRIES)

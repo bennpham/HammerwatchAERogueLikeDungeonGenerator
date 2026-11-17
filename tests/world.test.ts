@@ -999,6 +999,43 @@ describe('the save plate', () => {
   })
 })
 
+describe('mystery payloads on an island', () => {
+  it('grows no solid scatter on a payload spawn or across a line of fire', () => {
+    const grass = BIOME_DEFS.find((b) => b.id === 'grass')!
+    const solid = new Set(grass.clumps.filter((e) => e.solid > 0).map((e) => e.path))
+    let spawnsChecked = 0
+    let linesChecked = 0
+    for (const seed of [1, 2, 3, 4]) {
+      const p = withWorlds([smallWorld({ biome: 'grass', scatter: 100, mysteryPlates: 4, buttonAmbush: 0, ambushes: 0, packs: 0, landmarks: false })])
+      p.mysteryButtons = [
+        {
+          name: 'Ambush and loot',
+          loot: [{ item: 'valuable_diamond_small_red', count: 3 }],
+          monsters: [{ monster: 'mummy', count: 4 }],
+          traps: [{ projectile: 'shooter_arrow', direction: 'down', spread: 0, spawnRateMs: 1000, count: 2 }]
+        }
+      ]
+      const w0 = levelsOf(generateOk(p, seed)).get('world0')!
+      const tileOf = (o: { x: number; y: number }) => `${Math.floor(o.x / 16)},${Math.floor(o.y / 16)}`
+      const props = unitsOf(w0, (u) => solid.has(u.path)).map((u) => ({ x: Math.floor(u.x / 16), y: Math.floor(u.y / 16) }))
+      const propTiles = new Set(props.map((t) => `${t.x},${t.y}`))
+      for (const spawn of [...scriptsOf(w0, 'SpawnObject'), ...scriptsOf(w0, 'SpawnUnit')]) {
+        spawnsChecked++
+        expect(propTiles.has(tileOf(spawn)), `seed ${seed}: a tree on a spawn`).toBe(false)
+      }
+      // a down spewer fires south; no prop centre stands in its column for the next ten tiles
+      for (const spewer of scriptsOf(w0, 'ProjectileSpewer')) {
+        linesChecked++
+        const sx = Math.floor(spewer.x / 16)
+        const sy = Math.floor(spewer.y / 16)
+        for (const t of props) expect(t.x === sx && t.y >= sy && t.y <= sy + 10, `seed ${seed}: a tree in a line of fire`).toBe(false)
+      }
+    }
+    expect(spawnsChecked).toBeGreaterThan(0)
+    expect(linesChecked).toBeGreaterThan(0)
+  })
+})
+
 describe('mystery traps on an island', () => {
   it('stands a trap button\'s spewers on open ground across the plate, switched on by the press', () => {
     const p = withWorlds([smallWorld({ mysteryPlates: 3, buttonAmbush: 0, ambushes: 0 })])

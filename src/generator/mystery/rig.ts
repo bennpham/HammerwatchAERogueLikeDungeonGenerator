@@ -125,10 +125,19 @@ const MONSTER_GAP = 3
  * (see `buildMysteryButtonRig`'s Phase C/D comment on lock tiles).
  *
  * `rand` is the stream the "one of these" loot and the spewer slots draw
- * from: a floor's `ctx.mysteryRand`, a world's own encounter stream
+ * from: a floor's `ctx.mysteryRand`, or a world's own encounter stream
  * (`world/encounters.ts`, which passes a disc of open ground as the "room" and
- * no wall slots, so a world plate places no spewer).
+ * a line of open ground off the plate as each direction's "wall").
+ *
+ * Returns the tiles it used: every spawn tile, and each spewer's slot with
+ * the way it fires. A floor ignores them; a world reserves them so the
+ * scatter grows nothing on a spawn or across a line of fire.
  */
+export interface PayloadSpots {
+  spawns: Slot[]
+  spewers: Array<{ slot: Slot; direction: TrapDirection }>
+}
+
 export function emitPayload(
   ctx: GenerationContext,
   trigger: ScriptNode,
@@ -140,7 +149,8 @@ export function emitPayload(
   wallPoolOf: (roomIndex: number, direction: TrapDirection) => Slot[],
   textType: number,
   rand: Rand = ctx.mysteryRand
-): void {
+): PayloadSpots {
+  const used: PayloadSpots = { spawns: [], spewers: [] }
   const text = def.text?.trim() ?? ''
   if (text !== '') {
     const announce = new NodeAnnounceText(ctx, trigger.x, trigger.y)
@@ -162,6 +172,7 @@ export function emitPayload(
     return item === undefined || !(row.count >= 1) ? [] : Array.from({ length: row.count }, () => item)
   })
   spawnTiles(room, tile, plateTiles, LOOT_GAP, loot.length).forEach((at, i) => {
+    used.spawns.push(at)
     const item = loot[i]
     const x = at.x + TILE_CENTRE
     const y = at.y + TILE_CENTRE
@@ -184,6 +195,7 @@ export function emitPayload(
       : Array.from({ length: row.count }, () => resolveActorPath(row.monster))
   )
   spawnTiles(room, tile, plateTiles, MONSTER_GAP, monsters.length).forEach((at, i) => {
+    used.spawns.push(at)
     const spawn = new NodeSpawnObject(ctx, at.x + TILE_CENTRE, at.y + TILE_CENTRE, monsters[i])
     spawn.triggerTimes = 1
     trigger.connectTo(spawn)
@@ -200,6 +212,7 @@ export function emitPayload(
       // spewers actually placed.
       if (pool.length === 0) break
       const slot = takeSlot(rand, pool)
+      used.spewers.push({ slot, direction: row.direction })
       const spewer = new NodeProjectileSpewer(
         ctx,
         slot.x + TILE_CENTRE,
@@ -230,6 +243,7 @@ export function emitPayload(
       trigger.connectTo(off, seconds * 1000)
     }
   }
+  return used
 }
 
 /**
