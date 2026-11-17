@@ -153,3 +153,44 @@ This matters most for the presets that cut monsters (Double or Nothing and Trap 
 ## How the numbers were made
 
 A throwaway script built every preset with `CAMPAIGN_PRESETS[i].build()` and printed its order, lobbies, locks, timers, floor bosses, fights and pools. Prices and health came from `PLAYER_STOCK` (`players/stock.generated.ts`): each skill tier's `cost.stock`, grouped by the digit of its `category`. Timer damage per second is `damage × 1000 / freqMs`. The script was not committed.
+
+## Status
+
+Implemented 2026-11-16 on `feature/pr17-audits`:
+
+| Item | Done |
+|---|---|
+| B1 | The hunt floors get 600 seconds (Ben's take: more time, not a softer hazard). `TIMER_COUNTDOWN_NODE_WARN` rose to 600 with them. |
+| B2 | Both random finales draw from `MOBILE_BOSS_IDS`. |
+| B3 | Declined (Ben's take). Bonus Gauntlet is unchanged. |
+| B4 | A town after floor 9, the lich alone in the first arena, floor 8's countdown shown. |
+| B5 | `scripts/dev/measure-gold.ts`, report only. Measured below; no gold changed. |
+| C3 | Every floor of Boss Rush, Pandemonium, Double or Nothing, Shell Game and The Long Haul has at least three monster types. |
+| C8 | One line on the preset dialog's player tab. |
+| D | Descriptions, the README table and the stale comments. |
+
+### B5: gold placed on the floors
+
+`node scripts/run-ts.mjs scripts/dev/measure-gold.ts 3`, seeds 1000–1002, the presets as of this branch. Coins and diamonds placed in the level only: chests, breakables, monster drops and mystery loot spawn at run time and aren't counted, so these are lower bounds.
+
+| Preset | Floors | Lobby gold | Floor gold (mean) | Per floor (mean) |
+| --- | --- | --- | --- | --- |
+| Castle (default) | 8 | 30000 | 39459 | 4932 |
+| Desert | 7 | 30000 | 29007 | 4144 |
+| Shaftlocke Tower | 8 | 30000 | 35049 | 4381 |
+| Bonus Gauntlet | 6 | 35000 | 18547 | 3091 |
+| Survival in Colosseum | 0 | 22000 | 0 | 0 |
+| Arena Marathon | 1 | 55000 | 1043 | 1043 |
+| Beat the Clock | 5 | 30000 | 6252 | 1250 |
+| Boss Rush | 4 | 35000 | 7669 | 1917 |
+| Double or Nothing | 5 | 15000 | 14070 | 2814 |
+| Frozen Descent | 5 | 30000 | 13704 | 2741 |
+| Lunch Break | 3 | 15000 | 1749 | 583 |
+| Pandemonium | 4 | 30000 | 8802 | 2201 |
+| Shaftlocke Siege | 6 | 30000 | 20141 | 3357 |
+| Shell Game | 5 | 30000 | 5215 | 1043 |
+| The Long Haul | 13 | 90000 | 83588 | 6430 |
+| Trap Gauntlet | 5 | 30000 | 12054 | 2411 |
+| Pre-Alpha | 8 | 0 | 33756 | 4220 |
+
+Floor gold rises steeply with depth, since a lair's treasure tier is `iRand(0, 5) + level`: Castle's floors average 1663, 1700, 2759, 2929, 5027, 6420, 8359 and 10602. So a classic preset's party reaches the boss-prep lobby with about 29000 found on top of the first lobby's 10000, and its 20000 there buys most of a tier-3 column (A1). The last floor's gold is found after the last shop.
