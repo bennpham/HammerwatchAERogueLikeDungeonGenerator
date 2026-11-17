@@ -613,6 +613,15 @@ describe('campaign presets', () => {
       for (const level of [2, 3]) expect(floorBossAt(params, level)!.bossPool).toEqual([...MOBILE_BOSS_IDS])
     })
 
+    it('gives every floor of the once-thin presets at least three monster types', () => {
+      for (const id of ['claude-boss-rush', 'claude-pandemonium', 'claude-double-or-nothing', 'claude-shell-game', 'claude-long-haul']) {
+        const params = campaignPresetById(id)!.build()
+        // the escape floor's pool is its own breakable battlements
+        const floors = id === 'claude-long-haul' ? params.levelMonsters.slice(0, -1) : params.levelMonsters
+        floors.forEach((pool, i) => expect(new Set(pool).size, `${id} floor ${i + 1}`).toBeGreaterThanOrEqual(3))
+      }
+    })
+
     it('draws the random multi-boss finales from the mobile roster only', () => {
       for (const [id, count] of [['claude-pandemonium', 6], ['claude-arena-marathon', 3]] as const) {
         const fights = campaignPresetById(id)!.build().boss.fights

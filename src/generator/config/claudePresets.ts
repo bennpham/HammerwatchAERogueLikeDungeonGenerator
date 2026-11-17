@@ -553,11 +553,12 @@ function bossRush(): DungeonParameters {
     // (Shaftlocke), Krilith and Anubis (Temple of the Sun). No clock, so the
     // warden's 3000 hp is a fight, not a race.
     themes: ['cave_desert', 'prison2', 'cave_crystal', 'pyramid_fancy'],
+    // three types a floor, each third from the preset's own roster (balance audit C3)
     levelMonsters: [
-      ['skeleton_warrior', 'skeleton_archer'],
-      ['prison_warrior', 'prison_archer'],
-      ['wisp', 'tick_gold'],
-      ['mummy_guard', 'mummy']
+      ['skeleton_warrior', 'skeleton_archer', 'tick_gold'],
+      ['prison_warrior', 'prison_archer', 'skeleton_warrior'],
+      ['wisp', 'tick_gold', 'skeleton_archer'],
+      ['mummy_guard', 'mummy', 'skeleton_archer']
     ],
     levelBoss: [
       floorBoss({ boss_knight: 1 }, floorTierAndDeathWaves([['skeleton_warrior', 10]], [['skeleton_warrior', 5]])),
@@ -979,11 +980,12 @@ function pandemonium(): DungeonParameters {
   return campaign(levels, {
     foodMultiplier: 1.6,
     themes: ['archives', 'chambers', 'cave_desert', 'cave_crystal'],
+    // three types a floor, each third from the floor before (balance audit C3)
     levelMonsters: [
-      ['bat', 'tick'],
-      ['maggot', 'slime'],
-      ['eye', 'wisp'],
-      ['skeleton_soldier', 'skeleton_ranger']
+      ['bat', 'tick', 'maggot'],
+      ['maggot', 'slime', 'tick'],
+      ['eye', 'wisp', 'slime'],
+      ['skeleton_soldier', 'skeleton_ranger', 'wisp']
     ],
     // Two bosses on each of the first two floors, from the light end of the
     // roster (the hunt pool and the lich) — two of the Shaftlocke heavyweights
@@ -1122,18 +1124,19 @@ function longHaul(): DungeonParameters {
     // The desert act draws on the whole Temple of the Sun roster: scorpions,
     // the temple's own skeletons and the desert battlement archers.
     levelMonsters: [
+      // three types a floor or more, each added one from a neighbouring floor (balance audit C3)
       ['bat', 'tick', 'skeleton_warrior'],
-      ['maggot', 'slime'],
-      ['skeleton_warrior', 'skeleton_archer'],
-      ['skeleton_soldier', 'skeleton_ranger'],
-      ['eye', 'wisp'],
-      ['wisp#3', 'tower_static_frost'],
+      ['maggot', 'slime', 'skeleton_warrior'],
+      ['skeleton_warrior', 'skeleton_archer', 'slime'],
+      ['skeleton_soldier', 'skeleton_ranger', 'skeleton_archer'],
+      ['eye', 'wisp', 'skeleton_ranger'],
+      ['wisp#3', 'tower_static_frost', 'eye'],
       ['mummy_guard', 'scorpion', 'temple_warrior'],
       ['mummy', 'mummy_mage', 'temple_soldier'],
       ['mummy_lich', 'spider#0', 'tower_battlement_archer_desert'],
-      ['bonus_demon', 'bonus_ghost'],
-      ['wisp#3', 'skeleton_soldier'],
-      ['mb_wizard', 'mb_doomspawner'],
+      ['bonus_demon', 'bonus_ghost', 'wisp#3'],
+      ['wisp#3', 'skeleton_soldier', 'bonus_ghost'],
+      ['mb_wizard', 'mb_doomspawner', 'bonus_demon'],
       escapeFloorPool()
     ],
     floorMusic: [
@@ -1311,12 +1314,13 @@ function doubleOrNothing(): DungeonParameters {
     // the floors themselves are quiet — the plates are the danger
     monsterMultiplier: 0.6,
     themes: ['armory', 'archives', 'chambers', 'cave_desert', 'pyramid_inside'],
+    // three types a floor, each third from a neighbouring floor (balance audit C3)
     levelMonsters: [
-      ['bat', 'tick'],
-      ['skeleton_warrior', 'skeleton_archer'],
-      ['eye', 'wisp'],
-      ['skeleton_soldier', 'skeleton_ranger'],
-      ['skeleton_lich', 'wisp#3']
+      ['bat', 'tick', 'skeleton_warrior'],
+      ['skeleton_warrior', 'skeleton_archer', 'tick'],
+      ['eye', 'wisp', 'skeleton_archer'],
+      ['skeleton_soldier', 'skeleton_ranger', 'wisp'],
+      ['skeleton_lich', 'wisp#3', 'skeleton_soldier']
     ],
     floorMusic: ['act1', 'act2', 'act3', 'act3', 'act4'],
     // the red buttons, never disguised: finding them is always the safe way on
@@ -1424,12 +1428,13 @@ function shellGame(): DungeonParameters {
     maxRoomCount: 10,
     monsterMultiplier: 0.5,
     themes: ['armory', 'archives', 'chambers', 'cave_desert', 'cave_crystal'],
+    // three types a floor, all from the preset's own roster (balance audit C3)
     levelMonsters: [
-      ['bat'],
-      ['tick', 'bat'],
-      ['skeleton_warrior', 'bat'],
-      ['skeleton_runner', 'tick_gold'],
-      ['skeleton_runner', 'bat']
+      ['bat', 'tick', 'skeleton_warrior'],
+      ['tick', 'bat', 'skeleton_warrior'],
+      ['skeleton_warrior', 'bat', 'tick_gold'],
+      ['skeleton_runner', 'tick_gold', 'skeleton_warrior'],
+      ['skeleton_runner', 'bat', 'tick_gold']
     ],
     floorMusic: ['act1', 'act2', 'act2', 'act3', 'act4'],
     // the last floor is the hunt, as in Beat the Clock — no lock, its boss is the way out
