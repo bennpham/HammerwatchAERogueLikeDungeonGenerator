@@ -508,6 +508,16 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
     }
   }
 
+  // a world from a hand-built object may lack a list the loader always fills
+  const listOf = <T,>(field: 'bossPool' | 'monsters', label: string): T[] => {
+    const v = w[field] as unknown
+    if (Array.isArray(v)) return v as T[]
+    errors.push({ field: at(field), message: `${subject}: the ${label} is missing; give it a list, even an empty one.` })
+    return []
+  }
+  const bossPool = listOf<string>('bossPool', 'boss pool')
+  const monsters = listOf<string>('monsters', 'monster pool')
+
   if (biomeById(w.biome) === undefined) {
     errors.push({ field: at('biome'), message: `${subject}: unknown biome "${w.biome}". Use one of: ${BIOME_IDS.join(', ')}.` })
   }
@@ -585,10 +595,10 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
     validateBossLineup(w.bossLineup, at('bossLineup'), MOBILE_BOSS_IDS, errors, subject)
   } else {
     if (w.bossCount !== undefined) whole('bossCount', 'the boss count', 0, MAX_BOSS_COUNT)
-    if (bosses > 0 && w.bossPool.length === 0) {
+    if (bosses > 0 && bossPool.length === 0) {
       errors.push({ field: at('bossPool'), message: `${subject}: pick at least one boss for the pool.` })
     }
-    for (const id of w.bossPool) {
+    for (const id of bossPool) {
       if (!(MOBILE_BOSS_IDS as readonly string[]).includes(id)) {
         errors.push({
           field: at('bossPool'),
@@ -629,10 +639,11 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
     if (!Number.isInteger(type.weight) || type.weight < 1 || type.weight > WORLD_MAX_AMBUSH_WEIGHT) {
       errors.push({ field: tf('weight'), message: `${subject}, ambush ${t + 1}: the weight must be a whole number from 1 to ${WORLD_MAX_AMBUSH_WEIGHT}.` })
     }
-    if (type.monsters.length === 0) {
+    const rows = Array.isArray(type.monsters) ? type.monsters : []
+    if (rows.length === 0) {
       errors.push({ field: tf('monsters'), message: `${subject}, ambush ${t + 1}: add at least one monster.` })
     }
-    type.monsters.forEach((row, m) => {
+    rows.forEach((row, m) => {
       if (!isKnownMonsterKey(row.monster)) {
         errors.push({ field: tf(`monsters.${m}.monster`), message: `${subject}, ambush ${t + 1}: unknown monster "${row.monster}".` })
       }
@@ -645,10 +656,10 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
     })
   })
   const poolAmbushes = (w.ambushes > 0 || w.buttonAmbush > 0) && types.length === 0
-  if ((w.packs > 0 || poolAmbushes) && w.monsters.length === 0) {
+  if ((w.packs > 0 || poolAmbushes) && monsters.length === 0) {
     errors.push({ field: at('monsters'), message: `${subject}: packs and ambushes need at least one monster in the pool.` })
   }
-  for (const key of w.monsters) {
+  for (const key of monsters) {
     if (!isKnownFloorPoolKey(key)) errors.push({ field: at('monsters'), message: `${subject}: unknown monster "${key}".` })
   }
 

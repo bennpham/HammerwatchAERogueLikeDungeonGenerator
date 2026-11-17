@@ -213,6 +213,18 @@ describe('world validation', () => {
     expect(fieldsOf(p)).toContain('levels')
   })
 
+  it('reports a world missing a list instead of throwing', () => {
+    for (const field of ['bossPool', 'monsters'] as const) {
+      const def = smallWorld() as Partial<WorldDef>
+      delete def[field]
+      expect(() => validateParameters(withWorlds([def as WorldDef])), field).not.toThrow()
+      expect(fieldsOf(withWorlds([def as WorldDef])), field).toContain(`world.worlds.0.${field}`)
+    }
+    const typeless = smallWorld({ ambushTypes: [{ weight: 1 } as never] })
+    expect(() => validateParameters(withWorlds([typeless]))).not.toThrow()
+    expect(fieldsOf(withWorlds([typeless]))).toContain('world.worlds.0.ambushTypes.0.monsters')
+  })
+
   it(`refuses more than ${MAX_WORLDS} worlds`, () => {
     expect(fieldsOf(withWorlds(Array.from({ length: MAX_WORLDS }, () => smallWorld())))).not.toContain('world.worlds')
     expect(fieldsOf(withWorlds(Array.from({ length: MAX_WORLDS + 1 }, () => smallWorld())))).toContain('world.worlds')
