@@ -1,5 +1,4 @@
 import {
-  BOSS_IDS,
   MOBILE_BOSS_IDS,
   bossDeathBuffs,
   defaultBossFight,
@@ -702,12 +701,13 @@ function arenaMarathon(): DungeonParameters {
             ]
           }
         ),
-        // AB3 — the finale: 3 random bosses from the full roster, the
-        // Shaftlocke heavyweights included. Untimed, and the last fight, so
-        // it keeps them; the timed hunts and early floors elsewhere do not.
+        // AB3 — the finale: 3 random bosses from the mobile roster. The
+        // full roster let a seed stack both dragons and the queen, or none
+        // of them, so the same preset swung between two very different
+        // fights (balance audit B2).
         bossFight({
           theme: 'pyramid_inside',
-          bossPool: [...BOSS_IDS],
+          bossPool: [...MOBILE_BOSS_IDS],
           bossCount: 3,
           waves: tierAndDeathWaves([['skeleton_warrior', 20]], [['skeleton_lich', 4]], SHOOTER_ARROW_TRAPS),
           music: 'boss_final'
@@ -1002,9 +1002,11 @@ function pandemonium(): DungeonParameters {
     boss: {
       enabled: true,
       fights: [
+        // the finale: 6 from the mobile roster, as the floors draw, so no
+        // seed stacks both dragons and the queen (balance audit B2)
         bossFight({
           theme: 'pyramid_inside',
-          bossPool: [...BOSS_IDS],
+          bossPool: [...MOBILE_BOSS_IDS],
           bossCount: 6,
           waves: tierAndDeathWaves([['skeleton_warrior', 15]], [['skeleton_lich', 4]], SHOOTER_ARROW_TRAPS),
           music: 'boss_final'

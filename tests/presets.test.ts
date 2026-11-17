@@ -612,6 +612,16 @@ describe('campaign presets', () => {
       for (const level of [2, 3]) expect(floorBossAt(params, level)!.bossPool).toEqual([...MOBILE_BOSS_IDS])
     })
 
+    it('draws the random multi-boss finales from the mobile roster only', () => {
+      for (const [id, count] of [['claude-pandemonium', 6], ['claude-arena-marathon', 3]] as const) {
+        const fights = campaignPresetById(id)!.build().boss.fights
+        const finale = fights[fights.length - 1]
+        expect(finale.arena.bossPool, id).toEqual([...MOBILE_BOSS_IDS])
+        expect(finale.arena.bossCount, id).toBe(count)
+        for (const big of ['boss_dragon', 'boss_queen', 'boss_dragon_hwr']) expect(finale.arena.bossPool, id).not.toContain(big)
+      }
+    })
+
     it('Boss Rush: one floor boss from each campaign', () => {
       const params = campaignPresetById('claude-boss-rush')!.build()
       const bosses = Array.from({ length: params.levels }, (_, i) => Object.keys(floorBossAt(params, i)!.bossLineup ?? {}))
