@@ -1981,7 +1981,7 @@ export const SHOOTER_ARROW_TRAPS: BossTrap[] = [
  * quantity. Totals were 152 / 137 / 117 / 38 / 15; issue #64 part 2 added the
  * knight's own bodyguards on top (4 / 4 / 4 / 1), giving 152 / 141 / 121 / 42 / 16.
  */
-function castleWaves(): BossWave[] {
+export function castleWaves(): BossWave[] {
   const drops = stockWavePickups()
   return [
     scatterWave(
