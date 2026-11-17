@@ -590,14 +590,14 @@ describe('campaign presets', () => {
     })
 
     // A boss hunted against a hazard clock is picked for stock AE attack speed
-    it('hunts only the lighter bosses, for five minutes, on both clock presets', () => {
+    it('hunts only the lighter bosses, for ten minutes, on both clock presets', () => {
       const hunt = ['boss_knight', 'boss_krilith', 'boss_worm', 'boss_wraith', 'boss_golem']
       for (const id of ['claude-beat-the-clock', 'claude-shell-game']) {
         const params = campaignPresetById(id)!.build()
         const last = params.levels - 1
         expect(floorBossAt(params, last)!.bossPool, id).toEqual(hunt)
-        expect(params.levelTimers![last].seconds, id).toBe(300)
-        // a five-minute countdown passes without the file-size warning
+        expect(params.levelTimers![last].seconds, id).toBe(600)
+        // a ten-minute countdown passes without the file-size warning
         expect(validateParameters(params).warnings.map((w) => w.field), id).not.toContain(`levelTimers.${last}.countdown`)
       }
       for (const boss of hunt) expect(MOBILE_BOSS_IDS as readonly string[]).toContain(boss)

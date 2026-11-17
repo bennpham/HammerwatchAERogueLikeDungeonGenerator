@@ -376,8 +376,12 @@ function enrage(): FloorBuff[] {
  */
 const HUNT_BOSS_IDS = ['boss_knight', 'boss_krilith', 'boss_worm', 'boss_wraith', 'boss_golem'] as const
 
-/** The clock presets' hunt: five minutes to find and kill the boss. */
-const HUNT_SECONDS = 300
+/**
+ * The clock presets' hunt: ten minutes to find and kill the boss. Five ran
+ * out mid-fight for some builds, and with lives at 0 the hazard then ended a
+ * 35-minute run within seconds (balance audit B1). The hazard itself stays.
+ */
+const HUNT_SECONDS = 600
 
 /**
  * The clock presets' last floor: one random boss from `HUNT_BOSS_IDS`, no
@@ -507,7 +511,7 @@ function beatTheClock(): DungeonParameters {
     boss: { enabled: true, fights: [beatTheClockArena()] }
   })
   // every floor timed, clock shrinking as the damage rate ramps — except the
-  // hunt, which gets five minutes because a boss fight eats the clock
+  // hunt, which gets ten minutes because a boss fight eats the clock
   const seconds = [150, 120, 100, 80, HUNT_SECONDS]
   const freqMs = [250, 212, 175, 137, 100]
   params.levelTimers = seconds.map((s, i) => ({ enabled: true, seconds: s, damage: 2, freqMs: freqMs[i], countdown: true }))
@@ -1430,7 +1434,7 @@ function shellGame(): DungeonParameters {
   })
   // Beat the Clock on steroids: each locked floor has less time per button
   // (150 s for one, then down to 35 s each for three), and a floor that runs
-  // out hurts harder and faster. The hunt gets five minutes for its boss.
+  // out hurts harder and faster. The hunt gets ten minutes for its boss.
   const seconds = [150, 135, 120, 105, HUNT_SECONDS]
   const freqMs = [200, 175, 150, 125, 100]
   params.levelTimers = seconds.map((s, i) => ({ enabled: true, seconds: s, damage: 3, freqMs: freqMs[i], countdown: true }))
@@ -1574,7 +1578,7 @@ export const CLAUDE_PRESETS: readonly CampaignPreset[] = [
   {
     id: 'claude-beat-the-clock',
     label: 'Beat the Clock',
-    description: 'Every floor runs on a shrinking hazard timer with hidden buttons to find, the last gives five minutes to hunt down a boss, then two minutes in a miniboss-led survival arena — about 35 minutes.',
+    description: 'Every floor runs on a shrinking hazard timer with hidden buttons to find, the last gives ten minutes to hunt down a boss, then two minutes in a miniboss-led survival arena — about 40 minutes.',
     group: 'claude',
     build: beatTheClock
   },
@@ -1626,7 +1630,7 @@ export const CLAUDE_PRESETS: readonly CampaignPreset[] = [
     id: 'claude-shell-game',
     label: 'Shell Game',
     description:
-      'Lock buttons look just like the decoy plates around them, and a steep clock gives time to check only a few. Then five minutes to hunt a boss, finish a boss with no invulnerability, and outlast a survival arena — about 40 minutes.',
+      'Lock buttons look just like the decoy plates around them, and a steep clock gives time to check only a few. Then ten minutes to hunt a boss, finish a boss with no invulnerability, and outlast a survival arena — about 45 minutes.',
     group: 'claude',
     build: shellGame
   },
