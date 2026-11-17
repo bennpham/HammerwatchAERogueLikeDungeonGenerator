@@ -347,6 +347,7 @@ describe('the island', () => {
     for (const b of BIOME_DEFS) {
       const paths = [
         b.ground,
+        b.highGround,
         ...b.patches,
         b.trail,
         b.water,
@@ -779,6 +780,17 @@ describe('raised plateaus', () => {
     }
     expect(checked).toBeGreaterThan(100)
   })
+
+  it('gives plateau tops their own ground, in every biome, and a flat island none of it', () => {
+    for (const b of BIOME_DEFS) {
+      expect(b.highGround, b.id).not.toBe(b.ground)
+      expect(b.patches, b.id).not.toContain(b.highGround)
+      const hills = lvlText(run(hilly({ biome: b.id }), 1).result, 'world0')
+      expect(hills, b.id).toContain(b.highGround)
+    }
+    const flat = lvlText(generateOk(withWorlds([smallWorld({ biome: 'grass' })]), 1), 'world0')
+    expect(flat).not.toContain(BIOME_DEFS.find((b) => b.id === 'grass')!.highGround)
+  }, 120_000)
 
   it('runs a trail up the stairs without painting over them', () => {
     let stairs = 0

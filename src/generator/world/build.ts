@@ -230,10 +230,13 @@ function emitWorld(
   }
   // the ground grown a tile, so it reaches under the cliff lips
   layers.paint16(biome.ground, land, [1, 1, 1, 1])
-  // patches: one noise field per tileset, never under a trail or a cliff
+  // plateau tops: their own ground inside the rim, so height reads away from the edge
+  const tops = land.filter(([x, y]) => grid.has(x, y, WorldGrid.HIGH) && !grid.has(x, y, WorldGrid.CLIFF))
+  if (tops.length > 0) layers.paint16(biome.highGround, tops)
+  // patches: one noise field per tileset, never under a trail, a cliff or a plateau top
   for (const tileset of biome.patches) {
     const noise = new ValueNoise(scatter, width, height, 12, 2)
-    const cells = land.filter(([x, y]) => !grid.has(x, y, WorldGrid.TRAIL | WorldGrid.CLIFF) && noise.at(x, y) > 0.62)
+    const cells = land.filter(([x, y]) => !grid.has(x, y, WorldGrid.TRAIL | WorldGrid.CLIFF | WorldGrid.HIGH) && noise.at(x, y) > 0.62)
     if (cells.length > 0) layers.paint16(tileset, cells)
   }
   if (trail.length > 0) layers.paint16(biome.trail, trail)
