@@ -1,15 +1,17 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { Worker } from 'node:worker_threads'
+import generateWorkerPath from './generateWorker?modulePath'
 import { writeFile, readFile } from 'fs/promises'
 import { join } from 'path'
 import JSZip from 'jszip'
 import {
   defaultParameters,
   downsamplePreview,
-  generateDungeon,
   parseParametersTxt,
   parsePlayerSettingsTxt,
   serializeParametersTxt,
   serializePlayerSettingsTxt,
+  DungeonError,
   DungeonParameters,
   DungeonResult,
   GeneratedFile,
@@ -32,6 +34,39 @@ import * as llmStore from './llm/store'
 
 /** The last successful generation, kept in main so exports don't re-send MBs over IPC. */
 let lastResult: DungeonResult | null = null
+
+/** The generation running now, and how to end it as cancelled. */
+let running: { worker: Worker; cancel: () => void } | null = null
+
+const CANCELLED = 'Generation cancelled.'
+
+/**
+ * Generate in a worker thread, so the window stays responsive on a big
+ * island and Cancel can stop it. A new press cancels one still running.
+ */
+function generateInWorker(params: DungeonParameters, seed?: number): Promise<DungeonResult | DungeonError> {
+  running?.cancel()
+  return new Promise((resolve) => {
+    const worker = new Worker(generateWorkerPath, { workerData: { params, seed } })
+    let settled = false
+    const settle = (result: DungeonResult | DungeonError) => {
+      if (settled) return
+      settled = true
+      if (running?.worker === worker) running = null
+      resolve(result)
+    }
+    worker.once('message', (result: DungeonResult | DungeonError) => settle(result))
+    worker.once('error', (error: Error) => settle({ ok: false, errors: [`Generation failed: ${error.message}`] }))
+    worker.once('exit', () => settle({ ok: false, errors: [CANCELLED] }))
+    running = {
+      worker,
+      cancel: () => {
+        settle({ ok: false, errors: [CANCELLED] })
+        void worker.terminate()
+      }
+    }
+  })
+}
 
 function requireResult(): DungeonResult | ActionResult {
   if (lastResult === null) {
@@ -62,8 +97,8 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
     return { params: defaultParameters(), settings, paramsSource: 'defaults', unknownKeys: [] }
   })
 
-  ipcMain.handle('dungeon:generate', (_event, params: DungeonParameters, seed?: number) => {
-    const result = generateDungeon(params, seed)
+  ipcMain.handle('dungeon:generate', async (_event, params: DungeonParameters, seed?: number) => {
+    const result = await generateInWorker(params, seed)
     if (result.ok) {
       lastResult = result
       // strip the file contents from the renderer payload
@@ -71,6 +106,10 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
       return { ok: true, seed: result.seed, campaignName: result.campaignName, levels: result.levels.map((l) => downsamplePreview(l)) }
     }
     return result
+  })
+
+  ipcMain.handle('dungeon:cancel', (): void => {
+    running?.cancel()
   })
 
   ipcMain.handle('dungeon:install', async (): Promise<ActionResult> => {

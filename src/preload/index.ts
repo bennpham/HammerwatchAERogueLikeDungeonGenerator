@@ -6,6 +6,7 @@ import type { LlmChatRequest, LlmProviderId, LlmSettings } from '../shared/llm/t
 const api: RendererApi = {
   getInitialState: () => ipcRenderer.invoke('app:init'),
   generate: (params: DungeonParameters, seed?: number) => ipcRenderer.invoke('dungeon:generate', params, seed),
+  cancelGenerate: () => ipcRenderer.invoke('dungeon:cancel'),
   installToHammerwatch: () => ipcRenderer.invoke('dungeon:install'),
   exportFolder: () => ipcRenderer.invoke('dungeon:export-folder'),
   exportZip: () => ipcRenderer.invoke('dungeon:export-zip'),
