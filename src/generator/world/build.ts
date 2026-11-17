@@ -46,7 +46,7 @@ import { HUB_RADIUS, VILLAGE_MIN_SIZE, buildHub, hubRadius, resolveHub } from '.
 import { SITE_RADIUS, placeSites } from './place'
 import { carveTrails } from './paths'
 import { placeLandmarks } from './landmarks'
-import { buildObjectives } from './objectives'
+import { STATUE_RADIUS, buildObjectives, reserveStatueSpots } from './objectives'
 import { buildEncounters, placeLoot } from './encounters'
 import { scatterProps } from './scatter'
 import { placeStartSave } from './saves'
@@ -148,7 +148,12 @@ export function buildWorld(
       fail('trails')
       continue
     }
-    if (def.landmarks !== false) placeLandmarks(ctx, layout, grid, biome, sites)
+    // the boss statues' spots first, so no landmark grows over one
+    const statues = reserveStatueSpots(grid, sites, worldBossCount(def))
+    if (def.landmarks !== false) {
+      const keepOut = [...statues.map((at) => ({ at, radius: STATUE_RADIUS })), { at: save, radius: 1 }]
+      placeLandmarks(ctx, layout, grid, biome, sites, keepOut)
+    }
 
     const placed = buildObjectives(ctx, encounters, grid, def, hub, sites, gateway, nextIsFight)
     const met = buildEncounters(ctx, encounters, grid, def, hub, sites, placed.plates, ctx.params.mysteryButtons ?? [])

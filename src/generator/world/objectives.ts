@@ -82,6 +82,24 @@ export function bossSiteIndexes(siteCount: number, bossCount: number): number[] 
   return Array.from({ length: b }, (_, i) => Math.floor((i * siteCount) / b))
 }
 
+/** Where a boss's statue stands, in tiles from its site, and the disc kept for it. */
+export const STATUE_OFFSET: Tile = { x: 3, y: -3 }
+export const STATUE_RADIUS = Math.max(
+  0,
+  ...Object.values(BOSS_DEFS).map((b) => (b.statue === undefined ? 0 : Math.ceil(b.statue.footprint / 2)))
+)
+
+/**
+ * The statue spots of every site a boss may take, reserved before the
+ * landmarks so none grows over one. Which boss stands there is drawn later,
+ * so every boss site keeps the spot. No draws.
+ */
+export function reserveStatueSpots(grid: WorldGrid, sites: readonly Tile[], bossCount: number): Tile[] {
+  const spots = bossSiteIndexes(sites.length, bossCount).map((i) => ({ x: sites[i].x + STATUE_OFFSET.x, y: sites[i].y + STATUE_OFFSET.y }))
+  for (const spot of spots) grid.markDisc(spot, STATUE_RADIUS, WorldGrid.RESERVED)
+  return spots
+}
+
 /** "2 objectives remain", for the countdown's announcements. */
 export function objectivesRemainingText(k: number): string {
   return k === 1 ? '1 objective remains' : `${k} objectives remain`
@@ -169,7 +187,7 @@ export function buildObjectives(
     if (boss.statue !== undefined) {
       buildBossStatue(ctx, boss, actor, site.x + 3.5, site.y - 2.5, site.x, site.y - 6)
       // breakable, so not solid; reserved so nothing grows over it
-      grid.markDisc({ x: site.x + 3, y: site.y - 3 }, Math.ceil(boss.statue.footprint / 2), WorldGrid.RESERVED)
+      grid.markDisc({ x: site.x + STATUE_OFFSET.x, y: site.y + STATUE_OFFSET.y }, Math.ceil(boss.statue.footprint / 2), WorldGrid.RESERVED)
     }
     const near = new SensorShape(ctx, site.x + 0.5, site.y + 0.5)
     near.radius = BOSS_BAR_RADIUS

@@ -47,7 +47,9 @@ import {
   withStemPathsText
 } from './ae'
 import { floodFill } from '../src/generator/map/reachability'
-import { PORTAL_TEXT, bossSiteIndexes } from '../src/generator/world/objectives'
+import { PORTAL_TEXT, STATUE_OFFSET, STATUE_RADIUS, bossSiteIndexes } from '../src/generator/world/objectives'
+import { SITE_RADIUS } from '../src/generator/world/place'
+import { HUB_RADIUS } from '../src/generator/world/hub'
 import { MONSTER_THEMES, matchingTheme } from '../src/generator/world/monsterThemes'
 import { WORLD_PRESETS } from '../src/generator/world/presets'
 import { LANDMARK_DEFS, landmarksFor } from '../src/generator/world/landmarks'
@@ -850,6 +852,30 @@ describe('landmarks', () => {
     }
     expect(count(true)).toBeGreaterThan(0)
     expect(count(false)).toBe(0)
+  })
+
+  it('keeps every piece off the start, the save plate, the statue spots and the other sites', () => {
+    const solidOf = new Map(LANDMARK_DEFS.flatMap((l) => l.pieces.map((p) => [p.path, p.solid] as const)))
+    for (let seed = 1; seed <= 24; seed++) {
+      const def = { ...defaultWorld(), biome: 'desert', hub: 'camp' as const, scatter: 0, buttons: 5, bossCount: 2, minWidth: 160, maxWidth: 160, minHeight: 160, maxHeight: 160 }
+      const result = generateOk(withWorlds([def]), seed)
+      const w0 = levelsOf(result).get('world0')!
+      const preview = result.levels.find((l) => l.world !== undefined)!.world!
+      const sites = preview.sites.filter((s) => s.kind === 'button' || s.kind === 'boss')
+      const save = preview.sites.find((s) => s.kind === 'save')!
+      const statues = preview.sites.filter((s) => s.kind === 'boss').map((s) => ({ x: s.x + STATUE_OFFSET.x, y: s.y + STATUE_OFFSET.y }))
+      const d2 = (a: { x: number; y: number }, b: { x: number; y: number }) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2
+      for (const u of unitsOf(w0, (u) => landmarkPaths.has(u.path))) {
+        // a piece's footprint, not just its centre, keeps off what is kept
+        const at = { x: Math.floor(u.x / 16), y: Math.floor(u.y / 16) }
+        const r = solidOf.get(u.path) ?? 0
+        const own = sites.reduce((a, b) => (d2(a, at) <= d2(b, at) ? a : b))
+        for (const s of sites) if (s !== own) expect(d2(s, at), `${seed} ${u.path}`).toBeGreaterThan((SITE_RADIUS + r) ** 2)
+        expect(d2(preview.hub, at), `${seed} ${u.path} on the start`).toBeGreaterThan((HUB_RADIUS + r) ** 2)
+        expect(d2(save, at), `${seed} ${u.path} on the save plate`).toBeGreaterThan((1 + r) ** 2)
+        for (const t of statues) expect(d2(t, at), `${seed} ${u.path} on a statue spot`).toBeGreaterThan((STATUE_RADIUS + r) ** 2)
+      }
+    }
   })
 
   it('moves no site, trail or monster', () => {
