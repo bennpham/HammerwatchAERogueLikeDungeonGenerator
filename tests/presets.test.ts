@@ -34,6 +34,7 @@ import {
   parseMonsterKey,
   resolveActorPath
 } from '../src/generator/objects/monsterTypes'
+import { slotLabel } from '../src/generator/campaign'
 import { corpseCollision } from '../src/generator/objects/actorCollision'
 import { levelsOf, lvlText, scriptsOf, stemsOf, strParam } from './ae'
 import type { AeLevel } from '../src/generator/ae/model'
@@ -730,6 +731,21 @@ describe('campaign presets', () => {
       const finalArena = levels.get('boss1')!
       expect(endsGame(finalArena)).toBe(false)
       expect(exitsTo(finalArena)).toContain('floor12')
+    })
+
+    it('Long Haul: a town before every act, the lich alone in the first arena, floor 8 counted down', () => {
+      const params = campaignPresetById('claude-long-haul')!.build()
+      const order = params.levelOrder!.map((s) => slotLabel(s))
+      expect(order).toEqual(['L1', '1', '2', '3', 'L2', '4', '5', '6', 'L3', 'B1', '7', '8', '9', 'L4', '10', '11', '12', 'L5', 'B2', '13'])
+      // never more than three floors between towns
+      let run = 0
+      for (const slot of params.levelOrder!) {
+        run = slot.kind === 'floor' ? run + 1 : slot.kind === 'lobby' ? 0 : run
+        expect(run).toBeLessThanOrEqual(3)
+      }
+      expect(params.lobbies[3].startingGold).toBe(20000)
+      expect(params.boss.fights[0].arena.bossPool).toEqual(['boss_lich'])
+      expect(params.levelTimers![7].countdown).toBe(true)
     })
   })
 

@@ -1100,8 +1100,12 @@ function longHaul(): DungeonParameters {
     ...floorRange(3, 5),
     L(2),
     B(0),
-    ...floorRange(6, 11),
+    ...floorRange(6, 8),
+    // a town between the desert and the bonus act: six floors without one
+    // was the longest gap of any preset (balance audit B4)
     L(3),
+    ...floorRange(9, 11),
+    L(4),
     B(1),
     F(12)
   ]
@@ -1162,6 +1166,7 @@ function longHaul(): DungeonParameters {
       lobby('BETA-dungeon-prep'),
       lobby('BETA-dungeon-prep', { startingGold: 15000, music: 'act2' }),
       lobby('BETA-boss-prep', { startingGold: 20000, music: 'boss_1' }),
+      lobby('BETA-dungeon-prep', { startingGold: 20000, music: 'temple_hub' }),
       lobby('BETA-boss-prep', { startingGold: 25000, upgrades: oneOfEachUpgrade(), music: 'boss_1' })
     ],
     levelOrder: order,
@@ -1169,10 +1174,11 @@ function longHaul(): DungeonParameters {
     boss: {
       enabled: true,
       fights: [
-        // the mid-campaign arena: a single random boss, lich or knight
+        // the mid-campaign arena: the lich. The knight is floor 3's boss
+        // already, so a pool with him could field him twice in six floors.
         bossFight({
           theme: 'cave_desert',
-          bossPool: ['boss_lich', 'boss_knight'],
+          bossPool: ['boss_lich'],
           waves: tierAndDeathWaves([['skeleton_warrior', 15], ['skeleton_archer', 8]], [['skeleton_lich', 4]]),
           music: 'boss_1'
         }),
@@ -1191,7 +1197,8 @@ function longHaul(): DungeonParameters {
   // 90s/100ms escape clock and fireball rig back on re-import. Giving it its
   // own real (lighter) content is what forces an explicit line, which is the
   // only way to overwrite the stale one.
-  params.levelTimers![7] = { enabled: true, seconds: 200, damage: 1, freqMs: 2000, countdown: false }
+  // The countdown shows, so the party knows why it is losing health.
+  params.levelTimers![7] = { enabled: true, seconds: 200, damage: 1, freqMs: 2000, countdown: true }
   params.levelTraps![7] = [
     { projectile: 'shooter_arrow', direction: 'up', spread: 0, spawnRateMs: 1200, count: 2 },
     { projectile: 'shooter_arrow', direction: 'down', spread: 0, spawnRateMs: 1200, count: 2 }
@@ -1639,7 +1646,7 @@ export const CLAUDE_PRESETS: readonly CampaignPreset[] = [
   {
     id: 'claude-long-haul',
     label: 'The Long Haul',
-    description: 'A 13-floor campaign across four acts and two boss arenas, with more buttons to find and riskier mystery plates each act, ending in an escape floor — 2-3 hours.',
+    description: 'A 13-floor campaign across four acts and two boss arenas, with a town before each act, more buttons to find and riskier mystery plates each act, ending in an escape floor — 2-3 hours.',
     group: 'claude',
     build: longHaul
   },
