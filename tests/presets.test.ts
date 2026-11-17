@@ -35,7 +35,8 @@ import {
   parseMonsterKey,
   resolveActorPath
 } from '../src/generator/objects/monsterTypes'
-import { slotLabel } from '../src/generator/campaign'
+import { campaignOrder, slotLabel } from '../src/generator/campaign'
+import { escapeFloorTimer, worldBossCount } from '../src/generator/config/parameters'
 import { corpseCollision } from '../src/generator/objects/actorCollision'
 import { levelsOf, lvlText, scriptsOf, stemsOf, strParam } from './ae'
 import type { AeLevel } from '../src/generator/ae/model'
@@ -99,6 +100,97 @@ describe('campaign presets', () => {
     for (const group of PRESET_GROUPS) {
       expect(CAMPAIGN_PRESETS.some((p) => p.group === group.id), group.id).toBe(true)
     }
+  })
+
+  describe('Claude Generated Open World', () => {
+    const OPEN = CAMPAIGN_PRESETS.filter((p) => p.group === 'claudeWorld')
+    const orderOf = (params: DungeonParameters) =>
+      campaignOrder(
+        {
+          levels: params.levels,
+          fights: bossFights(params.boss).length,
+          lobbies: params.lobbies.length,
+          worlds: worldList(params.world).length
+        },
+        params.levelOrder
+      )
+    const labelsOf = (id: string) => orderOf(campaignPresetById(id)!.build()).map((s) => slotLabel(s))
+
+    it('is its own group, after Claude Generated, alphabetical, every preset with an island', () => {
+      const groups = PRESET_GROUPS.map((g) => g.id)
+      expect(groups.indexOf('claudeWorld')).toBe(groups.indexOf('claude') + 1)
+      expect(OPEN).toHaveLength(6)
+      const labels = OPEN.map((p) => p.label)
+      expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b)))
+      for (const preset of OPEN) {
+        const params = preset.build()
+        expect(params.world?.enabled, preset.id).toBe(true)
+        expect(orderOf(params).some((s) => s.kind === 'world'), preset.id).toBe(true)
+      }
+    })
+
+    it('keeps every island to what has been played: 256 tiles, one boss, no village, the default safe radius', () => {
+      for (const preset of OPEN) {
+        for (const w of worldList(preset.build().world)) {
+          expect(Math.max(w.maxWidth, w.maxHeight), preset.id).toBeLessThanOrEqual(256)
+          expect(worldBossCount(w), preset.id).toBeLessThanOrEqual(1)
+          expect(['camp', 'bare'], preset.id).toContain(w.hub)
+          expect(w.safeRadius, preset.id).toBeLessThanOrEqual(20)
+          expect(w.plateaus ?? 0, preset.id).toBe(0)
+        }
+      }
+    })
+
+    it('Breakout: no town, the island mid-run, ending on the timed escape floor', () => {
+      const params = campaignPresetById('world-breakout')!.build()
+      expect(params.lobbies).toEqual([])
+      expect(labelsOf('world-breakout')).toEqual(['1', '2', 'W1', '3'])
+      const last = params.levels - 1
+      expect(params.levelTimers![last]).toEqual(escapeFloorTimer())
+      expect(worldList(params.world)[0].timer?.enabled).toBe(true)
+      const result = generateDungeon(params, 4242)
+      expect(result.ok, result.ok ? '' : result.errors.join(' ')).toBe(true)
+      if (!result.ok) return
+      expect(endsGame(levelsOf(result).get(`floor${last}`)!)).toBe(true)
+    })
+
+    it('Manhunt: islands with no buttons and one named boss each, then the ringleader', () => {
+      const params = campaignPresetById('world-manhunt')!.build()
+      const worlds = worldList(params.world)
+      expect(worlds.map((w) => w.buttons)).toEqual([0, 0, 0])
+      expect(worlds.map((w) => w.bossLineup)).toEqual([{ boss_warden: 1 }, { boss_wraith: 1 }, { boss_golem: 1 }])
+      expect(worlds.every((w) => w.trails === false)).toBe(true)
+      expect(params.boss.fights[0].arena.bossPool).toEqual(['boss_vampire'])
+    })
+
+    it('Storm Front: three islands on shrinking timers, then a survival arena', () => {
+      const params = campaignPresetById('world-storm-front')!.build()
+      const seconds = worldList(params.world).map((w) => w.timer!.seconds)
+      expect(seconds).toEqual([300, 240, 180])
+      expect(worldList(params.world).every((w) => w.trails === true)).toBe(true)
+      expect(arenaMode(params.boss.fights[0])).toBe('survival')
+      expect(labelsOf('world-storm-front')).toEqual(['L1', 'W1', 'W2', 'W3', 'B1'])
+    })
+
+    it('Surface and Depths: island and floor in turn three times, from the very first slot', () => {
+      expect(labelsOf('world-surface-and-depths')).toEqual(['W1', '1', 'W2', '2', 'W3', '3', 'L1', 'B1'])
+      const result = generateDungeon(campaignPresetById('world-surface-and-depths')!.build(), 4242)
+      expect(result.ok, result.ok ? '' : result.errors.join(' ')).toBe(true)
+      if (!result.ok) return
+      // the island that opens the campaign leads down to floor 1, whose way out comes up on the next island
+      const levels = levelsOf(result)
+      expect(exitsTo(levels.get('world0')!)).toContain('floor0')
+      expect(exitsTo(levels.get('floor0')!)).toContain('world1')
+    })
+
+    it('runs an island straight into a town (Manhunt, Archipelago)', () => {
+      for (const [id, world, town] of [['world-manhunt', 'world1', 'lobby1'], ['world-archipelago', 'world1', 'lobby1']] as const) {
+        const result = generateDungeon(campaignPresetById(id)!.build(), 4242)
+        expect(result.ok, result.ok ? '' : result.errors.join(' ')).toBe(true)
+        if (!result.ok) continue
+        expect(exitsTo(levelsOf(result).get(world)!), id).toContain(town)
+      }
+    })
   })
 
   describe('Campaign Mode', () => {
@@ -173,7 +265,7 @@ describe('campaign presets', () => {
       }
     })
 
-    it('leaves the floor bosses off and locks the third floor of each act', () => {
+    it('leaves the floor bosses off and locks the third floor of each act (Campaign Mode)', () => {
       for (const preset of MODE) {
         const params = preset.build()
         expect(params.levelBoss, preset.id).toBeUndefined()
@@ -471,7 +563,9 @@ describe('campaign presets', () => {
       // Plates and enhanced lock buttons are purely additive (invariant 8):
       // stripping them must leave every floor's tilemap byte-identical.
       it.runIf(params.mysteryButtons !== undefined)('moves no floor — its mystery plates are added after each floor is built', () => {
-        const plain = { ...params, mysteryButtons: undefined, levelMystery: undefined, levelLockMystery: undefined }
+        // an island's plates go too: without the pool they would not validate (islands move no floor anyway)
+        const world = params.world && { ...params.world, worlds: params.world.worlds.map((w) => ({ ...w, mysteryPlates: 0, mysteryPool: undefined })) }
+        const plain = { ...params, mysteryButtons: undefined, levelMystery: undefined, levelLockMystery: undefined, world }
         const a = generateDungeon(plain, 4242)
         const b = generateDungeon(params, 4242)
         expect(a.ok && b.ok).toBe(true)

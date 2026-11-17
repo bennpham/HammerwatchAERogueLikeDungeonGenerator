@@ -54,7 +54,8 @@ import {
   phaseRow,
   survivalBuffRow,
   survivalPickupRow,
-  survivalTrapRow
+  survivalTrapRow,
+  clockArena
 } from './presetHelpers'
 
 /**
@@ -224,25 +225,6 @@ function noInvulnerability(): BossArenaOptions['invulnerability'] {
   return { ...defaultBossFight().arena.invulnerability, enabled: false }
 }
 
-/** A small survival arena, the clock presets' finale. */
-function clockArena(waves: SurvivalWave[]): BossFight {
-  return survivalFight(
-    { theme: 'pyramid_inside', minWidth: 32, maxWidth: 42, minHeight: 32, maxHeight: 42, music: 'boss_final' },
-    {
-      seconds: 120,
-      // a tick every second, the same clock as the five timed floors:
-      // `milestones` flashed one "2:00" during the load fade and then went
-      // silent for a minute, and playtesters could not tell what the goal was
-      countdown: 'seconds',
-      waves,
-      // the last 30 seconds enraged, on the lich miniboss's push
-      buffs: [survivalBuffRow('bloodlust', 'monsters', 90, 120)],
-      // one health drop at the halfway mark, then the arrows for the last minute
-      pickups: [survivalPickupRow('powerup_health', 1, 60)],
-      traps: [survivalTrapRow(SHOOTER_ARROW_TRAPS[0], 60, 120), survivalTrapRow(SHOOTER_ARROW_TRAPS[1], 60, 120)]
-    }
-  )
-}
 
 // --- Beat the Clock ----------------------------------------------------------
 
