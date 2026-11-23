@@ -15,7 +15,12 @@ export interface AppSettings {
   hammerwatchPath: string
   /** delete the scenario's source folder after packing; off keeps it in <AE>/editor/generated/ */
   cleanupFiles: boolean
+  /** also write a plain-text dungeon_<seed>_description.txt beside the .h1c (or the export) */
+  writeDescription: boolean
 }
+
+/** The AE folders the install panel can open: the packed scenarios, and the kept sources' levels. */
+export type AeFolder = 'scenarios' | 'generated'
 
 /** What the renderer gets back from a generate call (files stay cached in main). */
 export interface GenerateResponse {
@@ -69,6 +74,8 @@ export interface RendererApi {
   installToHammerwatch(): Promise<ActionResult>
   exportFolder(): Promise<ActionResult>
   exportZip(): Promise<ActionResult>
+  /** open `<AE>/scenarios` or `<AE>/editor/generated` in the file manager */
+  openAeFolder(which: AeFolder): Promise<ActionResult>
   pickHammerwatchPath(): Promise<string | null>
   saveSettings(settings: AppSettings): Promise<void>
   importParametersTxt(): Promise<ImportParamsResult | null>

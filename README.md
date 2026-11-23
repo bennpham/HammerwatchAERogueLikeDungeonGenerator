@@ -71,6 +71,15 @@ In game, the campaign appears in the scenario list as **Dungeon #&lt;seed&gt;**.
    `<AE>/scenarios`, packs it into a `.h1c` and removes the unpacked folder. Or use
    **Export folder…** / **Export .zip…** and pack it yourself.
 
+   Tick **Write a dungeon_&lt;seed&gt;_description.txt…** to also get a plain-text summary
+   of the run, so players know what they're getting into: the play order, and for each
+   level its theme, size, rooms, monsters, items, locked doors, timers, floor bosses and
+   which level ends the run. It goes beside the `.h1c` in `<AE>/scenarios` (beside the
+   folder on **Export folder…**, at the root of the zip), never inside the scenario.
+   **Open scenario folder** opens `<AE>/scenarios`. **Open levels folder** opens
+   `<AE>/editor/generated`, where a kept scenario source and its `.lvl` levels go when
+   **Delete the scenario source after packing** is off.
+
 ## What's in a campaign
 
 ### Dungeon floors

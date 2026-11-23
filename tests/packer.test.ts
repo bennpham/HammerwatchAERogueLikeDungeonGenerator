@@ -150,6 +150,22 @@ describe('packer — install guards', () => {
     expect(result.message).toContain('PACKAGER.exe not found')
     expect(existsSync(join(dir, 'scenarios', 'dungeon_1'))).toBe(false)
   })
+
+  it("removes an earlier install's description along with its .h1c", async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hwae-'))
+    try {
+      mkdirSync(join(dir, 'scenarios'))
+      writeFileSync(join(dir, 'PACKAGER.exe'), '')
+      const stale = join(dir, 'scenarios', 'dungeon_1_description.txt')
+      writeFileSync(stale, 'an older run')
+      // no real packer here, so this stops at running it (or at its missing .h1c)
+      const result = await installScenario(dir, 'dungeon_1', [{ path: 'info.xml', content: '<info/>' }], false, [], 'this run')
+      expect(result.ok).toBe(false)
+      expect(existsSync(stale)).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 /**
@@ -171,10 +187,14 @@ describe.skipIf(!HAS_AE || process.env.HWAE_PACK !== '1')('packer — real PACKA
     const result = generateDungeon(params, 99001) as DungeonResult
     expect(result.ok).toBe(true)
     const packed = join(AE_ROOT, 'scenarios', `${result.campaignName}.h1c`)
+    const described = join(AE_ROOT, 'scenarios', `${result.campaignName}_description.txt`)
     try {
-      const install = await installScenario(AE_ROOT, result.campaignName, result.files, false, result.assetOverrides)
+      const install = await installScenario(AE_ROOT, result.campaignName, result.files, false, result.assetOverrides, 'described')
       expect(install.ok, install.message).toBe(true)
       expect(hasH1cMagic(packed)).toBe(true)
+      // the description lies beside the .h1c, not in it
+      expect(readFileSync(described, 'utf-8')).toBe('described')
+      expect(readFileSync(packed).includes(Buffer.from('_description.txt'))).toBe(false)
       // the patched power shop travels inside the scenario
       expect(readFileSync(packed).includes(Buffer.from('PowerShopMenuContent'))).toBe(true)
       // ...and so do the patched player files and the priest's own speed skill
@@ -187,6 +207,7 @@ describe.skipIf(!HAS_AE || process.env.HWAE_PACK !== '1')('packer — real PACKA
       expect(existsSync(join(AE_ROOT, 'scenarios', result.campaignName))).toBe(false)
     } finally {
       rmSync(packed, { force: true })
+      rmSync(described, { force: true })
       rmSync(join(AE_ROOT, 'scenarios', result.campaignName), { recursive: true, force: true })
     }
   }, 180_000)

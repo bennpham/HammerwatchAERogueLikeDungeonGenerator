@@ -1,5 +1,5 @@
 import React from 'react'
-import type { AppSettings } from '../../shared/ipc'
+import type { AeFolder, AppSettings } from '../../shared/ipc'
 
 interface OutputPanelProps {
   settings: AppSettings
@@ -13,6 +13,8 @@ interface OutputPanelProps {
   onInstall: () => void
   onExportFolder: () => void
   onExportZip: () => void
+  /** open an AE folder in the file manager */
+  onOpenFolder: (which: AeFolder) => void
 }
 
 /** Hammerwatch install path + install/export actions. */
@@ -26,7 +28,8 @@ export function OutputPanel({
   onPickPath,
   onInstall,
   onExportFolder,
-  onExportZip
+  onExportZip,
+  onOpenFolder
 }: OutputPanelProps) {
   return (
     <div className="output-panel">
@@ -50,6 +53,14 @@ export function OutputPanel({
             onChange={(e) => onSettingsChange({ ...settings, cleanupFiles: e.target.checked })}
           />
           Delete the scenario source after packing (off keeps it in editor/generated for hand edits)
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={settings.writeDescription}
+            onChange={(e) => onSettingsChange({ ...settings, writeDescription: e.target.checked })}
+          />
+          Write a &lt;DUNGEON_SEED&gt;_description.txt summary of each level beside the .h1c / export
         </label>
         {chatIconHidden !== null && (
           <label className="checkbox">
@@ -76,6 +87,20 @@ export function OutputPanel({
         </button>
         <button disabled={!hasResult || busy} onClick={onExportZip} title="Export the scenario folder as a .zip">
           Export .zip…
+        </button>
+        <button
+          disabled={settings.hammerwatchPath === ''}
+          onClick={() => onOpenFolder('scenarios')}
+          title="Open <AE>/scenarios — the packed .h1c campaigns (and their description files)"
+        >
+          Open scenario folder
+        </button>
+        <button
+          disabled={settings.hammerwatchPath === ''}
+          onClick={() => onOpenFolder('generated')}
+          title="Open <AE>/editor/generated — kept scenario sources and their .lvl levels, for hand edits in the AE editor"
+        >
+          Open levels folder
         </button>
       </div>
     </div>

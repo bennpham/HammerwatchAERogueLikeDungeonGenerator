@@ -22,6 +22,10 @@ import { buildMysteryButtonRig } from './mystery/rig'
 import { playerOverrides } from './players'
 import { environmentOverrides } from './lighting'
 import type { PlayerFileOverride } from './players'
+import { scenarioBlurb } from './describe'
+
+export { describeScenario, descriptionFileName, scenarioBlurb } from './describe'
+export type { ScenarioSummarySource } from './describe'
 
 export type { DungeonParameters, DungeonBoss, LobbyOptions, BossOptions, BossFight, BossArenaOptions, BossWave, BossSpawnMode, BossFloorPattern, FloorTimer, FloorLock, FloorBuff, FloorTrap, TrapDirection, BuffTarget, WavePickup, BossTrap, BossTrapDirection, ArenaMode, SurvivalOptions, SurvivalWave, SurvivalBuff, SurvivalPickup, SurvivalTrap, SurvivalCountdown } from './config/parameters'
 export {
@@ -546,7 +550,7 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
     path: 'info.xml',
     content: renderInfoXml({
       name: `Dungeon #${usedSeed}`,
-      description: describeCampaign(params, fights.length, lobbies.length, worlds.length),
+      description: scenarioBlurb(params, fights.length, lobbies.length, worlds.length),
       startLevel: ctx.levelPath(startStem)
     })
   })
@@ -563,15 +567,6 @@ export function generateDungeon(params: DungeonParameters, seed?: number): Dunge
     ],
     levels: previews
   }
-}
-
-/** One line for the scenario list: what the run holds. */
-function describeCampaign(params: DungeonParameters, fights: number, lobbies: number, worlds: number): string {
-  const parts = [`${params.levels} floor${params.levels === 1 ? '' : 's'}`]
-  if (worlds > 0) parts.push(`${worlds} world${worlds === 1 ? '' : 's'}`)
-  if (fights > 0) parts.push(`${fights} arena${fights === 1 ? '' : 's'}`)
-  if (lobbies > 0) parts.push(`${lobbies} lobb${lobbies === 1 ? 'y' : 'ies'}`)
-  return `A generated rogue-like dungeon: ${parts.join(', ')}.`
 }
 
 function buildPreview(ctx: GenerationContext, level: Level): LevelPreview {

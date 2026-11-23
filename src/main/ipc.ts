@@ -1,11 +1,14 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { Worker } from 'node:worker_threads'
 import generateWorkerPath from './generateWorker?modulePath'
+import { existsSync } from 'fs'
 import { writeFile, readFile } from 'fs/promises'
 import { join } from 'path'
 import JSZip from 'jszip'
 import {
   defaultParameters,
+  describeScenario,
+  descriptionFileName,
   downsamplePreview,
   parseParametersTxt,
   parsePlayerSettingsTxt,
@@ -22,6 +25,7 @@ import { findParametersOverride, loadSettings, saveSettings } from './settings'
 import { assetOverrideFiles, installScenario, writeCampaign } from './packer'
 import type {
   ActionResult,
+  AeFolder,
   AppSettings,
   ImportParamsResult,
   ImportPlayerSettingsResult,
@@ -34,6 +38,8 @@ import * as llmStore from './llm/store'
 
 /** The last successful generation, kept in main so exports don't re-send MBs over IPC. */
 let lastResult: DungeonResult | null = null
+/** the parameters `lastResult` was generated from, for its description */
+let lastParams: DungeonParameters | null = null
 
 /** The generation running now, and how to end it as cancelled. */
 let running: { worker: Worker; cancel: () => void } | null = null
@@ -66,6 +72,18 @@ function generateInWorker(params: DungeonParameters, seed?: number): Promise<Dun
       }
     }
   })
+}
+
+/** The description text when the setting asks for one, else undefined. */
+function descriptionFor(result: DungeonResult): string | undefined {
+  if (!loadSettings().writeDescription || lastParams === null) return undefined
+  return describeScenario({ ...result, params: lastParams })
+}
+
+/** The folders the install panel opens, under the AE install. */
+const AE_FOLDERS: Record<AeFolder, string[]> = {
+  scenarios: ['scenarios'],
+  generated: ['editor', 'generated']
 }
 
 function requireResult(): DungeonResult | ActionResult {
@@ -101,6 +119,7 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
     const result = await generateInWorker(params, seed)
     if (result.ok) {
       lastResult = result
+      lastParams = params
       // strip the file contents from the renderer payload
       // a big island's preview is shrunk for the window; lastResult keeps the full one
       return { ok: true, seed: result.seed, campaignName: result.campaignName, levels: result.levels.map((l) => downsamplePreview(l)) }
@@ -121,7 +140,8 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
       result.campaignName,
       result.files,
       !settings.cleanupFiles,
-      result.assetOverrides
+      result.assetOverrides,
+      descriptionFor(result)
     )
   })
 
@@ -163,10 +183,16 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
     const targetDir = join(picked.filePaths[0], result.campaignName)
     const exported = exportFiles(result)
     await writeCampaign(targetDir, exported.files)
+    // beside the scenario folder, never in it, so it is never packed
+    const description = descriptionFor(result)
+    if (description !== undefined) {
+      await writeFile(join(picked.filePaths[0], descriptionFileName(result.campaignName)), description, 'utf-8')
+    }
     return {
       ok: true,
       message:
-        `Exported the scenario folder. Copy it into <AE>/scenarios/ and run "PACKAGER.exe -l ${result.campaignName}" from the AE folder.` +
+        `Exported the scenario folder${description !== undefined ? ` and ${descriptionFileName(result.campaignName)}` : ''}. ` +
+        `Copy the folder into <AE>/scenarios/ and run "PACKAGER.exe -l ${result.campaignName}" from the AE folder.` +
         exported.note,
       outputPath: targetDir
     }
@@ -194,9 +220,31 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
         base64: file.encoding === 'base64'
       })
     }
+    // at the zip root, beside the scenario folder
+    const description = descriptionFor(result)
+    if (description !== undefined) zip.file(descriptionFileName(result.campaignName), description)
     const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
     await writeFile(picked.filePath, buffer)
-    return { ok: true, message: `Exported campaign zip.${exported.note}`, outputPath: picked.filePath }
+    const withDescription = description !== undefined ? ` with ${descriptionFileName(result.campaignName)}` : ''
+    return { ok: true, message: `Exported campaign zip${withDescription}.${exported.note}`, outputPath: picked.filePath }
+  })
+
+  ipcMain.handle('folder:open', async (_event, which: AeFolder): Promise<ActionResult> => {
+    if (!Object.prototype.hasOwnProperty.call(AE_FOLDERS, which)) return { ok: false, message: 'Unknown folder.' }
+    const aePath = loadSettings().hammerwatchPath
+    if (!aePath) return { ok: false, message: 'Set your Hammerwatch Anniversary Edition folder first.' }
+    const dir = join(aePath, ...AE_FOLDERS[which])
+    if (!existsSync(dir)) {
+      return {
+        ok: false,
+        message:
+          which === 'generated'
+            ? `${dir} doesn't exist yet. Untick "Delete the scenario source after packing" and install: the scenario's levels are then kept there for hand edits.`
+            : `${dir} not found. Check the Hammerwatch Anniversary Edition folder.`
+      }
+    }
+    const error = await shell.openPath(dir)
+    return error === '' ? { ok: true, message: `Opened ${dir}`, outputPath: dir } : { ok: false, message: `Could not open ${dir}: ${error}` }
   })
 
   ipcMain.handle('settings:pick-path', async (): Promise<string | null> => {

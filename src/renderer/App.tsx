@@ -34,7 +34,7 @@ interface Toast {
 
 export function App() {
   const [params, setParams] = useState<DungeonParameters>(defaultParameters)
-  const [settings, setSettings] = useState<AppSettings>({ hammerwatchPath: '', cleanupFiles: true })
+  const [settings, setSettings] = useState<AppSettings>({ hammerwatchPath: '', cleanupFiles: true, writeDescription: false })
   const [seedInput, setSeedInput] = useState('')
   const [busy, setBusy] = useState(false)
   /** a generation is running in main's worker; the Generate button turns into Cancel */
@@ -279,6 +279,7 @@ export function App() {
     setParams(imported.params)
     if (imported.hammerwatchPath !== undefined || imported.cleanupFiles !== undefined) {
       persistSettings({
+        ...settings,
         hammerwatchPath: imported.hammerwatchPath ?? settings.hammerwatchPath,
         cleanupFiles: imported.cleanupFiles ?? settings.cleanupFiles
       })
@@ -549,6 +550,10 @@ export function App() {
             onInstall={() => runAction(() => window.api.installToHammerwatch())}
             onExportFolder={() => runAction(() => window.api.exportFolder())}
             onExportZip={() => runAction(() => window.api.exportZip())}
+            onOpenFolder={async (which) => {
+              const opened = await window.api.openAeFolder(which)
+              if (!opened.ok) showToast('error', opened.message)
+            }}
           />
         </main>
       </div>
