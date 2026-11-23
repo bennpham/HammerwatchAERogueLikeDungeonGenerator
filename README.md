@@ -41,9 +41,12 @@ In game, the campaign appears in the scenario list as **Dungeon #&lt;seed&gt;**.
 
 - **Hammerwatch Anniversary Edition** (Steam). The app finds the install itself;
   you can also browse to it. The folder must contain `HW1A.exe` and `PACKAGER.exe`.
-- **Windows** to install directly. `PACKAGER.exe` is a Windows tool: on Linux and
-  macOS the app runs it through `wine`. Without wine, use **Export folder…** and pack
-  it on Windows.
+- **Linux and macOS** work too. `PACKAGER.exe` is a Windows tool, so the app runs it
+  through wine: the system `wine` if there is one, otherwise Steam's own Proton (which a
+  Linux player already has, since AE runs through it). Proton gets a private wine prefix
+  in the app's settings folder, never the game's. With neither, or if packing fails, the
+  scenario is installed unpacked as `<AE>/scenarios/<id>/`, which the game loads as it
+  is. Set `HWAE_WINE` to the path of a wine binary to pick one yourself.
 - To build from source: Node.js (current LTS) and npm.
 
 ## Using the app
@@ -68,7 +71,8 @@ In game, the campaign appears in the scenario list as **Dungeon #&lt;seed&gt;**.
    **Loadout** tab shows what each class starts with and ends up with after the
    shops, with your Player settings applied.
 6. Press **Install into Hammerwatch AE**. That writes the scenario into
-   `<AE>/scenarios`, packs it into a `.h1c` and removes the unpacked folder. Or use
+   `<AE>/scenarios`, packs it into a `.h1c` and removes the unpacked folder (off
+   Windows without a working wine, the unpacked folder stays and is the install). Or use
    **Export folder…** / **Export .zip…** and pack it yourself.
 
    Tick **Write a dungeon_&lt;seed&gt;_description.txt…** to also get a plain-text summary

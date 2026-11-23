@@ -20,6 +20,7 @@ import { applyEverythingFree, applyGroupFactor, playerOverrides, shopKey, skillK
 import type { DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
 import { AE_ROOT, HAS_AE } from './aeInstall'
+import type { WineCommand } from '../src/main/wine'
 
 describe('packer — files', () => {
   it('writes files with nested folders, decoding base64 ones', async () => {
@@ -158,10 +159,82 @@ describe('packer — install guards', () => {
       writeFileSync(join(dir, 'PACKAGER.exe'), '')
       const stale = join(dir, 'scenarios', 'dungeon_1_description.txt')
       writeFileSync(stale, 'an older run')
-      // no real packer here, so this stops at running it (or at its missing .h1c)
-      const result = await installScenario(dir, 'dungeon_1', [{ path: 'info.xml', content: '<info/>' }], false, [], 'this run')
+      // an empty PACKAGER.exe on "Windows": it cannot run, so this stops there
+      const result = await installScenario(dir, 'dungeon_1', [{ path: 'info.xml', content: '<info/>' }], false, [], 'this run', {
+        platform: 'win32',
+        wine: () => null
+      })
       expect(result.ok).toBe(false)
       expect(existsSync(stale)).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('packer — off Windows', () => {
+  const INFO = [{ path: 'info.xml', content: '<info/>' }]
+
+  /** A temp AE folder with an (empty) PACKAGER.exe. */
+  function fakeAe(): string {
+    const dir = mkdtempSync(join(tmpdir(), 'hwae-'))
+    mkdirSync(join(dir, 'scenarios'))
+    writeFileSync(join(dir, 'PACKAGER.exe'), '')
+    return dir
+  }
+
+  /** A "wine" that is node running `body`, with argv [node, script, PACKAGER.exe, -l, id]. */
+  function fakeWine(dir: string, body: string): WineCommand {
+    const script = join(dir, 'fake-wine.cjs')
+    writeFileSync(script, body)
+    return { command: process.execPath, args: [script], env: {}, label: 'fake wine' }
+  }
+
+  it('installs unpacked when there is no wine, keeping the folder and writing the description', async () => {
+    const dir = fakeAe()
+    try {
+      writeFileSync(join(dir, 'scenarios', 'dungeon_1.h1c'), 'stale')
+      const result = await installScenario(dir, 'dungeon_1', INFO, false, [], 'this run', { platform: 'linux', wine: () => null })
+      expect(result.ok).toBe(true)
+      expect(result.message).toContain('unpacked')
+      expect(result.message).toContain('no wine or Steam Proton')
+      expect(result.outputPath).toBe(join(dir, 'scenarios', 'dungeon_1'))
+      expect(readFileSync(join(dir, 'scenarios', 'dungeon_1', 'info.xml'), 'utf-8')).toBe('<info/>')
+      expect(existsSync(join(dir, 'scenarios', 'dungeon_1.h1c'))).toBe(false)
+      expect(readFileSync(join(dir, 'scenarios', 'dungeon_1_description.txt'), 'utf-8')).toBe('this run')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('packs through wine when it writes a good .h1c, and removes the folder', async () => {
+    const dir = fakeAe()
+    try {
+      const wine = fakeWine(
+        dir,
+        "const fs = require('fs'); const id = process.argv[4];\n" +
+          "if (!process.argv[2].endsWith('PACKAGER.exe') || process.argv[3] !== '-l') process.exit(2);\n" +
+          "fs.writeFileSync('scenarios/' + id + '.h1c', 'HW1S' + '\\0'.repeat(8)); process.exit(127);\n"
+      )
+      const result = await installScenario(dir, 'dungeon_1', INFO, false, [], undefined, { platform: 'linux', wine: () => wine })
+      expect(result.ok).toBe(true)
+      expect(result.outputPath).toBe(join(dir, 'scenarios', 'dungeon_1.h1c'))
+      expect(hasH1cMagic(join(dir, 'scenarios', 'dungeon_1.h1c'))).toBe(true)
+      expect(existsSync(join(dir, 'scenarios', 'dungeon_1'))).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('falls back to unpacked, saying why, when wine produces no .h1c', async () => {
+    const dir = fakeAe()
+    try {
+      const wine = fakeWine(dir, "console.log('[ERR] wine could not start'); process.exit(1);\n")
+      const result = await installScenario(dir, 'dungeon_1', INFO, false, [], undefined, { platform: 'linux', wine: () => wine })
+      expect(result.ok).toBe(true)
+      expect(result.message).toContain('packing with fake wine failed')
+      expect(result.message).toContain('[ERR] wine could not start')
+      expect(existsSync(join(dir, 'scenarios', 'dungeon_1', 'info.xml'))).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { BrowserWindow, app, dialog, ipcMain, shell } from 'electron'
 import { Worker } from 'node:worker_threads'
 import generateWorkerPath from './generateWorker?modulePath'
 import { existsSync } from 'fs'
@@ -22,7 +22,7 @@ import {
 } from '../generator'
 import type { PlayerFileOverride } from '../generator/players'
 import { findParametersOverride, loadSettings, saveSettings } from './settings'
-import { assetOverrideFiles, installScenario, writeCampaign } from './packer'
+import { assetOverrideFiles, defaultInstallEnv, installScenario, writeCampaign } from './packer'
 import type {
   ActionResult,
   AeFolder,
@@ -141,7 +141,8 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
       result.files,
       !settings.cleanupFiles,
       result.assetOverrides,
-      descriptionFor(result)
+      descriptionFor(result),
+      defaultInstallEnv(app.getPath('userData'))
     )
   })
 

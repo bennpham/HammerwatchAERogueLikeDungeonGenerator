@@ -1310,3 +1310,18 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
 - `[EMITTED]` (2026-11-23) The opt-in description (`generator/describe.ts`) is written by the
   install beside the `.h1c`, by **Export folder…** beside the exported folder, and at the zip
   root. It is never one of the scenario's files, so nothing packs it.
+
+### Installing off Windows: Proton's wine, then unpacked (2026-11-22)
+
+- Reported: on Linux with no system wine, Install failed with "Could not run PACKAGER.exe"
+  (the app ran a bare `wine`). AE ships only as a Windows game, so a Linux player runs it
+  through Steam's Proton, which has its own wine.
+- `[UNVERIFIED]` Proton's `files/bin/wine` (`dist/bin/wine` before 5.13) runs
+  `PACKAGER.exe -l <id>` outside Steam, given `WINEPREFIX` (a private prefix under the
+  app's `userData`, never the game's `compatdata`), `LD_LIBRARY_PATH` with its
+  `files/lib64:files/lib`, and `WINEDLLOVERRIDES=mscoree,mshtml=` so a fresh prefix shows
+  no Mono/Gecko dialog (`src/main/wine.ts`). In game: #132.
+- `[UNVERIFIED]` An unpacked `scenarios/<id>/` (no `.h1c` beside it) plays as well as it
+  lists. The HW1A log shows the game loading unpacked folders (see Scenario packaging),
+  but no generated scenario has been played that way. The install falls back to it off
+  Windows when no wine is found or packing fails. In game: #133.
