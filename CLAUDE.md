@@ -1,6 +1,6 @@
 # Hammerwatch AE Dungeon Generator
 
-An Electron app that generates rogue-like campaigns for **Hammerwatch Anniversary Edition only**. It writes AE `.lvl` levels, `info.xml` and `logos.png`, and packs them into a `.h1c` with the game's own `PACKAGER.exe`.
+An Electron app that generates rogue-like campaigns for **Hammerwatch Anniversary Edition only**. It writes AE `.lvl` levels, `info.xml` and `logos.png`, and packs them into a `.h1c` itself (`src/main/h1c/write.ts`), with no `PACKAGER.exe` and no Steam.
 
 It's a fork of the HW1 remake (`HammerwatchRogueLikeDungeonGeneratorRemake`), and there's no HW1 output and no HW1 parity. The remake's notes are in `docs/reference/hw1-remake/` for history only.
 
@@ -10,7 +10,7 @@ It's a fork of the HW1 remake (`HammerwatchRogueLikeDungeonGeneratorRemake`), an
 npm run typecheck && npm test
 ```
 
-Both must pass before every commit. `HWAE_PACK=1 npm test -- tests/packer.test.ts` also packs a real scenario with the local `PACKAGER.exe`, then removes it.
+Both must pass before every commit. `HWAE_PACK=1 npm test -- tests/packer.test.ts` also installs real scenarios into the local game, then removes them. On Windows it also compares the app's pack with the local `PACKAGER.exe`'s, which needs a Steam client it can reach: run it from your own terminal, not a sandboxed one.
 
 ## Layout
 
@@ -25,10 +25,10 @@ Both must pass before every commit. `HWAE_PACK=1 npm test -- tests/packer.test.t
   - `players/`: the Players tab. A snapshot of AE's `players/` balance (`stock.generated.ts`; regenerate it with `node scripts/run-ts.mjs scripts/scan-ae-players.ts`), the `player.*` keys, the quick setup, move speed, presets, tier counts (`ladder.ts` values the tiers added past stock, `levels.ts` turns them into `clone`/`drop` edits), and `playerOverrides`, which turns edits into line patches the install applies to the game's own files.
   - `boss/`, `dungeonBoss/`, `survival/`, `traps/`, `timer/`, `buffs/`, `mystery/`, `music/`, `lobby/`: the rigs.
   - `world/`: the World tab's open islands (`W1`…), built from terrain, not rooms: the island mask, the cliff ring and its fence (`coast.ts`), raised plateaus climbed by stairs (`plateau.ts`), sites and trails, objectives, encounters and scatter. Biomes are plain data (`biomes.ts`). Plan: `docs/plans/world-mode.md`.
-- `src/main/`: Electron main. `packer.ts` does the install and AE detection.
+- `src/main/`: Electron main. `packer.ts` does the install and AE detection. `h1c/` reads and writes AE's packs (`.h1c` scenarios, the game's `res/assets.bin`). `stockAssets.ts` reads the game's own files for the patches a scenario ships, from `res/assets.bin`.
 - `src/renderer/`: React UI.
 - `tests/`: the suites read emitted levels back through `tests/ae.ts`. `sealProbe.ts` flood-fills levels.
-- `scripts/`: the lobby importers `import-ae-lobby.mjs` (hand-made levels) and `import-stock-towns.ts` (the cleaned stock rooms: Shaftlocke's town, the Temple of the Sun bazaar, the Castle Hammerwatch bridge, survival's crystal mines shop in `lobby/crystalShop.ts`), the asset scanner, `render-level.mjs` (a level to PNG, with `--collision`), `unpack-h1c.ts` with `lib/h1c.ts` (reads a packed scenario; survival ships only packed), and one-off probes in `scripts/dev/`.
+- `scripts/`: the lobby importers `import-ae-lobby.mjs` (hand-made levels) and `import-stock-towns.ts` (the cleaned stock rooms: Shaftlocke's town, the Temple of the Sun bazaar, the Castle Hammerwatch bridge, survival's crystal mines shop in `lobby/crystalShop.ts`), the asset scanner, `render-level.mjs` (a level to PNG, with `--collision`), `unpack-h1c.ts` (reads a packed scenario with `src/main/h1c/read.ts`; survival ships only packed), and one-off probes in `scripts/dev/` (`probe-h1c.ts` compares packs with PACKAGER's).
 
 ## Invariants
 
@@ -51,7 +51,7 @@ The full record is `.claude/skills/hammerwatch-ae-modding/references/DISCOVERY-L
 - **Player balance** is in `players/` (`classes.sval` plus a `.sval` per skill), not HW1's `tweak/*.xml`. Move speed is two shared skills (melee/ranged), not a class stat. The game's files are never stored in the repo: only line numbers and stock values are.
 - **Walls:** vertical pieces anchor one row above their cell, and `h_32`/`v_32` span two cells.
 - **Wall-top cover** (`__color_N`, `map/aeCover.ts`) draws over walls and actors. Its squares often anchor on floor cells, so never read them as wall pieces (`isWallPiece` in `tests/ae.ts`). It takes its ids after the walls and before the torches.
-- **`PACKAGER.exe`** exits 127 even on success; judge the install by the `.h1c` and its `HW1S` header.
+- **`PACKAGER.exe` needs Steam.** It stops on "Steam must be running" when it can't reach a Steam client: under wine or Proton, on Windows with Steam closed, and from a sandboxed shell. So the install packs `.h1c` files itself. Its compiled levels match PACKAGER's byte for byte, except for dict key order and its three hashes, which aren't known hashes of anything. PACKAGER is only a reference in tests now, and it exits 127 even on success.
 - **Lobbies** are hand-made AE editor levels: `docs/LOBBY-AUTHORING.md`. The user's `house` is the default.
 - **Hidden units:** a unit placed with `hidden: t` is shown by `HideUnit` State 2 (`NodeHideUnit`, action `show`), as Castle `level_12` reveals its portal. Hidden, it doesn't react to F.
 - **Collision comes from units alone.** Tiles block nothing, so a room cut out of a stock level must be closed by its own colliders; `tests/closure.ts` flood-fills it.
@@ -61,5 +61,5 @@ The full record is `.claude/skills/hammerwatch-ae-modding/references/DISCOVERY-L
 - On this machine, Git Bash heredocs lose backslashes and `node -e` loses backticks. Write edit scripts with the Write tool, or use Edit.
 - Things only playing can prove go on `docs/BOOT-CHECKLIST.md`. Facts go in the discovery log with `[VERIFIED]` / `[EMITTED]` / `[UNVERIFIED]`.
 - When blocked on something the user must find out in game, write `docs/discovery/<topic>.md`.
-- The AE install is at `D:\Program Files (x86)\Steam\steamapps\common\Hammerwatch Anniversary Edition`, with assets unpacked in `unpacked_assets_66/`. Tests that need it skip without it (`tests/aeInstall.ts`).
+- The AE install is at `D:\Program Files (x86)\Steam\steamapps\common\Hammerwatch Anniversary Edition`, with assets unpacked in `unpacked_assets_66/` (a dev-machine extract; players' installs have only `res/assets.bin`). Tests that need it skip without it (`tests/aeInstall.ts`).
 - Commit in small, area-sized steps, each passing the gate.

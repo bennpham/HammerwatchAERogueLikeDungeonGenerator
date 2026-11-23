@@ -1,5 +1,12 @@
 # Linux: PACKAGER.exe needs Steam
 
+> **Resolved (2026-11-23).** The app writes `.h1c` files itself (`src/main/h1c/write.ts`), on
+> every OS, and reads the stock files it patches from the game's `res/assets.bin`. The wine and
+> Proton route is gone. PACKAGER also fails on Windows from a sandboxed shell, with "Steam must
+> be running … SteamAPI_Init() failed". Still open, in game: boot checklist #132 (Windows),
+> #133 (the friend on Linux) and #134. The details are in the DISCOVERY-LOG entry "PACKAGER
+> needs Steam; the app writes .h1c itself". The prompt below is what started this work.
+
 ## What was seen (2026-11-22)
 
 A friend on Linux (**Bazzite**, the immutable Fedora gaming distro: no system wine, UMU-Proton present) tried PR #21 (branch `linux-install-proton`) from the AppImage. Steam is a
