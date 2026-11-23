@@ -3,6 +3,7 @@ import { existsSync, openSync, readSync, closeSync, readFileSync, readdirSync } 
 import { mkdir, rename, rm, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { dirname, join } from 'path'
+import { descriptionFileName } from '../generator/describe'
 import type { GeneratedFile } from '../generator'
 import { POWER_SHOP_PATH, applyLineEdits } from '../generator/players'
 import type { LineEdit, PlayerFileOverride } from '../generator/players'
@@ -202,14 +203,17 @@ function safeRead(p: string): string | null {
  *   3. check the .h1c starts with `HW1S`;
  *   4. take the source folder out of `scenarios/` — left there, the game lists
  *      the scenario twice. With `keepSource` it moves to `<AE>/editor/generated/<id>/`
- *      for hand edits; otherwise it is deleted.
+ *      for hand edits; otherwise it is deleted;
+ *   5. with a `description`, write it beside the .h1c as
+ *      `scenarios/<id>_description.txt`, outside the packed scenario.
  */
 export async function installScenario(
   aePath: string,
   scenarioId: string,
   files: GeneratedFile[],
   keepSource: boolean,
-  overrides: readonly PlayerFileOverride[] = []
+  overrides: readonly PlayerFileOverride[] = [],
+  description?: string
 ): Promise<ActionResult> {
   if (!aePath) return { ok: false, message: 'Set your Hammerwatch Anniversary Edition folder first.' }
   if (!existsSync(aePath)) return { ok: false, message: `Hammerwatch Anniversary Edition folder not found: ${aePath}` }
@@ -227,6 +231,9 @@ export async function installScenario(
   const packed = join(scenariosDir, `${scenarioId}.h1c`)
   await rm(sourceDir, { recursive: true, force: true })
   await rm(packed, { force: true })
+  // a description from an earlier install of this id would describe another run
+  const describedAt = join(scenariosDir, descriptionFileName(scenarioId))
+  await rm(describedAt, { force: true })
   await writeCampaign(sourceDir, files)
   // patched stock files: no "buy an extra life" in a 0-lives run (see
   // patchedPowerShop), and the Players tab's class and skill values
@@ -270,10 +277,13 @@ export async function installScenario(
     await rm(sourceDir, { recursive: true, force: true })
   }
 
+  if (description !== undefined) await writeFile(describedAt, description, 'utf-8')
+
   return {
     ok: true,
     message:
-      `Installed ${scenarioId}.h1c — start it from the scenario list in Hammerwatch Anniversary Edition.` +
+      `Installed ${scenarioId}.h1c${description !== undefined ? ` and ${descriptionFileName(scenarioId)}` : ''}` +
+      ' — start it from the scenario list in Hammerwatch Anniversary Edition.' +
       (patched.notes.length > 0 ? ` Note: ${patched.notes.join('; ')}.` : ''),
     outputPath: packed
   }

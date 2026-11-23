@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppSettings, RendererApi } from '../shared/ipc'
+import type { AeFolder, AppSettings, RendererApi } from '../shared/ipc'
 import type { DungeonParameters, PlayerTweaks } from '../generator'
 import type { LlmChatRequest, LlmProviderId, LlmSettings } from '../shared/llm/types'
 
@@ -10,6 +10,7 @@ const api: RendererApi = {
   installToHammerwatch: () => ipcRenderer.invoke('dungeon:install'),
   exportFolder: () => ipcRenderer.invoke('dungeon:export-folder'),
   exportZip: () => ipcRenderer.invoke('dungeon:export-zip'),
+  openAeFolder: (which: AeFolder) => ipcRenderer.invoke('folder:open', which),
   pickHammerwatchPath: () => ipcRenderer.invoke('settings:pick-path'),
   saveSettings: (settings: AppSettings) => ipcRenderer.invoke('settings:save', settings),
   importParametersTxt: () => ipcRenderer.invoke('params:import'),
