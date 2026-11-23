@@ -60,7 +60,7 @@ export function OutputPanel({
             checked={settings.writeDescription}
             onChange={(e) => onSettingsChange({ ...settings, writeDescription: e.target.checked })}
           />
-          Write a dungeon_&lt;seed&gt;_description.txt summary of each level beside the .h1c / export
+          Write a &lt;DUNGEON_SEED&gt;_description.txt summary of each level beside the .h1c / export
         </label>
         {chatIconHidden !== null && (
           <label className="checkbox">
