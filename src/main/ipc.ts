@@ -1,4 +1,4 @@
-import { BrowserWindow, app, dialog, ipcMain, shell } from 'electron'
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { Worker } from 'node:worker_threads'
 import generateWorkerPath from './generateWorker?modulePath'
 import { existsSync } from 'fs'
@@ -22,7 +22,7 @@ import {
 } from '../generator'
 import type { PlayerFileOverride } from '../generator/players'
 import { findParametersOverride, loadSettings, saveSettings } from './settings'
-import { assetOverrideFiles, defaultInstallEnv, installScenario, writeCampaign } from './packer'
+import { assetOverrideFiles, installScenario, writeCampaign } from './packer'
 import type {
   ActionResult,
   AeFolder,
@@ -141,8 +141,7 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
       result.files,
       !settings.cleanupFiles,
       result.assetOverrides,
-      descriptionFor(result),
-      defaultInstallEnv(app.getPath('userData'))
+      descriptionFor(result)
     )
   })
 
@@ -193,7 +192,7 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
       ok: true,
       message:
         `Exported the scenario folder${description !== undefined ? ` and ${descriptionFileName(result.campaignName)}` : ''}. ` +
-        `Copy the folder into <AE>/scenarios/ and run "PACKAGER.exe -l ${result.campaignName}" from the AE folder.` +
+        `Copy the folder into <AE>/scenarios/: the game loads it as it is (or use Install, which packs it into a .h1c).` +
         exported.note,
       outputPath: targetDir
     }

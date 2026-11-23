@@ -11,7 +11,7 @@ import type {
 
 /** App-level settings persisted in the Electron userData folder. */
 export interface AppSettings {
-  /** Hammerwatch Anniversary Edition install folder (contains HW1A.exe, PACKAGER.exe and scenarios/) */
+  /** Hammerwatch Anniversary Edition install folder (contains HW1A.exe, res/assets.bin and scenarios/) */
   hammerwatchPath: string
   /** delete the scenario's source folder after packing; off keeps it in <AE>/editor/generated/ */
   cleanupFiles: boolean

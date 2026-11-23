@@ -1,5 +1,4 @@
-import { execFile } from 'child_process'
-import { existsSync, openSync, readSync, closeSync, readFileSync, readdirSync } from 'fs'
+import { existsSync, openSync, readSync, closeSync, readFileSync } from 'fs'
 import { mkdir, rename, rm, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { dirname, join } from 'path'
@@ -8,14 +7,15 @@ import type { GeneratedFile } from '../generator'
 import { POWER_SHOP_PATH, applyLineEdits } from '../generator/players'
 import type { LineEdit, PlayerFileOverride } from '../generator/players'
 import type { ActionResult } from '../shared/ipc'
-import { findSystemWine } from './wine'
-import type { WineCommand } from './wine'
+import { H1C_MAGIC } from './h1c/read'
+import { toPackFiles, writeH1c } from './h1c/write'
+import type { PackFile } from './h1c/write'
+import { stockSource } from './stockAssets'
+
+export { H1C_MAGIC }
 
 /** The game's folder name under a Steam library's steamapps/common. */
 export const AE_DIR_NAME = 'Hammerwatch Anniversary Edition'
-
-/** The first four bytes of every packed AE scenario. */
-export const H1C_MAGIC = 'HW1S'
 
 /** Write the scenario files into a target folder, creating subfolders. */
 export async function writeCampaign(targetDir: string, files: GeneratedFile[]): Promise<void> {
@@ -32,9 +32,13 @@ export async function writeCampaign(targetDir: string, files: GeneratedFile[]): 
   }
 }
 
-/** Whether `dir` looks like a Hammerwatch Anniversary Edition install. */
+/**
+ * Whether `dir` looks like a Hammerwatch Anniversary Edition install. Only
+ * the game itself is needed: the app packs scenarios on its own, so
+ * PACKAGER.exe (which needs a running Steam) is not.
+ */
 export function isAeInstall(dir: string, exists: (p: string) => boolean = existsSync): boolean {
-  return dir !== '' && exists(join(dir, 'HW1A.exe')) && exists(join(dir, 'PACKAGER.exe'))
+  return dir !== '' && exists(join(dir, 'HW1A.exe'))
 }
 
 /**
@@ -96,7 +100,7 @@ export function hasH1cMagic(file: string): boolean {
   }
 }
 
-/** Where the power shop script sits, scenario-relative and in the unpacked assets. */
+/** Where the power shop script sits, scenario-relative and in the game's assets. */
 export const POWER_SHOP_SCRIPT = POWER_SHOP_PATH
 
 /** The stock guard around the extra-life offer — true unless BOTH life modifiers are on. */
@@ -110,41 +114,26 @@ const LIFE_GUARD = /^%if !MOD_INFINITE_LIVES \| !MOD_NO_LIVES[ \t]*\r?\n([^\r\n]
  * preprocessor's nesting is what stock PartyRecord.as uses; its `&` is
  * unproven).
  *
- * Returns the patched script, or null when the install has no unpacked copy to
- * patch or the guard is not the one we know. The game's own code is never
- * stored in this repo: the patch is applied to the user's own copy at install.
+ * Returns the patched script, or null when the guard is not the one we know.
+ * The game's own code is never stored in this repo: the patch is applied to
+ * the user's own copy at install.
  */
 export function patchedPowerShop(stock: string): string | null {
   if (!LIFE_GUARD.test(stock)) return null
   return stock.replace(LIFE_GUARD, (_m, line: string) => `%if !MOD_INFINITE_LIVES\n%if !MOD_NO_LIVES\n${line}%endif\n%endif`)
 }
 
-/** The newest unpacked assets folder in an AE install, or null. */
-export function unpackedAssetsDir(aePath: string, list: (dir: string) => string[] = safeList): string | null {
-  const dirs = list(aePath)
-    .filter((d) => /^unpacked_assets_\d+$/.test(d))
-    .sort((a, b) => Number(b.split('_').pop()) - Number(a.split('_').pop()))
-  return dirs.length > 0 ? join(aePath, dirs[0]) : null
-}
-
-function safeList(dir: string): string[] {
-  try {
-    return readdirSync(dir)
-  } catch {
-    return []
-  }
-}
+const NO_STOCK = 'no res/assets.bin (or unpacked_assets_* folder) in the AE install to read'
 
 /**
  * The power shop override for this install, or null with the reason. The
  * Players tab's potion prices (`edits`) go in first, by the stock line
  * numbers, before the life guard grows the file by two lines.
  */
-function powerShopOverride(aePath: string, edits: readonly LineEdit[]): { content: string; missed: number } | { reason: string } {
-  const assets = unpackedAssetsDir(aePath)
-  if (assets === null) return { reason: 'no unpacked_assets_* folder in the AE install to patch' }
-  const stock = safeRead(join(assets, POWER_SHOP_SCRIPT))
-  if (stock === null) return { reason: `no ${POWER_SHOP_SCRIPT} in ${assets}` }
+function powerShopOverride(read: ((path: string) => string | null) | null, edits: readonly LineEdit[]): { content: string; missed: number } | { reason: string } {
+  if (read === null) return { reason: NO_STOCK }
+  const stock = read(POWER_SHOP_SCRIPT)
+  if (stock === null) return { reason: `no ${POWER_SHOP_SCRIPT} in the game's assets` }
   const priced = applyLineEdits(stock, edits)
   const patched = patchedPowerShop(priced.text)
   return patched === null
@@ -153,10 +142,10 @@ function powerShopOverride(aePath: string, edits: readonly LineEdit[]): { conten
 }
 
 /**
- * The stock files a scenario ships patched, read from this install's unpacked
- * assets: the power shop (always) and the Players tab's overrides. `notes`
- * says what could not be patched; the scenario still works without it, just
- * with stock values there.
+ * The stock files a scenario ships patched, read from this install's own
+ * assets (`stockSource`): the power shop (always) and the Players tab's
+ * overrides. `notes` says what could not be patched; the scenario still works
+ * without it, just with stock values there.
  */
 export function assetOverrideFiles(
   aePath: string,
@@ -164,8 +153,9 @@ export function assetOverrideFiles(
 ): { files: GeneratedFile[]; notes: string[] } {
   const files: GeneratedFile[] = []
   const notes: string[] = []
+  const read = stockSource(aePath)?.read ?? null
   const potionPrices = overrides.find((o) => o.path === POWER_SHOP_SCRIPT)?.edits ?? []
-  const powerShop = powerShopOverride(aePath, potionPrices)
+  const powerShop = powerShopOverride(read, potionPrices)
   if ('content' in powerShop) {
     files.push({ path: POWER_SHOP_SCRIPT, content: powerShop.content })
     if (powerShop.missed > 0) notes.push(`${powerShop.missed} potion price(s) did not match this AE version and were skipped`)
@@ -176,15 +166,14 @@ export function assetOverrideFiles(
 
   const rest = overrides.filter((o) => o.path !== POWER_SHOP_SCRIPT)
   if (rest.length === 0) return { files, notes }
-  const assets = unpackedAssetsDir(aePath)
-  if (assets === null) {
-    notes.push('the player settings were not applied: no unpacked_assets_* folder in the AE install')
+  if (read === null) {
+    notes.push(`the player settings were not applied: ${NO_STOCK}`)
     return { files, notes }
   }
   for (const o of rest) {
-    const stock = safeRead(join(assets, o.source))
+    const stock = read(o.source)
     if (stock === null) {
-      notes.push(`the player settings for ${o.path} were not applied: no ${o.source} in ${assets}`)
+      notes.push(`the player settings for ${o.path} were not applied: no ${o.source} in the game's assets`)
       continue
     }
     const { text, missed } = applyLineEdits(stock, o.edits)
@@ -202,23 +191,26 @@ function safeRead(p: string): string | null {
   }
 }
 
+/** Packs a scenario's files into `.h1c` bytes; `writeH1c` unless a test swaps it. */
+export type PackWriter = (scenarioId: string, files: PackFile[]) => Uint8Array
+
 /**
- * Install a generated scenario into Hammerwatch Anniversary Edition:
+ * Install a generated scenario into Hammerwatch Anniversary Edition, on any
+ * OS and with or without Steam running:
  *
- *   1. write it to `<AE>/scenarios/<id>/` (info.xml, logos.png, levels/<id>/*.lvl);
- *   2. run `PACKAGER.exe -l <id>` from the AE folder, which packs it into
- *      `<AE>/scenarios/<id>.h1c`;
- *   3. check the .h1c starts with `HW1S`;
- *   4. take the source folder out of `scenarios/` — left there, the game lists
- *      the scenario twice. With `keepSource` it moves to `<AE>/editor/generated/<id>/`
- *      for hand edits; otherwise it is deleted;
- *   5. with a `description`, write it beside the .h1c as
+ *   1. patch the stock files the scenario ships (`assetOverrideFiles`);
+ *   2. pack everything into `<AE>/scenarios/<id>.h1c` with the app's own
+ *      writer (`h1c/write.ts`). PACKAGER.exe is not used: it needs a running
+ *      Steam client it can reach, which wine, Proton and sandboxes don't give
+ *      it (docs/discovery/linux-packager-steam.md);
+ *   3. with `keepSource`, also write the folder to `<AE>/editor/generated/<id>/`
+ *      for hand edits (never into `scenarios/`, where the game would list the
+ *      scenario twice);
+ *   4. with a `description`, write it beside the .h1c as
  *      `scenarios/<id>_description.txt`, outside the packed scenario.
  *
- * Off Windows, PACKAGER runs through wine (system wine, or Steam's Proton
- * wine; see `findWine`). With no wine, or when packing fails there, the
- * scenario is installed unpacked: the game loads a folder in `scenarios/` as
- * it is, so the folder stays and is the install.
+ * If the writer refuses the scenario, it is installed unpacked: the game loads
+ * a folder in `scenarios/` as it is, so the folder is the install.
  */
 export async function installScenario(
   aePath: string,
@@ -227,75 +219,46 @@ export async function installScenario(
   keepSource: boolean,
   overrides: readonly PlayerFileOverride[] = [],
   description?: string,
-  env: InstallEnv = defaultInstallEnv()
+  pack: PackWriter = writeH1c
 ): Promise<ActionResult> {
   if (!aePath) return { ok: false, message: 'Set your Hammerwatch Anniversary Edition folder first.' }
   if (!existsSync(aePath)) return { ok: false, message: `Hammerwatch Anniversary Edition folder not found: ${aePath}` }
 
-  const packager = join(aePath, 'PACKAGER.exe')
-  if (!existsSync(packager)) {
-    return {
-      ok: false,
-      message: `PACKAGER.exe not found at ${packager}. Check this is the Anniversary Edition folder, or use "Export folder" and pack it yourself.`
-    }
-  }
-
   const scenariosDir = join(aePath, 'scenarios')
   const sourceDir = join(scenariosDir, scenarioId)
   const packed = join(scenariosDir, `${scenarioId}.h1c`)
+  await mkdir(scenariosDir, { recursive: true })
   await rm(sourceDir, { recursive: true, force: true })
   await rm(packed, { force: true })
   // a description from an earlier install of this id would describe another run
   const describedAt = join(scenariosDir, descriptionFileName(scenarioId))
   await rm(describedAt, { force: true })
-  await writeCampaign(sourceDir, files)
+
   // patched stock files: no "buy an extra life" in a 0-lives run (see
-  // patchedPowerShop), and the Players tab's class and skill values
+  // patchedPowerShop), and the Players tab's class and skill values. A patched
+  // copy replaces a generated file at the same path.
   const patched = assetOverrideFiles(aePath, overrides)
-  await writeCampaign(sourceDir, patched.files)
-
+  const byPath = new Map<string, GeneratedFile>()
+  for (const f of [...files, ...patched.files]) byPath.set(f.path, f)
+  const all = [...byPath.values()]
   const notes = patched.notes.length > 0 ? ` Note: ${patched.notes.join('; ')}.` : ''
-  const isWindows = env.platform === 'win32'
-  const wine = isWindows ? null : env.wine()
-  if (!isWindows && wine === null) {
-    return installUnpacked(sourceDir, packed, describedAt, scenarioId, description, 'no wine or Steam Proton was found to pack it', notes)
-  }
-  const command = wine === null ? packager : wine.command
-  const args = wine === null ? ['-l', scenarioId] : [...wine.args, packager, '-l', scenarioId]
-  // PACKAGER exits non-zero (127) even after writing a good .h1c [VERIFIED
-  // 2026-10-10], and logs an error for the optional resources.xml no stock
-  // scenario has either. So the produced file, not the exit code, is the test.
-  // The first run of a fresh Proton prefix sets the prefix up, hence the long timeout.
-  const run = await new Promise<{ spawned: boolean; output: string }>((resolve) => {
-    const options = { cwd: aePath, timeout: 300_000, env: wine === null ? process.env : { ...process.env, ...wine.env } }
-    execFile(command, args, options, (error, stdout, stderr) => {
-      const notFound = error !== null && (error as NodeJS.ErrnoException).code === 'ENOENT'
-      resolve({ spawned: !notFound, output: `${stdout}${stderr}`.trim() })
-    })
-  })
 
-  const failure = !run.spawned
-    ? `could not run ${wine === null ? 'PACKAGER.exe' : wine.command}`
-    : !existsSync(packed)
-      ? `PACKAGER ran but ${scenarioId}.h1c was not produced`
-      : !hasH1cMagic(packed)
-        ? `${packed} is not a packed scenario (no ${H1C_MAGIC} header)`
-        : null
-  if (failure !== null) {
-    const tail = run.output.split(/\r?\n/).filter((l) => /\[(ERR|WRN)\]/.test(l)).slice(-5).join('\n')
-    if (wine !== null) {
-      return installUnpacked(sourceDir, packed, describedAt, scenarioId, description, `packing with ${wine.label} failed: ${failure}`, notes, tail)
-    }
-    return { ok: false, message: `${capitalise(failure)}. The scenario folder is at ${sourceDir}.${tail ? `\n${tail}` : ''}` }
+  let bytes: Uint8Array
+  try {
+    bytes = pack(scenarioId, toPackFiles(all))
+  } catch (e) {
+    await writeCampaign(sourceDir, all)
+    return installUnpacked(sourceDir, describedAt, scenarioId, description, `it could not be packed: ${(e as Error).message}`, notes)
   }
+  // a whole file or none: the game never sees half a pack
+  const partial = `${packed}.tmp`
+  await writeFile(partial, bytes)
+  await rename(partial, packed)
 
   if (keepSource) {
     const kept = join(aePath, 'editor', 'generated', scenarioId)
     await rm(kept, { recursive: true, force: true })
-    await mkdir(dirname(kept), { recursive: true })
-    await rename(sourceDir, kept)
-  } else {
-    await rm(sourceDir, { recursive: true, force: true })
+    await writeCampaign(kept, all)
   }
 
   if (description !== undefined) await writeFile(describedAt, description, 'utf-8')
@@ -310,46 +273,26 @@ export async function installScenario(
   }
 }
 
-/** Where to install from: the platform, and how to find a wine off Windows. */
-export interface InstallEnv {
-  platform: NodeJS.Platform
-  wine: () => WineCommand | null
-}
-
-/** This machine. `userData` holds the private Proton prefix. */
-export function defaultInstallEnv(userData: string = join(homedir(), '.hwae-generator')): InstallEnv {
-  return { platform: process.platform, wine: () => findSystemWine(userData, steamLibraryCandidates()) }
-}
-
 /**
  * Finish an install without a .h1c: the scenario folder already written to
  * `scenarios/<id>/` stays there, and the game loads it as it is. `keepSource`
- * does not apply, since the folder is the install; a partial .h1c goes, or
- * the game would list the scenario twice.
+ * does not apply, since the folder is the install.
  */
 async function installUnpacked(
   sourceDir: string,
-  packed: string,
   describedAt: string,
   scenarioId: string,
   description: string | undefined,
   reason: string,
-  notes: string,
-  tail = ''
+  notes: string
 ): Promise<ActionResult> {
-  await rm(packed, { force: true })
   if (description !== undefined) await writeFile(describedAt, description, 'utf-8')
   return {
     ok: true,
     message:
       `Installed ${scenarioId} unpacked as scenarios/${scenarioId}/ (${reason}).` +
       ' The game loads unpacked scenarios: start it from the scenario list in Hammerwatch Anniversary Edition.' +
-      notes +
-      (tail ? `\n${tail}` : ''),
+      notes,
     outputPath: sourceDir
   }
-}
-
-function capitalise(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1)
 }
