@@ -1299,3 +1299,14 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
   frost), base assets only. There's no lava or swamp-water tileset: `water_clear` and
   `water_river_clear` are the only water. `doodads/terrain/tree_oak`'s default scene has no
   collision; the other oaks do. In game: #114–#115.
+
+### Description file beside the .h1c (2026-11-23)
+
+- `[UNVERIFIED]` A loose `scenarios/<id>_description.txt` next to `scenarios/<id>.h1c` is
+  ignored by AE's scenario list: no extra entry, no load error. The game lists `.h1c` files
+  and unpacked folders there (a folder left beside its `.h1c` shows the scenario twice), and
+  nothing says it reads other files. To verify: tick the description checkbox, install,
+  open the scenario list and check `HW1A.exe.log`. In game: #129.
+- `[EMITTED]` (2026-11-23) The opt-in description (`generator/describe.ts`) is written by the
+  install beside the `.h1c`, by **Export folder…** beside the exported folder, and at the zip
+  root. It is never one of the scenario's files, so nothing packs it.
