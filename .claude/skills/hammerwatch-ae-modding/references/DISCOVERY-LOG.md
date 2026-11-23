@@ -1356,14 +1356,26 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
   Murmur3 32/128, djb2 or sdbm of the info, the logo, the level text (LF or CRLF), its
   binary body, its path (several spellings), path + text, the scenario id or the pack:
   the header u32, each level's 8 bytes, and the info `ID` int.
-  (`node scripts/run-ts.mjs scripts/dev/probe-h1c.ts kept`). Whether they are random or
-  time-based needs PACKAGER run twice on the same folder (`probe-h1c.ts pack <dir>` then
-  `crack <dir>`, from a terminal that can reach Steam).
-- `[UNVERIFIED]` The game accepts the app's own values there: FNV-1a 32 of the rest of the
-  pack (header), FNV-1a 64 of the level's binary body (level), FNV-1a 32 of the scenario
-  id (info `ID`). They are deterministic and differ per content and per scenario, so
+  (`node scripts/run-ts.mjs scripts/dev/probe-h1c.ts kept`).
+- `[VERIFIED]` What they cover, from seven controlled PACKAGER packs of a 1-floor scenario
+  (`probe-h1c.ts pack <dir>`, then `crack <dir>`; same pack twice, a whitespace-only
+  edit, one value changed, a changed `info.xml`, a renamed level, an extra file):
+  - all three are **deterministic**: the same folder packed twice gives the same bytes;
+  - a level's 8 bytes depend on its **content only**: a whitespace-only edit and a rename
+    keep them, a changed value changes them. So they hash the parsed or binary level, not
+    the text or the path;
+  - the header u32 changes with any level value, `info.xml`, a path or an extra file, and
+    not with whitespace: it covers the whole compiled pack;
+  - the info `ID` stayed the same through every variant, including the changed
+    `info.xml`. It depends on the scenario id (`hwae_probe` gave `0x4c55f911`), not on
+    the content.
+  None of the hash families above matches these probes either.
+- `[VERIFIED]` (2026-11-23, #132) The game accepts the app's own values there: FNV-1a 32 of
+  the rest of the pack (header), FNV-1a 64 of the level's binary body (level), FNV-1a 32
+  of the scenario id (info `ID`). A pack the app wrote with Steam closed listed and played.
+  They are deterministic and differ per content and per scenario, like PACKAGER's, so
   whatever the game keys by them (a save slot, a level cache) can't collide across
-  scenarios. In game: #132–#134.
+  scenarios. Separate saves: #134.
 - `[VERIFIED]` `res/assets.bin` is `HW1R`, u8 3, u32 hash, u32 0, u32 count (14501), then
   `.h1c`-style entries. The last five (`sound/*.bank`) are flag 0xff with size 0xffffffff
   and no packed size or data; the banks sit in `res/assets/sound/`. The files the
