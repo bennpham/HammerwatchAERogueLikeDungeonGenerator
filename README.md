@@ -16,8 +16,9 @@ output. Old HW1 `parameters.txt` files still import: their ids are translated.
 
 ## What it makes
 
-A campaign is an AE **scenario**. The app writes the folder below, then packs it
-into a `.h1c` with the game's own `PACKAGER.exe`:
+A campaign is an AE **scenario**: the folder below, which the app packs into a
+`.h1c` itself. The game's own `PACKAGER.exe` isn't used, so Steam doesn't have to be
+running:
 
 ```
 dungeon_<seed>/
@@ -40,10 +41,10 @@ In game, the campaign appears in the scenario list as **Dungeon #&lt;seed&gt;**.
 ## Requirements
 
 - **Hammerwatch Anniversary Edition** (Steam). The app finds the install itself;
-  you can also browse to it. The folder must contain `HW1A.exe` and `PACKAGER.exe`.
-- **Windows** to install directly. `PACKAGER.exe` is a Windows tool: on Linux and
-  macOS the app runs it through `wine`. Without wine, use **Export folder…** and pack
-  it on Windows.
+  you can also browse to it. The folder must contain `HW1A.exe`.
+- **Linux and macOS** work the same way: the app packs the `.h1c` itself, with no wine
+  and no Steam needed. The patched copies of the game's files are read from the game's
+  own `res/assets.bin`, so no `unpacked_assets_*` folder is needed either.
 - To build from source: Node.js (current LTS) and npm.
 
 ## Using the app
@@ -67,9 +68,13 @@ In game, the campaign appears in the scenario list as **Dungeon #&lt;seed&gt;**.
 5. Press **Generate dungeon** and browse the per-floor **Dungeon preview**. The
    **Loadout** tab shows what each class starts with and ends up with after the
    shops, with your Player settings applied.
-6. Press **Install into Hammerwatch AE**. That writes the scenario into
-   `<AE>/scenarios`, packs it into a `.h1c` and removes the unpacked folder. Or use
-   **Export folder…** / **Export .zip…** and pack it yourself.
+6. Press **Install into Hammerwatch AE**. That packs the scenario into
+   `<AE>/scenarios/dungeon_<seed>.h1c`. With **Delete the scenario source after
+   packing** unticked, an editable copy also goes to `<AE>/editor/generated/`. In the
+   rare case the app can't pack a scenario, it installs the folder unpacked as
+   `<AE>/scenarios/dungeon_<seed>/` instead, which the game loads as it is, and says why.
+   Or use **Export folder…** / **Export .zip…** and copy the folder into
+   `<AE>/scenarios/` yourself.
 
    Tick **Write a dungeon_&lt;seed&gt;_description.txt…** to also get a plain-text summary
    of the run, so players know what they're getting into: the play order, and for each
@@ -232,8 +237,6 @@ confirmed in game.
   fixed copy of `Player.as` and `GiveCombo.as`.
 - **The priest's cripple aura stops mana regen while it's on.** That is stock AE.
   *Fully upgraded* just gives the aura out early.
-- **`PACKAGER.exe` exits with code 127 even when it succeeds.** The install is
-  judged by the `.h1c` it writes.
 
 ## parameters.txt and playersettings.txt
 
@@ -307,9 +310,12 @@ npm run dist         # installer for this platform (dist:win / dist:mac / dist:l
 
 **Gate:** `npm run typecheck && npm test` must pass before every commit.
 
-`HWAE_PACK=1 npm test -- tests/packer.test.ts` also packs a real scenario with
-your local `PACKAGER.exe`, then removes it. Tests that read the game install skip
-themselves when it isn't present; set `HWAE_ROOT` to point at another install.
+`HWAE_PACK=1 npm test -- tests/packer.test.ts` also installs real scenarios into
+your local game, then removes them. On Windows it also packs one with the game's
+own `PACKAGER.exe` and checks the app's pack against it; PACKAGER needs a Steam
+client it can reach, so run that from your own terminal with Steam open. Tests that
+read the game install skip themselves when it isn't present; set `HWAE_ROOT` to
+point at another install.
 
 ### Layout
 
@@ -324,7 +330,7 @@ src/
 │   ├── players/   the Player tab: stock snapshot, fields, quick setup, presets, patches
 │   ├── boss/ dungeonBoss/ survival/ traps/ timer/ buffs/ mystery/ music/ lobby/
 │   └── config/    parameters, presets, parameters.txt, validation
-├── main/          Electron main: settings, AE detection, install/PACKAGER, export, AI chat
+├── main/          Electron main: settings, AE detection, the .h1c writer and install, export, AI chat
 ├── preload/       the typed window.api bridge
 ├── renderer/      React UI
 └── shared/        types shared by main and renderer

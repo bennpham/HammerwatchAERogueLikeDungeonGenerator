@@ -78,7 +78,7 @@ export function OutputPanel({
           className="primary"
           disabled={!hasResult || busy || settings.hammerwatchPath === ''}
           onClick={onInstall}
-          title="Writes the scenario into <AE>/scenarios, packs it into a .h1c with PACKAGER.exe and removes the source folder"
+          title="Packs the scenario into <AE>/scenarios/<id>.h1c (no Steam or PACKAGER.exe needed)"
         >
           Install into Hammerwatch AE
         </button>

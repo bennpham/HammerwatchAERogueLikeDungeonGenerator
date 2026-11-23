@@ -1,6 +1,6 @@
 ---
 name: app-shell-implementer
-description: Implements the Electron and React side of the AE dungeon generator — src/main/**, src/preload/**, src/renderer/** and src/shared/**. Use for IPC handlers, settings and AE install detection, the PACKAGER.exe install/export pipeline, file dialogs, zip export, the parameter form, validation UX, the canvas map preview and the output panel. Do not use for generator or level-emitter work.
+description: Implements the Electron and React side of the AE dungeon generator — src/main/**, src/preload/**, src/renderer/** and src/shared/**. Use for IPC handlers, settings and AE install detection, the .h1c install/export pipeline, file dialogs, zip export, the parameter form, validation UX, the canvas map preview and the output panel. Do not use for generator or level-emitter work.
 model: sonnet
 ---
 
@@ -14,12 +14,12 @@ Read `CLAUDE.md` and load `hammerwatch-ae-project`. Read the module before you c
 
 - `src/main/ipc.ts` registers every handler and caches the last result. **Generated file contents never cross IPC**: `dungeon:generate` returns `{ok, seed, campaignName, levels}` only, and exports read the cached result in main.
 - `src/main/packer.ts` installs a scenario:
-  1. writes `<AE>/scenarios/<id>/`;
-  2. runs `PACKAGER.exe -l <id>` from the AE folder;
-  3. checks the `.h1c`'s `HW1S` header;
-  4. removes the source folder, or moves it to `editor/generated/` when it's kept.
+  1. patches the stock files it ships, read from the game's `res/assets.bin` (`stockAssets.ts`);
+  2. packs everything into `<AE>/scenarios/<id>.h1c` with the app's own writer (`h1c/write.ts`), through a `.tmp` and a rename;
+  3. writes an editable copy to `editor/generated/<id>/` when the source is kept;
+  4. if the writer throws, installs the folder unpacked as `scenarios/<id>/` and says why.
 
-  PACKAGER exits 127 even on success, so the produced file is the test. `findAeInstall()` searches the Steam libraries.
+  `PACKAGER.exe` isn't run: it needs a Steam client it can reach. `findAeInstall()` searches the Steam libraries, and an install only needs `HW1A.exe`.
 - `src/main/settings.ts` persists the AE folder (`hammerwatchPath`, a legacy name) and `cleanupFiles`, and auto-detects the folder when it's empty.
 - `src/shared/ipc.ts` `RendererApi` is the contract, and the preload is the only bridge.
 - Monster, theme and lobby pickers are driven by the generator's registries (`MONSTER_TYPES`, `THEMES`, `LOBBY_PRESETS`, `LOBBY_VENDORS`). Never hardcode a list in the UI.

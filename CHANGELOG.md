@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added tiers sell from the upgrade's tier-5 shop column, so a lobby needs those columns to sell them; the app warns when none does.
 - **Owned tiers and tiers for sale.** **Fully upgraded** owns every tier, added ones included. Tiers added after pressing it stay for sale: the skill shop script is patched so it lists the right next tier when some are owned from the start.
 
+### Changed
+
+- **Install packs the `.h1c` itself.** The app no longer runs the game's `PACKAGER.exe`, which stops with "Steam must be running" whenever it can't reach a Steam client: on Linux under wine or Proton, and on Windows with Steam closed. Install now works the same on Windows, Linux and macOS, with or without Steam running. With **Delete the scenario source after packing** unticked, the editable copy is written straight to `<AE>/editor/generated/`. The AE folder only needs `HW1A.exe`.
+- **Stock files come from the game's own `res/assets.bin`.** The power-shop fix (no extra life for sale) and the Players tab's patches used to need an `unpacked_assets_*` folder, which most installs don't have. They're now read from the game's asset pack, with an `unpacked_assets_*` folder as a fallback.
+
+### Removed
+
+- The wine and Proton lookup for running `PACKAGER.exe` off Windows (`HWAE_WINE`). It could never pack, since PACKAGER needs Steam.
+
 ## [0.1.0] - 2026-10-21
 
 The first official release. This is a port of the [Hammerwatch 1 remake](https://github.com/bennpham/HammerwatchRogueLikeDungeonGeneratorRemake), forked from its 0.9.5, to **Hammerwatch Anniversary Edition**. It makes the same kind of campaigns (floors, lobbies, boss and survival arenas, and the floor order between them), but builds them out of AE's own levels, assets, scripts and player files. It has no Hammerwatch 1 output. The entries below describe what's different from the remake.

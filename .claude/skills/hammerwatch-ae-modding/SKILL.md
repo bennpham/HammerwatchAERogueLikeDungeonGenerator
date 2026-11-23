@@ -1,6 +1,6 @@
 ---
 name: hammerwatch-ae-modding
-description: How Hammerwatch Anniversary Edition levels, scripts, assets and scenarios work, as this generator emits them — SVAL .lvl format, the WorldScript vocabulary and enums, press-F exits, shops, doors, boss triggers, walls, lives, PACKAGER.exe packing, and lobby templates. Load before emitting units/scripts/asset paths or touching scenario packaging. The append-only DISCOVERY-LOG.md holds the evidence.
+description: How Hammerwatch Anniversary Edition levels, scripts, assets and scenarios work, as this generator emits them — SVAL .lvl format, the WorldScript vocabulary and enums, press-F exits, shops, doors, boss triggers, walls, lives, .h1c packing, and lobby templates. Load before emitting units/scripts/asset paths or touching scenario packaging. The append-only DISCOVERY-LOG.md holds the evidence.
 ---
 
 # Hammerwatch AE modding — what the generator relies on
@@ -55,7 +55,7 @@ There are **no engine-wide boss events**: every boss trigger lists the boss unit
 
 ## Packing
 
-From `<AE>`, run `PACKAGER.exe -l <id>`, which writes `scenarios/<id>.h1c` (header `HW1S`). It exits 127 even on success. Remove the source folder afterwards, or the game lists the scenario twice.
+The app writes `scenarios/<id>.h1c` itself (`src/main/h1c/write.ts`; the layout is in `h1c/read.ts`). `PACKAGER.exe -l <id>` needs a Steam client it can reach, so it's only a reference in tests. Levels are compiled to binary SVAL with PACKAGER's compact forms (`i` is float 0). Files are sorted by path with `info.xml` last, and the logo is in the header. Never leave a `scenarios/<id>/` folder beside its `.h1c`, or the game lists the scenario twice. Stock files for patches come from the game's `res/assets.bin` (`HW1R`, `src/main/stockAssets.ts`).
 
 ## Lobbies
 

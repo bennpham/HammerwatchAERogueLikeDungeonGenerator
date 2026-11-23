@@ -1310,3 +1310,79 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
 - `[EMITTED]` (2026-11-23) The opt-in description (`generator/describe.ts`) is written by the
   install beside the `.h1c`, by **Export folder…** beside the exported folder, and at the zip
   root. It is never one of the scenario's files, so nothing packs it.
+
+### Installing off Windows: Proton's wine, then unpacked (2026-11-22)
+
+- Reported: on Linux with no system wine, Install failed with "Could not run PACKAGER.exe"
+  (the app ran a bare `wine`). AE ships only as a Windows game, so a Linux player runs it
+  through Steam's Proton, which has its own wine.
+- `[UNVERIFIED]` Proton's `files/bin/wine` (`dist/bin/wine` before 5.13) runs
+  `PACKAGER.exe -l <id>` outside Steam, given `WINEPREFIX` (a private prefix under the
+  app's `userData`, never the game's `compatdata`), `LD_LIBRARY_PATH` with its
+  `files/lib64:files/lib`, and `WINEDLLOVERRIDES=mscoree,mshtml=` so a fresh prefix shows
+  no Mono/Gecko dialog (`src/main/wine.ts`). In game: #132.
+- `[UNVERIFIED]` An unpacked `scenarios/<id>/` (no `.h1c` beside it) plays as well as it
+  lists. The HW1A log shows the game loading unpacked folders (see Scenario packaging),
+  but no generated scenario has been played that way. The install falls back to it off
+  Windows when no wine is found or packing fails. In game: #133.
+
+### PACKAGER needs Steam; the app writes .h1c itself (2026-11-23)
+
+- `[VERIFIED]` `PACKAGER.exe` calls `SteamAPI_Init()` and stops on a modal "Fatal Error -
+  Steam must be running to play this game (SteamAPI_Init() failed)" when it can't reach a
+  Steam client. That happens under wine or Proton on Linux (docs/discovery/linux-packager-steam.md),
+  and on Windows from a sandboxed shell even while Steam is running (the dialog blocks
+  until closed). So the wine/Proton route (`src/main/wine.ts`) was removed, and the
+  install packs the `.h1c` itself (`src/main/h1c/write.ts`).
+- `[VERIFIED]` What PACKAGER writes, from every pack on the dev machine (four stock, two
+  community, four generated) and three generated installs kept beside their packs:
+  - files are sorted by path (byte order), then `info.xml` last. `logos.png` is not in
+    the table; its exact bytes are the header logo;
+  - text files (`.as`, `.sval`, `.env`, `.unit`, `info.xml`) are the source bytes, flag 1,
+    as one LZ4 block each. `.lvl` is flag 3: 8 hash bytes, then binary SVAL;
+  - binary SVAL uses the compact forms everywhere they apply, plus **`i` (0x69) = float
+    0**, which stock levels never contain but our trap rigs (`Spread` 0) do. Re-encoding
+    PACKAGER's own decoded text gives the same bytes for all 116 levels of those packs.
+    Dict keys are in a hash-map order, not the source order; the app writes source order;
+  - the header info is a dict made from `info.xml`: `ForcedSwitches` ({ID, LockedBy} per
+    `forced="true"` modifier, which leaves `Switches`), `ID` (int), `Tag`, `NameID`,
+    `Name`, `Description`, `StartLevels` ({Name, Level}), `Switches` ({Visual 0, or 1 for a
+    separator; Tooltip, ID, LockedBy, Name, RadioGroup, DefaultOn, Multiplayer}),
+    `MinPlayers` -1 (for min 1), `MaxPlayers`, `Multiplayer` f, `Saving` (all = 2),
+    `DisableInclude` f, `ClassMaps` (empty Behaviors/Scripts/Gamemodes), `IncludeScenarios`.
+    `tests/h1cWriter.test.ts` repacks the kept installs and matches PACKAGER on all of
+    it except `ID`.
+- `[VERIFIED]` Three numbers are not CRC32, FNV-1/1a 32/64, xxHash32/64,
+  Murmur3 32/128, djb2 or sdbm of the info, the logo, the level text (LF or CRLF), its
+  binary body, its path (several spellings), path + text, the scenario id or the pack:
+  the header u32, each level's 8 bytes, and the info `ID` int.
+  (`node scripts/run-ts.mjs scripts/dev/probe-h1c.ts kept`).
+- `[VERIFIED]` What they cover, from seven controlled PACKAGER packs of a 1-floor scenario
+  (`probe-h1c.ts pack <dir>`, then `crack <dir>`; same pack twice, a whitespace-only
+  edit, one value changed, a changed `info.xml`, a renamed level, an extra file):
+  - all three are **deterministic**: the same folder packed twice gives the same bytes;
+  - a level's 8 bytes depend on its **content only**: a whitespace-only edit and a rename
+    keep them, a changed value changes them. So they hash the parsed or binary level, not
+    the text or the path;
+  - the header u32 changes with any level value, `info.xml`, a path or an extra file, and
+    not with whitespace: it covers the whole compiled pack;
+  - the info `ID` stayed the same through every variant, including the changed
+    `info.xml`. It depends on the scenario id (`hwae_probe` gave `0x4c55f911`), not on
+    the content.
+  None of the hash families above matches these probes either.
+- `[VERIFIED]` (2026-11-23, #132) The game accepts the app's own values there: FNV-1a 32 of
+  the rest of the pack (header), FNV-1a 64 of the level's binary body (level), FNV-1a 32
+  of the scenario id (info `ID`). A pack the app wrote with Steam closed listed and played.
+  They are deterministic and differ per content and per scenario, like PACKAGER's, so
+  whatever the game keys by them (a save slot, a level cache) can't collide across
+  scenarios. Separate saves: #134.
+- `[VERIFIED]` `res/assets.bin` is `HW1R`, u8 3, u32 hash, u32 0, u32 count (14501), then
+  `.h1c`-style entries. The last five (`sound/*.bank`) are flag 0xff with size 0xffffffff
+  and no packed size or data; the banks sit in `res/assets/sound/`. The files the
+  install patches are flag 1 LZ4 text, byte-identical to `unpacked_assets_66`. So the
+  power-shop fix and the Players tab now read the stock files from `assets.bin`
+  (`src/main/stockAssets.ts`), and a player install with no `unpacked_assets_*` gets
+  them too.
+- `[UNVERIFIED]` `unpacked_assets_66` is not something AE makes. It's an extract on the
+  dev machine (dated 2026-09-23, with no tool's log beside it). Nothing at install time
+  needs it now; the asset scanners in `scripts/` still read it.

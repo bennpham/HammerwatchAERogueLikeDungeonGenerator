@@ -3,40 +3,16 @@
  * campaign that also ships its levels unpacked (the editor's own text saves)
  * must decode to the same tree, value for value (arrays in order).
  */
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseSval } from '../src/generator/ae/sval'
-import type { SvalNode } from '../src/generator/ae/sval'
-import { binarySvalToText, levelText, lz4Block } from '../scripts/lib/h1c'
-import { AE_ROOT, HAS_AE, readStockLevel, readStockPack } from './aeInstall'
+import { binarySvalToText, entryData, levelText, lz4Block, readHw1rIndex } from '../scripts/lib/h1c'
+import { svalDiff as diff } from './svalDiff'
+import { AE_ROOT, HAS_AE, aeAssetsDir, readStockLevel, readStockPack } from './aeInstall'
 
 /** the stock packs whose levels are also unpacked beside them */
 const TWINNED = ['castle_hammerwatch', 'shaftlocke_tower', 'sun_temple']
-
-/** The first difference between two trees, as a path, or null. Numbers compare as 32-bit floats. */
-function diff(a: SvalNode, b: SvalNode, at = ''): string | null {
-  const here = `${at}/${a.name ?? a.tag}`
-  if (a.tag !== b.tag || a.name !== b.name) return `${here}: <${a.tag} ${a.name ?? ''}> vs <${b.tag} ${b.name ?? ''}>`
-  if (a.children.length !== b.children.length) return `${here}: ${a.children.length} vs ${b.children.length} children`
-  // a dict's keys are a map (the pack and the editor list unit groups in different orders); arrays are positional
-  const byName = (n: SvalNode) => (a.tag === 'dict' ? [...n.children].sort((p, q) => ((p.name ?? '') < (q.name ?? '') ? -1 : 1)) : n.children)
-  const [ka, kb] = [byName(a), byName(b)]
-  for (let i = 0; i < ka.length; i++) {
-    const d = diff(ka[i], kb[i], here)
-    if (d !== null) return d
-  }
-  if (a.children.length > 0 || a.tag === 'dict' || a.tag === 'array') return null
-  const [x, y] = [a.text.trim(), b.text.trim()]
-  if (/^(float|vec[234]|int)$/.test(a.tag)) {
-    const nx = x.split(/\s+/).map((v) => Math.fround(Number(v)))
-    const ny = y.split(/\s+/).map((v) => Math.fround(Number(v)))
-    return nx.length === ny.length && nx.every((v, i) => v === ny[i]) ? null : `${here}: ${x} vs ${y}`
-  }
-  if (a.tag === 'bool') return x[0] === y[0] ? null : `${here}: ${x} vs ${y}`
-  if (a.tag === 'bytes') return x.toLowerCase() === y.toLowerCase() ? null : `${here}: bytes differ`
-  return x === y ? null : `${here}: ${JSON.stringify(x)} vs ${JSON.stringify(y)}`
-}
 
 describe('h1c: LZ4 blocks and binary SVAL', () => {
   it('decodes a literal run and an overlapping match', () => {
@@ -90,6 +66,19 @@ describe.skipIf(!HAS_AE)('h1c: the stock packs', () => {
     }
     expect(levels).toBe(66)
   }, 120_000)
+
+  it("walks the game's own assets.bin (HW1R) to its last byte, sound banks and all", () => {
+    const bin = readFileSync(join(AE_ROOT, 'res', 'assets.bin'))
+    const entries = readHw1rIndex((at, len) => bin.subarray(at, at + len), bin.length)
+    expect(entries.size).toBeGreaterThan(10_000)
+    expect(entries.get('sound/sfx.bank')?.flag).toBe(0xff)
+    const assets = aeAssetsDir()
+    if (assets === null) return
+    for (const path of ['players/classes.sval', 'scripts/GUI/Shop/PowerShopMenuContent.as']) {
+      const data = entryData(entries.get(path)!, (at, len) => bin.subarray(at, at + len))
+      expect(Buffer.compare(Buffer.from(data), readFileSync(join(assets, path))), path).toBe(0)
+    }
+  })
 
   it("reads survival's levels, which AE ships only packed", () => {
     const survival = readStockPack('survival.h1c')

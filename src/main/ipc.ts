@@ -192,7 +192,7 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
       ok: true,
       message:
         `Exported the scenario folder${description !== undefined ? ` and ${descriptionFileName(result.campaignName)}` : ''}. ` +
-        `Copy the folder into <AE>/scenarios/ and run "PACKAGER.exe -l ${result.campaignName}" from the AE folder.` +
+        `Copy the folder into <AE>/scenarios/: the game loads it as it is (or use Install, which packs it into a .h1c).` +
         exported.note,
       outputPath: targetDir
     }
