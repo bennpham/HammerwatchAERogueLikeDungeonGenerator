@@ -81,7 +81,7 @@ In game, the campaign appears in the scenario list as **Dungeon #&lt;seed&gt;**.
    level its theme, size, rooms, monsters, items, locked doors, timers, floor bosses and
    which level ends the run. It goes beside the `.h1c` in `<AE>/scenarios` (beside the
    folder on **Export folder…**, at the root of the zip), never inside the scenario.
-   **Open scenario folder** opens `<AE>/scenarios`. **Open levels folder** opens
+   **Open scenario folder** opens `<AE>/scenarios`. **Open editor folder** opens
    `<AE>/editor/generated`, where a kept scenario source and its `.lvl` levels go when
    **Delete the scenario source after packing** is off.
 

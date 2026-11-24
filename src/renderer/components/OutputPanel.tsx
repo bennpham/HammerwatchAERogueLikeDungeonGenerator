@@ -100,7 +100,7 @@ export function OutputPanel({
           onClick={() => onOpenFolder('generated')}
           title="Open <AE>/editor/generated — kept scenario sources and their .lvl levels, for hand edits in the AE editor"
         >
-          Open levels folder
+          Open editor folder
         </button>
       </div>
     </div>
