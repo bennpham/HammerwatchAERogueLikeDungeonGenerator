@@ -68,12 +68,12 @@
     "electron-winstaller@5.4.0": true,
     "electron@43.8.3": true
   },
-  "//overrides": "All transitive, dev-only (electron-builder build chain). Forces packages onto releases that use minimatch@10/glob@13, which depend on brace-expansion@5.0.8 -- the only line carrying the GHSA-mh99-v99m-4gvg unbounded-expansion guard. The 1.x/2.x backports are NOT patched for it. app-builder-lib exact-pins asar/universal, so overrides are required.",
+  "//overrides": "All transitive, dev-only (electron-builder build chain). Forces packages onto releases that use minimatch@11 (GHSA-g3hv-75wg-m249 globparts fix, 11.0.1+), which depends on brace-expansion@5 -- the only line carrying the GHSA-mh99-v99m-4gvg unbounded-expansion guard. The 1.x/2.x backports are NOT patched for it. app-builder-lib exact-pins asar/universal, so overrides are required. Known gap: glob@7 (rimraf@2 under electron-winstaller, the unused Squirrel target) crashes on wildcard patterns with minimatch@11, but it only globs paths containing *?[]{} and winstaller only rimrafs its own temp dirs.",
   "overrides": {
     "@electron/asar": "^4.2.1",
     "@electron/universal": "^3.0.6",
     "filelist": "^2.0.2",
-    "minimatch": "^10.2.6",
+    "minimatch": "^11.0.9",
     "global-agent": "^4.1.3"
   }
 }
