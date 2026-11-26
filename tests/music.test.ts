@@ -14,6 +14,7 @@ import { DEFAULT_LOBBY_PRESET_ID } from '../src/generator/lobby/presets'
 import type { AeLevel } from '../src/generator/ae/model'
 import { changedScripts, generateOk, levelsOf, param, placements, scriptsOf } from './ae'
 import { plainParameters } from './params'
+import { HW2_CONTENT } from './hw2Install'
 
 const SEED = 4242
 
@@ -137,7 +138,8 @@ describe('floor music', () => {
 
   it('emits the right mode for every shipped track id', () => {
     for (const track of MUSIC_TRACKS) {
-      expect(modesOf(level(generateOk(withMusic(0, track.id), SEED), 'floor0')), track.id).toEqual([track.mode])
+      // Hammerwatch 2's tracks are custom content: generated with HW2 loaded
+      expect(modesOf(level(generateOk(withMusic(0, track.id), SEED, HW2_CONTENT), 'floor0')), track.id).toEqual([track.mode])
     }
   }, 120_000)
 })
@@ -226,7 +228,7 @@ describe('music validation', () => {
       params.floorMusic = params.themes.map(() => track.id)
       params.lobbies = params.lobbies.map((l) => ({ ...l, music: track.id }))
       params.boss.fights = params.boss.fights.map((f) => ({ ...f, arena: { ...f.arena, music: track.id } }))
-      expect(validateParameters(params).errors, track.id).toEqual([])
+      expect(validateParameters(params, HW2_CONTENT).errors, track.id).toEqual([])
     }
   })
 })

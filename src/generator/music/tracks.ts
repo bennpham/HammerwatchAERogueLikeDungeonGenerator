@@ -13,12 +13,23 @@
  *   the dragon. The NAMES of 20/21 are a guess [UNVERIFIED].
  */
 
+import { HW2_MUSIC_BANK, HW2_TRACKS } from '../custom/hw2/music'
+import type { ContentSource } from '../custom/sources'
+
 export interface MusicTrack {
   id: string
   label: string
-  /** the `PlayMusic.Music` value */
+  /** the `PlayMusic.Music` value (0, silence, for a bank track: it mutes AE's own music) */
   mode: number
-  group: 'Castle Hammerwatch' | 'Temple of the Sun' | 'Shaftlocke Tower'
+  group: 'Castle Hammerwatch' | 'Temple of the Sun' | 'Shaftlocke Tower' | 'Hammerwatch 2'
+  /**
+   * Set for custom content (custom/sources.ts): usable only with that source
+   * loaded, and played from a scenario soundbank rather than AE's music:
+   * `bank` is the `PlaySound` sound (`hw2/music/music.sbnk:crypt`) and
+   * `sample` the `.ogg` it lists.
+   */
+  source?: ContentSource
+  bank?: { sound: string; sample: string }
 }
 
 /** Sentinel: "use the level's own default" — emits no PlayMusic at all. */
@@ -27,6 +38,16 @@ export const MUSIC_DEFAULT = 'default'
 const castle = (id: string, label: string, mode: number): MusicTrack => ({ id, label, mode, group: 'Castle Hammerwatch' })
 const temple = (id: string, label: string, mode: number): MusicTrack => ({ id, label, mode, group: 'Temple of the Sun' })
 const shaftlocke = (id: string, label: string, mode: number): MusicTrack => ({ id, label, mode, group: 'Shaftlocke Tower' })
+
+/** Hammerwatch 2's tracks (custom/hw2/music.ts), each muting AE's music and looping its own. */
+const HW2_MUSIC: readonly MusicTrack[] = HW2_TRACKS.map((t) => ({
+  id: t.id,
+  label: t.label,
+  mode: 0,
+  group: 'Hammerwatch 2',
+  source: 'hw2',
+  bank: { sound: `${HW2_MUSIC_BANK}:${t.name}`, sample: t.sample }
+}))
 
 export const MUSIC_TRACKS: readonly MusicTrack[] = [
   castle('none', 'Silence', 0),
@@ -42,7 +63,8 @@ export const MUSIC_TRACKS: readonly MusicTrack[] = [
   temple('temple_final_boss', 'Temple: final boss', 13),
   temple('temple_hub', 'Temple: hub', 14),
   shaftlocke('shaftlocke_20', 'Shaftlocke: tower (mode 20)', 20),
-  shaftlocke('shaftlocke_21', 'Shaftlocke: dragon (mode 21)', 21)
+  shaftlocke('shaftlocke_21', 'Shaftlocke: dragon (mode 21)', 21),
+  ...HW2_MUSIC
 ]
 
 const TRACKS_BY_ID = new Map(MUSIC_TRACKS.map((t) => [t.id, t]))
@@ -55,6 +77,15 @@ const TRACKS_BY_ID = new Map(MUSIC_TRACKS.map((t) => [t.id, t]))
 export function musicMode(id: string | undefined): number | null {
   if (id === undefined || id === MUSIC_DEFAULT) return null
   return TRACKS_BY_ID.get(id)?.mode ?? null
+}
+
+/**
+ * The soundbank sound a track loops (`hw2/music/music.sbnk:crypt`), or null
+ * for AE's own music, unset, `default` or an unknown id.
+ */
+export function musicBankSound(id: string | undefined): string | null {
+  if (id === undefined || id === MUSIC_DEFAULT) return null
+  return TRACKS_BY_ID.get(id)?.bank?.sound ?? null
 }
 
 /** Kept under its HW1-era name for the call sites; returns the music MODE now. */

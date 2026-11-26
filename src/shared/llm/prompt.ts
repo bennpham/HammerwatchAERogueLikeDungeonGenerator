@@ -221,7 +221,8 @@ export function buildSystemPrompt(current: DungeonParameters): string {
     idList('Floor bosses (bossFloorN)', MOBILE_BOSS_IDS),
     idList('Player presets (playerPreset)', PLAYER_PRESETS.map((p) => p.id)),
     idList('Lobby presets', LOBBY_PRESETS.map((p) => p.id)),
-    idList('Music tracks', MUSIC_TRACKS.map((t) => t.id)),
+    // stock tracks only: custom content (Hammerwatch 2) needs its source loaded
+    idList('Music tracks', MUSIC_TRACKS.filter((t) => t.source === undefined).map((t) => t.id)),
     idList('Buffs', BUFF_DEFS.map((b) => b.id)),
     idList('Trap projectiles', PROJECTILE_DEFS.map((p) => p.id)),
     idList('Wave pickups', PICKUP_DEFS.map((p) => p.id)),

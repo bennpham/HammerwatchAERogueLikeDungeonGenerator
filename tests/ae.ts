@@ -7,7 +7,7 @@ import { readLevel } from '../src/generator/ae/levelReader'
 import type { AeLevel, AeScript, AeUnit, Param } from '../src/generator/ae/model'
 import { generateDungeon } from '../src/generator'
 import { stemOfFileName } from '../src/generator/campaign'
-import type { DungeonParameters, DungeonResult, GeneratedFile } from '../src/generator'
+import type { ContentContext, DungeonParameters, DungeonResult, GeneratedFile } from '../src/generator'
 
 /**
  * A wall piece: a unit from a wall set that stands as wall (structure, seals,
@@ -19,8 +19,8 @@ export function isWallPiece(path: string): boolean {
 }
 
 /** Generate, failing the test with the generator's own errors if it refuses. */
-export function generateOk(params: DungeonParameters, seed = 1): DungeonResult {
-  const r = generateDungeon(params, seed)
+export function generateOk(params: DungeonParameters, seed = 1, content?: ContentContext): DungeonResult {
+  const r = generateDungeon(params, seed, content)
   if (!r.ok) throw new Error(`generation failed: ${r.errors.join('; ')}`)
   return r
 }

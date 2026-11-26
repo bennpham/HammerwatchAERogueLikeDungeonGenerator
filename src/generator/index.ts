@@ -5,6 +5,7 @@ import type { DungeonParameters } from './config/parameters'
 import { validateParameters, ValidationResult } from './config/validation'
 import { AE_ONLY } from './custom/sources'
 import type { ContentContext } from './custom/sources'
+import { HW2_MUSIC_BANK, HW2_TRACKS, hw2MusicBank, hw2TrackOgg } from './custom/hw2/music'
 import { DEFAULT_LOBBY_PRESET_ID, buildLobby, lobbyPresetById } from './lobby'
 import { buildBossArena } from './boss'
 import { WORLD_STEP_ADVICE, buildWorld } from './world/build'
@@ -567,6 +568,13 @@ export function generateDungeon(
     if (p !== undefined) previews.push({ ...p, label: label(slot) })
   }
 
+  // Hammerwatch 2 music: the bank listing the tracks the levels loop (custom/hw2/music.ts)
+  const hw2Tracks = new Set<string>()
+  for (const f of files) {
+    for (const m of f.content.matchAll(/hw2\/music\/music\.sbnk:(\w+)/g)) hw2Tracks.add(m[1])
+  }
+  if (hw2Tracks.size > 0) files.push({ path: HW2_MUSIC_BANK, content: hw2MusicBank(hw2Tracks) })
+
   const startStem = order.length > 0 ? slotEntryId(order[0]) : floorId(0)
   files.push({
     path: 'info.xml',
@@ -603,6 +611,16 @@ export function customAssetPaths(files: readonly GeneratedFile[]): string[] {
   for (const f of files) {
     if (f.encoding === 'base64') continue
     for (const m of f.content.matchAll(/(?<![\w/])hw2\/[^"<>:\s]+/g)) found.add(m[0])
+  }
+  // a generated file is no install's to copy; the HW2 tracks its bank lists are
+  for (const f of files) found.delete(f.path)
+  const byName = new Map(HW2_TRACKS.map((t) => [t.name, t]))
+  for (const f of files) {
+    if (f.path !== HW2_MUSIC_BANK) continue
+    for (const m of f.content.matchAll(/name="(\w+)"/g)) {
+      const t = byName.get(m[1])
+      if (t !== undefined) found.add(hw2TrackOgg(t))
+    }
   }
   return [...found].sort()
 }

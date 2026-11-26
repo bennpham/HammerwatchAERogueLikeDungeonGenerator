@@ -9,7 +9,7 @@ import { readLevel } from '../ae/levelReader'
 import { emitObjects } from '../ae/emit'
 import { buildExitRig, itemStandBadge } from '../objects/objectSet'
 import { SensorShape } from '../objects/nodes'
-import { buildMusicRig } from '../music/rig'
+import { buildMusicLoop, buildMusicRig } from '../music/rig'
 import { musicSound } from '../music/tracks'
 import { diamondSlot, upgradeSlot } from './layout'
 
@@ -195,6 +195,8 @@ export function buildLobby(
   if (ownMusic !== undefined) {
     const mode = musicSound(options.music)
     if (mode !== null) ownMusic.params = [P.int('Music', mode)]
+    // a soundbank track: the node above mutes AE's music, this loops the track
+    buildMusicLoop(ctx, options.music, ownMusic.x / TILE, ownMusic.y / TILE + 1)
   } else if (spawn !== undefined) {
     buildMusicRig(ctx, options.music, spawn.x / TILE, spawn.y / TILE + 1)
   }
