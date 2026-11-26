@@ -36,6 +36,7 @@ import type { ChatMessage, LlmChatRequest, LlmChatResult, LlmKeyResult, LlmModel
 import { cancelChat, chatCompletion, checkBaseUrl, endpointFor, listModels } from './llm/client'
 import * as llmStore from './llm/store'
 import { detectHw2 } from './custom/hw2/detect'
+import { customFiles } from './custom/hw2/files'
 import type { ContentSource } from '../generator/custom/sources'
 import type { Hw2Status } from '../shared/ipc'
 
@@ -154,14 +155,18 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
     const result = requireResult()
     if (!('files' in result)) return result
     const settings = loadSettings()
-    return installScenario(
+    // the Hammerwatch 2 files the campaign uses (Load custom), copied from the user's HW2
+    const custom = customFiles(result.customAssets, settings.hw2Path, settings.hammerwatchPath, 'install')
+    if (custom.error !== undefined) return { ok: false, message: custom.error }
+    const installed = await installScenario(
       settings.hammerwatchPath,
       result.campaignName,
-      result.files,
+      [...result.files, ...custom.files],
       !settings.cleanupFiles,
       result.assetOverrides,
       descriptionFor(result)
     )
+    return installed.ok && custom.note !== '' ? { ...installed, message: `${installed.message}${custom.note}` } : installed
   })
 
   /**
@@ -169,19 +174,22 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
    * folder is set (they are read from it); without it, the player settings
    * and the power-shop fix are left out and the message says so.
    */
-  const exportFiles = (result: { files: GeneratedFile[]; assetOverrides: PlayerFileOverride[] }) => {
-    const aePath = loadSettings().hammerwatchPath
+  const exportFiles = (result: { files: GeneratedFile[]; assetOverrides: PlayerFileOverride[]; customAssets: string[] }) => {
+    const settings = loadSettings()
+    const aePath = settings.hammerwatchPath
+    const custom = customFiles(result.customAssets, settings.hw2Path, aePath, 'export')
+    if (custom.error !== undefined) return { error: custom.error, files: [], note: '' }
     if (!aePath) {
       const lost = result.assetOverrides.length > 0 ? ' and the player settings' : ''
       return {
-        files: result.files,
-        note: ` Set the AE folder to include the power-shop fix${lost}; they are patched from the game's own files.`
+        files: [...result.files, ...custom.files],
+        note: ` Set the AE folder to include the power-shop fix${lost}; they are patched from the game's own files.${custom.note}`
       }
     }
     const patched = assetOverrideFiles(aePath, result.assetOverrides)
     return {
-      files: [...result.files, ...patched.files],
-      note: patched.notes.length > 0 ? ` Note: ${patched.notes.join('; ')}.` : ''
+      files: [...result.files, ...custom.files, ...patched.files],
+      note: (patched.notes.length > 0 ? ` Note: ${patched.notes.join('; ')}.` : '') + custom.note
     }
   }
 
@@ -201,6 +209,7 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
 
     const targetDir = join(picked.filePaths[0], result.campaignName)
     const exported = exportFiles(result)
+    if (exported.error !== undefined) return { ok: false, message: exported.error }
     await writeCampaign(targetDir, exported.files)
     // beside the scenario folder, never in it, so it is never packed
     const description = descriptionFor(result)
@@ -234,6 +243,7 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
 
     const zip = new JSZip()
     const exported = exportFiles(result)
+    if (exported.error !== undefined) return { ok: false, message: exported.error }
     for (const file of exported.files) {
       zip.file(`${result.campaignName}/${file.path}`, file.content, {
         base64: file.encoding === 'base64'

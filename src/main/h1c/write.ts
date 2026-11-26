@@ -13,14 +13,20 @@ import { H1C_MAGIC } from './read'
 export interface PackFile {
   path: string
   data: Uint8Array
+  /** 3: already compiled (a texture from a game's assets.bin), packed as is */
+  flag?: 3
 }
 
 /** The generator's files (text, or base64 for the logo) as pack files. */
 export function toPackFiles(files: readonly GeneratedFile[]): PackFile[] {
-  return files.map((f) => ({
-    path: f.path,
-    data: f.encoding === 'base64' ? Uint8Array.from(atob(f.content), (c) => c.charCodeAt(0)) : utf8(f.content)
-  }))
+  return files.map((f) => {
+    const file: PackFile = {
+      path: f.path,
+      data: f.encoding === 'base64' ? Uint8Array.from(atob(f.content), (c) => c.charCodeAt(0)) : utf8(f.content)
+    }
+    if (f.packFlag === 3) file.flag = 3
+    return file
+  })
 }
 
 class Bytes {
@@ -418,8 +424,10 @@ export function writeH1c(scenarioId: string, files: readonly PackFile[]): Uint8A
   const table = packOrder(files.filter((f) => f.path !== 'logos.png'))
   rest.u32(table.length)
   for (const f of table) {
-    const compiled = f.path.endsWith('.lvl')
-    const data = compiled ? compileLevel(f.data) : f.data
+    // a level is compiled here; a file that arrives compiled (flag 3) goes in as it is
+    const level = f.path.endsWith('.lvl')
+    const compiled = level || f.flag === 3
+    const data = level ? compileLevel(f.data) : f.data
     const packed = lz4Compress(data)
     const path = utf8(f.path)
     rest.u32(path.length)

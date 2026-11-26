@@ -308,6 +308,12 @@ export interface GeneratedFile {
    * The generator still returns strings only — no `fs`, no `Buffer`.
    */
   encoding?: 'utf-8' | 'base64'
+  /**
+   * 3 for a file already compiled for a pack (a texture copied from a game's
+   * `assets.bin`, main/custom): packed as is under that flag, never recompiled.
+   * The generator itself never sets it.
+   */
+  packFlag?: 3
 }
 
 export interface PreviewSegment {
