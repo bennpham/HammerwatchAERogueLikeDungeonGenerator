@@ -93,8 +93,9 @@ export function LoadCustomDialog({ hw2, onPick, onUnload, disabled }: LoadCustom
             {hw2 !== null && <p className={hw2.ok ? 'load-custom-status ok' : 'load-custom-status bad'}>{hw2.message}</p>}
             {loaded && (
               <p className="preset-guide-note">
-                HW2 options now show on the Dungeon and Arena tabs, marked <strong>(HW2)</strong>. Bosses and
-                ported music come later: see <code>docs/discovery/hammerwatch-2-spikes.md</code>.
+                HW2 themes, monsters, World biomes and music now show in their pickers, marked{' '}
+                <strong>(HW2)</strong> or grouped as <strong>Hammerwatch 2</strong>. HW2 bosses come later: see{' '}
+                <code>docs/discovery/hammerwatch-2-spikes.md</code>.
               </p>
             )}
           </section>

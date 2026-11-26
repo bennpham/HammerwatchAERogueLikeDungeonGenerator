@@ -40,6 +40,7 @@ import {
   worldSiteCapacityOf,
   MAX_WORLDS
 } from '../../generator'
+import { offerable, offeredLabel, useContentSources } from '../customContent'
 import type { DungeonParameters, ValidationIssue, WorldAmbushType, WorldDef, WorldOptions } from '../../generator'
 import { BoolField, NumberField, Section, ToggleGroup } from './fields'
 import { MusicPicker } from './MusicPicker'
@@ -76,6 +77,7 @@ const MOBILE_BOSS_DEFS = BOSS_DEF_LIST.filter((def) => def.mobile)
  * stored floor order the way BossForm's does.
  */
 export function WorldForm({ params, issues, onChange }: WorldFormProps) {
+  const content = useContentSources()
   const [worldIndex, setWorldIndex] = useState(0)
   const monsterFilter = useMonsterFilter()
   const options: WorldOptions = params.world ?? { enabled: false, worlds: [defaultWorld()] }
@@ -238,9 +240,10 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
             <label className={`field ${fieldIssues('biome').length > 0 ? 'field-error' : ''}`}>
               <span className="field-label">Ground, trees and cliffs</span>
               <select value={world.biome} onChange={(e) => setWorld({ biome: e.target.value })}>
-                {BIOME_DEFS.map((b) => (
+                {/* Hammerwatch 2 biomes only once Load custom has loaded HW2 */}
+                {BIOME_DEFS.filter((b) => offerable(b.id, content) || b.id === world.biome).map((b) => (
                   <option key={b.id} value={b.id}>
-                    {b.label}
+                    {offeredLabel(b.id, b.label, content)}
                   </option>
                 ))}
               </select>

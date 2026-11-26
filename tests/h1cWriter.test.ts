@@ -207,7 +207,8 @@ describe('h1c writer: generated scenarios round-trip', () => {
   it('a world of every biome', () => {
     const params = base()
     params.world = { enabled: true, worlds: BIOME_IDS.map((biome) => ({ ...defaultWorld(), biome })) }
-    const result = generateDungeon(params, 99003) as DungeonResult
+    // Hammerwatch 2's biomes generate with HW2 loaded
+    const result = generateDungeon(params, 99003, { sources: ['hw2'] }) as DungeonResult
     expect(result.ok).toBe(true)
     expectRoundTrip(result)
   }, 120_000)

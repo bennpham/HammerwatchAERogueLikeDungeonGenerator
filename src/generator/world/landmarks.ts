@@ -64,7 +64,7 @@ export const LANDMARK_DEFS: readonly LandmarkDef[] = [
   {
     id: 'oasis',
     label: 'Oasis',
-    biomes: ['desert', 'coast'],
+    biomes: ['desert', 'coast', 'hw2_coast'],
     pieces: [
       { path: `${T}/water_patch.unit`, dx: 0, dy: -9, solid: 0 },
       { path: `${T}/tree_palm.unit`, dx: -6, dy: -6, solid: 1 },
@@ -76,7 +76,7 @@ export const LANDMARK_DEFS: readonly LandmarkDef[] = [
   {
     id: 'shrine',
     label: 'Shrine',
-    biomes: ['grass', 'woods', 'desert', 'mud', 'snow', 'coast', 'autumn', 'ashland', 'marsh', 'crystal'],
+    biomes: ['grass', 'woods', 'desert', 'mud', 'snow', 'coast', 'autumn', 'ashland', 'marsh', 'crystal', 'hw2_highlands', 'hw2_coast', 'hw2_night_woods'],
     pieces: [
       { path: `${G}/statue_angel.unit`, dx: 0, dy: -6, solid: 1 },
       { path: `${G}/lamp_brazier.unit`, dx: -3, dy: -5, solid: 1 },
@@ -86,7 +86,7 @@ export const LANDMARK_DEFS: readonly LandmarkDef[] = [
   {
     id: 'ruins',
     label: 'Ruins',
-    biomes: ['grass', 'desert', 'mud', 'snow', 'coast', 'ashland'],
+    biomes: ['grass', 'desert', 'mud', 'snow', 'coast', 'ashland', 'hw2_highlands', 'hw2_coast'],
     pieces: [
       { path: `${T}/castle_debris_pile_rock.unit`, dx: -6, dy: -3, solid: 2 },
       { path: `${T}/castle_debris_pile_rock.unit`, dx: 6, dy: 2, solid: 2 },
@@ -98,7 +98,7 @@ export const LANDMARK_DEFS: readonly LandmarkDef[] = [
   {
     id: 'graveyard',
     label: 'Graveyard',
-    biomes: ['grass', 'woods', 'mud', 'autumn', 'marsh'],
+    biomes: ['grass', 'woods', 'mud', 'autumn', 'marsh', 'hw2_highlands', 'hw2_night_woods'],
     pieces: [
       { path: `${G}/graveyard_dirt_patch.unit`, dx: -1, dy: -7, solid: 0 },
       { path: `${G}/gravestone.unit`, dx: -5, dy: -5, solid: 1 },
@@ -112,7 +112,7 @@ export const LANDMARK_DEFS: readonly LandmarkDef[] = [
   {
     id: 'grove',
     label: 'Grove',
-    biomes: ['grass', 'woods', 'snow', 'autumn', 'marsh'],
+    biomes: ['grass', 'woods', 'snow', 'autumn', 'marsh', 'hw2_highlands', 'hw2_night_woods'],
     pieces: [],
     ring: { radius: 7, count: 9 }
   },

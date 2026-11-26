@@ -18,8 +18,14 @@ export function isWallPiece(path: string): boolean {
   return /^(?:hw2\/)?doodads\/walls\//.test(path) && !/\/__color_\d+\.unit$/.test(path)
 }
 
-/** Generate, failing the test with the generator's own errors if it refuses. */
-export function generateOk(params: DungeonParameters, seed = 1, content?: ContentContext): DungeonResult {
+/**
+ * Generate, failing the test with the generator's own errors if it refuses.
+ * Every custom source (Hammerwatch 2) counts as loaded unless `content` says
+ * otherwise: loading only gates validity, never what valid parameters
+ * generate (tests/customValidation.test.ts), so sweeps over a registry cover
+ * its custom entries too.
+ */
+export function generateOk(params: DungeonParameters, seed = 1, content: ContentContext = { sources: ['hw2'] }): DungeonResult {
   const r = generateDungeon(params, seed, content)
   if (!r.ok) throw new Error(`generation failed: ${r.errors.join('; ')}`)
   return r

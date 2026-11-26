@@ -3,7 +3,7 @@ import { extractRefs, resolveRelative } from '../src/main/custom/refs'
 import { planCopy } from '../src/main/custom/copyPlan'
 import type { CopyInput, CopySource } from '../src/main/custom/copyPlan'
 import { hw2CopyPlan } from '../src/main/custom/hw2/copy'
-import { generateDungeon } from '../src/generator'
+import { BIOME_IDS, defaultWorld, generateDungeon } from '../src/generator'
 import type { DungeonResult } from '../src/generator'
 import { THEME_DEFS } from '../src/generator/config/themes'
 import { aeAssetExists } from '../src/generator/catalog/assets'
@@ -179,5 +179,19 @@ describe.skipIf(!HAS_HW2)('copying Hammerwatch 2 themes from the install', () =>
     }
     // nothing of HW2's lands at an AE path
     for (const f of copy.files) expect(f.path.startsWith('hw2/')).toBe(true)
+  }, 120_000)
+
+  it('carries every HW2 World biome whole', () => {
+    const p = plainParameters()
+    p.world = { enabled: true, worlds: BIOME_IDS.filter((b) => b.startsWith('hw2_')).map((biome) => ({ ...defaultWorld(), biome })) }
+    const gen = generateDungeon(p, 6, HW2_CONTENT)
+    expect(gen.ok, gen.ok ? '' : gen.errors.join('; ')).toBe(true)
+    const r = gen as DungeonResult
+    expect(r.customAssets.some((a) => a.startsWith('hw2/doodads/terrain/'))).toBe(true)
+    expect(r.customAssets.some((a) => a.startsWith('hw2/tilesets/'))).toBe(true)
+    const copy = hw2CopyPlan(HW2_ROOT, AE_ROOT, r.customAssets)!
+    expect(copy.errors).toEqual([])
+    const shipped = new Set(copy.files.map((f) => f.path))
+    for (const root of r.customAssets) expect(shipped.has(root), root).toBe(true)
   }, 120_000)
 })

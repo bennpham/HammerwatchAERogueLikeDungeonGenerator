@@ -16,6 +16,9 @@
  * blocking grid marks around the anchor, 0 for a unit nothing collides with.
  */
 
+import { HW2_BIOMES } from '../custom/hw2/biomes'
+import type { ContentSource } from '../custom/sources'
+
 export interface ScatterEntry {
   /** the doodad unit */
   path: string
@@ -61,6 +64,11 @@ export interface BiomeDef {
    * in Shaftlocke Tower's own scenario, which a generated campaign can't use.
    */
   village: { centre: ScatterEntry; tents: ScatterEntry[]; props: ScatterEntry[] }
+  /**
+   * Set for custom content (custom/sources.ts): usable only with that source
+   * loaded; its id starts `<source>_` (custom/hw2/biomes.ts).
+   */
+  source?: ContentSource
 }
 
 /** A village's market props, shared by the biomes that don't swap any out. */
@@ -456,7 +464,10 @@ export const BIOME_DEFS: readonly BiomeDef[] = [
       ],
       props: MARKET
     }
-  }
+  },
+
+  // --- Hammerwatch 2 (experimental "Load custom" content) --------------------
+  ...HW2_BIOMES
 ]
 
 const BY_ID = new Map(BIOME_DEFS.map((b) => [b.id, b]))
