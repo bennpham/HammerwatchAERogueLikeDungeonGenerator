@@ -3,6 +3,8 @@ import { Level } from './map/level'
 import { defaultParameters, bossFights, arenaMode, campaignCounts, defaultSurvivalOptions, floorBoss, floorBossCount, floorLockButtons, floorLockDisguised } from './config/parameters'
 import type { DungeonParameters } from './config/parameters'
 import { validateParameters, ValidationResult } from './config/validation'
+import { AE_ONLY } from './custom/sources'
+import type { ContentContext } from './custom/sources'
 import { DEFAULT_LOBBY_PRESET_ID, buildLobby, lobbyPresetById } from './lobby'
 import { buildBossArena } from './boss'
 import { WORLD_STEP_ADVICE, buildWorld } from './world/build'
@@ -153,6 +155,8 @@ export { BIOME_DEFS, BIOME_IDS, biomeById } from './world/biomes'
 export { PREVIEW_MAX_SIDE, downsamplePreview } from './world/previewScale'
 export { MONSTER_THEMES, matchingTheme } from './world/monsterThemes'
 export { WORLD_PRESETS } from './world/presets'
+export { AE_ONLY, CONTENT_SOURCES, SOURCE_LABELS, isAvailable, sourceOfId, sourceOfPath, unavailableMessage } from './custom/sources'
+export type { ContentContext, ContentSource } from './custom/sources'
 export type { WorldPreset } from './world/presets'
 export type { MonsterTheme } from './world/monsterThemes'
 export type { BiomeDef } from './world/biomes'
@@ -380,8 +384,13 @@ const MAX_LEVEL_ATTEMPTS = 60
  * `logos.png` — exactly the folder AE's PACKAGER.exe packs into a `.h1c`, and
  * which the game also loads as-is from `<AE>/scenarios/`.
  */
-export function generateDungeon(params: DungeonParameters, seed?: number): DungeonResult | DungeonError {
-  const validation = validateParameters(params)
+export function generateDungeon(
+  params: DungeonParameters,
+  seed?: number,
+  content: ContentContext = AE_ONLY
+): DungeonResult | DungeonError {
+  // `content` only gates validity (custom/sources.ts): generation never reads it
+  const validation = validateParameters(params, content)
   if (!validation.valid) {
     return {
       ok: false,

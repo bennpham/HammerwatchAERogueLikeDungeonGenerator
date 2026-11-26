@@ -55,6 +55,9 @@ import {
 import { mysteryLootById } from '../objects/mysteryLoot'
 import { mysteryCapacity } from '../mystery/placement'
 import { MUSIC_DEFAULT, MUSIC_TRACKS, isKnownMusicId } from '../music/tracks'
+import { AE_ONLY } from '../custom/sources'
+import type { ContentContext } from '../custom/sources'
+import { validateContentSources } from '../custom/validate'
 import type { BossTrapDirection, TrapDirection } from './parameters'
 import type { BossFight, BossOptions } from './parameters'
 import type { CampaignSlot } from '../campaign'
@@ -148,7 +151,12 @@ export interface ValidationResult {
  * rooms when passages are wider than rooms, entrances that can never fit,
  * and impossible room layouts that made it retry forever.
  */
-export function validateParameters(p: DungeonParameters): ValidationResult {
+/**
+ * `content` says which custom sources (custom/sources.ts) the run has loaded;
+ * parameters naming content from any other source are invalid. It never
+ * changes what a valid parameter set generates.
+ */
+export function validateParameters(p: DungeonParameters, content: ContentContext = AE_ONLY): ValidationResult {
   const errors: ValidationIssue[] = []
   const warnings: ValidationIssue[] = []
 
@@ -421,6 +429,7 @@ export function validateParameters(p: DungeonParameters): ValidationResult {
   validateBoss(p, errors, warnings)
   validateWorlds(p, errors, warnings)
   validateLevelOrder(p, errors)
+  validateContentSources(p, content, errors)
 
   return { errors, warnings, valid: errors.length === 0 }
 }

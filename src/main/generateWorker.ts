@@ -12,6 +12,7 @@
 import { parentPort, workerData } from 'node:worker_threads'
 import { generateDungeon } from '../generator'
 import type { DungeonParameters } from '../generator'
+import type { ContentSource } from '../generator/custom/sources'
 
-const { params, seed } = workerData as { params: DungeonParameters; seed?: number }
-parentPort!.postMessage(generateDungeon(params, seed))
+const { params, seed, sources } = workerData as { params: DungeonParameters; seed?: number; sources?: ContentSource[] }
+parentPort!.postMessage(generateDungeon(params, seed, { sources: sources ?? [] }))
