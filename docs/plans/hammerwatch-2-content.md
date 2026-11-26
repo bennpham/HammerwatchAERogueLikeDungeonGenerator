@@ -1,5 +1,21 @@
 # Load custom → Hammerwatch 2 content (experimental branch)
 
+## Status (2026-11-26)
+
+Commits 0–11 are built on `experimental`, each passing the gate:
+- Load custom (the blue button beside Generate, and its dialog);
+- detection and copying from `res/assets.bin` or the extract;
+- eight HW2 themes, 15 HW2 monsters, three HW2 World biomes, and 41 HW2 music tracks converted to `.ogg`.
+
+Commit 12 (bosses) waits on spike S2. All four spikes have ready-made scenarios
+(`dungeon_11260001`…`004`, see `docs/discovery/hammerwatch-2-spikes.md`) and boot checklist
+#136–#144.
+
+What changed from the plan below:
+- monsters are the 15 units whose whole closure needs no class AE lacks, not about 190, because the stricter per-closure check counts projectiles and buffs;
+- HW2 biomes use AE's own cliff sets (AE ships the same basalt, granite and silt);
+- a custom monster's cap falls back to its default (`monsterCap`), so no `hw2_` keys reach the defaults or a stock parameters.txt.
+
 ## Context
 
 You asked for a blue **Load custom** header button. It lets someone point the app at their Hammerwatch 2 install (yours is `D:\Program Files (x86)\Steam\steamapps\common\Hammerwatch 2\`). Once HW2 is loaded, the Dungeon, Arena and World tabs gain HW2 themes, tilesets, doodads, monsters, bosses and music. With no HW2, **none** of it is shown. Install copies the HW2 files it needs into the `.h1c`, the way the custom AE scenario `scenarios/mistdeep` ships its own `actors/`, `doodads/`, `sounds/` and `music/`. This lives on the `experimental` branch (it exists locally and is checked out, at the same commit as `main`) and isn't part of 1.0. Custom asset folders and premade presets come later and use the same "custom source" slot.
