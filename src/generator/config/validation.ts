@@ -106,7 +106,8 @@ import {
   monsterFamilyById,
   monsterTypeById,
   parseMonsterKey,
-  resolveActorPath
+  resolveActorPath,
+  monsterCap
 } from '../objects/monsterTypes'
 import { BOSS_DEFS, expandLineup, isMobileBoss, topWallBossClearance, topWallBossY, UNIQUE_BOSS_IDS } from '../boss/bosses'
 import type { BossDef } from '../boss/bosses'
@@ -328,7 +329,7 @@ export function validateParameters(p: DungeonParameters, content: ContentContext
     // never by its members' — pooling `tower_flower` with a cap of 6 is not
     // silent just because `tower_flower1` ships at 0.
     const silent = [...new Set(pool.map((key) => parseMonsterKey(key).id))].filter(
-      (id) => (isKnownMonsterId(id) || isKnownFamilyId(id)) && (p.monsterMax[id] ?? 0) === 0
+      (id) => (isKnownMonsterId(id) || isKnownFamilyId(id)) && monsterCap(p.monsterMax, id) === 0
     )
     if (silent.length > 0) {
       warnings.push({

@@ -68,7 +68,7 @@ import type {
   MysteryButton,
   MysteryMonster
 } from './parameters'
-import { MONSTER_FAMILIES, MONSTER_TYPES, isKnownMonsterKey } from '../objects/monsterTypes'
+import { MONSTER_FAMILIES, MONSTER_TYPES, isKnownMonsterKey, monsterCap } from '../objects/monsterTypes'
 import { buffById } from '../objects/buffTypes'
 import { pickupById } from '../objects/pickupTypes'
 import { mysteryLootById } from '../objects/mysteryLoot'
@@ -2365,6 +2365,9 @@ export function serializeParametersTxt(params: DungeonParameters, path?: string,
       // Families after the types, so an existing file's line order is
       // untouched and the new keys simply append.
       for (const t of [...MONSTER_TYPES, ...MONSTER_FAMILIES]) {
+        // a custom type (custom/sources.ts) is written only once it's set off its
+        // default, so a stock campaign's file never names custom content
+        if ('source' in t && t.source !== undefined && monsterCap(params.monsterMax, t.id) === t.defaultMax) continue
         lines.push(`${t.configKey}=${params.monsterMax[t.id] ?? 0}`)
       }
     } else if (key === 'buff') {

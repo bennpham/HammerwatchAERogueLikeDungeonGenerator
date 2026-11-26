@@ -12,6 +12,7 @@ import {
   resolveActorPath,
   waveSpawnMode
 } from '../../generator'
+import { holdsCustom, useOfferedGroups } from '../customContent'
 import type { BossSpawnMode, BossWave, ValidationIssue } from '../../generator'
 import { NumberField } from './fields'
 import { InfoTip } from './InfoTip'
@@ -78,6 +79,7 @@ interface WaveEditorProps {
 /** One health-tier's monster pool, max-count table and spawn interval — the MonsterPoolsEditor/MonsterMaxTable idiom, but scoped to a single wave instead of the whole dungeon. */
 export function WaveEditor({ wave, index, fieldPrefix, issues, onWaveChange, hideSpawnMode, arenaTwins }: WaveEditorProps) {
   const filter = useMonsterFilter()
+  const offeredGroups = useOfferedGroups(MONSTER_VARIANT_GROUPS, () => holdsCustom(wave.monsters))
   // Session-only, like the act filter — nothing here reaches DungeonParameters,
   // so hiding an option can never change generated output.
   const [passableOnly, setPassableOnly] = useState(false)
@@ -170,7 +172,7 @@ export function WaveEditor({ wave, index, fieldPrefix, issues, onWaveChange, hid
         />
       </p>
       <div className="pool-groups">
-        {MONSTER_VARIANT_GROUPS.map((group) => {
+        {offeredGroups.map((group) => {
           const members = monsterVariantsInGroup(group).filter((v) => {
             const picked = wave.monsters.includes(v.key)
             // A pick always stays reachable so it can be un-picked, even when

@@ -5,6 +5,7 @@ import { DEFAULT_ITEM_VENDOR_ODDS, ObjectSet, SHOP_KINDS, enabledShopKinds, item
 import { KEY_COLLECTABLES } from '../objects/item'
 import { NodeDoorController } from '../objects/nodes'
 import type { MonsterTypeDef } from '../objects/monsterTypes'
+import { monsterCap } from '../objects/monsterTypes'
 import type { Passage } from './passage'
 import type { GenerationContext } from '../core/context'
 import type { Rand } from '../core/rand'
@@ -176,7 +177,7 @@ export class Room {
         const poolKey = Monster.chooseMonsterForLevel(ctx, this.level)
         const source = Monster.resolveFloorPoolEntry(poolKey)
         this.monsterType = source.kind === 'family' ? source.members[0] : source.type
-        const maxCount = params.monsterMax[Monster.capId(source)] ?? 0
+        const maxCount = monsterCap(params.monsterMax, Monster.capId(source))
 
         this.createHorde(
           source,

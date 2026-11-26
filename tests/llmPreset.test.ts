@@ -152,7 +152,9 @@ describe('buildSystemPrompt', () => {
         .filter((l) => /monsters[^:]*: |Towers|Mini-bosses|bodyguards|Bonus hordes/.test(l))
         .flatMap((l) => l.slice(l.indexOf(': ') + 2).split(', '))
     )
-    for (const m of MONSTER_TYPES.filter((t) => t.deprecated !== true)) expect(listed.has(m.id), m.id).toBe(true)
+    // stock monsters: custom content (Hammerwatch 2) is never offered to the model
+    for (const m of MONSTER_TYPES.filter((t) => t.deprecated !== true && t.source === undefined)) expect(listed.has(m.id), m.id).toBe(true)
+    for (const m of MONSTER_TYPES.filter((t) => t.source !== undefined)) expect(listed.has(m.id), m.id).toBe(false)
   })
 
   it('the act-by-act example parses and validates cleanly', () => {

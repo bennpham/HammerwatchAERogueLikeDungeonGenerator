@@ -106,7 +106,8 @@ const ROLE_GROUPS: Partial<Record<MonsterGroup, string>> = {
  * instead of guess. A type in several campaigns is listed under each.
  */
 function monsterLines(): string[] {
-  const live = MONSTER_TYPES.filter((m) => m.deprecated !== true)
+  // stock monsters only: custom content (Hammerwatch 2) needs its source loaded
+  const live = MONSTER_TYPES.filter((m) => m.deprecated !== true && m.source === undefined)
   const ordinary = live.filter((m) => ROLE_GROUPS[m.group] === undefined)
   const lines: string[] = []
   for (const campaign of Object.keys(CAMPAIGN_LABELS) as MonsterCampaign[]) {

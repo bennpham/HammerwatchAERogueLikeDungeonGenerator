@@ -15,7 +15,7 @@ import {
   serializeParametersTxt
 } from '../src/generator'
 import { isKnownMonsterId } from '../src/generator/objects/monsterTypes'
-import { AE_UNIT_SET } from '../src/generator/catalog/assets'
+import { AE_UNIT_SET, aeAssetExists } from '../src/generator/catalog/assets'
 import type { DungeonResult } from '../src/generator'
 import { plainParameters } from './params'
 import { generateOk, lvlText, stemPath, withStemPathsText } from './ae'
@@ -65,10 +65,23 @@ describe('monster roster', () => {
   // A path the game does not ship spawns nothing and logs an error — and no
   // other test looks at what a path points to. This is that test.
   it('references only actor units the AE install ships', () => {
-    for (const type of MONSTER_TYPES) {
+    for (const type of MONSTER_TYPES.filter((t) => t.source === undefined)) {
       for (const path of type.tiers) {
         expect(path).toMatch(/^actors\/[a-z0-9_/]+\.unit$/)
         expect(AE_UNIT_SET.has(path), `${type.id} -> ${path}`).toBe(true)
+      }
+    }
+  })
+
+  it("names Hammerwatch 2's monsters under hw2/, each in the HW2 snapshot", () => {
+    const hw2 = MONSTER_TYPES.filter((t) => t.source === 'hw2')
+    expect(hw2.length).toBeGreaterThan(0)
+    for (const type of MONSTER_TYPES) expect(type.id.startsWith('hw2_'), type.id).toBe(type.source === 'hw2')
+    for (const type of hw2) {
+      expect(type.group).toBe('Hammerwatch 2')
+      for (const path of type.tiers) {
+        expect(path).toMatch(/^hw2\/actors\/[a-z0-9_/]+\.unit$/)
+        expect(aeAssetExists(path), `${type.id} -> ${path}`).toBe(true)
       }
     }
   })

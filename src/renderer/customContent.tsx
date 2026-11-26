@@ -13,6 +13,27 @@ export function useContentSources(): ContentContext {
   return useContext(ContentSourcesContext)
 }
 
+/** Display groups made of one source's content (MONSTER_GROUPS' 'Hammerwatch 2'). */
+const SOURCE_GROUPS: Readonly<Record<string, string>> = { 'Hammerwatch 2': 'hw2' }
+
+/**
+ * The display groups a picker shows: a source's own group only with that
+ * source loaded, or when `keep` says the picker already holds something from
+ * it (so a pick from an imported file stays reachable to undo).
+ */
+export function useOfferedGroups<T extends string>(groups: readonly T[], keep: (group: T) => boolean = () => false): T[] {
+  const ctx = useContentSources()
+  return groups.filter((g) => {
+    const source = SOURCE_GROUPS[g]
+    return source === undefined || (ctx.sources as readonly string[]).includes(source) || keep(g)
+  })
+}
+
+/** Whether any of `keys` (pool keys, ids) is custom content. */
+export function holdsCustom(keys: readonly string[]): boolean {
+  return keys.some((k) => sourceOfId(k) !== null)
+}
+
 /** Whether a picker may offer this id: stock, or from a loaded source. */
 export function offerable(id: string, ctx: ContentContext): boolean {
   const s = sourceOfId(id)

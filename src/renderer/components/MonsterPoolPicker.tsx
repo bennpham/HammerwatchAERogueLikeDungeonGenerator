@@ -1,5 +1,6 @@
 import React from 'react'
 import { MONSTER_VARIANT_GROUPS, floorPoolBucketId, floorPoolEntriesInGroup, monsterNote } from '../../generator'
+import { holdsCustom, useOfferedGroups } from '../customContent'
 import type { FloorPoolEntry, MonsterTypeDef } from '../../generator'
 import type { MonsterFilter } from './MonsterFilterBar'
 import { MonsterPoolBucket } from './MonsterPoolBucket'
@@ -172,9 +173,12 @@ export function MonsterPoolPicker({ pool, onCommit, filter, hint }: MonsterPoolP
     )
   }
 
+  // Hammerwatch 2's group shows with HW2 loaded, or while the pool still holds one of its monsters
+  const groups = useOfferedGroups(MONSTER_VARIANT_GROUPS, () => holdsCustom(pool))
+
   return (
     <div className="pool-groups">
-      {MONSTER_VARIANT_GROUPS.map((group) => {
+      {groups.map((group) => {
         // An entry already in the pool is pinned: it stays on screen even when
         // its act is filtered off, so nothing picked can become invisible and
         // impossible to uncheck.

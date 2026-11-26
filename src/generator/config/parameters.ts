@@ -2188,7 +2188,8 @@ export function defaultParameters(): DungeonParameters {
     // last slot — verified in game.
     levelOrder: shippedOrder(8),
     monsterMax: {
-      ...Object.fromEntries(MONSTER_TYPES.map((t) => [t.id, t.defaultMax])),
+      // custom content's caps are left out: monsterCap falls back to their defaults
+      ...Object.fromEntries(MONSTER_TYPES.filter((t) => t.source === undefined).map((t) => [t.id, t.defaultMax])),
       // Families are pooled entries in their own right, so each carries its own
       // cap beside the types'. They are in no default pool, so these keys reach
       // no seed until someone opts in.

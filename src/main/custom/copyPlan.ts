@@ -21,7 +21,7 @@
  * behaviour names a script class AE doesn't have can't run, which is an error.
  */
 
-import { dirOf, extractRefs, isTextAsset, resolveRelative } from './refs'
+import { dirOf, extractRefs, isTextAsset, maskComments, resolveRelative } from './refs'
 import type { Ref } from './refs'
 
 export interface CopySourceFile {
@@ -194,7 +194,8 @@ export function planCopy(input: CopyInput): CopyPlan {
       if (path.endsWith('.unit') || path.endsWith('.inc')) {
         out = out.replace(FOREIGN_PARAMS, '')
         out = out.replace(SOUND_EVENT, (e) => (input.aeEvents.has(e) ? e : ''))
-        for (const m of out.matchAll(CLASS_NAMES)) {
+        // a commented-out block is never loaded, so its classes aren't needed
+        for (const m of maskComments(out).matchAll(CLASS_NAMES)) {
           const cls = m[1] ?? m[2]
           if (!input.aeClasses.has(cls)) errors.push(`${prefix}${path}: needs the script class ${cls}, which AE doesn't have`)
         }

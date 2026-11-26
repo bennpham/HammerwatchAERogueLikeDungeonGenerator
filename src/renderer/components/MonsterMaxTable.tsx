@@ -1,5 +1,6 @@
 import React from 'react'
-import { MONSTER_FAMILIES, MONSTER_GROUPS, monsterTypesInGroup } from '../../generator'
+import { MONSTER_FAMILIES, MONSTER_GROUPS, monsterCap, monsterTypesInGroup } from '../../generator'
+import { useOfferedGroups } from '../customContent'
 import type { DungeonParameters } from '../../generator'
 import { MonsterFilterBar, useMonsterFilter } from './MonsterFilterBar'
 
@@ -14,6 +15,8 @@ interface MonsterMaxTableProps {
  */
 export function MonsterMaxTable({ params, onChange }: MonsterMaxTableProps) {
   const filter = useMonsterFilter()
+  // Hammerwatch 2's caps show only with HW2 loaded
+  const groups = useOfferedGroups(MONSTER_GROUPS)
 
   const setMax = (id: string, value: number) => {
     onChange({ ...params, monsterMax: { ...params.monsterMax, [id]: value } })
@@ -28,7 +31,7 @@ export function MonsterMaxTable({ params, onChange }: MonsterMaxTableProps) {
         applies when you pool the family rather than a member.
       </p>
       <MonsterFilterBar filter={filter} label="monster types" />
-      {MONSTER_GROUPS.map((group) => {
+      {groups.map((group) => {
         // A type with a non-zero cap is pinned, the same way an in-pool type is
         // pinned in the editor: you can always find and reset what you changed.
         // Families sit beside the types whose caps they shadow, so a group's
@@ -36,7 +39,7 @@ export function MonsterMaxTable({ params, onChange }: MonsterMaxTableProps) {
         // still govern the arena and a pool that names a member directly.
         const families = MONSTER_FAMILIES.filter((f) => f.group === group)
         const members = monsterTypesInGroup(group).filter((t) =>
-          filter.visible(t, (params.monsterMax[t.id] ?? 0) > 0)
+          filter.visible(t, (monsterCap(params.monsterMax, t.id)) > 0)
         )
         if (members.length === 0 && families.length === 0) return null
         return (
@@ -66,7 +69,7 @@ export function MonsterMaxTable({ params, onChange }: MonsterMaxTableProps) {
                     <input
                       type="number"
                       min={0}
-                      value={params.monsterMax[t.id] ?? 0}
+                      value={monsterCap(params.monsterMax, t.id)}
                       onChange={(e) => setMax(t.id, e.target.value === '' ? 0 : Number(e.target.value))}
                     />
                   </label>

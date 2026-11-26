@@ -41,9 +41,20 @@ export function isTextAsset(path: string): boolean {
 /** Quoted strings, element text, and the argument of a %include / %replace line. */
 const SEGMENT = /"([^"\r\n]*)"|>([^<\r\n]*)<|^[ \t]*%(?:include[ \t]+|replace[ \t]+\S+[ \t]+)([^"\r\n]+?)[ \t]*$/gm
 
+/**
+ * `text` with every XML comment blanked to spaces (newlines kept), so offsets
+ * still line up: the engine never reads a commented-out block, so what it names
+ * isn't a reference and the classes it uses aren't needed.
+ */
+export function maskComments(text: string): string {
+  const blank = (c: string): string => c.replace(/[^\n]/g, ' ')
+  // XML comments, and the preprocessor's `%//` comment lines
+  return text.replace(/<!--[\s\S]*?(?:-->|$)/g, blank).replace(/^[ \t]*%\/\/.*$/gm, blank)
+}
+
 export function extractRefs(text: string): Ref[] {
   const out: Ref[] = []
-  for (const m of text.matchAll(SEGMENT)) {
+  for (const m of maskComments(text).matchAll(SEGMENT)) {
     const group = m[1] !== undefined ? 1 : m[2] !== undefined ? 2 : 3
     const seg = m[group]
     if (seg === undefined || seg === '') continue

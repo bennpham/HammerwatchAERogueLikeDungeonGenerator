@@ -23,6 +23,9 @@
  * spawner → weak → warrior → elite exactly like HW1's skeleton_1 did.
  */
 import { corpseCollision } from './actorCollision'
+import { HW2_MONSTERS } from '../custom/hw2/monsters'
+import { sourceOfId } from '../custom/sources'
+import type { ContentSource } from '../custom/sources'
 import type { CorpseCollision } from './actorCollision'
 
 /**
@@ -39,7 +42,8 @@ export const MONSTER_GROUPS = [
   'Towers',
   'Mini-bosses',
   'Bodyguards',
-  'Bonus'
+  'Bonus',
+  'Hammerwatch 2'
 ] as const
 
 export type MonsterGroup = (typeof MONSTER_GROUPS)[number]
@@ -49,7 +53,7 @@ export type MonsterGroup = (typeof MONSTER_GROUPS)[number]
  * `campaigns` by `monsterCategories` — never empty, anything unplaced lands in
  * "Other".
  */
-export const MONSTER_CATEGORIES = ['Castle Hammerwatch', 'Shaftlocke Tower', 'Temple of the Sun', 'Other'] as const
+export const MONSTER_CATEGORIES = ['Castle Hammerwatch', 'Shaftlocke Tower', 'Temple of the Sun', 'Other', 'Hammerwatch 2'] as const
 
 export type MonsterCategory = (typeof MONSTER_CATEGORIES)[number]
 
@@ -83,6 +87,11 @@ export interface MonsterTypeDef {
   campaigns?: MonsterCampaign[]
   /** hidden from the GUI but still parsed, so a saved pool keeps loading */
   deprecated?: boolean
+  /**
+   * Set for custom content (custom/sources.ts): usable only with that source
+   * loaded; its id starts `<source>_` and its tiers sit under `<source>/`.
+   */
+  source?: ContentSource
 }
 
 const SK = 'actors/undead/skeletons'
@@ -246,7 +255,10 @@ export const MONSTER_TYPES: MonsterTypeDef[] = [
   // the castle guard in a blue coat — identical otherwise
   t('mb_shaftlocke_guard', 'Mini-bosses', 12, 1.0, [`${SK}/shaftlocke/skeleton_guard.unit`], ['shaftlocke']),
   // the castle maggot mini-boss, spawning Shaftlocke grubs
-  t('mb_shaftlocke_maggot', 'Mini-bosses', 4, 1.0, ['actors/beasts/maggots/shaftlocke/maggot_mb.unit'], ['shaftlocke'])
+  t('mb_shaftlocke_maggot', 'Mini-bosses', 4, 1.0, ['actors/beasts/maggots/shaftlocke/maggot_mb.unit'], ['shaftlocke']),
+
+  // --- Hammerwatch 2 (experimental "Load custom" content; appended) -----------
+  ...HW2_MONSTERS
 ]
 
 /**
@@ -261,9 +273,22 @@ export function monsterTypesInGroup(group: MonsterGroup): MonsterTypeDef[] {
 
 /** Which filter categories a type belongs to, in MONSTER_CATEGORIES order. Never empty. */
 export function monsterCategories(type: MonsterTypeDef): MonsterCategory[] {
+  if (type.source === 'hw2') return ['Hammerwatch 2']
   if (type.campaigns === undefined || type.campaigns.length === 0) return ['Other']
   const set = new Set(type.campaigns.map((c) => CAMPAIGN_CATEGORY[c]))
   return MONSTER_CATEGORIES.filter((c) => set.has(c))
+}
+
+/**
+ * A pooled entry's horde cap. A stock id missing from `monsterMax` is 0, as it
+ * always was. A custom one (custom/sources.ts) falls back to its type's own
+ * default: defaults and parameters.txt carry no custom keys until one is set,
+ * so a stock campaign's parameters never mention content it doesn't use.
+ */
+export function monsterCap(monsterMax: Readonly<Record<string, number>>, id: string): number {
+  const set = monsterMax[id]
+  if (set !== undefined) return set
+  return sourceOfId(id) === null ? 0 : (byId.get(id)?.defaultMax ?? 0)
 }
 
 const byId = new Map(MONSTER_TYPES.map((m) => [m.id, m]))

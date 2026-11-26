@@ -275,6 +275,7 @@ export {
   monsterNote,
   monsterTypeById,
   monsterTypesInGroup,
+  monsterCap,
   monsterVariants,
   monsterVariantsInGroup,
   parseMonsterKey,

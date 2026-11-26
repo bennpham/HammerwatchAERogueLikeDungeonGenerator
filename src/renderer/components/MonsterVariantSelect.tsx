@@ -1,5 +1,6 @@
 import React from 'react'
 import { MONSTER_VARIANT_GROUPS, arenaActorPath, monsterNote, monsterVariantsInGroup } from '../../generator'
+import { holdsCustom, useOfferedGroups } from '../customContent'
 import type { MonsterFilter as MonsterFilterState } from './MonsterFilterBar'
 
 /** ` — <note>` for a variant that has a behaviour note, empty string otherwise. */
@@ -51,9 +52,10 @@ export interface MonsterVariantSelectProps {
  * "a pick stays reachable" rule the checkbox roster follows.
  */
 export function MonsterVariantSelect({ value, filter, onChange, arenaTwins }: MonsterVariantSelectProps) {
+  const groups = useOfferedGroups(MONSTER_VARIANT_GROUPS, () => holdsCustom([value]))
   return (
     <select className="buff-select" value={value} onChange={(e) => onChange(e.target.value)}>
-      {MONSTER_VARIANT_GROUPS.map((group) => {
+      {groups.map((group) => {
         const members = monsterVariantsInGroup(group).filter(
           (v) => v.key === value || filter.visible(v.type, false, v.key)
         )

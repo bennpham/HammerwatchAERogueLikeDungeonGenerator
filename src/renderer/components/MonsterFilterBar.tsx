@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { MONSTER_CATEGORIES, monsterCategories } from '../../generator'
+import { useOfferedGroups } from '../customContent'
 import type { MonsterCategory, MonsterTypeDef } from '../../generator'
 
 /**
@@ -64,6 +65,7 @@ interface MonsterFilterBarProps {
  */
 export function MonsterFilterBar({ filter, label = 'monsters' }: MonsterFilterBarProps) {
   const { active, query, setActive, setQuery } = filter
+  const categories = useOfferedGroups(MONSTER_CATEGORIES)
 
   const toggle = (category: MonsterCategory) => {
     const next = new Set(active)
@@ -82,7 +84,7 @@ export function MonsterFilterBar({ filter, label = 'monsters' }: MonsterFilterBa
           Show {active.size}/{MONSTER_CATEGORIES.length}
         </span>
         <div className="monster-filter-chips">
-          {MONSTER_CATEGORIES.map((category) => (
+          {categories.map((category) => (
             <button
               key={category}
               type="button"
