@@ -124,7 +124,8 @@ function monsterLines(): string[] {
 /** Themes by look, in THEME_DEFS order, so the model can pick "desert" or "castle" without guessing. */
 function themeLines(): string[] {
   const groups: string[] = []
-  for (const t of THEME_DEFS) if (!groups.includes(t.group)) groups.push(t.group)
+  // stock themes only: custom content (Hammerwatch 2) needs its source loaded
+  for (const t of THEME_DEFS) if (t.source === undefined && !groups.includes(t.group)) groups.push(t.group)
   return groups.map((group) => idList(`${group} themes`, THEME_DEFS.filter((t) => t.group === group).map((t) => t.id)))
 }
 

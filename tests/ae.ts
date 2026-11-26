@@ -15,7 +15,7 @@ import type { DungeonParameters, DungeonResult, GeneratedFile } from '../src/gen
  * no collision and anchors wherever its square ends — often over floor.
  */
 export function isWallPiece(path: string): boolean {
-  return path.startsWith('doodads/walls/') && !/\/__color_\d+\.unit$/.test(path)
+  return /^(?:hw2\/)?doodads\/walls\//.test(path) && !/\/__color_\d+\.unit$/.test(path)
 }
 
 /** Generate, failing the test with the generator's own errors if it refuses. */

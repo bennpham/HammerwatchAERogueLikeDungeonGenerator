@@ -365,6 +365,13 @@ export interface DungeonResult {
    * from the user's own unpacked assets and applies the edits.
    */
   assetOverrides: PlayerFileOverride[]
+  /**
+   * The custom-source files the scenario uses (custom/sources.ts), sorted and
+   * unique: every `hw2/…` path the generated files name. The install copies
+   * each from the user's own Hammerwatch 2 install, with what it references;
+   * the generator never holds those files. Empty for a stock-only campaign.
+   */
+  customAssets: string[]
   levels: LevelPreview[]
 }
 
@@ -574,8 +581,24 @@ export function generateDungeon(
       ...playerOverrides(params.playerTweaks ?? {}),
       ...environmentOverrides(environments, params.brightness ?? 'brighter')
     ],
+    customAssets: customAssetPaths(files),
     levels: previews
   }
+}
+
+/**
+ * Every custom-source path (`hw2/…`) the generated text files name, sorted and
+ * unique. Paths sit in quoted attributes and element text in the SVAL levels,
+ * so a scan of the text finds units, tilesets, environments and sound banks
+ * alike; a path is the run up to a quote, `<` or a `:` that names a bank entry.
+ */
+export function customAssetPaths(files: readonly GeneratedFile[]): string[] {
+  const found = new Set<string>()
+  for (const f of files) {
+    if (f.encoding === 'base64') continue
+    for (const m of f.content.matchAll(/(?<![\w/])hw2\/[^"<>:\s]+/g)) found.add(m[0])
+  }
+  return [...found].sort()
 }
 
 function buildPreview(ctx: GenerationContext, level: Level): LevelPreview {

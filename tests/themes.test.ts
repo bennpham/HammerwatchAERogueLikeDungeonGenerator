@@ -13,9 +13,11 @@ import { THEMES, THEME_DEFS, THEME_GROUPS, getTheme, themeEnvironment } from '..
 import { aeAssetExists } from '../src/generator/catalog/assets'
 import { doorUnitPath } from '../src/generator/objects/item'
 import { resolvePiece, wallUnitPath } from '../src/generator/map/aeWalls'
+import { wallDir } from '../src/generator/catalog/assetRoot'
 import { exitDoorway, exitIsPad, resolveDoodad } from '../src/generator/objects/doodad'
 import { isWallPiece, levelsOf } from './ae'
 import { aeAssetsDir } from './aeInstall'
+import { HW2_CONTENT, hw2AssetsDir } from './hw2Install'
 import { wallCells } from './sealProbe'
 import { plainParameters } from './params'
 
@@ -30,7 +32,8 @@ function generateTheme(theme: string, seed = 4242, tweak?: (p: ReturnType<typeof
   params.lobbies = []
   params.boss = { ...params.boss, enabled: false }
   tweak?.(params)
-  const result = generateDungeon(params, seed)
+  // Hammerwatch 2 themes generate with HW2 loaded; generation never reads it
+  const result = generateDungeon(params, seed, HW2_CONTENT)
   expect(result.ok, `${theme}: ${result.ok ? '' : result.errors.join(' ')}`).toBe(true)
   return result as DungeonResult
 }
@@ -123,7 +126,7 @@ describe('generating every theme', () => {
         // it spans its doorway; vertical pieces anchor a row above their cell)
         const covered = new Map<string, string>()
         for (const u of level.units) {
-          if (!u.path.startsWith(`doodads/walls/${t.walls}/`) || /\/exit_(up|dn)\.unit$/.test(u.path)) continue
+          if (!u.path.startsWith(`${wallDir(t.walls)}/`) ||/\/exit_(up|dn)\.unit$/.test(u.path)) continue
           if (/__color_\d+\.unit$/.test(u.path)) continue
           for (const [x, y] of wallCells(u)) {
             const key = `${x},${y}`
@@ -173,6 +176,13 @@ const rectCache = new Map<string, Array<[number, number, number, number]>>()
 function collisionRects(rel: string): Array<[number, number, number, number]> {
   const cached = rectCache.get(rel)
   if (cached !== undefined) return cached
+  // an `hw2/` unit is read from the Hammerwatch 2 install, and its own includes
+  // (HW2 paths, unprefixed in the source files) from there too
+  if (rel.startsWith('hw2/')) {
+    const out = hw2CollisionRects(rel.slice(4))
+    rectCache.set(rel, out)
+    return out
+  }
   const text = readFileSync(join(aeAssetsDir()!, rel), 'utf8')
   const out: Array<[number, number, number, number]> = []
   // an include inside a `%if` branch the game never takes may name no file
@@ -190,6 +200,25 @@ function collisionRects(rel: string): Array<[number, number, number, number]> {
   rectCache.set(rel, out)
   return out
 }
+
+function hw2CollisionRects(rel: string): Array<[number, number, number, number]> {
+  const text = readFileSync(join(hw2AssetsDir()!, rel), 'utf8')
+  const out: Array<[number, number, number, number]> = []
+  for (const inc of text.matchAll(/include\s+"?([^"\s]+)"?/g)) {
+    if (existsSync(join(hw2AssetsDir()!, inc[1]))) out.push(...hw2CollisionRects(inc[1]))
+  }
+  for (const block of text.matchAll(/<collision[^>]*>([\s\S]*?)<\/collision>/g)) {
+    for (const r of block[1].matchAll(/<rect([^>]*)>([^<]*)<\/rect>/g)) {
+      if (/sensor="true"/.test(r[1])) continue
+      const [x, y, w, h] = r[2].trim().split(/\s+/).map(Number)
+      out.push([Math.min(x, x + w), Math.min(y, y + h), Math.max(x, x + w), Math.max(y, y + h)])
+    }
+  }
+  return out
+}
+
+/** Themes whose collision the installs on this machine can check. */
+const CHECKABLE_THEMES = THEMES.filter((t) => getTheme(t)?.source !== 'hw2' || hw2AssetsDir() !== null)
 
 /** The cells whose centre a unit's real collision covers. */
 function coveredCells(units: ReadonlyArray<{ path: string; x: number; y: number }>): Set<string> {
@@ -248,7 +277,7 @@ describe.skipIf(aeAssetsDir() === null)('walls hold, by the game\'s own collisio
   // collision rect, read from the install, covers the cell's centre. This is
   // the "can't walk off the map" guarantee for every set, independent of the
   // generator's own idea of where each piece reaches.
-  for (const theme of THEMES) {
+  for (const theme of CHECKABLE_THEMES) {
     it(`${theme}: no hole in any wall`, () => {
       const result = generateTheme(theme)
       const files = levelsOf(result)
@@ -276,7 +305,7 @@ describe.skipIf(aeAssetsDir() === null)("locked doors hold, by the game's own co
   // Each DoorController's doors must close one straight, unbroken line of
   // cells, walled (or solid rock) at both ends, so there is no squeezing past
   // a locked door. Every floor rolls its locks, on every theme.
-  for (const theme of THEMES) {
+  for (const theme of CHECKABLE_THEMES) {
     it(`${theme}: every locked door closes its passage`, () => {
       const result = generateTheme(theme, 4242, (p) => {
         p.lockChance = 1

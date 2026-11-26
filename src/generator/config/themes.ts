@@ -20,14 +20,18 @@
  *   anchors (`crn_l_up`, `x_t_dn`, `h_cap_l`…; `FLAT_CANDIDATES` in aeWalls.ts).
  */
 
-export type ThemeGroup = 'Castle Hammerwatch' | 'Shaftlocke Tower' | 'Temple of the Sun' | 'Caves' | 'Bonus'
+import type { ContentSource } from '../custom/sources'
+import { HW2_THEMES } from '../custom/hw2/themes'
+
+export type ThemeGroup = 'Castle Hammerwatch' | 'Shaftlocke Tower' | 'Temple of the Sun' | 'Caves' | 'Bonus' | 'Hammerwatch 2'
 
 export const THEME_GROUPS: readonly ThemeGroup[] = [
   'Castle Hammerwatch',
   'Shaftlocke Tower',
   'Temple of the Sun',
   'Caves',
-  'Bonus'
+  'Bonus',
+  'Hammerwatch 2'
 ]
 
 /** Door art families AE ships (`doodads/doors/door_{h|v}_mid_<metal>_<style>.unit`). */
@@ -68,6 +72,12 @@ export interface ThemeDef {
   sparsePieces?: boolean
   /** advisory note the validator surfaces once when the theme is used */
   cosmeticWarning?: string
+  /**
+   * Set for custom content (custom/sources.ts): the theme is usable only when
+   * that source is loaded, its id starts `<source>_`, and its wall set is a
+   * `<source>:<name>` key (catalog/assetRoot.ts).
+   */
+  source?: ContentSource
 }
 
 const TS = (name: string) => `tilesets/${name}.tileset`
@@ -235,7 +245,10 @@ export const THEME_DEFS: readonly ThemeDef[] = [
       // the bonus sets' own 32-px doors, keyed in stock (key_bonus)
       doors: 'bonus'
     })
-  )
+  ),
+
+  // --- Hammerwatch 2 (experimental "Load custom" content) --------------------
+  ...HW2_THEMES
 ]
 
 const BY_ID = new Map(THEME_DEFS.map((t) => [t.id, t]))

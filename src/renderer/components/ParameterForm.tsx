@@ -14,7 +14,8 @@ import { MysteryButtonsEditor } from './MysteryButtonsEditor'
 import { ShopRoomVendorsEditor } from './ShopRoomVendorsEditor'
 
 /** Themes bucketed by their registry group, in registry order. */
-const THEME_GROUPS = THEME_DEFS.reduce<[string, (typeof THEME_DEFS)[number][]][]>((groups, def) => {
+// stock themes only for now: Hammerwatch 2 themes show once Load custom has loaded HW2
+const THEME_GROUPS = THEME_DEFS.filter((def) => def.source === undefined).reduce<[string, (typeof THEME_DEFS)[number][]][]>((groups, def) => {
   const existing = groups.find(([name]) => name === def.group)
   if (existing) existing[1].push(def)
   else groups.push([def.group, [def]])
