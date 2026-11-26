@@ -1029,7 +1029,8 @@ describe('landmarks', () => {
         for (const t of statues) expect(d2(t, at), `${seed} ${u.path} on a statue spot`).toBeGreaterThan((STATUE_RADIUS + r) ** 2)
       }
     }
-  })
+    // 24 islands: past the default 30 s when the whole suite shares the machine
+  }, 120_000)
 
   it('moves no site, trail or monster', () => {
     const where = (landmarks: boolean) => {
