@@ -181,6 +181,30 @@ describe('planning a copy', () => {
     expect(p.notes).toContain('fx/smoke.unit: no material system/default.mats:ghost')
   })
 
+  it("draws a .tif sheet from the .png beside it, else from the pack's compiled copy", () => {
+    // HW2's raw troll_brute.tif has 10 channels a pixel, which AE can't draw
+    const p = plan(
+      {
+        'a/troll.unit': '<sprite texture="./troll/sheet.tif"/>\n<sprite texture="a/walk.tif"/>\n<sprite texture="a/lone.tif"/>',
+        'a/troll/sheet.tif': [1],
+        'a/troll/sheet.png': [2],
+        'a/walk.tif': [3],
+        'a/walk.png': [4],
+        'a/lone.tif': [5]
+      },
+      ['hw2/a/troll.unit'],
+      { plain: mem({ 'a/lone.tif': [9, 9, 9], 'a/troll/sheet.png': [6] }) }
+    )
+    expect(p.files.map((f) => f.path)).toEqual(['hw2/a/lone.tif', 'hw2/a/troll.unit', 'hw2/a/troll/sheet.png', 'hw2/a/walk.png'])
+    expect(textOf(p, 'hw2/a/troll.unit')).toBe(
+      '<sprite texture="./troll/sheet.png"/>\n<sprite texture="hw2/a/walk.png"/>\n<sprite texture="hw2/a/lone.tif"/>'
+    )
+    // a .png still comes plain from the extract; a .tif never does
+    expect([...p.files.find((f) => f.path === 'hw2/a/troll/sheet.png')!.data]).toEqual([6])
+    expect([...p.files.find((f) => f.path === 'hw2/a/lone.tif')!.data]).toEqual([5])
+    expect(p.notes).toContain("hw2/a/lone.tif: a layered .tif with no .png beside it; AE may not draw it")
+  })
+
   it('prefers plain textures, follows cycles once, and refuses roots it cannot find', () => {
     const p = plan(
       { 'a.unit': '"b.inc" "t.png"', 'b.inc': '"a.unit"', 't.png': [1] },

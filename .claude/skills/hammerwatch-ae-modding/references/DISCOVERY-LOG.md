@@ -1448,3 +1448,10 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
 - `[EMITTED]` A reference to one of them points at `hw2/system/default.mats`, which holds only
   the HW2 materials the scenario uses; every other material stays on AE's file. That a `.mats`
   outside `system/` loads is known (AE has `doodads/generic/generic.mats` and others).
+- `[VERIFIED]` HW2's brute trolls showed only their shadow and elite ring in AE: their sprites
+  are `.tif` files whose raw (extract) copy packs 10 channels a pixel (TinyTIFFWriter; colour plus
+  HW2's lighting layers), which AE doesn't draw. HW2's `assets.bin` holds the same `.tif` compiled
+  to plain RGBA (`512×64` → 131,084 bytes). 190 of HW2's 273 `.tif` files sit beside a `.png` of
+  the same sheet.
+- `[EMITTED]` The copy points a `.tif` sprite at the `.png` beside it, and ships a `.tif` with no
+  `.png` from the pack's compiled copy, never the extract's.

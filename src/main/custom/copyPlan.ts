@@ -80,7 +80,21 @@ function pinnedToAe(path: string): boolean {
   return path.startsWith('system/')
 }
 
-const MATERIAL_NAME = /<material name="([^"]+)"/g
+/**
+ * HW2 draws most actors from a `.tif` whose raw file packs 10 channels a pixel
+ * (colour plus HW2's lighting layers); AE draws none of it, so the actor shows
+ * only its shadow and elite ring. Most sit beside a `.png` of the same sheet
+ * (troll_brute.tif / troll_brute.png), which is what ships instead.
+ */
+function isTif(path: string): boolean {
+  return /\.tif$/i.test(path)
+}
+
+function pngOf(tif: string): string {
+  return tif.slice(0, -4) + '.png'
+}
+
+const MATERIAL_NAME =/<material name="([^"]+)"/g
 const MATERIAL_BLOCK = /<material name="([^"]+)"[^>]*>[\s\S]*?<\/material>/g
 
 function materialNames(text: string): Set<string> {
@@ -120,6 +134,8 @@ export function planCopy(input: CopyInput): CopyPlan {
   const keptAe = new Set<string>()
   const missing = new Set<string>()
   const visited = new Set<string>()
+  /** `file\nrefStart` of each `.tif` reference that keeps its `.tif` (no `.png` beside it) */
+  const keptTif = new Set<string>()
   /** pinned `.mats` → the entries only the source has, shipped as a prefixed copy */
   const addedMaterials = new Map<string, Set<string>>()
   const matNames = new Map<string, { ae: Set<string>; source: Set<string> }>()
@@ -191,10 +207,16 @@ export function planCopy(input: CopyInput): CopyPlan {
     const t = readText(path)
     if (t === null) continue
     for (const ref of t.refs) {
-      const target = ref.relative ? resolveRelative(base, ref.path) : ref.path
+      let target = ref.relative ? resolveRelative(base, ref.path) : ref.path
       if (target === null) {
         notes.push(`${path}: ${ref.path} climbs out of the assets`)
         continue
+      }
+      if (isTif(target)) {
+        // the colour sheet beside it draws in AE; without one, the sheet stays (compiled)
+        const png = pngOf(target)
+        if (source.has(png)) target = png
+        else keptTif.add(`${path}\n${ref.start}`)
       }
       if (pinnedToAe(target) && target.endsWith('.mats') && ref.entry !== undefined && !ref.relative) {
         checkMaterial(path, target, ref.entry)
@@ -237,9 +259,12 @@ export function planCopy(input: CopyInput): CopyPlan {
       let out = ''
       let last = 0
       for (const ref of t.refs) {
-        const added = ref.entry !== undefined && addedMaterials.get(ref.path)?.has(ref.entry) === true
-        if (ref.relative || (!shipped.has(ref.path) && !added)) continue
-        out += t.content.slice(last, ref.start) + prefix + ref.path
+        const swap = isTif(ref.path) && !keptTif.has(`${path}\n${ref.start}`)
+        const written = swap ? pngOf(ref.path) : ref.path
+        const added = ref.entry !== undefined && addedMaterials.get(written)?.has(ref.entry) === true
+        const prefixed = !ref.relative && (shipped.has(written) || added)
+        if (!swap && !prefixed) continue
+        out += t.content.slice(last, ref.start) + (prefixed ? prefix : '') + written
         last = ref.end
       }
       out += t.content.slice(last)
@@ -254,9 +279,12 @@ export function planCopy(input: CopyInput): CopyPlan {
       }
       files.push({ path: prefix + path, data: encoder.encode(out), flag: 1 })
     } else {
-      const plain = input.plain?.read(path) ?? null
+      // an extract's .tif is the other game's layered sheet (10 channels), which AE can't
+      // draw; the pack's compiled copy is plain RGBA
+      const plain = isTif(path) ? null : (input.plain?.read(path) ?? null)
       const f = plain ?? source.read(path)
       if (f === null) continue
+      if (isTif(path) && f.flag !== 3) notes.push(`${prefix}${path}: a layered .tif with no .png beside it; AE may not draw it`)
       files.push({ path: prefix + path, data: f.data, flag: f.flag })
     }
   }
