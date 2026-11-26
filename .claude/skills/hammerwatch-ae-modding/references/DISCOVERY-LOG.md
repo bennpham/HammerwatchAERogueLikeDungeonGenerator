@@ -1416,3 +1416,18 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   - whether new script classes load from a scenario (S2);
   - whether `.sbnk`/`.ogg` work inside a `.h1c` (S3);
   - whether HW2's compiled textures pass straight through (S4).
+
+## 2026-11-26 — Hammerwatch 2 content, emitted (experimental branch)
+
+- `[EMITTED]` HW2 files ship under `hw2/` (`hw2/doodads/walls/crypt/h_32.unit`). Their absolute
+  references are rewritten to the prefix; relative ones (`./base.png`) stay as written.
+  `system/` stays AE's. Units lose `team`, `loot` and `gore`, and any `event:/` sound that
+  AE's assets don't name (src/main/custom/copyPlan.ts).
+- `[EMITTED]` An HW2 music track: the level's `PlayMusic` is set to 0, plus a LevelLoaded →
+  `PlaySound` {`Sound`: `hw2/music/music.sbnk:<name>`, `Looping`: t}. `hw2/music/music.sbnk`
+  is the generator's own file, mistdeep's format, with `./<sample>.ogg` sources. The `.ogg` files
+  are rebuilt from HW2's `music.bank` at install (src/main/custom/vorbis); ffmpeg decodes them
+  cleanly and at their full length.
+- `[EMITTED]` A texture read from HW2's `res/assets.bin` is packed as is, under flag 3.
+- `[UNVERIFIED]` Everything above in game: spikes S1–S4, with ready-made scenarios
+  `dungeon_11260001`…`004` (docs/discovery/hammerwatch-2-spikes.md), and checklist #136–#144.

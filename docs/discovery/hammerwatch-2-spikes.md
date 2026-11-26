@@ -5,6 +5,26 @@ These four questions decide how HW2 content ships. The facts behind them are in
 copy-and-pack step lands (plan commit 7). Report each result as `CONFIRMED` or
 `BROKEN: what happened`, with the relevant lines of `<AE>/HW1A.exe.log`.
 
+## Ready to play (installed 2026-11-26)
+
+`node scripts/run-ts.mjs scripts/dev/hw2-spikes.ts` built these four scenarios with the app's
+own generate, copy, pack and install path, and installed them into `<AE>/scenarios/`.
+`--remove` deletes them again.
+
+| Scenario | Spikes | What's in it |
+|---|---|---|
+| `dungeon_11260001` | S1, S3 | Floors 1–3 are HW2 Crypt, Sewers and Wolf caves, with HW2 monsters: brute trolls and ticks; rotten footmen, crabs and rotten sentries; black bats, horde crawlers and asps. Floor 1 plays HW2's Crypt track, floor 2 is left on default music (AE's should come back), and floor 3 plays HW2's dark caves track. The first lobby plays HW2's town track, and the arena is HW2 Obsidian Spire with HW2's boss track. Textures are plain PNG/TIF from the unpacked extract. |
+| `dungeon_11260002` | S1, S3 | Right after the first lobby, a World island in HW2 Highlands, with HW2 trolls, crabs and ticks and HW2's highlands track. |
+| `dungeon_11260003` | S4 | `dungeon_11260001`'s parameters on another seed, but every HW2 texture (53 of its 335 HW2 files) packed exactly as compiled in HW2's `res/assets.bin`. |
+| `dungeon_11260004` | S2 | A stock campaign whose first floor has three of HW2's grey wolves in place of three stock monsters. The scenario ships HW2's own `scripts/Behaviors/Actors/Enemies/Skills/DashStrike.as`, which AE doesn't have, so the wolves can only dash if AE compiles a scenario's scripts. |
+
+Things to watch in `<AE>/HW1A.exe.log` for each:
+- lines naming `hw2/` (a texture, include or unit that didn't load);
+- lines naming `.sbnk` or `.ogg`;
+- for `dungeon_11260004`, any script compile error naming `DashStrike`.
+
+HW2 monsters are expected to be quiet: their HW2 sound events are blanked.
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor
