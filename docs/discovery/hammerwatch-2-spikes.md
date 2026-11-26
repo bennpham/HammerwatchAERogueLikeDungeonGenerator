@@ -37,6 +37,26 @@ copier didn't read as paths. Both are fixed and the scenarios reinstalled. A new
 HW2 copy tests looks for both kinds in every theme, biome and monster copy; it found the same
 problems in the rotten templar, the eye of confusion and the fire and ice particles.
 
+On the next play, floor 1's brute trolls showed only their shadow and elite ring. HW2 draws them
+from `.tif` sheets whose raw copy has 10 channels a pixel, which AE can't draw; the copy now
+uses the `.png` of the same sheet beside each one. With that, floor 1's trolls and ticks draw
+correctly, and the brutes throw their axes. Floors 2–3 and the other scenarios are still to play.
+
+### Second play (2026-11-26)
+
+- **S2 answered, in part:** AE compiles a scenario's scripts together with its own (790 files,
+  `DashStrike.as` among them). But HW2's `DashStrike.as` calls `easeSineOut`, which only HW2's
+  `Utils/Functions.as` defines, and one compile error stops every script: no doors, pickups or
+  monsters, and the party stuck in the lobby. `dungeon_11260004` now also ships
+  `scripts/Hw2Compat.as` with that helper. Still to see: does it compile now, and do the wolves
+  dash?
+- **Monsters standing still:** HW2 writes movement speed as a range; AE wants one number
+  ("'speed' needs to be float"). The copy now uses the middle of the range.
+- **Errors fixed:** the blight ice crystal model's texture (`.fbx` files name textures beside
+  them), and the grey wolf's sheet (HW2's compiled `.tif` is a format AE refuses; the copy bakes a
+  `.png` from the unpacked sheet and the wolf's colours instead).
+- `dungeon_11260003` (S4) loads; floor 2 of `dungeon_11260001` plays through.
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor

@@ -1455,3 +1455,43 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   the same sheet.
 - `[EMITTED]` The copy points a `.tif` sprite at the `.png` beside it, and ships a `.tif` with no
   `.png` from the pack's compiled copy, never the extract's.
+- `[VERIFIED]` After that fix, the brute trolls and ticks on `dungeon_11260001` floor 1 draw
+  correctly (2026-11-26). The other floors' HW2 monsters are still to check.
+
+## 2026-11-26 — Hammerwatch 2 spikes, second play
+
+- `[VERIFIED]` **S2: a scenario's scripts are compiled together with AE's.** `dungeon_11260004`
+  ships HW2's `scripts/Behaviors/Actors/Enemies/Skills/DashStrike.as`, a class AE lacks. The log
+  shows ScriptLoader compiling 790 files and naming `DashStrike.as` in its errors
+  (`ln 510`, `ln 563`: "No matching symbol 'easeSineOut'"). One compile error stops every
+  script: "Please correct the errors in the script and try again", then "Couldn't find behavior
+  'Door' / 'Pickup' / 'Breakable' / 'CompositeActorBehavior'". The party can't move or open
+  anything. So scenarios can add classes, but every shipped script has to compile against AE's.
+- `[VERIFIED]` `easeSineOut` (and `easeSine`, `easeSineIn`) live in HW2's
+  `scripts/Utils/Functions.as`; AE's has `easeQuad*` and `easeCubic*` but no sine easings.
+- `[EMITTED]` The S2 scenario now also ships `scripts/Hw2Compat.as` with HW2's `easeSineOut`,
+  cut from the HW2 install at install time.
+- `[VERIFIED]` "SValue param error: hw2/actors/.../troll_brute_elite.unit (file: 'speed' needs to
+  be float)", from `MeleeMovement.as` line 34, for the brute trolls, rotten footmen and sentries
+  and horde crawlers. HW2's movement reads `speed` as a vec2 range (`GetParamVec2`, then a random
+  point in it); AE's reads one float, so those monsters stood still.
+- `[EMITTED]` The copy turns `<vec2 name="speed">a b</vec2>` into `<float name="speed">` at the
+  middle of the range, and `%replace …SPEED… "a b"` into the middle value.
+- `[VERIFIED]` A binary `.fbx` names its texture bare (`blight_ice_crystal.png`, plus HW2's own
+  `D:\Projects\HW2\…` path), and AE looks for it beside the model: "FBXLoader: Couldn't find
+  texture blight_ice_crystal.png". The copy now ships the textures a model names beside it.
+- `[VERIFIED]` HW2's compiled `.tif` (in its `assets.bin`) has format byte 5 at offset 8; AE's
+  compiled `.tif` and `.png` have 2. AE refuses format 5: "wolf_grey.tif (class TIFFLoader):
+  Failed to load texture". The grey wolf has no `.png` beside its sheet.
+- `[VERIFIED]` HW2's raw `.tif` sheets are RGBA plus one mask channel per `colorize` slot of the
+  unit (the troll: 6 slots, 10 channels; the wolf: 5 and 9). AE's own sheets carry 2 extra
+  channels (`eye_idle.tif`: 6). HW2's baked `.png` sets a masked pixel along its slot's three
+  colours by grey level, blended in linear light (`troll_brute.png` matches within a few levels;
+  the mid colour lands near grey 185).
+- `[EMITTED]` A `.tif` with no `.png` beside it is baked to one from the unpacked sheet and the
+  colorize of the unit using it (src/main/custom/layeredTif.ts). Without an unpacked sheet the
+  `.tif` ships compiled, with a note that AE can't draw it.
+- `[VERIFIED]` `dungeon_11260003` (every HW2 texture compiled from `assets.bin`) loads; its
+  `.tif` sheets were already swapped for `.png`, so compiled `.png` files draw (S4, in part).
+- `[VERIFIED]` `dungeon_11260001` floor 2 shows the blight ice crystal error once and then plays
+  through.
