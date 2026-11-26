@@ -1386,3 +1386,33 @@ The plan is `docs/plans/world-mode.md`; the in-game questions are `docs/discover
 - `[UNVERIFIED]` `unpacked_assets_66` is not something AE makes. It's an extract on the
   dev machine (dated 2026-09-23, with no tool's log beside it). Nothing at install time
   needs it now; the asset scanners in `scripts/` still read it.
+
+## 2026-11-25 — Hammerwatch 2 assets (experimental branch)
+
+The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
+`docs/discovery/hammerwatch-2-spikes.md`.
+
+- `[VERIFIED]` HW2 is the same engine family. It has the same `.unit` preprocessor and XML,
+  `.tileset`, `.env`, `.pfb` and SVAL `.lvl` text, and the same `res/assets.bin` layout with
+  magic `HW2R`.
+- `[VERIFIED]` HW2 and AE share thousands of asset paths with different content (doodads 624,
+  tilesets 181, scripts 338). So HW2 files a scenario ships must sit under their own prefix
+  (`hw2/`), or they replace AE's own files for that scenario.
+- `[VERIFIED]` HW2 wall sets use the new-style pieces (`h_32`, `cap_h_*`, `crn_*`, `x_*`,
+  `__color_N`), which `aeWalls.ts` already places.
+- `[VERIFIED]` About 190 HW2 enemy units use only script classes AE defines. All 9 HW2 bosses
+  need at least one of 14 classes AE lacks (DashStrike, CompositeActorUtilitySkill, ...).
+- `[VERIFIED]` AE plays scenario audio from XML soundbanks. mistdeep's `music/music.sbnk` lists
+  `.ogg` sources. Its level mutes the stock music with a `PlayMusic` that has no `Music` value,
+  then runs `PlaySound` {`Sound`: `music/music.sbnk:swamp`, `Looping`: t}. Its units name sounds as
+  `sounds/sounds.sbnk:<name>`.
+- `[VERIFIED]` HW2's `music.bank` is one FSB5 block of 54 named Vorbis samples, all at 2ch/48k,
+  with one setup header (CRC `a4f666fc`). `sfx.bank` has 5,900 samples and the setup headers
+  `c55efa16` and `a4f666fc`.
+- `[VERIFIED]` A community `.h1c` (`starcraft_campaign`) ships `scripts/GUI/Shop/PowerShopMenuContent.as`,
+  overriding a stock script.
+- `[UNVERIFIED]` Four questions remain:
+  - whether a top-level `hw2/` folder loads (S1);
+  - whether new script classes load from a scenario (S2);
+  - whether `.sbnk`/`.ogg` work inside a `.h1c` (S3);
+  - whether HW2's compiled textures pass straight through (S4).
