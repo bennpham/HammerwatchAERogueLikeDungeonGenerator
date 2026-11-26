@@ -32,6 +32,7 @@
  */
 
 import type { AeUnit, StateValue } from '../ae/model'
+import { cliffDir } from '../catalog/assetRoot'
 
 export type CoastPiece = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw' | 'ne_i' | 'nw_i' | 'se_i' | 'sw_i'
 
@@ -114,7 +115,7 @@ export function coastUnits(set: string, width: number, height: number, land: Uin
   const out: CoastUnit[] = []
   const done = new Uint8Array(width * height)
   const emit = (piece: string, x: number, y: number) =>
-    out.push({ path: `doodads/cliffs/${set}/${piece}.unit`, x: x * 16, y: (y + anchorRows(piece)) * 16 })
+    out.push({ path: `${cliffDir(set)}/${piece}.unit`, x: x * 16, y: (y + anchorRows(piece)) * 16 })
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {

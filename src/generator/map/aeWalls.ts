@@ -1,3 +1,4 @@
+import { wallDir } from '../catalog/assetRoot'
 import type { ThemeDef } from '../config/themes'
 
 /**
@@ -152,7 +153,7 @@ const FLAT_CANDIDATES: Record<string, Array<{ unit: string; dy: number }>> = {
 }
 
 export function wallUnitPath(walls: string, unit: string): string {
-  return `doodads/walls/${walls}/${unit}.unit`
+  return `${wallDir(walls)}/${unit}.unit`
 }
 
 /** Whether a wall set is the flat bonus family, told by its `crn_l_up` corner. */

@@ -7,7 +7,7 @@ import { placeCover } from '../map/aeCover'
 import type { CoverRect } from '../map/aeCover'
 import { stairArtRect } from '../objects/doodad'
 import type { ThemeDef } from '../config/themes'
-import { AE_UNIT_SET } from '../catalog/assets'
+import { aeAssetExists } from '../catalog/assets'
 
 /**
  * Move everything a level build registered on the context — doodads, items,
@@ -77,7 +77,7 @@ export function emitWalls(
   originY = 0
 ): string[] {
   const missing: string[] = []
-  for (const w of placeWalls(grid, theme, (p) => AE_UNIT_SET.has(p), (piece, x, y) => missing.push(`${piece}@${x},${y}`))) {
+  for (const w of placeWalls(grid, theme, aeAssetExists, (piece, x, y) => missing.push(`${piece}@${x},${y}`))) {
     // `origin` maps grid cells back to the level's own tile space (the arena
     // indexes a non-negative grid but places its alcove at negative tiles)
     level.units.push({ path: w.path, x: w.x - originX * TILE, y: w.y - originY * TILE, id: ctx.idCounter++ })
@@ -106,7 +106,7 @@ export function emitCover(
     // stairs are placed in level space; the cover works in grid space
     if (r !== null) exclude.push({ ...r, x: r.x + originX * TILE, y: r.y + originY * TILE })
   }
-  for (const c of placeCover(grid, theme.walls, (p) => AE_UNIT_SET.has(p), { exclude })) {
+  for (const c of placeCover(grid, theme.walls, aeAssetExists, { exclude })) {
     level.units.push({ path: c.path, x: c.x - originX * TILE, y: c.y - originY * TILE, id: ctx.idCounter++ })
   }
 }

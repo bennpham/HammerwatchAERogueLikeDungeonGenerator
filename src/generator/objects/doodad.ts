@@ -1,6 +1,7 @@
 import { getTheme } from '../config/themes'
 import { resolvePiece } from '../map/aeWalls'
-import { AE_UNIT_SET } from '../catalog/assets'
+import { aeAssetExists } from '../catalog/assets'
+import { wallDir } from '../catalog/assetRoot'
 import type { GenerationContext } from '../core/context'
 import type { StateValue } from '../ae/model'
 
@@ -47,7 +48,7 @@ interface Resolved {
   state?: Record<string, StateValue>
 }
 
-const exists = (p: string) => AE_UNIT_SET.has(p)
+const exists = (p: string) => aeAssetExists(p)
 
 /**
  * Stair art narrower than the shared 64-px `doodads/walls/exit_*.inc`, by wall
@@ -78,7 +79,7 @@ const SHARED_STAIR_ART = { x: 0, y: -72, w: 64, h: 72 }
 
 /** The level-px box a placed stair's art covers, or null for anything else (pads included). */
 export function stairArtRect(d: { path: string; x: number; y: number }): { x: number; y: number; w: number; h: number } | null {
-  const m = /^doodads\/walls\/([^/]+)\/exit_(?:up|dn)\.unit$/.exec(d.path)
+  const m = /^(?:hw2\/)?doodads\/walls\/([^/]+)\/exit_(?:up|dn)\.unit$/.exec(d.path)
   if (m === null) return null
   const a = STAIR_ART[m[1]] ?? SHARED_STAIR_ART
   return { x: d.x * 16 + a.x, y: d.y * 16 + a.y, w: a.w, h: a.h }
@@ -136,7 +137,7 @@ export function resolveDoodad(type: DoodadTypeName, themeId: string): Resolved {
       }
       const set = stairSet(type, themeId)
       const file = type === 'ExitUp' ? 'exit_up' : 'exit_dn'
-      return { path: `doodads/walls/${set}/${file}.unit`, dx: NARROW_STAIRS[set]?.[type] ?? 0, dy: 0 }
+      return { path: `${wallDir(set)}/${file}.unit`, dx: NARROW_STAIRS[set]?.[type] ?? 0, dy: 0 }
     }
     case 'ExitMarker':
       return { path: 'doodads/generic/marker_exit.unit', dx: 0, dy: 0 }
@@ -173,15 +174,15 @@ export function resolveDoodad(type: DoodadTypeName, themeId: string): Resolved {
       return { path: 'doodads/doors/boss_door_button.unit', dx: 0, dy: 0 }
     case 'Horizontal': {
       const r = resolvePiece(walls, 'h_16', exists)
-      return { path: r?.path ?? `doodads/walls/${walls}/h_16.unit`, dx: 0, dy: r?.dy ?? 0 }
+      return { path: r?.path ?? `${wallDir(walls)}/h_16.unit`, dx: 0, dy: r?.dy ?? 0 }
     }
     case 'Vertical': {
       const r = resolvePiece(walls, 'v_16', exists)
-      return { path: r?.path ?? `doodads/walls/${walls}/v_16.unit`, dx: 0, dy: r?.dy ?? -1 }
+      return { path: r?.path ?? `${wallDir(walls)}/v_16.unit`, dx: 0, dy: r?.dy ?? -1 }
     }
     case 'Pillar': {
       const r = resolvePiece(walls, 'single', exists)
-      return { path: r?.path ?? `doodads/walls/${walls}/x_x.unit`, dx: 0, dy: r?.dy ?? 0 }
+      return { path: r?.path ?? `${wallDir(walls)}/x_x.unit`, dx: 0, dy: r?.dy ?? 0 }
     }
     // a prop names its own unit; nothing resolves one by kind
     case 'Prop':

@@ -1,3 +1,4 @@
+import { wallDir } from '../catalog/assetRoot'
 import type { WallGrid } from './aeWalls'
 
 /**
@@ -45,7 +46,7 @@ const SUB = 8
 const LIFT = 4
 
 export function coverUnitPath(walls: string, size: number): string {
-  return `doodads/walls/${walls}/__color_${size}.unit`
+  return `${wallDir(walls)}/__color_${size}.unit`
 }
 
 /**
