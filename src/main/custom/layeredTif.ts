@@ -1,31 +1,89 @@
 /**
- * Hammerwatch 2's layered sprite sheets (experimental "Load custom").
+ * Hammerwatch 2's tinted sprite sheets (experimental "Load custom").
  *
- * HW2 draws most actors from an uncompressed `.tif` (TinyTIFFWriter) with 4 +
- * N channels a pixel: RGBA, then one mask per `colorize` slot of the unit
- * (`<i>0</i><a><s>#dark</s><s>#mid</s><s>#light</s></a>`). A masked pixel's
- * grey level picks a colour along that slot's three, blended in linear light.
- * AE reads a different layout (its own sheets carry 2 extra channels), so a
- * scenario can't ship these as they are: the troll drew wrong, the grey wolf
- * failed to load. Most sheets sit beside a `.png` HW2 baked itself; for the
- * rest, `bakeLayeredTif` bakes one the same way (within a few levels of HW2's
- * own: checked against troll_brute.png).
+ * HW2 draws most actors from a `.tif` whose pixels either carry their own
+ * colour or take one from the unit's `colorize` slots
+ * (`<i>0</i><a><s>#dark</s><s>#mid</s><s>#light</s></a>`): a tinted pixel's
+ * grey tone, in linear light, picks a colour along its slot's three. AE reads
+ * neither of HW2's forms of these sheets (the troll drew wrong, the grey wolf
+ * failed to load), so a scenario carries a `.png` with the tint baked in:
+ * HW2's own `.png` beside the sheet when there is one, else one baked here.
+ *
+ * The sheet comes in two forms, both read here:
+ *   - PACKED, in HW2's `res/assets.bin` (every install has it): a 12-byte
+ *     header (width, height, slot count; u32 LE), then 4 bytes a pixel. The
+ *     last byte's top bit marks a tinted pixel; its low 7 bits are alpha / 2
+ *     (127 is opaque). A tinted pixel is (tone, slot, 0, ·); a plain one is
+ *     its RGB in linear light. Read against HW2's own unpacked sheets.
+ *   - RAW, in an unpacked extract (`unpacked_assets_*`, from HW2's
+ *     PACKAGER.exe): an uncompressed TIFF of RGBA plus one mask channel per
+ *     slot, the tone being the sRGB grey of the colour channels.
+ * Baked, the troll matches HW2's own troll_brute.png within a few levels.
  */
 import { deflateSync } from 'node:zlib'
 
-export interface LayeredTif {
+/** A sheet read from either form: plain pixels' colour (sRGB) and every pixel's alpha, with each tinted pixel's slot and tone. */
+export interface TintSheet {
   width: number
   height: number
-  /** channels a pixel: 4 colour + one mask per colorize slot */
-  channels: number
-  pixels: Uint8Array
+  /** sRGB colour for plain pixels (ignored for tinted ones), and alpha for all */
+  rgba: Uint8Array
+  /** the colorize slot of a tinted pixel, -1 for a plain one */
+  slot: Int8Array
+  /** a tinted pixel's tone in linear light, 0–1 */
+  tone: Float32Array
 }
 
 /** Three colours per slot index, as RGB. */
 export type Colorize = ReadonlyMap<number, readonly (readonly number[])[]>
 
-/** A plain uncompressed, 8-bit, single-strip, interleaved TIFF with more than 4 channels; null otherwise. */
-export function readLayeredTif(data: Uint8Array): LayeredTif | null {
+/** Bounds a sheet's size against a corrupt header. */
+const MAX_SIDE = 8192
+
+function toLinear(s: number): number {
+  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+}
+
+function toSrgb(l: number): number {
+  return l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055
+}
+
+function emptySheet(width: number, height: number): TintSheet {
+  const n = width * height
+  return { width, height, rgba: new Uint8Array(n * 4), slot: new Int8Array(n).fill(-1), tone: new Float32Array(n) }
+}
+
+/** HW2's packed sheet (an `assets.bin` entry); null if it isn't one. */
+export function readPackedTif(data: Uint8Array): TintSheet | null {
+  if (data.length < 12) return null
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
+  const width = view.getUint32(0, true)
+  const height = view.getUint32(4, true)
+  const slots = view.getUint32(8, true)
+  if (width <= 0 || height <= 0 || width > MAX_SIDE || height > MAX_SIDE || slots > 64) return null
+  if (data.length !== 12 + width * height * 4) return null
+  const sheet = emptySheet(width, height)
+  const srgb = new Uint8Array(256)
+  for (let v = 0; v < 256; v++) srgb[v] = Math.round(toSrgb(v / 255) * 255)
+  for (let p = 0; p < width * height; p++) {
+    const at = 12 + p * 4
+    const last = data[at + 3]
+    const a7 = last & 127
+    sheet.rgba[p * 4 + 3] = a7 === 127 ? 255 : a7 * 2
+    if (last & 128) {
+      sheet.slot[p] = data[at + 1]
+      sheet.tone[p] = data[at] / 255
+    } else {
+      sheet.rgba[p * 4] = srgb[data[at]]
+      sheet.rgba[p * 4 + 1] = srgb[data[at + 1]]
+      sheet.rgba[p * 4 + 2] = srgb[data[at + 2]]
+    }
+  }
+  return sheet
+}
+
+/** An unpacked sheet: an uncompressed, 8-bit, single-strip, interleaved TIFF with more than 4 channels; null otherwise. */
+export function readLayeredTif(data: Uint8Array): TintSheet | null {
   if (data.length < 8) return null
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
   const le = data[0] === 0x49 && data[1] === 0x49
@@ -49,13 +107,31 @@ export function readLayeredTif(data: Uint8Array): LayeredTif | null {
   const height = tags.get(257) ?? 0
   const channels = tags.get(277) ?? 0
   const offset = tags.get(273) ?? 0
-  const compression = tags.get(259) ?? 1
-  const planar = tags.get(284) ?? 1
-  if (width <= 0 || height <= 0 || channels <= 4 || compression !== 1 || planar !== 1) return null
-  if (width > 8192 || height > 8192) return null
-  const size = width * height * channels
-  if (offset + size > data.length) return null
-  return { width, height, channels, pixels: data.subarray(offset, offset + size) }
+  if (width <= 0 || height <= 0 || width > MAX_SIDE || height > MAX_SIDE) return null
+  if (channels <= 4 || (tags.get(259) ?? 1) !== 1 || (tags.get(284) ?? 1) !== 1) return null
+  if (offset + width * height * channels > data.length) return null
+  const sheet = emptySheet(width, height)
+  const linear = new Float32Array(256)
+  for (let v = 0; v < 256; v++) linear[v] = toLinear(v / 255)
+  for (let p = 0; p < width * height; p++) {
+    const at = offset + p * channels
+    sheet.rgba.set(data.subarray(at, at + 4), p * 4)
+    // the strongest mask, if any, is the pixel's slot
+    let best = 0
+    for (let j = 4; j < channels; j++) {
+      if (data[at + j] > best) {
+        best = data[at + j]
+        sheet.slot[p] = j - 4
+      }
+    }
+    if (best > 0) sheet.tone[p] = linear[data[at]]
+  }
+  return sheet
+}
+
+/** A sheet from an asset file: packed (flag 3, from a pack) or raw (an unpacked `.tif`). */
+export function readTintSheet(file: { flag: number; data: Uint8Array }): TintSheet | null {
+  return file.flag === 3 ? readPackedTif(file.data) : readLayeredTif(file.data)
 }
 
 const HEX = /^#([0-9a-f]{6})(?:[0-9a-f]{2})?$/i
@@ -78,35 +154,21 @@ export function parseColorize(unitText: string): Map<number, number[][]> {
   return out
 }
 
-function toLinear(s: number): number {
-  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
-}
-
-/** RGBA with each masked pixel tinted by its slot; slots the unit doesn't define keep their grey. */
-export function bakeLayeredTif(tif: LayeredTif, colorize: Colorize): Uint8Array {
-  const { width, height, channels, pixels } = tif
-  const out = new Uint8Array(width * height * 4)
-  const linear = new Float64Array(256)
-  for (let g = 0; g < 256; g++) linear[g] = toLinear(g / 255)
+/** RGBA with each tinted pixel coloured from its slot; a slot the unit doesn't define keeps its grey tone. */
+export function bakeTintSheet(sheet: TintSheet, colorize: Colorize): Uint8Array {
+  const { width, height, rgba, slot, tone } = sheet
+  const out = new Uint8Array(rgba)
   for (let p = 0; p < width * height; p++) {
-    const at = p * channels
-    let r = pixels[at]
-    let g = pixels[at + 1]
-    let b = pixels[at + 2]
-    for (let j = 4; j < channels; j++) {
-      const w = pixels[at + j] / 255
-      const c = w > 0 ? colorize.get(j - 4) : undefined
-      if (c === undefined) continue
-      const t = linear[pixels[at]]
-      const [lo, hi, f] = t < 0.5 ? [c[0], c[1], t * 2] : [c[1], c[2], t * 2 - 1]
-      r = r * (1 - w) + (lo[0] + (hi[0] - lo[0]) * f) * w
-      g = g * (1 - w) + (lo[1] + (hi[1] - lo[1]) * f) * w
-      b = b * (1 - w) + (lo[2] + (hi[2] - lo[2]) * f) * w
+    if (slot[p] < 0) continue
+    const t = tone[p]
+    const c = colorize.get(slot[p])
+    if (c === undefined) {
+      const g = Math.round(toSrgb(t) * 255)
+      out.set([g, g, g], p * 4)
+      continue
     }
-    out[p * 4] = Math.round(r)
-    out[p * 4 + 1] = Math.round(g)
-    out[p * 4 + 2] = Math.round(b)
-    out[p * 4 + 3] = pixels[at + 3]
+    const [lo, hi, f] = t < 0.5 ? [c[0], c[1], t * 2] : [c[1], c[2], t * 2 - 1]
+    for (let k = 0; k < 3; k++) out[p * 4 + k] = Math.round(lo[k] + (hi[k] - lo[k]) * f)
   }
   return out
 }

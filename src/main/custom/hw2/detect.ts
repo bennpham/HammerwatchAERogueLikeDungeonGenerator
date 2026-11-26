@@ -10,10 +10,12 @@ import type { Hw2Status } from '../../../shared/ipc'
  *
  * A folder is HW2 when it holds `HW2.exe`. Its files are read from
  * `res/assets.bin` (magic `HW2R`, every install has it) and from the newest
- * `unpacked_assets_*` extract when there is one (some dev machines). The
- * extract matters for textures: assets.bin holds them compiled (flag 3), the
- * extract as plain PNGs (docs/discovery/hammerwatch-2-spikes.md, S4). Music
- * comes from `res/assets/sound/music.bank` beside the pack.
+ * `unpacked_assets_*` extract when there is one (made by HW2's PACKAGER.exe,
+ * "Extract base resources"; some dev machines). Nothing needs the extract: the
+ * copy reads HW2's tinted sprite sheets from the pack itself (layeredTif.ts), and
+ * an install packs compiled textures as they are. It only gives an export plain
+ * PNGs (docs/discovery/hammerwatch-2-spikes.md, S4). Music comes from
+ * `res/assets/sound/music.bank` beside the pack.
  */
 export interface Hw2Sources {
   /** assets.bin when readable, else the extract */

@@ -12,6 +12,7 @@ import { hw2MusicFiles, isHw2MusicPath } from './music'
  * (flag 3): an install packs it as it is; a folder or zip export can't use it
  * (it isn't a PNG), so an export leaves those out and says so. With an
  * `unpacked_assets_*` extract beside the pack, textures come plain and both work.
+ * HW2's tinted sprite sheets are baked to PNGs from the pack either way.
  */
 export interface CustomFiles {
   files: GeneratedFile[]

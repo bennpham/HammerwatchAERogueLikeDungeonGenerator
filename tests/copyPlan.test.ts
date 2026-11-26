@@ -2,6 +2,11 @@ import { inflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { extractRefs, resolveRelative } from '../src/main/custom/refs'
 import { planCopy } from '../src/main/custom/copyPlan'
+import { bakeTintSheet, parseColorize, readLayeredTif, readTintSheet } from '../src/main/custom/layeredTif'
+import { packSource } from '../src/main/custom/binSource'
+import { HW2_ASSETS_MAGIC } from '../src/main/h1c/read'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { CopyInput, CopySource } from '../src/main/custom/copyPlan'
 import { hw2CopyPlan } from '../src/main/custom/hw2/copy'
 import { BIOME_IDS, defaultWorld, generateDungeon } from '../src/generator'
@@ -9,7 +14,7 @@ import type { DungeonResult } from '../src/generator'
 import { THEME_DEFS } from '../src/generator/config/themes'
 import { aeAssetExists } from '../src/generator/catalog/assets'
 import { AE_ROOT } from './aeInstall'
-import { HAS_HW2, HW2_CONTENT, HW2_ROOT, danglingPaths } from './hw2Install'
+import { HAS_HW2, HW2_CONTENT, HW2_ROOT, danglingPaths, hw2AssetsDir } from './hw2Install'
 import { plainParameters } from './params'
 
 const enc = new TextEncoder()
@@ -229,8 +234,8 @@ describe('planning a copy', () => {
     expect(p.notes).toContain('fx/smoke.unit: no material system/default.mats:ghost')
   })
 
-  it("draws a .tif sheet from the .png beside it, else from the pack's compiled copy", () => {
-    // HW2's raw troll_brute.tif has 10 channels a pixel, which AE can't draw
+  it('draws a .tif sheet from the .png beside it, and ships one it cannot read as is', () => {
+    // HW2's troll_brute.tif sits beside HW2's own troll_brute.png; AE can't draw the .tif
     const p = plan(
       {
         'a/troll.unit': '<sprite texture="./troll/sheet.tif"/>\n<sprite texture="a/walk.tif"/>\n<sprite texture="a/lone.tif"/>',
@@ -250,16 +255,36 @@ describe('planning a copy', () => {
     // a .png still comes plain from the extract; a .tif never does
     expect([...p.files.find((f) => f.path === 'hw2/a/troll/sheet.png')!.data]).toEqual([6])
     expect([...p.files.find((f) => f.path === 'hw2/a/lone.tif')!.data]).toEqual([5])
-    expect(p.notes).toContain("hw2/a/lone.tif: no .png beside it and no unpacked sheet to bake one from; AE can't draw it")
+    expect(p.notes).toContain('hw2/a/lone.tif: not a sheet the copy can read, shipped as is; AE may not draw it')
   })
 
-  it('bakes a .png from a layered .tif with none beside it, tinted by the unit that uses it', () => {
+  const wolfUnit =
+    '<array name="colorize">\n\t<i>0</i><a><s>#000000ff</s><s>#808080ff</s><s>#ff0000ff</s></a>\n</array>\n' +
+    '<sprite texture="./wolf/wolf.tif"/>\n<sprite texture="a/wolf/wolf.tif"/>'
+
+  it('bakes a .png from a packed sheet with no .png beside it, tinted by the unit that uses it', () => {
+    // HW2's assets.bin form: width, height, slot count; then 4 bytes a pixel. Pixel 0 is a
+    // tinted white of slot 0, pixel 1 a plain green at half alpha (64 = 128 / 2).
+    const packed = [2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 255, 0, 0, 255, 0, 255, 0, 64]
+    const p = plan({ 'a/wolf.unit': wolfUnit }, ['hw2/a/wolf.unit'], {
+      source: {
+        has: (q) => q === 'a/wolf.unit' || q === 'a/wolf/wolf.tif',
+        read: (q) =>
+          q === 'a/wolf.unit' ? { flag: 1, data: enc.encode(wolfUnit) } : q === 'a/wolf/wolf.tif' ? { flag: 3, data: Uint8Array.from(packed) } : null
+      },
+      // an extract's copy is never read for a sheet, so the bytes don't depend on having one
+      plain: mem({ 'a/wolf/wolf.tif': [...layeredTiff(2, 1, 5, [0, 0, 0, 255, 255, 0, 0, 0, 255, 0])] })
+    })
+    expect(p.files.map((f) => f.path)).toEqual(['hw2/a/wolf.unit', 'hw2/a/wolf/wolf.png'])
+    expect(textOf(p, 'hw2/a/wolf.unit')).toContain('<sprite texture="./wolf/wolf.png"/>\n<sprite texture="hw2/a/wolf/wolf.png"/>')
+    expect([...pngPixels(p.files.find((f) => f.path === 'hw2/a/wolf/wolf.png')!.data)]).toEqual([255, 0, 0, 255, 0, 255, 0, 128])
+  })
+
+  it('bakes a .png from an unpacked sheet when the source is an extract', () => {
     // 2×1 pixels, 5 channels: RGBA + one colorize mask. Pixel 0 is masked white, pixel 1 unmasked.
     const sheet = layeredTiff(2, 1, 5, [255, 255, 255, 255, 255, 10, 20, 30, 255, 0])
-    const unit =
-      '<array name="colorize">\n\t<i>0</i><a><s>#000000ff</s><s>#808080ff</s><s>#ff0000ff</s></a>\n</array>\n' +
-      '<sprite texture="./wolf/wolf.tif"/>\n<sprite texture="a/wolf/wolf.tif"/>'
-    const p = plan({ 'a/wolf.unit': unit, 'a/wolf/wolf.tif': [1, 2, 3] }, ['hw2/a/wolf.unit'], { plain: mem({ 'a/wolf/wolf.tif': [...sheet] }) })
+    const unit = wolfUnit
+    const p = plan({ 'a/wolf.unit': unit, 'a/wolf/wolf.tif': [...sheet] }, ['hw2/a/wolf.unit'])
     expect(p.files.map((f) => f.path)).toEqual(['hw2/a/wolf.unit', 'hw2/a/wolf/wolf.png'])
     expect(textOf(p, 'hw2/a/wolf.unit')).toContain('<sprite texture="./wolf/wolf.png"/>\n<sprite texture="hw2/a/wolf/wolf.png"/>')
     const png = p.files.find((f) => f.path === 'hw2/a/wolf/wolf.png')!.data
@@ -299,6 +324,29 @@ describe('planning a copy', () => {
     expect([...p.files.find((f) => f.path === 'hw2/t.png')!.data]).toEqual([5, 5])
     expect(p.errors).toEqual(['a.unit is not under hw2/', 'hw2/nope.unit: not in the source'])
   })
+})
+
+describe.skipIf(!HAS_HW2)("reading Hammerwatch 2's sprite sheets from its assets.bin", () => {
+  // HW2's PACKAGER.exe unpacks these sheets to layered TIFFs; the app reads the packed form
+  // itself, so a plain Steam install needs no unpacking. Both must bake to the same pixels.
+  it.each([
+    ['actors/beasts/trolls/troll_brute/troll_brute.tif', 'actors/beasts/trolls/troll_brute.unit'],
+    ['actors/beasts/wolves/wolf_grey/wolf_grey.tif', 'actors/beasts/wolves/wolf_grey.unit']
+  ])('%s', (tif, unit) => {
+    const pack = packSource(join(HW2_ROOT, 'res', 'assets.bin'), HW2_ASSETS_MAGIC)!
+    const extract = hw2AssetsDir()!
+    const packed = readTintSheet(pack.read(tif)!)!
+    const raw = readLayeredTif(readFileSync(join(extract, tif)))!
+    expect([packed.width, packed.height]).toEqual([raw.width, raw.height])
+    const colorize = parseColorize(readFileSync(join(extract, unit), 'utf8'))
+    expect(colorize.size).toBeGreaterThan(0)
+    const a = bakeTintSheet(packed, colorize)
+    const b = bakeTintSheet(raw, colorize)
+    let worst = 0
+    for (let i = 0; i < a.length; i++) worst = Math.max(worst, Math.abs(a[i] - b[i]))
+    // the pack keeps alpha in 7 bits and colour in linear light: a level or two apart
+    expect(worst).toBeLessThanOrEqual(2)
+  }, 60_000)
 })
 
 describe.skipIf(!HAS_HW2)('copying Hammerwatch 2 themes from the install', () => {

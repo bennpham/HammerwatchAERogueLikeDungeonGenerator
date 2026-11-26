@@ -23,8 +23,8 @@
 
 import { dirOf, extractRefs, isTextAsset, maskComments, resolveRelative } from './refs'
 import type { Ref } from './refs'
-import { bakeLayeredTif, encodePng, parseColorize, readLayeredTif } from './layeredTif'
-import type { LayeredTif } from './layeredTif'
+import { bakeTintSheet, encodePng, parseColorize, readTintSheet } from './layeredTif'
+import type { TintSheet } from './layeredTif'
 
 export interface CopySourceFile {
   flag: number
@@ -176,11 +176,13 @@ export function planCopy(input: CopyInput): CopyPlan {
   const baked = new Map<string, { tif: string; root: string }>()
   /** each root unit's `colorize` slots, from the first text of its closure that has them */
   const colorizeOf = new Map<string, Map<number, number[][]>>()
-  const layered = new Map<string, LayeredTif | null>()
-  const layeredOf = (path: string): LayeredTif | null => {
+  const layered = new Map<string, TintSheet | null>()
+  // from the source itself (the pack, when the install has one), never the extract, so
+  // a scenario's bytes don't depend on whether its maker unpacked HW2
+  const layeredOf = (path: string): TintSheet | null => {
     if (!layered.has(path)) {
-      const f = input.plain?.read(path) ?? source.read(path)
-      layered.set(path, f === null || f.flag !== 1 ? null : readLayeredTif(f.data))
+      const f = source.read(path)
+      layered.set(path, f === null ? null : readTintSheet(f))
     }
     return layered.get(path)!
   }
@@ -343,13 +345,11 @@ export function planCopy(input: CopyInput): CopyPlan {
       }
       files.push({ path: prefix + path, data: encoder.encode(out), flag: 1 })
     } else {
-      // an extract's .tif is the other game's layered sheet (10 channels), which AE can't
-      // draw; the pack's compiled copy is plain RGBA
+      // a .tif only ships when it couldn't be read as a tinted sheet (it would have been baked)
       const plain = isTif(path) ? null : (input.plain?.read(path) ?? null)
       const f = plain ?? source.read(path)
       if (f === null) continue
-      // HW2's compiled .tif is its own format (5), which AE's TIFFLoader refuses (the grey wolf)
-      if (isTif(path)) notes.push(`${prefix}${path}: no .png beside it and no unpacked sheet to bake one from; AE can't draw it`)
+      if (isTif(path)) notes.push(`${prefix}${path}: not a sheet the copy can read, shipped as is; AE may not draw it`)
       files.push({ path: prefix + path, data: f.data, flag: f.flag })
     }
   }
@@ -363,7 +363,7 @@ export function planCopy(input: CopyInput): CopyPlan {
     const sheet = layeredOf(tif)!
     const slots = colorizeOf.get(root)
     if (slots === undefined) notes.push(`${prefix}${png}: baked from ${tif} with no colorize (left grey)`)
-    files.push({ path: prefix + png, data: encodePng(sheet.width, sheet.height, bakeLayeredTif(sheet, slots ?? new Map())), flag: 1 })
+    files.push({ path: prefix + png, data: encodePng(sheet.width, sheet.height, bakeTintSheet(sheet, slots ?? new Map())), flag: 1 })
   }
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
   return { files, keptAe: [...keptAe].sort(), notes, errors: [...new Set(errors)] }
