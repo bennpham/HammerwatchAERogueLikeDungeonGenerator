@@ -993,6 +993,55 @@ button.warning:hover:not(:disabled) {
   border-color: #f2a65e;
 }
 
+/* Load custom (experimental) — blue, so it reads apart from the gold Generate */
+button.custom {
+  background: #2f6fbf;
+  border-color: var(--q-rare);
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  padding: 10px 22px;
+}
+
+button.custom:hover:not(:disabled) {
+  background: #3b80d6;
+  border-color: #8ab8f0;
+}
+
+.load-custom-source {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.load-custom-source h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.load-custom-path {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.load-custom-path input {
+  flex: 1;
+}
+
+.load-custom-status {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.load-custom-status.ok {
+  color: #8fd18f;
+}
+
+.load-custom-status.bad {
+  color: var(--error);
+}
+
 /* destructive actions — Reset all and its confirm */
 button.danger {
   background: #a8382c;

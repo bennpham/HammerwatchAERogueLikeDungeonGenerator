@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { GroupedOptions } from '../customContent'
 import { BRIGHTNESS_LABELS, BRIGHTNESS_LEVELS, DEFAULT_SHOP_KIND_IDS, MUSIC_DEFAULT, SHOP_KIND_LABELS, THEME_DEFS, TORCH_DENSITIES, TORCH_LABELS, defaultDungeonBoss, defaultFloorLock, defaultFloorLockMystery, defaultFloorMystery, defaultFloorTimer, floorMystery, isDefaultOrder, normalizeOrder, campaignCounts } from '../../generator'
 import type { CampaignCounts, DungeonParameters, FloorLockMystery, ShopKindId, ValidationIssue } from '../../generator'
 import { NumberField, Section, ToggleGroup } from './fields'
@@ -13,14 +14,6 @@ import { DungeonBossEditor } from './DungeonBossEditor'
 import { MysteryButtonsEditor } from './MysteryButtonsEditor'
 import { ShopRoomVendorsEditor } from './ShopRoomVendorsEditor'
 
-/** Themes bucketed by their registry group, in registry order. */
-// stock themes only for now: Hammerwatch 2 themes show once Load custom has loaded HW2
-const THEME_GROUPS = THEME_DEFS.filter((def) => def.source === undefined).reduce<[string, (typeof THEME_DEFS)[number][]][]>((groups, def) => {
-  const existing = groups.find(([name]) => name === def.group)
-  if (existing) existing[1].push(def)
-  else groups.push([def.group, [def]])
-  return groups
-}, [])
 
 interface ParameterFormProps {
   params: DungeonParameters
@@ -263,15 +256,8 @@ export function ParameterForm({ params, issues, onChange }: ParameterFormProps) 
                 <label key={i} className="theme-item">
                   <span>Level {i + 1}</span>
                   <select value={params.themes[i] ?? 'a'} onChange={(e) => setTheme(i, e.target.value)}>
-                    {THEME_GROUPS.map(([group, defs]) => (
-                      <optgroup key={group} label={group}>
-                        {defs.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.label}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
+                    {/* Hammerwatch 2 themes only once Load custom has loaded HW2 */}
+                    <GroupedOptions defs={THEME_DEFS} value={params.themes[i]} />
                   </select>
                 </label>
               ))}

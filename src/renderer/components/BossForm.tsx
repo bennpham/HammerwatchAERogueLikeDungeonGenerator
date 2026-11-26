@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { GroupedOptions } from '../customContent'
 import {
   ARENA_PATTERN_LABELS,
   campaignCounts,
@@ -61,14 +62,6 @@ interface BossFormProps {
   onChange: (params: DungeonParameters) => void
 }
 
-/** Themes bucketed by their registry group, in registry order — same reduce ParameterForm uses for the per-level pickers. */
-// stock themes only for now: Hammerwatch 2 themes show once Load custom has loaded HW2
-const THEME_GROUPS = THEME_DEFS.filter((def) => def.source === undefined).reduce<[string, (typeof THEME_DEFS)[number][]][]>((groups, def) => {
-  const existing = groups.find(([name]) => name === def.group)
-  if (existing) existing[1].push(def)
-  else groups.push([def.group, [def]])
-  return groups
-}, [])
 
 export function BossForm({ params, issues, onChange }: BossFormProps) {
   // Which fight the sub-tabs below are editing. Clamped rather than reset
@@ -375,15 +368,8 @@ function SharedArenaFields({ arena, fieldPrefix, issues, setArena }: SharedArena
         <label className="field">
           <span className="field-label">Arena theme</span>
           <select value={arena.theme} onChange={(e) => setArena({ theme: e.target.value })}>
-            {THEME_GROUPS.map(([group, defs]) => (
-              <optgroup key={group} label={group}>
-                {defs.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
+            {/* Hammerwatch 2 themes only once Load custom has loaded HW2 */}
+            <GroupedOptions defs={THEME_DEFS} value={arena.theme} />
           </select>
         </label>
         {issues

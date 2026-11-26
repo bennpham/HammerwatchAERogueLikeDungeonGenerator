@@ -9,7 +9,10 @@ import {
   validateParameters
 } from '../generator'
 import type { DungeonParameters, PlayerTweaks } from '../generator'
-import type { AppSettings, GenerateResponse } from '../shared/ipc'
+import type { AppSettings, GenerateResponse, Hw2Status } from '../shared/ipc'
+import type { ContentContext } from '../generator'
+import { LoadCustomDialog } from './components/LoadCustomDialog'
+import { ContentSourcesContext } from './customContent'
 import { ParameterForm } from './components/ParameterForm'
 import { PlayerForm } from './components/PlayerForm'
 import { LobbyForm } from './components/LobbyForm'
@@ -49,7 +52,10 @@ export function App() {
   const [rightTab, setRightTab] = useState<'preview' | 'loadout'>('preview')
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  const validation = useMemo(() => validateParameters(params), [params])
+  // Load custom (experimental): the Hammerwatch 2 folder's status, null when none is set
+  const [hw2, setHw2] = useState<Hw2Status | null>(null)
+  const content = useMemo<ContentContext>(() => ({ sources: hw2?.ok === true ? ['hw2'] : [] }), [hw2])
+  const validation = useMemo(() => validateParameters(params, content), [params, content])
   const tweakCount = useMemo(
     () => Object.keys(prunePlayerTweaks(params.playerTweaks ?? {})).length,
     [params.playerTweaks]
@@ -97,6 +103,7 @@ export function App() {
     window.api.getInitialState().then((initial) => {
       setParams(initial.params)
       setSettings(initial.settings)
+      setHw2(initial.custom.hw2)
       if (initial.paramsSource === 'parameters.txt override') {
         const unknown =
           initial.unknownKeys.length > 0 ? ` (ignored unknown keys: ${initial.unknownKeys.join(', ')})` : ''
@@ -111,6 +118,23 @@ export function App() {
   const persistSettings = (next: AppSettings) => {
     setSettings(next)
     void window.api.saveSettings(next)
+  }
+
+  // main saves the folder itself; the renderer's copy follows, so a later
+  // settings save doesn't put the old folder back
+  const pickHw2 = async () => {
+    const status = await window.api.pickHw2Path()
+    if (status === null) return
+    setHw2(status)
+    setSettings((prev) => ({ ...prev, hw2Path: status.path }))
+    showToast(status.ok ? 'ok' : 'error', status.message)
+  }
+
+  const unloadHw2 = async () => {
+    await window.api.setHw2Path('')
+    setHw2(null)
+    setSettings((prev) => ({ ...prev, hw2Path: '' }))
+    showToast('info', 'Hammerwatch 2 unloaded: its content is no longer offered.')
   }
 
   const generate = async () => {
@@ -254,7 +278,7 @@ export function App() {
   const applyAssistantProposal = (next: DungeonParameters, changedKeys: number) => {
     const previous = params
     setParams(next)
-    const problems = validateParameters(next).errors.length
+    const problems = validateParameters(next, content).errors.length
     const summary = `Applied the assistant's proposal — ${changedKeys} setting${changedKeys === 1 ? '' : 's'} changed.`
     const message =
       problems === 0 ? summary : `${summary} ${problems} problem${problems === 1 ? '' : 's'} left — see "Fix before generating".`
@@ -338,6 +362,7 @@ export function App() {
   }
 
   return (
+    <ContentSourcesContext.Provider value={content}>
     <div className="app">
       <header className="app-header">
         <div className="header-title">
@@ -492,6 +517,7 @@ export function App() {
                 {busy ? 'Working…' : 'Generate dungeon'}
               </button>
             )}
+            <LoadCustomDialog hw2={hw2} onPick={pickHw2} onUnload={unloadHw2} disabled={busy} />
           </div>
 
           {validation.errors.length > 0 && (
@@ -575,5 +601,6 @@ export function App() {
         </div>
       )}
     </div>
+    </ContentSourcesContext.Provider>
   )
 }
