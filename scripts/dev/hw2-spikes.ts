@@ -11,10 +11,12 @@
 //   dungeon_11260003  S4: dungeon_11260001's campaign, but every texture taken compiled from
 //                     HW2's res/assets.bin and packed as is.
 //
+// Each starts with the Hammerwatch 2 level-50 player preset, fully upgraded.
+//
 // --remove deletes the four .h1c files (and description .txt files) again.
 import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { defaultParameters, defaultWorld, generateDungeon } from '../../src/generator'
+import { applyFullyUpgraded, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
 import type { DungeonParameters, DungeonResult, GeneratedFile } from '../../src/generator'
 import { parseSlotLabel } from '../../src/generator/campaign'
 import { installScenario } from '../../src/main/packer'
@@ -46,6 +48,15 @@ if (process.argv.includes('--remove')) {
 
 const content = { sources: ['hw2' as const] }
 
+/**
+ * Every spike starts maxed out: the Players tab's Hammerwatch 2 "Endgame
+ * (level 50)" bodies with every skill bought, since HW2's monsters hit far
+ * harder than AE's and the spikes test loading, not balance.
+ */
+function maxed(p: DungeonParameters): DungeonParameters {
+  return { ...p, playerTweaks: applyFullyUpgraded(playerPresetById('hw2-level-50')!.build()) }
+}
+
 function floorsCampaign(): DungeonParameters {
   const p = defaultParameters()
   p.themes = p.themes.map((t, i) => (i === 0 ? 'hw2_crypt' : i === 1 ? 'hw2_sewer' : i === 2 ? 'hw2_cave_dark' : t))
@@ -55,7 +66,7 @@ function floorsCampaign(): DungeonParameters {
   )
   p.lobbies = p.lobbies.map((l, i) => (i === 0 ? { ...l, music: 'hw2_town_day' } : l))
   p.boss = { ...p.boss, fights: p.boss.fights.map((f, i) => (i === 0 ? { ...f, arena: { ...f.arena, theme: 'hw2_obsidian', music: 'hw2_boss' } } : f)) }
-  return p
+  return maxed(p)
 }
 
 function worldCampaign(): DungeonParameters {
@@ -67,7 +78,7 @@ function worldCampaign(): DungeonParameters {
   // the island right after the first lobby
   const order = p.levelOrder ?? []
   p.levelOrder = [...order.slice(0, 1), parseSlotLabel('W1')!, ...order.slice(1)]
-  return p
+  return maxed(p)
 }
 
 /** customFiles' copy, but every texture from assets.bin as compiled (S4). */
@@ -119,7 +130,7 @@ async function install(seed: number, params: DungeonParameters, compiled: boolea
 async function installScriptSpike(seed: number): Promise<void> {
   const WOLF = 'hw2/actors/beasts/wolves/wolf_grey.unit'
   const SCRIPT = 'scripts/Behaviors/Actors/Enemies/Skills/DashStrike.as'
-  const p = defaultParameters()
+  const p = maxed(defaultParameters())
   const gen = generateDungeon(p, seed)
   if (!gen.ok) throw new Error(gen.errors.join('; '))
   const r = gen as DungeonResult

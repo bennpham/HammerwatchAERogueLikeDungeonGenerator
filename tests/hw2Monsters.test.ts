@@ -7,7 +7,7 @@ import { MONSTER_TYPES, monsterCap } from '../src/generator/objects/monsterTypes
 import { hw2CopyPlan } from '../src/main/custom/hw2/copy'
 import { AE_ROOT } from './aeInstall'
 import { levelsOf } from './ae'
-import { HAS_HW2, HW2_CONTENT, HW2_ROOT } from './hw2Install'
+import { HAS_HW2, HW2_CONTENT, HW2_ROOT, danglingPaths } from './hw2Install'
 import { plainParameters } from './params'
 
 const HW2 = MONSTER_TYPES.filter((t) => t.source === 'hw2')
@@ -69,6 +69,7 @@ describe.skipIf(!HAS_HW2)('copying Hammerwatch 2 monsters', () => {
     expect(plan.errors).toEqual([])
     const shipped = new Set(plan.files.map((f) => f.path))
     for (const r of roots) expect(shipped.has(r), r).toBe(true)
+    expect(danglingPaths(plan, AE_ROOT)).toEqual([])
     // HW2's own tables are stripped from what ships
     const dec = new TextDecoder()
     for (const f of plan.files.filter((x) => x.path.endsWith('.unit') || x.path.endsWith('.inc'))) {

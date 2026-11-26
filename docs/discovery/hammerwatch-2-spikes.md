@@ -25,6 +25,18 @@ Things to watch in `<AE>/HW1A.exe.log` for each:
 
 HW2 monsters are expected to be quiet: their HW2 sound events are blanked.
 
+Every scenario starts with the Players tab's Hammerwatch 2 **Endgame (level 50)** preset, fully
+upgraded, since HW2's monsters hit much harder than AE's.
+
+### First play (2026-11-26)
+
+`dungeon_11260001` loaded and its HW2 music played (S3, in part). Three ERROR boxes came from
+`hw2/effects/particles/particles_smoke.unit`: a material only HW2's `system/default.mats` has
+(`particle-storm`), and two effects named with arguments (`smoke_4.effect?scale=0.3`) that the
+copier didn't read as paths. Both are fixed and the scenarios reinstalled. A new check in the
+HW2 copy tests looks for both kinds in every theme, biome and monster copy; it found the same
+problems in the rotten templar, the eye of confusion and the fire and ice particles.
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor

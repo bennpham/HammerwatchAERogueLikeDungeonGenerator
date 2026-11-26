@@ -8,7 +8,7 @@ import type { DungeonResult } from '../src/generator'
 import { THEME_DEFS } from '../src/generator/config/themes'
 import { aeAssetExists } from '../src/generator/catalog/assets'
 import { AE_ROOT } from './aeInstall'
-import { HAS_HW2, HW2_CONTENT, HW2_ROOT } from './hw2Install'
+import { HAS_HW2, HW2_CONTENT, HW2_ROOT, danglingPaths } from './hw2Install'
 import { plainParameters } from './params'
 
 const enc = new TextEncoder()
@@ -65,6 +65,15 @@ describe('finding the paths a file names', () => {
     ])
     for (const r of refs) expect(t.slice(r.start, r.end)).toBe(r.path)
     expect(refs.filter((r) => r.relative).map((r) => r.path)).toEqual(['./base.png', './glass.unit'])
+    expect(refs.filter((r) => r.entry !== undefined).map((r) => r.entry)).toEqual(['floor', 'beer'])
+  })
+
+  it('reads a path with effect arguments, and what follows a `?` is never an entry', () => {
+    const t = '<effect src="effects/smoke/smoke_4.effect?scale=0.3"/>'
+    const [r] = extractRefs(t)
+    expect(r.path).toBe('effects/smoke/smoke_4.effect')
+    expect(t.slice(r.start, r.end)).toBe(r.path)
+    expect(r.entry).toBeUndefined()
   })
 
   it('resolves relative paths inside the assets only', () => {
@@ -138,6 +147,40 @@ describe('planning a copy', () => {
     expect(p.errors).toEqual(["hw2/actors/troll.unit: needs the script class DashStrike, which AE doesn't have"])
   })
 
+  it('follows effect paths with arguments, keeping the arguments', () => {
+    // HW2's particles_smoke.unit names `smoke_4.effect?scale=0.3`; AE uses the same form
+    const p = plan(
+      { 'fx/smoke.unit': '<effect src="fx/smoke_4.effect?scale=0.3"/>', 'fx/smoke_4.effect': '<effect/>' },
+      ['hw2/fx/smoke.unit']
+    )
+    expect(p.files.map((f) => f.path)).toEqual(['hw2/fx/smoke.unit', 'hw2/fx/smoke_4.effect'])
+    expect(textOf(p, 'hw2/fx/smoke.unit')).toBe('<effect src="hw2/fx/smoke_4.effect?scale=0.3"/>')
+  })
+
+  it("ships the materials AE's pinned .mats lacks, and points only those references at them", () => {
+    const mats = (names: string[]) =>
+      `%// base\n<materials>\n${names.map((n) => `\t<material name="${n}">\n\t\t<color value="1 2 3 4" />\n\t</material>`).join('\n')}\n</materials>\n`
+    const p = plan(
+      {
+        'fx/smoke.unit':
+          '<sprite material="system/default.mats:default"/>\n<sprite material="system/default.mats:particle-storm"/>\n' +
+          '<sprite material="system/default.mats:ghost"/>',
+        'system/default.mats': mats(['default', 'particle-storm', 'unused'])
+      },
+      ['hw2/fx/smoke.unit'],
+      { ae: mem({ 'system/default.mats': mats(['default']) }) }
+    )
+    expect(p.errors).toEqual([])
+    expect(p.files.map((f) => f.path)).toEqual(['hw2/fx/smoke.unit', 'hw2/system/default.mats'])
+    expect(textOf(p, 'hw2/fx/smoke.unit')).toBe(
+      '<sprite material="system/default.mats:default"/>\n<sprite material="hw2/system/default.mats:particle-storm"/>\n' +
+        '<sprite material="system/default.mats:ghost"/>'
+    )
+    const shipped = textOf(p, 'hw2/system/default.mats')
+    expect(shipped).toBe('<materials>\n\t<material name="particle-storm">\n\t\t<color value="1 2 3 4" />\n\t</material>\n</materials>\n')
+    expect(p.notes).toContain('fx/smoke.unit: no material system/default.mats:ghost')
+  })
+
   it('prefers plain textures, follows cycles once, and refuses roots it cannot find', () => {
     const p = plan(
       { 'a.unit': '"b.inc" "t.png"', 'b.inc': '"a.unit"', 't.png': [1] },
@@ -177,6 +220,7 @@ describe.skipIf(!HAS_HW2)('copying Hammerwatch 2 themes from the install', () =>
         expect(ok, `${f.path} names ${ref.path}`).toBe(true)
       }
     }
+    expect(danglingPaths(copy, AE_ROOT)).toEqual([])
     // nothing of HW2's lands at an AE path
     for (const f of copy.files) expect(f.path.startsWith('hw2/')).toBe(true)
   }, 120_000)
@@ -193,5 +237,6 @@ describe.skipIf(!HAS_HW2)('copying Hammerwatch 2 themes from the install', () =>
     expect(copy.errors).toEqual([])
     const shipped = new Set(copy.files.map((f) => f.path))
     for (const root of r.customAssets) expect(shipped.has(root), root).toBe(true)
+    expect(danglingPaths(copy, AE_ROOT)).toEqual([])
   }, 120_000)
 })

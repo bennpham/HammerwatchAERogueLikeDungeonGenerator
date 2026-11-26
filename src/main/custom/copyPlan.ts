@@ -80,6 +80,26 @@ function pinnedToAe(path: string): boolean {
   return path.startsWith('system/')
 }
 
+const MATERIAL_NAME = /<material name="([^"]+)"/g
+const MATERIAL_BLOCK = /<material name="([^"]+)"[^>]*>[\s\S]*?<\/material>/g
+
+function materialNames(text: string): Set<string> {
+  return new Set([...maskComments(text).matchAll(MATERIAL_NAME)].map((m) => m[1]))
+}
+
+/**
+ * A `.mats` file holding only `names`, cut from the source's own copy: the
+ * materials the other game added to a file pinned to AE's (HW2's
+ * `system/default.mats` has `particle-storm`, AE's doesn't).
+ */
+function materialsFile(text: string, names: ReadonlySet<string>): string {
+  const blocks: string[] = []
+  for (const m of maskComments(text).matchAll(MATERIAL_BLOCK)) {
+    if (names.has(m[1])) blocks.push('\t' + text.slice(m.index, m.index + m[0].length))
+  }
+  return `<materials>\n${blocks.join('\n')}\n</materials>\n`
+}
+
 /** A file reached from a root keeps that root's folder for its relative paths if it's textually included. */
 function baseDirFor(path: string, includerBase: string): string {
   return path.endsWith('.inc') ? includerBase : dirOf(path)
@@ -100,7 +120,35 @@ export function planCopy(input: CopyInput): CopyPlan {
   const keptAe = new Set<string>()
   const missing = new Set<string>()
   const visited = new Set<string>()
+  /** pinned `.mats` → the entries only the source has, shipped as a prefixed copy */
+  const addedMaterials = new Map<string, Set<string>>()
+  const matNames = new Map<string, { ae: Set<string>; source: Set<string> }>()
   const decoder = new TextDecoder('utf-8', { ignoreBOM: true })
+
+  const materialsOf = (path: string): { ae: Set<string>; source: Set<string> } | null => {
+    let m = matNames.get(path)
+    if (m === undefined) {
+      const mine = source.read(path)
+      const theirs = ae?.read(path) ?? null
+      if (mine === null || theirs === null) return null
+      m = { ae: materialNames(decoder.decode(theirs.data)), source: materialNames(decoder.decode(mine.data)) }
+      matNames.set(path, m)
+    }
+    return m
+  }
+
+  /** A pinned `.mats:entry` AE lacks: ship the source's entry, or note it. */
+  const checkMaterial = (from: string, target: string, entry: string): void => {
+    const m = materialsOf(target)
+    if (m === null || m.ae.has(entry)) return
+    if (!m.source.has(entry)) {
+      notes.push(`${from}: no material ${target}:${entry}`)
+      return
+    }
+    let set = addedMaterials.get(target)
+    if (set === undefined) addedMaterials.set(target, (set = new Set()))
+    set.add(entry)
+  }
 
   const readText = (path: string): { content: string; refs: Ref[] } | null => {
     const cached = text.get(path)
@@ -148,6 +196,9 @@ export function planCopy(input: CopyInput): CopyPlan {
         notes.push(`${path}: ${ref.path} climbs out of the assets`)
         continue
       }
+      if (pinnedToAe(target) && target.endsWith('.mats') && ref.entry !== undefined && !ref.relative) {
+        checkMaterial(path, target, ref.entry)
+      }
       if (shipped.has(target) || keptAe.has(target) || missing.has(target)) {
         if (shipped.has(target)) queue.push([target, baseDirFor(target, base)])
         continue
@@ -186,7 +237,8 @@ export function planCopy(input: CopyInput): CopyPlan {
       let out = ''
       let last = 0
       for (const ref of t.refs) {
-        if (ref.relative || !shipped.has(ref.path)) continue
+        const added = ref.entry !== undefined && addedMaterials.get(ref.path)?.has(ref.entry) === true
+        if (ref.relative || (!shipped.has(ref.path) && !added)) continue
         out += t.content.slice(last, ref.start) + prefix + ref.path
         last = ref.end
       }
@@ -208,5 +260,12 @@ export function planCopy(input: CopyInput): CopyPlan {
       files.push({ path: prefix + path, data: f.data, flag: f.flag })
     }
   }
+  for (const [path, names] of [...addedMaterials].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    const f = source.read(path)
+    if (f === null) continue
+    files.push({ path: prefix + path, data: encoder.encode(materialsFile(decoder.decode(f.data), names)), flag: 1 })
+    notes.push(`${prefix}${path}: ${[...names].sort().join(', ')} (materials AE's ${path} lacks)`)
+  }
+  files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
   return { files, keptAe: [...keptAe].sort(), notes, errors: [...new Set(errors)] }
 }

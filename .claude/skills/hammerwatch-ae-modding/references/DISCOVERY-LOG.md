@@ -1431,3 +1431,20 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
 - `[EMITTED]` A texture read from HW2's `res/assets.bin` is packed as is, under flag 3.
 - `[UNVERIFIED]` Everything above in game: spikes S1–S4, with ready-made scenarios
   `dungeon_11260001`…`004` (docs/discovery/hammerwatch-2-spikes.md), and checklist #136–#144.
+
+## 2026-11-26 — Hammerwatch 2 spikes, first play
+
+- `[VERIFIED]` `dungeon_11260001` loads, and an HW2 track plays from `hw2/music/music.sbnk` and
+  `.ogg` files packed raw inside the `.h1c` (S3, in part).
+- `[VERIFIED]` A unit whose material is missing, or which names an effect that isn't there,
+  stops loading with an ERROR box ("Couldn't find material system/default.mats:particle-storm",
+  "Couldn't find effect effects/particles/smoke/smoke_4.effect"); OK carries on. AE loads every
+  scene of a unit, so one dead reference in an unused scene still shows.
+- `[VERIFIED]` Effect paths take arguments after a `?`: `smoke_4.effect?scale=0.3` (AE's own
+  `particles_fire.unit` uses `?scale=`, `?size=`, `?radius=`, `?r=`, `?cr=`). The copier missed
+  these, so they were neither shipped nor rewritten; it reads them now.
+- `[VERIFIED]` HW2's `system/default.mats` has 11 materials AE's lacks (`particle`,
+  `particle-storm`, `footstep_particle`, `floor-footstep`, `fog_sewer`, …).
+- `[EMITTED]` A reference to one of them points at `hw2/system/default.mats`, which holds only
+  the HW2 materials the scenario uses; every other material stays on AE's file. That a `.mats`
+  outside `system/` loads is known (AE has `doodads/generic/generic.mats` and others).

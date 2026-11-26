@@ -27,6 +27,8 @@ export interface Ref {
   start: number
   end: number
   relative: boolean
+  /** the `:entry` after the path, when there is one (`system/default.mats:floor` → `floor`) */
+  entry?: string
 }
 
 const ASSET_EXT = /\.(?:unit|inc|png|effect|sval|tileset|env|mats|pfb|fbx|tif|tga|brush|sbnk|ogg|wav|gui|fnt|dds|jpg|txt)$/i
@@ -60,15 +62,22 @@ export function extractRefs(text: string): Ref[] {
     if (seg === undefined || seg === '') continue
     // the segment's offset in the text: past the opening quote or `>`, or found in the line
     const segStart = group === 3 ? m.index + m[0].lastIndexOf(seg) : m.index + 1
-    // a segment may chain pieces with `;` (icon args) or `:` (a .mats/.sbnk/.unit entry)
+    // a segment may chain pieces with `;` (icon args), `:` (a .mats/.sbnk/.unit
+    // entry) or `?` (effect arguments, `smoke_4.effect?scale=0.3`); the split
+    // keeps the separators, at the odd indexes
+    const parts = seg.split(/([;:?])/)
     let at = 0
-    for (const piece of seg.split(/[;:]/)) {
+    for (let i = 0; i < parts.length; i += 2) {
+      const piece = parts[i]
       const lead = piece.length - piece.trimStart().length
       const path = piece.trim()
       const start = segStart + at + lead
-      at += piece.length + 1
+      at += piece.length + (parts[i + 1]?.length ?? 0)
       if (path === '' || !ASSET_EXT.test(path) || path.startsWith('event')) continue
-      out.push({ path, start, end: start + path.length, relative: path.startsWith('./') || path.startsWith('../') })
+      const ref: Ref = { path, start, end: start + path.length, relative: path.startsWith('./') || path.startsWith('../') }
+      const entry = parts[i + 1] === ':' ? parts[i + 2]?.trim() : undefined
+      if (entry !== undefined && entry !== '') ref.entry = entry
+      out.push(ref)
     }
   }
   return out
