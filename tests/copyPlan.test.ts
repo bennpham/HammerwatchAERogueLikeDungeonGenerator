@@ -1,3 +1,4 @@
+import { inflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { extractRefs, resolveRelative } from '../src/main/custom/refs'
 import { planCopy } from '../src/main/custom/copyPlan'
@@ -36,6 +37,53 @@ function plan(source: Record<string, string | number[]>, roots: string[], extra:
     aeEvents: new Set(['event:/sfx/known']),
     ...extra
   })
+}
+
+/** An uncompressed little-endian TIFF the way HW2's TinyTIFFWriter lays one out: one strip, interleaved. */
+function layeredTiff(width: number, height: number, channels: number, pixels: number[]): Uint8Array {
+  const entries: Array<[tag: number, type: number, value: number]> = [
+    [256, 3, width],
+    [257, 3, height],
+    [258, 3, 8],
+    [259, 3, 1],
+    [262, 3, 2],
+    [273, 4, 0],
+    [277, 3, channels],
+    [284, 3, 1]
+  ]
+  const ifdSize = 2 + entries.length * 12 + 4
+  const data = 8 + ifdSize
+  const out = new Uint8Array(data + pixels.length)
+  const v = new DataView(out.buffer)
+  out.set([0x49, 0x49, 42, 0])
+  v.setUint32(4, 8, true)
+  v.setUint16(8, entries.length, true)
+  entries.forEach(([tag, type, value], i) => {
+    const e = 10 + i * 12
+    v.setUint16(e, tag, true)
+    v.setUint16(e + 2, type, true)
+    v.setUint32(e + 4, 1, true)
+    if (type === 3) v.setUint16(e + 8, value, true)
+    else v.setUint32(e + 8, tag === 273 ? data : value, true)
+  })
+  out.set(pixels, data)
+  return out
+}
+
+/** The RGBA bytes of an unfiltered PNG (encodePng's own output). */
+function pngPixels(png: Uint8Array): Uint8Array {
+  const v = new DataView(png.buffer, png.byteOffset, png.byteLength)
+  const width = v.getUint32(16)
+  const idat: Uint8Array[] = []
+  for (let at = 8; at < png.length; ) {
+    const len = v.getUint32(at)
+    if (dec.decode(png.subarray(at + 4, at + 8)) === 'IDAT') idat.push(png.subarray(at + 8, at + 8 + len))
+    at += 12 + len
+  }
+  const rows = inflateSync(Buffer.concat(idat))
+  const out: number[] = []
+  for (let at = 0; at < rows.length; at += width * 4 + 1) out.push(...rows.subarray(at + 1, at + 1 + width * 4))
+  return Uint8Array.from(out)
 }
 
 const textOf = (p: ReturnType<typeof plan>, path: string) => dec.decode(p.files.find((f) => f.path === path)!.data)
@@ -202,7 +250,43 @@ describe('planning a copy', () => {
     // a .png still comes plain from the extract; a .tif never does
     expect([...p.files.find((f) => f.path === 'hw2/a/troll/sheet.png')!.data]).toEqual([6])
     expect([...p.files.find((f) => f.path === 'hw2/a/lone.tif')!.data]).toEqual([5])
-    expect(p.notes).toContain("hw2/a/lone.tif: a layered .tif with no .png beside it; AE may not draw it")
+    expect(p.notes).toContain("hw2/a/lone.tif: no .png beside it and no unpacked sheet to bake one from; AE can't draw it")
+  })
+
+  it('bakes a .png from a layered .tif with none beside it, tinted by the unit that uses it', () => {
+    // 2×1 pixels, 5 channels: RGBA + one colorize mask. Pixel 0 is masked white, pixel 1 unmasked.
+    const sheet = layeredTiff(2, 1, 5, [255, 255, 255, 255, 255, 10, 20, 30, 255, 0])
+    const unit =
+      '<array name="colorize">\n\t<i>0</i><a><s>#000000ff</s><s>#808080ff</s><s>#ff0000ff</s></a>\n</array>\n' +
+      '<sprite texture="./wolf/wolf.tif"/>\n<sprite texture="a/wolf/wolf.tif"/>'
+    const p = plan({ 'a/wolf.unit': unit, 'a/wolf/wolf.tif': [1, 2, 3] }, ['hw2/a/wolf.unit'], { plain: mem({ 'a/wolf/wolf.tif': [...sheet] }) })
+    expect(p.files.map((f) => f.path)).toEqual(['hw2/a/wolf.unit', 'hw2/a/wolf/wolf.png'])
+    expect(textOf(p, 'hw2/a/wolf.unit')).toContain('<sprite texture="./wolf/wolf.png"/>\n<sprite texture="hw2/a/wolf/wolf.png"/>')
+    const png = p.files.find((f) => f.path === 'hw2/a/wolf/wolf.png')!.data
+    expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
+    // white under the mask takes the slot's light colour; the unmasked pixel keeps its own
+    expect([...pngPixels(png)]).toEqual([255, 0, 0, 255, 10, 20, 30, 255])
+  })
+
+  it("gives movement one speed, as AE's MeleeMovement reads", () => {
+    const p = plan(
+      {
+        'a/troll.unit':
+          '%replace MOVE_SPEED "1.7 2.0"\n%replace MOVE_WEB_SPEED "2.1 2.3"\n%replace MOVE_SPEED_PATROL 1.2\n' +
+          '<vec2 name="speed">%%SPEED%%</vec2>\n<vec2 name="speed">0.85 1.15</vec2>\n<vec2 name="jitter">1 2</vec2>'
+      },
+      ['hw2/a/troll.unit']
+    )
+    expect(textOf(p, 'hw2/a/troll.unit')).toBe(
+      '%replace MOVE_SPEED 1.85\n%replace MOVE_WEB_SPEED 2.2\n%replace MOVE_SPEED_PATROL 1.2\n' +
+        '<float name="speed">%%SPEED%%</float>\n<float name="speed">1</float>\n<vec2 name="jitter">1 2</vec2>'
+    )
+  })
+
+  it('ships the textures a model names, beside it', () => {
+    const fbx = [...enc.encode('\u0000\u0016crystal.png\u0000D:\\Projects\\HW2\\fx\\crystal.png\u0000')]
+    const p = plan({ 'fx/a.effect': '<mesh src="fx/m/crystal.fbx"/>', 'fx/m/crystal.fbx': fbx, 'fx/m/crystal.png': [7] }, ['hw2/fx/a.effect'])
+    expect(p.files.map((f) => f.path)).toEqual(['hw2/fx/a.effect', 'hw2/fx/m/crystal.fbx', 'hw2/fx/m/crystal.png'])
   })
 
   it('prefers plain textures, follows cycles once, and refuses roots it cannot find', () => {

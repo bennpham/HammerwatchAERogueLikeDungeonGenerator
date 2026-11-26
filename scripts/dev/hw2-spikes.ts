@@ -147,6 +147,13 @@ async function installScriptSpike(seed: number): Promise<void> {
   if (plan.errors.length > 0) throw new Error(plan.errors.join('; '))
   const script = sources.primary.read(SCRIPT)
   if (script === null) throw new Error(`HW2 has no ${SCRIPT}`)
+  // AE compiles a scenario's scripts with its own, and one error stops them all (the first
+  // play: no doors, pickups or monsters). DashStrike calls easeSineOut, a helper only HW2's
+  // scripts/Utils/Functions.as defines, so it ships beside it under a name AE doesn't use.
+  const fns = sources.primary.read('scripts/Utils/Functions.as')
+  const helper = fns === null ? null : /float easeSineOut\(float t\)\s*\{[^}]*\}/.exec(Buffer.from(fns.data).toString('utf8'))
+  if (helper === null) throw new Error("HW2's scripts/Utils/Functions.as has no easeSineOut")
+  const COMPAT = 'scripts/Hw2Compat.as'
   // the first floor: three monster actors become wolves, ids and spots kept
   // stem floor0 is written in play order as `NN_floor1.lvl`
   const floor = r.files.find((f) => /[/_]floor1\.lvl$/.test(f.path))!
@@ -157,7 +164,8 @@ async function installScriptSpike(seed: number): Promise<void> {
   const files: GeneratedFile[] = [
     ...r.files.map((f) => (f === floor ? { ...f, content: renderLevel(parsed) } : f)),
     ...plan.files.map((f) => ({ path: f.path, content: Buffer.from(f.data).toString('base64'), encoding: 'base64' as const })),
-    { path: SCRIPT, content: Buffer.from(script.data).toString('base64'), encoding: 'base64' }
+    { path: SCRIPT, content: Buffer.from(script.data).toString('base64'), encoding: 'base64' },
+    { path: COMPAT, content: `// Hammerwatch 2's own helpers that its scripts call and AE lacks\n${helper[0]}\n` }
   ]
   const result = await installScenario(AE, r.campaignName, files, false, r.assetOverrides)
   console.log(`${r.campaignName}: ${result.message}`)

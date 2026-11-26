@@ -23,6 +23,8 @@
 
 import { dirOf, extractRefs, isTextAsset, maskComments, resolveRelative } from './refs'
 import type { Ref } from './refs'
+import { bakeLayeredTif, encodePng, parseColorize, readLayeredTif } from './layeredTif'
+import type { LayeredTif } from './layeredTif'
 
 export interface CopySourceFile {
   flag: number
@@ -94,6 +96,40 @@ function pngOf(tif: string): string {
   return tif.slice(0, -4) + '.png'
 }
 
+/**
+ * HW2 gives a movement's `speed` as a range (`<vec2 name="speed">1.7 2.0</vec2>`, often
+ * through `%replace MOVE_SPEED "2.1 2.3"`); AE's MeleeMovement reads one float, and with a
+ * vec2 the monster doesn't move ("'speed' needs to be float"). The range becomes its middle.
+ */
+const VEC2_SPEED = /<vec2 name="speed">([^<]*)<\/vec2>/g
+const SPEED_RANGE = /^([ \t]*%replace[ \t]+\w*SPEED\w*[ \t]+)"(-?\d+(?:\.\d+)?)[ \t]+(-?\d+(?:\.\d+)?)"[ \t]*$/gm
+const RANGE = /^\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*$/
+
+function middle(a: string, b: string): string {
+  return String(Number(((Number(a) + Number(b)) / 2).toFixed(3)))
+}
+
+function singleSpeeds(text: string): string {
+  return text
+    .replace(VEC2_SPEED, (_, v: string) => {
+      const r = RANGE.exec(v)
+      return `<float name="speed">${r === null ? v : middle(r[1], r[2])}</float>`
+    })
+    .replace(SPEED_RANGE, (_, head: string, a: string, b: string) => head + middle(a, b))
+}
+
+/** The texture file names inside a binary `.fbx` (bare, resolved beside the model). */
+function fbxTextureNames(data: Uint8Array): string[] {
+  let text = ''
+  for (let i = 0; i < data.length; i++) text += String.fromCharCode(data[i])
+  const names = new Set<string>()
+  for (const m of text.matchAll(/[\w .-]+\.(?:png|tif|tga)/gi)) {
+    const name = m[0].trim()
+    if (name !== '') names.add(name)
+  }
+  return [...names].sort()
+}
+
 const MATERIAL_NAME =/<material name="([^"]+)"/g
 const MATERIAL_BLOCK = /<material name="([^"]+)"[^>]*>[\s\S]*?<\/material>/g
 
@@ -136,6 +172,18 @@ export function planCopy(input: CopyInput): CopyPlan {
   const visited = new Set<string>()
   /** `file\nrefStart` of each `.tif` reference that keeps its `.tif` (no `.png` beside it) */
   const keptTif = new Set<string>()
+  /** a `.png` baked from a layered `.tif` with none beside it → the sheet, and the root whose colorize tints it */
+  const baked = new Map<string, { tif: string; root: string }>()
+  /** each root unit's `colorize` slots, from the first text of its closure that has them */
+  const colorizeOf = new Map<string, Map<number, number[][]>>()
+  const layered = new Map<string, LayeredTif | null>()
+  const layeredOf = (path: string): LayeredTif | null => {
+    if (!layered.has(path)) {
+      const f = input.plain?.read(path) ?? source.read(path)
+      layered.set(path, f === null || f.flag !== 1 ? null : readLayeredTif(f.data))
+    }
+    return layered.get(path)!
+  }
   /** pinned `.mats` → the entries only the source has, shipped as a prefixed copy */
   const addedMaterials = new Map<string, Set<string>>()
   const matNames = new Map<string, { ae: Set<string>; source: Set<string> }>()
@@ -180,7 +228,7 @@ export function planCopy(input: CopyInput): CopyPlan {
   // phase 1: walk, deciding each file's fate. A text file is read once, but
   // its RELATIVE references depend on the unit including it, so a file is
   // visited once per base folder.
-  const queue: Array<[path: string, base: string]> = []
+  const queue: Array<[path: string, base: string, root: string]> = []
   for (const root of [...input.roots].sort()) {
     if (!root.startsWith(prefix)) {
       errors.push(`${root} is not under ${prefix}`)
@@ -192,10 +240,10 @@ export function planCopy(input: CopyInput): CopyPlan {
       continue
     }
     shipped.add(path)
-    queue.push([path, baseDirFor(path, dirOf(path))])
+    queue.push([path, baseDirFor(path, dirOf(path)), path])
   }
   while (queue.length > 0) {
-    const [path, base] = queue.shift()!
+    const [path, base, root] = queue.shift()!
     const key = `${path}\n${base}`
     if (visited.has(key)) continue
     visited.add(key)
@@ -203,9 +251,22 @@ export function planCopy(input: CopyInput): CopyPlan {
       errors.push(`more than ${MAX_COPY_FILES} files to copy; stopped`)
       break
     }
+    if (/\.fbx$/i.test(path)) {
+      // a model names its textures bare, found beside it; the binary isn't rewritten
+      const model = source.read(path)
+      for (const name of model === null ? [] : fbxTextureNames(model.data)) {
+        const target = resolveRelative(dirOf(path), name)
+        if (target !== null && source.has(target)) shipped.add(target)
+      }
+      continue
+    }
     if (!isTextAsset(path)) continue
     const t = readText(path)
     if (t === null) continue
+    if (!colorizeOf.has(root)) {
+      const slots = parseColorize(maskComments(t.content))
+      if (slots.size > 0) colorizeOf.set(root, slots)
+    }
     for (const ref of t.refs) {
       let target = ref.relative ? resolveRelative(base, ref.path) : ref.path
       if (target === null) {
@@ -216,13 +277,16 @@ export function planCopy(input: CopyInput): CopyPlan {
         // the colour sheet beside it draws in AE; without one, the sheet stays (compiled)
         const png = pngOf(target)
         if (source.has(png)) target = png
-        else keptTif.add(`${path}\n${ref.start}`)
+        else if (baked.has(png) || layeredOf(target) !== null) {
+          if (!baked.has(png)) baked.set(png, { tif: target, root })
+          continue
+        } else keptTif.add(`${path}\n${ref.start}`)
       }
       if (pinnedToAe(target) && target.endsWith('.mats') && ref.entry !== undefined && !ref.relative) {
         checkMaterial(path, target, ref.entry)
       }
       if (shipped.has(target) || keptAe.has(target) || missing.has(target)) {
-        if (shipped.has(target)) queue.push([target, baseDirFor(target, base)])
+        if (shipped.has(target)) queue.push([target, baseDirFor(target, base), root])
         continue
       }
       if (pinnedToAe(target)) {
@@ -244,7 +308,7 @@ export function planCopy(input: CopyInput): CopyPlan {
         }
       }
       shipped.add(target)
-      queue.push([target, baseDirFor(target, base)])
+      queue.push([target, baseDirFor(target, base), root])
     }
   }
   for (const m of [...missing].sort()) notes.push(`not in the source: ${m}`)
@@ -262,14 +326,14 @@ export function planCopy(input: CopyInput): CopyPlan {
         const swap = isTif(ref.path) && !keptTif.has(`${path}\n${ref.start}`)
         const written = swap ? pngOf(ref.path) : ref.path
         const added = ref.entry !== undefined && addedMaterials.get(written)?.has(ref.entry) === true
-        const prefixed = !ref.relative && (shipped.has(written) || added)
+        const prefixed = !ref.relative && (shipped.has(written) || baked.has(written) || added)
         if (!swap && !prefixed) continue
         out += t.content.slice(last, ref.start) + (prefixed ? prefix : '') + written
         last = ref.end
       }
       out += t.content.slice(last)
       if (path.endsWith('.unit') || path.endsWith('.inc')) {
-        out = out.replace(FOREIGN_PARAMS, '')
+        out = singleSpeeds(out.replace(FOREIGN_PARAMS, ''))
         out = out.replace(SOUND_EVENT, (e) => (input.aeEvents.has(e) ? e : ''))
         // a commented-out block is never loaded, so its classes aren't needed
         for (const m of maskComments(out).matchAll(CLASS_NAMES)) {
@@ -284,7 +348,8 @@ export function planCopy(input: CopyInput): CopyPlan {
       const plain = isTif(path) ? null : (input.plain?.read(path) ?? null)
       const f = plain ?? source.read(path)
       if (f === null) continue
-      if (isTif(path) && f.flag !== 3) notes.push(`${prefix}${path}: a layered .tif with no .png beside it; AE may not draw it`)
+      // HW2's compiled .tif is its own format (5), which AE's TIFFLoader refuses (the grey wolf)
+      if (isTif(path)) notes.push(`${prefix}${path}: no .png beside it and no unpacked sheet to bake one from; AE can't draw it`)
       files.push({ path: prefix + path, data: f.data, flag: f.flag })
     }
   }
@@ -293,6 +358,12 @@ export function planCopy(input: CopyInput): CopyPlan {
     if (f === null) continue
     files.push({ path: prefix + path, data: encoder.encode(materialsFile(decoder.decode(f.data), names)), flag: 1 })
     notes.push(`${prefix}${path}: ${[...names].sort().join(', ')} (materials AE's ${path} lacks)`)
+  }
+  for (const [png, { tif, root }] of [...baked].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    const sheet = layeredOf(tif)!
+    const slots = colorizeOf.get(root)
+    if (slots === undefined) notes.push(`${prefix}${png}: baked from ${tif} with no colorize (left grey)`)
+    files.push({ path: prefix + png, data: encodePng(sheet.width, sheet.height, bakeLayeredTif(sheet, slots ?? new Map())), flag: 1 })
   }
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
   return { files, keptAe: [...keptAe].sort(), notes, errors: [...new Set(errors)] }
