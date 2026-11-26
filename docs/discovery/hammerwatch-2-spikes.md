@@ -57,6 +57,15 @@ correctly, and the brutes throw their axes. Floors 2–3 and the other scenarios
   `.png` from the unpacked sheet and the wolf's colours instead).
 - `dungeon_11260003` (S4) loads; floor 2 of `dungeon_11260001` plays through.
 
+### No unpacking needed
+
+HW2's `PACKAGER.exe` made the `unpacked_assets_137` folder ("Extract base resources"), but the app
+doesn't need it: it reads HW2's tinted sprite sheets straight from `res/assets.bin`, which every
+install has. A scenario's files are then the same whether or not its maker unpacked HW2, on
+Windows or Linux. The folder only still helps a folder or zip export, which can't use the packed
+form of ordinary textures. Still to see in game: that `dungeon_11260003`'s art (packed textures)
+looks the same as `dungeon_11260001`'s.
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor

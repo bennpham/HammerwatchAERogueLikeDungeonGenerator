@@ -1495,3 +1495,17 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   `.tif` sheets were already swapped for `.png`, so compiled `.png` files draw (S4, in part).
 - `[VERIFIED]` `dungeon_11260001` floor 2 shows the blight ice crystal error once and then plays
   through.
+- `[VERIFIED]` HW2's `PACKAGER.exe` writes `unpacked_assets_<build>` ("Extract base resources"); its
+  `.tif` sheets are rebuilt from the packed form, which holds all of it. A packed `.tif` in HW2's
+  `assets.bin`: header `width, height, slots` (u32 LE; the "format byte" read earlier is the slot
+  count: troll 6, wolf 5, the eye of confusion 2), then 4 bytes a pixel. The last byte's top bit
+  marks a tinted pixel and its low 7 bits are alpha / 2 (127 opaque); a tinted pixel is
+  `(tone, slot, 0, ·)` with the tone in linear light, a plain one its RGB in linear light. Read
+  against the unpacked troll and wolf sheets, including the beetles', boars' and spiders' partly
+  transparent pixels.
+- `[EMITTED]` The copy reads tinted sheets from the pack itself, never the extract, so a scenario
+  is the same whether or not its maker unpacked HW2; the packed and unpacked troll and wolf bake
+  within 2 levels of each other (tests/copyPlan.test.ts).
+- `[VERIFIED]` A packed `.png` (in either game's `assets.bin`) is the engine's own compressed
+  form: header `width, height, 0xffffffff, 4`, then data that isn't zlib. AE reads HW2's as its
+  own, so an install packs them as they are; only a folder or zip export needs plain PNGs.
