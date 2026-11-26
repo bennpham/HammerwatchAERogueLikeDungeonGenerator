@@ -56,6 +56,9 @@ export interface H1c {
 export const H1C_MAGIC = 'HW1S'
 export const ASSETS_MAGIC = 'HW1R'
 
+/** Hammerwatch 2's `res/assets.bin`: the same layout under its own magic. */
+export const HW2_ASSETS_MAGIC = 'HW2R'
+
 /** flag of an entry whose data lives outside the pack (assets.bin's sound banks) */
 export const EXTERNAL_FLAG = 0xff
 const EXTERNAL_SIZE = 0xffffffff
@@ -136,11 +139,12 @@ export function entryData(entry: PackEntry, readAt: ReadAt): Uint8Array {
 /**
  * The file table of an `HW1R` pack (`res/assets.bin`), read entry by entry
  * through `readAt` so the 60+ MB pack never has to be in memory. `size` is
- * the pack's length; the walk must end exactly there.
+ * the pack's length; the walk must end exactly there. `magic` is AE's by
+ * default; Hammerwatch 2's pack is the same layout under `HW2R`.
  */
-export function readHw1rIndex(readAt: ReadAt, size: number): Map<string, PackEntry> {
+export function readHw1rIndex(readAt: ReadAt, size: number, magic: string = ASSETS_MAGIC): Map<string, PackEntry> {
   const head = readAt(0, 17)
-  if (new TextDecoder().decode(head.subarray(0, 4)) !== ASSETS_MAGIC) throw new Error('assets: no HW1R header')
+  if (new TextDecoder().decode(head.subarray(0, 4)) !== magic) throw new Error(`assets: no ${magic} header`)
   const count = u32Of(head, 13)
   const entries = new Map<string, PackEntry>()
   let o = 17

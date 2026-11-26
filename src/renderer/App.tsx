@@ -34,7 +34,7 @@ interface Toast {
 
 export function App() {
   const [params, setParams] = useState<DungeonParameters>(defaultParameters)
-  const [settings, setSettings] = useState<AppSettings>({ hammerwatchPath: '', cleanupFiles: true, writeDescription: false })
+  const [settings, setSettings] = useState<AppSettings>({ hammerwatchPath: '', cleanupFiles: true, writeDescription: false, hw2Path: '' })
   const [seedInput, setSeedInput] = useState('')
   const [busy, setBusy] = useState(false)
   /** a generation is running in main's worker; the Generate button turns into Cancel */

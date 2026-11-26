@@ -7,7 +7,8 @@ import { findAeInstall } from './packer'
 const DEFAULT_SETTINGS: AppSettings = {
   hammerwatchPath: '',
   cleanupFiles: true,
-  writeDescription: false
+  writeDescription: false,
+  hw2Path: ''
 }
 
 function settingsPath(): string {

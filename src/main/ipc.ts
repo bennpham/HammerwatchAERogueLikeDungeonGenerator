@@ -35,6 +35,9 @@ import { isProviderId } from '../shared/llm/providers'
 import type { ChatMessage, LlmChatRequest, LlmChatResult, LlmKeyResult, LlmModelsResult, LlmProviderId, LlmSettings } from '../shared/llm/types'
 import { cancelChat, chatCompletion, checkBaseUrl, endpointFor, listModels } from './llm/client'
 import * as llmStore from './llm/store'
+import { detectHw2 } from './custom/hw2/detect'
+import type { ContentSource } from '../generator/custom/sources'
+import type { Hw2Status } from '../shared/ipc'
 
 /** The last successful generation, kept in main so exports don't re-send MBs over IPC. */
 let lastResult: DungeonResult | null = null
@@ -52,8 +55,9 @@ const CANCELLED = 'Generation cancelled.'
  */
 function generateInWorker(params: DungeonParameters, seed?: number): Promise<DungeonResult | DungeonError> {
   running?.cancel()
+  const sources = loadedSources()
   return new Promise((resolve) => {
-    const worker = new Worker(generateWorkerPath, { workerData: { params, seed } })
+    const worker = new Worker(generateWorkerPath, { workerData: { params, seed, sources } })
     let settled = false
     const settle = (result: DungeonResult | DungeonError) => {
       if (settled) return
@@ -72,6 +76,20 @@ function generateInWorker(params: DungeonParameters, seed?: number): Promise<Dun
       }
     }
   })
+}
+
+/** The Hammerwatch 2 folder's status, or null when none is set. */
+function hw2Status(): Hw2Status | null {
+  const dir = loadSettings().hw2Path
+  return dir === '' ? null : detectHw2(dir)
+}
+
+/**
+ * The custom sources this run may use (generator/custom/sources.ts): HW2 when
+ * its folder is set and usable. Generation only validates against them.
+ */
+function loadedSources(): ContentSource[] {
+  return hw2Status()?.ok === true ? ['hw2'] : []
 }
 
 /** The description text when the setting asks for one, else undefined. */
@@ -109,10 +127,11 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
         params: parsed.params,
         settings,
         paramsSource: 'parameters.txt override',
-        unknownKeys: parsed.unknownKeys
+        unknownKeys: parsed.unknownKeys,
+        custom: { hw2: hw2Status() }
       }
     }
-    return { params: defaultParameters(), settings, paramsSource: 'defaults', unknownKeys: [] }
+    return { params: defaultParameters(), settings, paramsSource: 'defaults', unknownKeys: [], custom: { hw2: hw2Status() } }
   })
 
   ipcMain.handle('dungeon:generate', async (_event, params: DungeonParameters, seed?: number) => {
@@ -261,6 +280,26 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
   ipcMain.handle('settings:save', (_event, settings: AppSettings) => {
     saveSettings(settings)
   })
+
+  // Load custom (experimental): the Hammerwatch 2 folder is kept even when
+  // it isn't usable yet, so the dialog can show why
+  const setHw2 = (dir: string): Hw2Status | null => {
+    saveSettings({ ...loadSettings(), hw2Path: dir })
+    return dir === '' ? null : detectHw2(dir)
+  }
+
+  ipcMain.handle('custom:pick-hw2-path', async (): Promise<Hw2Status | null> => {
+    const window = getWindow()
+    if (!window) return null
+    const picked = await dialog.showOpenDialog(window, {
+      title: 'Select your Hammerwatch 2 install folder (the one with HW2.exe)',
+      properties: ['openDirectory']
+    })
+    if (picked.canceled || picked.filePaths.length === 0) return null
+    return setHw2(picked.filePaths[0])
+  })
+
+  ipcMain.handle('custom:set-hw2-path', (_event, dir: unknown): Hw2Status | null => setHw2(typeof dir === 'string' ? dir : ''))
 
   ipcMain.handle('params:import', async (): Promise<ImportParamsResult | null> => {
     const window = getWindow()
