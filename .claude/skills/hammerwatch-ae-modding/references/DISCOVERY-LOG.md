@@ -1571,3 +1571,10 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
 - `[VERIFIED]` HW2's `boss_dace_arden.inc` line 100 has
   `%include "actors/bosses/dace_arden/_boss_dace_arden_states.inc`, with no closing quote. HW2
   reads it; the copy now does too. That's Dace Arden's state machine.
+- `[VERIFIED]` Sinkage killed on a dungeon floor (`dungeon_11260005`); the party went on to the next
+  floor. Two leftovers:
+  - His death trigger runs HW2's `SpawnLoot` on HW2's loot table `boss_sinkage`. AE has no such
+    table: "Script exception: Null pointer access" in AE's `SpawnLoot.as` line 39, and "Unable to
+    spawn loot table: boss_sinkage" from `sinkage_loot.pfb`. Nothing drops; the game goes on.
+  - No health or damage numbers above him: HW2 boss units set `hide-health` (AE's bosses do too:
+    Anubis, the dragon). AE's bosses show health in a `CreateBossBar`, which a floor doesn't make.

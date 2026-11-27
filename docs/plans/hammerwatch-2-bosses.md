@@ -144,7 +144,11 @@ Each step is a commit (or a few), each passing the gate.
      language keys aren't in AE) and `mobile`. They sit in a "Hammerwatch 2" group of the boss
      picker. Unloaded, they aren't offered, and an imported `hw2_` boss is an inline error.
    - The boss bar is our own `CreateBossBar` node, as for AE bosses: AE ignores HW2's
-     `bossbar` block.
+     `bossbar` block. HW2 bosses set `hide-health`, as AE's do, so the bar is the only place
+     their health shows (S5: Sinkage on a floor had none).
+   - Loot: HW2 bosses drop from HW2 loot tables AE lacks (Sinkage's death runs `SpawnLoot` on
+     `boss_sinkage`: a script error and nothing dropped, S5). The copy takes their HW2 loot
+     actions out, and the arena's own reward stands in, as for AE bosses.
    - They stay off dungeon floors at first (Arena tab only, as asked); floors can follow once
      the play checks show which bosses chase.
    - **Spike S6:** you play an arena with him. Does he fight, take damage, die and open the exit?
