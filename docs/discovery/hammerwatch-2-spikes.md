@@ -157,6 +157,17 @@ strings, not array": HW2 writes a tag condition `tag has <tags>`, AE `tag <tags>
 writes AE's form. `dungeon_11260007` is reinstalled without the two of them, as asked: Dace
 Arden, Judge Supreme, Blight, Doombringer, Barrington, Archibald.
 
+**Second play:** Dace Arden killed; Judge Supreme fights and can be hurt (not fought to the end).
+The four likely to stall now get a scenario each, so one that can't be killed doesn't block the
+others, each arena right after the first lobby:
+
+| Scenario | Boss |
+|---|---|
+| `dungeon_11260007` | Blight the Horrible |
+| `dungeon_11260008` | Doombringer |
+| `dungeon_11260009` | Barrington |
+| `dungeon_11260010` | Archibald Steelwill (only his own unit: his formations come from his HW2 arena) |
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor
