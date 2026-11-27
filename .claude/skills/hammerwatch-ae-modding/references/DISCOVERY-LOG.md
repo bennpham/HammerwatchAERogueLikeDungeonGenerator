@@ -1585,3 +1585,8 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
 - `[EMITTED]` The copy removes every `SpawnLoot` action from carried units whole. Stripping only
   its `loot` line (as for `team`/`gore`) is what made AE's `SpawnLoot` dereference a missing table.
   A loot `.pfb`'s `SpawnLoot` WorldScript stays; it only logs "Unable to spawn loot table".
+- `[VERIFIED]` S6 (`dungeon_11260006`): an HW2 boss in the generated arena works. Our `CreateBossBar`
+  with the plain name "Commodore Sinkage" shows it as written (`Resources::GetString` leaves a
+  string that isn't a key alone) and tracks his health. He fights without getting stuck with no HW2
+  arena answering his events, and dies with no error box. AE's own end bosses carry no loot actions
+  either (no `SpawnLoot` in their units): an arena's loot is its waves' pickups.

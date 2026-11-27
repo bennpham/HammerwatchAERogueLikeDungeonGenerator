@@ -86,7 +86,8 @@ const FOREIGN_PARAMS = /[ \t]*<string name="(?:team|loot|gore)">[^<]*<\/string>[
  * A `SpawnLoot` action, whole. Its `loot` names one of the other game's loot
  * tables, which AE lacks; with that line stripped, AE's SpawnLoot dereferences
  * a missing table (Sinkage's death: "Null pointer access" in SpawnLoot.as).
- * The arena's own reward stands in. Its dict holds only strings, so the first
+ * AE's own end bosses drop nothing themselves either: an arena's loot is the
+ * pickups its waves are set to. Its dict holds only strings, so the first
  * `</dict>` closes it.
  */
 const SPAWN_LOOT = /[ \t]*<dict>\s*<string name="class">SpawnLoot<\/string>[\s\S]*?<\/dict>[ \t]*\r?\n?/g

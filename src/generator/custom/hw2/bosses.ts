@@ -5,8 +5,9 @@
  * which answer the events they raise (Sinkage's cannons, Barrington's levers),
  * aren't ported: a fight that stalls without its set piece is the cue to port
  * one. The copy carries each boss's HW2 script classes (src/main/custom/
- * scriptPlan.ts) and takes out its HW2 loot actions, so the arena's own reward
- * stands in, as for AE bosses.
+ * scriptPlan.ts) and takes out its HW2 loot actions (AE lacks HW2's loot
+ * tables). Like AE's own end bosses, they then drop nothing themselves: an
+ * arena's loot is the pickups its waves are set to.
  *
  * Like AE's bosses they set `hide-health`, so their health shows only in our
  * `CreateBossBar`. HW2 names them by language keys AE doesn't have, so the bar

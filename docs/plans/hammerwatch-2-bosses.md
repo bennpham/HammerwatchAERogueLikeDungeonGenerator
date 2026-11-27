@@ -138,8 +138,9 @@ Each step is a commit (or a few), each passing the gate.
    You start it; I read `HW1A.exe.log` and fix each compile error with a shim or a rewrite rule.
    Repeat until clean. One compile error stops every script, so this comes before any boss
    reaches a campaign.
-3. **Pilot boss: Commodore Sinkage.** *Built 2026-11-26 (`custom/hw2/bosses.ts`); S6 installed as
-   `dungeon_11260006`.*
+3. **Pilot boss: Commodore Sinkage.** *Done 2026-11-26 (`custom/hw2/bosses.ts`); S6 confirmed in
+   game (`dungeon_11260006`): the bar shows his name and health, he fights without getting
+   stuck, and he dies cleanly and opens the exit.*
    - Generator: HW2 bosses appended to `BOSS_IDS`/`BOSS_DEFS` (`hw2_sinkage` …). Each has
      `source: 'hw2'`, its unit, a footprint read from its collision, a plain bar name (HW2's
      language keys aren't in AE) and `mobile`. They sit in a "Hammerwatch 2" group of the boss
@@ -149,7 +150,8 @@ Each step is a commit (or a few), each passing the gate.
      their health shows (S5: Sinkage on a floor had none).
    - Loot: HW2 bosses drop from HW2 loot tables AE lacks (Sinkage's death runs `SpawnLoot` on
      `boss_sinkage`: a script error and nothing dropped, S5). The copy takes their HW2 loot
-     actions out, and the arena's own reward stands in, as for AE bosses.
+     actions out. Like AE's own end bosses, they then drop nothing themselves: an arena's
+     loot is the pickups its waves are set to.
    - They stay off dungeon floors at first (Arena tab only, as asked); floors can follow once
      the play checks show which bosses chase.
    - **Spike S6:** you play an arena with him. Does he fight, take damage, die and open the exit?

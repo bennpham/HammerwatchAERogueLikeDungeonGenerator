@@ -123,7 +123,11 @@ Sinkage") and the arena's own reward. HW2's loot actions are taken out of his un
 - the boss bar shows his name and his health, and drops as you hit him;
 - he fights: what does he do, and does anything look stuck? His HW2 arena's cannons aren't
   there, since his own arena isn't ported;
-- he dies with no error box, the arena's reward appears, and the exit opens.
+- he dies with no error box, and the exit opens.
+
+**CONFIRMED (2026-11-26):** the bar reads "Commodore Sinkage" and tracks his health, he fights
+without getting stuck, and he dies with no error box and opens the exit. He drops nothing himself,
+as AE's own end bosses don't: an arena's loot is the pickups its waves are set to.
 
 ## S1: files under a top-level `hw2/` folder
 
