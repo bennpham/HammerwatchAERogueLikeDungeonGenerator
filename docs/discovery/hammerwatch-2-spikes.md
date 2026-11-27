@@ -129,6 +129,27 @@ Sinkage") and the arena's own reward. HW2's loot actions are taken out of his un
 without getting stuck, and he dies with no error box and opens the exit. He drops nothing himself,
 as AE's own end bosses don't: an arena's loot is the pickups its waves are set to.
 
+## S7: the other eight HW2 bosses (installed 2026-11-26)
+
+**Setup:** `dungeon_11260007`, a maxed stock campaign: the first lobby, then one generated arena
+per boss, then the usual floors. A boss that stalls keeps its arena's exit shut, so the four
+with no arena-gated immortal phase come first:
+
+| Arena | Boss | What to expect without his HW2 arena |
+|---|---|---|
+| 1 | Shock Widow | Should fight normally. |
+| 2 | Malgar | Should fight; his glyphs are immortal by design. |
+| 3 | Dace Arden | Should fight; his lanterns and skeleton spawns aren't there. |
+| 4 | Judge Supreme | Should fight; his laser pillars and throne aren't there. |
+| 5 | Blight the Horrible | May stall: he starts immortal, meditating, until his arena raises an event. |
+| 6 | Doombringer | May stall: immortal in his intro until his arena sets `doombringer_introduced`; his arena also lands him. |
+| 7 | Barrington | May stall: he vanishes until his arena's levers bring him out. |
+| 8 | Archibald Steelwill | May stall: he yields while the formations his arena spawns fight. |
+
+**Check, for each:** the bar shows his name and health; he fights; he can be hurt and killed;
+no error box; the exit opens. If one can't be killed, note what he does, quit, and tell me:
+that boss's HW2 arena gets ported (plan step 5).
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor

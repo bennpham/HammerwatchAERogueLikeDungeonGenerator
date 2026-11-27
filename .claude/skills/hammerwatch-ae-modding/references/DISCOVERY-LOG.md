@@ -1590,3 +1590,16 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   string that isn't a key alone) and tracks his health. He fights without getting stuck with no HW2
   arena answering his events, and dies with no error box. AE's own end bosses carry no loot actions
   either (no `SpawnLoot` in their units): an arena's loot is its waves' pickups.
+- `[EMITTED]` All nine HW2 bosses are Arena-tab bosses (custom/hw2/bosses.ts). Every copy is clean
+  (no broken reference, no `SpawnLoot` left, XML still balanced where loot was removed).
+- `[VERIFIED]` (reading the units) Which HW2 bosses their own arena gates, through immortal
+  states and flags only the arena sets:
+  - Blight's `state_start` is immortal (meditating) until an arena event;
+  - Doombringer's `state_intro` is immortal until `doombringer_introduced`, which only
+    `_boss_doombringer_repeat.lvl` sets, and his landing is the arena's too;
+  - Barrington's `state_vanish`/`state_waiting` are immortal on his own `vanish` flag, which his
+    arena's levers end;
+  - Archibald (`boss_brother`) is immortal in `state_start` and `state_waypoints`, yielding while his
+    arena's formations fight.
+  Shock Widow, Malgar (only his glyphs), Dace Arden and Judge Supreme have none.
+  [UNVERIFIED] in game: S7, `dungeon_11260007`.

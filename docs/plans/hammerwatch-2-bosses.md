@@ -156,7 +156,9 @@ Each step is a commit (or a few), each passing the gate.
      the play checks show which bosses chase.
    - **Spike S6:** you play an arena with him. Does he fight, take damage, die and open the exit?
      And what's missing without his cannons?
-4. **The rest, easiest first:** Shock Widow, Malgar, Blight, Doombringer, Dace Arden, Judge
+4. **The rest, easiest first.** *Built 2026-11-26, all eight at once as asked; S7 installed as
+   `dungeon_11260007`. Blight, Doombringer, Barrington and Archibald are likely to stall
+   without their HW2 arenas (see `custom/hw2/bosses.ts`).* Shock Widow, Malgar, Blight, Doombringer, Dace Arden, Judge
    Supreme, Barrington, then Archibald. Each is a commit plus a play check on the boot
    checklist.
 5. **Only if a fight goes wrong: port its HW2 arena.** `readLevel` the HW2 arena, prefix every
