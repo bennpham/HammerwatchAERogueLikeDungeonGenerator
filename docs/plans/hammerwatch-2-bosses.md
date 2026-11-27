@@ -9,7 +9,7 @@ the Arena tab. They show only while Hammerwatch 2 is loaded, like the rest of th
 
 ### The bosses depend on their arenas
 
-The first thing to settle: an HW2 boss isn't a unit you can drop into any room. Each one
+Most HW2 bosses are built around their own arena. Each one
 raises global events and sets flags as it fights, and its arena level (HW2's
 `levels/boss_repeat/_boss_*_repeat.lvl`) reacts to them. Some examples:
 - **Barrington** hides between rooms (flags `room_1`–`room_4`, `vanish`), and you work four
@@ -26,8 +26,8 @@ raises global events and sets flags as it fights, and its arena level (HW2's
 - **Blight, Malgar and Shock Widow** have the fewest set pieces, but they still raise events
   (`hellcubes_destroyed`, `max_glyphs`, `lay_eggs`).
 
-The arenas also spawn the boss themselves. None of the nine arenas places its boss unit; their
-scripts do it. In our generated arenas, most of these fights would stall or break.
+The arenas also spawn the boss themselves: none of the nine places its boss unit, their scripts
+do. In our generated arena we place the boss, and nothing answers its events. See Approach.
 
 | Boss | Script classes AE lacks | Arena script nodes | Arena scripts AE lacks | Copy |
 |---|---|---|---|---|
@@ -86,19 +86,33 @@ AE's own: our press-F exit replaces `AllPlayersLevelExit`, and `PlaySound` cover
 - **Silence.** As with the monsters, HW2's boss sounds are FMOD events AE mostly lacks, so the
   bosses are quiet.
 
+## Decisions (2026-11-26)
+
+- **Arenas: our generated arenas.** HW2 bosses fight in the Arena tab's usual generated arena,
+  like AE's bosses. Porting HW2's own arena levels waits, and only happens if fights go wrong
+  without them.
+- **Health:** HW2's own boss HP, unchanged.
+- **Archibald:** included, last.
+- **Order:** Commodore Sinkage is the pilot, then the rest easiest first.
+- **Later, not part of this plan:** with the HW2 Endgame player presets, let players upgrade
+  damage, armor, mana, health and so on up to level 99 or 255. Not combos: too many
+  projectiles lag the game.
+
 ## Approach
 
-**Recommended:** each HW2 boss fights in a port of its own HW2 arena, which is a fixed level.
-Our generated arena can't stand in for it.
+Each HW2 boss is a boss of the generated arena, like an AE boss. It comes with its whole unit
+closure and the HW2 script classes it needs, shipped in the scenario.
 
-That's the only way most fights work as designed, and it keeps the port mechanical: the same
-copy and rewrite rules as for themes and monsters, applied to a level. The trade-off is that
-HW2 arenas don't take the generated-arena options (arena pattern, waves, traps, cover, several
-bosses at once). Validation says so rather than silently dropping them.
+What won't happen in a generated arena is whatever the boss's HW2 arena did in answer to its
+events and flags: Barrington's levers, Sinkage's cannons, Judge Supreme's pillars,
+Doombringer's lightning buildings, Dace Arden's lanterns and skeletons, Archibald's formations.
+The boss still raises those events, and nothing answers them. Each boss's play check (S6 for the
+pilot, a checklist row for each one after) shows whether its fight still works. Two outcomes
+mean a port of its HW2 arena: a boss that stalls (it waits for an arena event to change phase,
+or never becomes hittable), and a fight that makes no sense without its set piece.
 
-A later step can test which bosses also work standing alone in a generated arena. Blight,
-Malgar and Shock Widow are the likeliest, so the generated arena would be an option per boss,
-not the default.
+Archibald is the likeliest to need more than the arena gives: in HW2 he yields at 100,000 HP
+while his formations fight. That's why he's last.
 
 ## Steps
 
@@ -109,50 +123,38 @@ Each step is a commit (or a few), each passing the gate.
      of that path and none of its names, otherwise just the class or function cut out of it.
    - Helpers are found by name, transitively, but never by following into a file AE has (so
      `Functions.as` never comes whole).
-   - Shipped scripts never replace an AE file. They live at their HW2 path, or under
-     `scripts/hw2/` if spike S5 shows a sub-folder compiles too.
+   - Shipped scripts never replace an AE file.
    - Text rewrites for known API differences are data-driven rules with tests, like the speed
      rule.
    - Tested on fakes, and against the install: the 11 boss classes plan to 9 files plus 2
      symbols, with no name AE declares.
    - Monsters use the same path, which is how the wider HW2 roster (wolves, wasps, boars, the
      empire, the archons…) comes over afterwards.
-2. **Spike S5: everything compiles.** One test scenario ships all 9 files, the cut symbols and
-   the 7 arena script types. You start it; I read `HW1A.exe.log` and fix each compile error with
-   a shim or a rewrite rule. Repeat until clean. One compile error stops every script, so this
-   comes before any boss reaches a campaign.
-3. **Porting an arena.** `readLevel` the HW2 arena, then:
-   - prefix every unit, tileset and environment path with `hw2/`, including script parameters
-     that name assets (a `SpawnUnit`'s unit);
-   - make its closure the copy's roots;
-   - replace its exits with our press-F exit and reward;
-   - add our `CreateBossBar` on the boss;
-   - keep its own boss spawn and phase scripts;
-   - set the music from our music rig (HW2's boss track by default).
-
-   The level stays HW2's own file, read from the user's install at install time. The repo stores
-   only paths and the rewrite rules.
-4. **Pilot boss: Commodore Sinkage.** His arena needs no arena script type AE lacks, and his
-   unit needs just `CompositeActorUtilitySkill` plus `DashStrike`, which already compiles.
-   - Generator: an `HW2_BOSSES` list (`hw2_sinkage` …) with `source: 'hw2'`, its arena level, a
-     bar name and an HP setting, in a "Hammerwatch 2" group of the boss picker. Unloaded, it
-     isn't offered, and an imported `hw2_` boss is an inline error (as `hw2_` themes are).
-   - Validation: an HW2 boss fights alone, in its own arena, and never on a dungeon floor.
-   - **Spike S6:** you play his arena: he spawns, the cannons fire, he dies, and the exit opens.
-5. **The rest, easiest first:** Shock Widow, Malgar, Blight, Doombringer, Dace Arden, Judge
-   Supreme, Barrington, then Archibald (a formation fight against a boss who yields). Each is a
-   commit plus a play check on the boot checklist.
-6. **Later, optional:** which bosses also stand alone in a generated arena; HW2 boss sounds
-   (with the monster sounds, as an `hw2/sounds/sounds.sbnk`).
-
-## Questions for you
-
-1. **HW2 arenas, as recommended?** The other option is our generated arenas, accepting that
-   most fights' set pieces won't happen.
-2. **Health:** keep HW2's boss HP as is, or scale it? HW2 bosses are tuned for HW2 characters
-   (the Endgame preset is the nearest match). A per-boss HP multiplier would be a new setting.
-3. **Archibald:** include his formation fight, or leave him out?
-4. **Order:** start with Sinkage as the pilot, then the rest easiest first?
+2. **Spike S5: everything compiles.** One test scenario ships all 9 files and the cut symbols.
+   You start it; I read `HW1A.exe.log` and fix each compile error with a shim or a rewrite rule.
+   Repeat until clean. One compile error stops every script, so this comes before any boss
+   reaches a campaign.
+3. **Pilot boss: Commodore Sinkage.**
+   - Generator: HW2 bosses appended to `BOSS_IDS`/`BOSS_DEFS` (`hw2_sinkage` …). Each has
+     `source: 'hw2'`, its unit, a footprint read from its collision, a plain bar name (HW2's
+     language keys aren't in AE) and `mobile`. They sit in a "Hammerwatch 2" group of the boss
+     picker. Unloaded, they aren't offered, and an imported `hw2_` boss is an inline error.
+   - The boss bar is our own `CreateBossBar` node, as for AE bosses: AE ignores HW2's
+     `bossbar` block.
+   - They stay off dungeon floors at first (Arena tab only, as asked); floors can follow once
+     the play checks show which bosses chase.
+   - **Spike S6:** you play an arena with him. Does he fight, take damage, die and open the exit?
+     And what's missing without his cannons?
+4. **The rest, easiest first:** Shock Widow, Malgar, Blight, Doombringer, Dace Arden, Judge
+   Supreme, Barrington, then Archibald. Each is a commit plus a play check on the boot
+   checklist.
+5. **Only if a fight goes wrong: port its HW2 arena.** `readLevel` the HW2 arena, prefix every
+   asset path (script parameters included), make its closure the copy's roots, replace its exits
+   with ours, and add our boss bar and music. It also needs the arena script types AE lacks
+   (`AllPlayersLevelExit`, `CheckAssetDefinie`, `GameTimedScriptLink`, `OpenPopupWindow`,
+   `PlaySoundTracked`, `SetBossBarPortrait`, `SpawnEffectParams`): shipped, or swapped for AE's
+   own.
+6. **Later, optional:** HW2 boss sounds (with the monster sounds, as an `hw2/sounds/sounds.sbnk`).
 
 ## Risks
 
@@ -161,7 +163,9 @@ Each step is a commit (or a few), each passing the gate.
   S5 covering every boss class at once.
 - **Shared class names with different parameters**, as with movement speed. Each boss needs a
   play check, and the copy's rewrite rules grow as each one is found.
-- **Size.** Doombringer's unit closure alone is 8.3 MB, and arenas add more. A campaign with
-  several HW2 bosses could ship 20–40 MB.
+- **Size.** Doombringer's unit closure alone is 8.3 MB. A campaign with several HW2 bosses
+  could ship 10–30 MB.
+- **Bosses that wait on their arena.** A generated arena doesn't answer the boss's events, so a
+  boss may never change phase. Step 5 is the fallback.
 - **Network messages in `ChainAction`.** They may need registering for co-op; single-player
   first.
