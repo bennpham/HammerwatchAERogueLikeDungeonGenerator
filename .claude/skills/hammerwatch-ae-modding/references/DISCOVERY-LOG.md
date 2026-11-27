@@ -1558,3 +1558,16 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
 - `[EMITTED]` Data-driven script patches (src/main/custom/hw2/scriptPatches.ts): find a short
   text in one carried file, optionally after an anchor, and replace it. A patch that no longer
   matches a carried file is an error, since the file would then fail to compile.
+- `[VERIFIED]` **S5 confirmed:** `dungeon_11260005` loads with every HW2 boss's scripts (8 files,
+  `Hw2Compat.as`, `override` dropped, 3 patches), and Commodore Sinkage fights on floor 1. With
+  no `CreateBossBar` on a dungeon floor, he has no health bar (HW2's `bossbar` block is ignored).
+- `[VERIFIED]` HW2's pack holds every `.pfb` (1,033) as binary SVAL (flag 3); every other text
+  type is plain. Shipped as if it were text, Sinkage's `sinkage_loot.pfb` read as garbage in AE
+  ("PrefabLoader: XML error! expected <"), when he hit the party. `binarySvalToText` reads 814
+  of them; the 219 it can't are `prefabs/__levels/…` pieces with a value type 0x66 it doesn't
+  know yet.
+- `[EMITTED]` A compiled text asset is decoded to text before its paths are followed and
+  rewritten (falling back to the extract's copy, else left out with a note).
+- `[VERIFIED]` HW2's `boss_dace_arden.inc` line 100 has
+  `%include "actors/bosses/dace_arden/_boss_dace_arden_states.inc`, with no closing quote. HW2
+  reads it; the copy now does too. That's Dace Arden's state machine.

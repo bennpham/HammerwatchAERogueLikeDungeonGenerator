@@ -133,7 +133,8 @@ Each step is a commit (or a few), each passing the gate.
      symbols, with no name AE declares.
    - Monsters use the same path, which is how the wider HW2 roster (wolves, wasps, boars, the
      empire, the archons…) comes over afterwards.
-2. **Spike S5: everything compiles.** *Installed 2026-11-26 as `dungeon_11260005`.* One test scenario ships all 9 files and the cut symbols.
+2. **Spike S5: everything compiles.** *Confirmed 2026-11-26 (`dungeon_11260005`), after
+   dropping `override` and three patches (src/main/custom/hw2/scriptPatches.ts).* One test scenario ships all 9 files and the cut symbols.
    You start it; I read `HW1A.exe.log` and fix each compile error with a shim or a rewrite rule.
    Repeat until clean. One compile error stops every script, so this comes before any boss
    reaches a campaign.

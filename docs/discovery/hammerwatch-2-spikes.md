@@ -107,6 +107,11 @@ compile errors where HW2's scripts call AE's differently, all in Blight's two cl
 (`EnemyOwnedActor`, `SteeringMovement`). Each became a patch (src/main/custom/hw2/scriptPatches.ts).
 Reinstalled.
 
+**Third try: S5 CONFIRMED.** The scenario loads, so every HW2 boss's scripts compile in AE. Sinkage
+fights on floor 1, with no health bar (expected: a dungeon floor creates none). After he hit the
+party, an error box: his `sinkage_loot.pfb` had shipped as garbage, because HW2's pack holds
+prefabs compiled. The copy now decodes them to text. Reinstalled.
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor
