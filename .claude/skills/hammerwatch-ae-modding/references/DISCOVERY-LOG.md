@@ -1603,3 +1603,10 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
     arena's formations fight.
   Shock Widow, Malgar (only his glyphs), Dace Arden and Judge Supreme have none.
   [UNVERIFIED] in game: S7, `dungeon_11260007`.
+- `[VERIFIED]` S7 first play: Shock Widow and Malgar fight and die in a generated arena. Malgar's
+  `state_start` is invisible and untargetable until "target dist gt 160" with "hp gt 0.999", so he
+  waits until the party steps back.
+- `[VERIFIED]` Tag conditions differ: HW2's Conditional.as reads `tag has|hasnt <tags>`, AE's
+  `tag <tags>` (always "has"). Shock Widow's `spew_web.unit` logged "SValue::GetString can only be
+  used on strings, not array". 22 `tag has` in HW2's actors, 1 `tag hasnt` (the horde necromancer).
+- `[EMITTED]` The copy rewrites `tag has` to AE's `tag`, and notes a `tag hasnt`.

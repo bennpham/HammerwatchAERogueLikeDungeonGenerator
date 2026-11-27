@@ -150,6 +150,13 @@ with no arena-gated immortal phase come first:
 no error box; the exit opens. If one can't be killed, note what he does, quit, and tell me:
 that boss's HW2 arena gets ported (plan step 5).
 
+**First play (2026-11-26):** Shock Widow killed. Malgar killable, but a long fight: he opens
+invisible and untargetable (`state_start`) and only starts once the party is over 160 px away
+at his full health, as HW2 wrote him. Her web spew logged "SValue::GetString can only be used on
+strings, not array": HW2 writes a tag condition `tag has <tags>`, AE `tag <tags>`. The copy now
+writes AE's form. `dungeon_11260007` is reinstalled without the two of them, as asked: Dace
+Arden, Judge Supreme, Blight, Doombringer, Barrington, Archibald.
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor
