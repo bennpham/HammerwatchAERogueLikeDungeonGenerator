@@ -172,6 +172,24 @@ others, each arena right after the first lobby:
 invincible and still: each stays in the immortal opening state only his HW2 arena ends. Six of
 the nine HW2 bosses work in a generated arena; these three need their arenas (plan step 5).
 
+## S8: start signals for Blight and Doombringer (installed 2026-11-26)
+
+Asked: try quick start triggers before porting their arenas, and hide the three from the picker
+meanwhile. A generated arena now sends, on arrival, what the boss's own HW2 arena would to start
+the fight (`BossDef.startSignals`):
+
+| Scenario | Boss | Signal |
+|---|---|---|
+| `dungeon_11260007` | Blight the Horrible | the event `event_intro` (a `GlobalEventRanged` at him, `AlertUnits`): his `events` list gives his "stop meditating" skill a charge |
+| `dungeon_11260008` | Doombringer | the level flag `doombringer_introduced`, which ends his immortal `state_intro` |
+
+**Check:** can he be hurt now, and does he fight to the end? Later phases may still hold him: his
+arena also lands Doombringer when he flies (the flag `landing`), and runs Blight's sphere and
+hellcube phases. Note where he gets stuck, if he does.
+
+Archibald gets no signal: his fight is his arena's formations, until he yields (he has 100,000 HP
+and isn't meant to be killed). He stays hidden until his arena is ported.
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor

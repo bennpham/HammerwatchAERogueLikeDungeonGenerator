@@ -161,6 +161,10 @@ Each step is a commit (or a few), each passing the gate.
    without their HW2 arenas (see `custom/hw2/bosses.ts`).* Shock Widow, Malgar, Blight, Doombringer, Dace Arden, Judge
    Supreme, Barrington, then Archibald. Each is a commit plus a play check on the boot
    checklist.
+   *Played 2026-11-26:* six work in a generated arena (Sinkage, Shock Widow, Malgar, Dace Arden,
+   Judge Supreme, Barrington). Blight, Doombringer and Archibald were invincible. Asked: try quick
+   start triggers first, and hide the three from the picker meanwhile. Blight and Doombringer now
+   get `startSignals` (S8); Archibald stays hidden.
 5. **Only if a fight goes wrong: port its HW2 arena.** `readLevel` the HW2 arena, prefix every
    asset path (script parameters included), make its closure the copy's roots, replace its exits
    with ours, and add our boss bar and music. It also needs the arena script types AE lacks

@@ -1614,3 +1614,14 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   Judge Supreme and Barrington fight and can be killed (Barrington without his levers). Blight,
   Doombringer and Archibald are invincible and idle, held in the immortal opening states their
   HW2 arenas end (Blight `state_start`, Doombringer `state_intro`, Archibald `state_start`).
+- `[VERIFIED]` (reading the files) How an HW2 arena starts its boss. Blight's
+  `_boss_blight_repeat.lvl` raises `GlobalEventRanged` "event_intro" with `AlertUnits`, and his
+  unit's `events` list answers it with `SetActorSkillParams` (`skill_sphere_stop_intro`, a
+  charge). Doombringer's sets the flag `doombringer_introduced` (`SetFlag`, State 2) after his
+  roar. AE has the same machinery: `WorldScript::GlobalEventRanged` (`EventName`, `Radius`,
+  `AlertUnits`), `WorldScript::SetFlag` (`Flag`, `State`; `FlagState` matches HW2's: 0 Off,
+  1 Level, 2 Run…), and `CompositeActorProperties` reads an `events` array.
+- `[EMITTED]` `BossDef.startSignals`: a generated arena sends them on arrival, from the boss's
+  spot (`GlobalEventRanged`, radius 64, `AlertUnits`; or `SetFlag` State 1). `BossDef.hidden`:
+  pickers leave the boss out, and a campaign naming it is warned. Blight, Doombringer and
+  Archibald are hidden.
