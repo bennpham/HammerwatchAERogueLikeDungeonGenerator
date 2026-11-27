@@ -59,6 +59,22 @@ export interface CopyInput {
    * AE lacks (scriptPlan.ts). Without them, such a unit is an error.
    */
   scripts?: { source: ScriptIndex; ae: ScriptBase; patches?: readonly ScriptPatch[] } | null
+  /**
+   * Edits to the other game's own text files as they're carried, by source path:
+   * every `find` becomes `replace` (HW2's Blight made mortal in his immortal
+   * states, hw2/filePatches.ts). One that no longer matches a carried file is an
+   * error: the other game changed.
+   */
+  filePatches?: readonly FilePatch[]
+}
+
+/** One edit to a carried text file: every `find` in it becomes `replace`. */
+export interface FilePatch {
+  path: string
+  find: string
+  replace: string
+  /** why it's needed */
+  why: string
 }
 
 export interface CopiedFile {
@@ -380,6 +396,14 @@ export function planCopy(input: CopyInput): CopyPlan {
         last = ref.end
       }
       out += t.content.slice(last)
+      for (const patch of input.filePatches ?? []) {
+        if (patch.path !== path) continue
+        if (!out.includes(patch.find)) {
+          errors.push(`${prefix}${path}: a file patch no longer matches ("${patch.find}")`)
+          continue
+        }
+        out = out.split(patch.find).join(patch.replace)
+      }
       if (path.endsWith('.unit') || path.endsWith('.inc')) {
         out = singleSpeeds(out.replace(SPAWN_LOOT, '').replace(FOREIGN_PARAMS, '')).replace(TAG_HAS, '$1$2')
         if (TAG_HASNT.test(out)) notes.push(`${prefix}${path}: a "tag hasnt" condition, which AE can't read`)

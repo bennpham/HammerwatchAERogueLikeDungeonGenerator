@@ -29,8 +29,6 @@ import type { BossDef } from '../../boss/bosses'
 
 const B = 'hw2/actors/bosses'
 
-/** Invincible in a generated arena until start signals are confirmed in game (S8). */
-const HW2_UNTESTED = "can't be fought yet: invincible in a generated arena until his start signal is confirmed"
 
 export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
   // boss_sinkage.inc: <circle radius="8">, not static
@@ -84,7 +82,8 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     arenaOnly: true,
     // his arena's GlobalEventRanged "event_intro" gives skill_sphere_stop_intro a charge
     startSignals: [{ event: 'event_intro' }],
-    hidden: HW2_UNTESTED,
+    // simple mode: the copy makes his immortal opening and sphere mortal (main/custom/hw2/filePatches.ts),
+    // since nothing here runs his arena's hellcubes; he stayed invincible without it
     label: 'Blight the Horrible',
     source: 'hw2'
   },

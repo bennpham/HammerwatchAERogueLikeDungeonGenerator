@@ -373,6 +373,16 @@ describe('planning a copy', () => {
     expect(p.notes).toContain('hw2/a/necro.unit: a "tag hasnt" condition, which AE can\'t read')
   })
 
+  it("applies file patches to every match, and refuses one that no longer matches", () => {
+    const files = { 'a/boss.unit': '<state><bool name="immortal">true</bool></state><state><bool name="immortal">true</bool></state>' }
+    const patch = { path: 'a/boss.unit', find: '<bool name="immortal">true</bool>', replace: '<bool name="immortal">false</bool>', why: 'test' }
+    const p = plan(files, ['hw2/a/boss.unit'], { filePatches: [patch] })
+    expect(p.errors).toEqual([])
+    expect(textOf(p, 'hw2/a/boss.unit')).toBe('<state><bool name="immortal">false</bool></state><state><bool name="immortal">false</bool></state>')
+    const stale = plan(files, ['hw2/a/boss.unit'], { filePatches: [{ ...patch, find: 'gone' }] })
+    expect(stale.errors).toEqual(['hw2/a/boss.unit: a file patch no longer matches ("gone")'])
+  })
+
   it('ships the textures a model names, beside it', () => {
     const fbx = [...enc.encode('\u0000\u0016crystal.png\u0000D:\\Projects\\HW2\\fx\\crystal.png\u0000')]
     const p = plan({ 'fx/a.effect': '<mesh src="fx/m/crystal.fbx"/>', 'fx/m/crystal.fbx': fbx, 'fx/m/crystal.png': [7] }, ['hw2/fx/a.effect'])

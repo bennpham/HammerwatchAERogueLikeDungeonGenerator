@@ -80,7 +80,7 @@ describe('Hammerwatch 2 bosses', () => {
 
   it("aren't offered while they can't be fought, and a campaign naming one is warned, not refused", () => {
     const hidden = HW2_BOSSES.filter((d) => d.hidden !== undefined).map((d) => d.id)
-    expect(hidden).toEqual(['hw2_blight', 'hw2_archibald'])
+    expect(hidden).toEqual(['hw2_archibald'])
     const v = validateParameters(arenaOn(['hw2_archibald']), HW2_CONTENT)
     expect(v.errors).toEqual([])
     expect(v.warnings.some((w) => w.field === 'boss.fights.0.arena.bossPool' && /Archibald Steelwill: can't be fought yet/.test(w.message))).toBe(true)
@@ -176,6 +176,12 @@ describe.skipIf(!HAS_HW2)('copying Hammerwatch 2 bosses', () => {
     for (const f of plan.files.filter((x) => /\.(unit|inc)$/.test(x.path))) {
       // AE has none of HW2's loot tables: a SpawnLoot left behind, its table stripped, crashes on death
       expect(dec.decode(f.data), f.path).not.toMatch(/<string name="class">SpawnLoot<\/string>/)
+    }
+    if (id === 'hw2_blight') {
+      // simple mode: his opening and sphere were immortal until his HW2 arena moved him on
+      const states = dec.decode(plan.files.find((f) => f.path.endsWith('/_boss_blight_states.inc'))!.data)
+      expect(states).not.toContain('<bool name="immortal">true</bool>')
+      expect(states.split('<bool name="immortal">false</bool>').length - 1).toBe(2)
     }
   }, 300_000)
 })
