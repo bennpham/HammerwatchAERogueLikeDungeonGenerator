@@ -112,6 +112,19 @@ fights on floor 1, with no health bar (expected: a dungeon floor creates none). 
 party, an error box: his `sinkage_loot.pfb` had shipped as garbage, because HW2's pack holds
 prefabs compiled. The copy now decodes them to text. Reinstalled.
 
+## S6: Commodore Sinkage as an arena boss (installed 2026-11-26)
+
+**Setup:** `dungeon_11260006`, a maxed stock campaign whose first arena fights Commodore Sinkage
+(`hw2_sinkage`, offered in the Arena tab's "Hammerwatch 2" group while HW2 is loaded). The arena
+comes right after the first lobby. It's the generated arena, with our boss bar ("Commodore
+Sinkage") and the arena's own reward. HW2's loot actions are taken out of his units.
+
+**Check:**
+- the boss bar shows his name and his health, and drops as you hit him;
+- he fights: what does he do, and does anything look stuck? His HW2 arena's cannons aren't
+  there, since his own arena isn't ported;
+- he dies with no error box, the arena's reward appears, and the exit opens.
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor

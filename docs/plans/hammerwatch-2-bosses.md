@@ -138,7 +138,8 @@ Each step is a commit (or a few), each passing the gate.
    You start it; I read `HW1A.exe.log` and fix each compile error with a shim or a rewrite rule.
    Repeat until clean. One compile error stops every script, so this comes before any boss
    reaches a campaign.
-3. **Pilot boss: Commodore Sinkage.**
+3. **Pilot boss: Commodore Sinkage.** *Built 2026-11-26 (`custom/hw2/bosses.ts`); S6 installed as
+   `dungeon_11260006`.*
    - Generator: HW2 bosses appended to `BOSS_IDS`/`BOSS_DEFS` (`hw2_sinkage` …). Each has
      `source: 'hw2'`, its unit, a footprint read from its collision, a plain bar name (HW2's
      language keys aren't in AE) and `mobile`. They sit in a "Hammerwatch 2" group of the boss

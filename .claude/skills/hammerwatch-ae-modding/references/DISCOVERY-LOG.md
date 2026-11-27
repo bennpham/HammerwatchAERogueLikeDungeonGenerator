@@ -1578,3 +1578,10 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
     spawn loot table: boss_sinkage" from `sinkage_loot.pfb`. Nothing drops; the game goes on.
   - No health or damage numbers above him: HW2 boss units set `hide-health` (AE's bosses do too:
     Anubis, the dragon). AE's bosses show health in a `CreateBossBar`, which a floor doesn't make.
+- `[EMITTED]` `hw2_sinkage` is an Arena-tab boss (`BOSS_IDS`, custom/hw2/bosses.ts): not mobile, so
+  never on a floor; offered while HW2 is loaded; our `CreateBossBar` named "Commodore Sinkage". AE's
+  `HUDBossBar.SetBossName` runs the name through `Resources::GetString`, which should leave a plain
+  name as written [UNVERIFIED].
+- `[EMITTED]` The copy removes every `SpawnLoot` action from carried units whole. Stripping only
+  its `loot` line (as for `team`/`gore`) is what made AE's `SpawnLoot` dereference a missing table.
+  A loot `.pfb`'s `SpawnLoot` WorldScript stays; it only logs "Unable to spawn loot table".
