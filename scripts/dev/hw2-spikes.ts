@@ -12,16 +12,20 @@
 //   dungeon_11260005  S5: every HW2 boss's scripts, to see them all compile, and a first look
 //                     at Commodore Sinkage on floor 1 (not S6: no arena).
 //   dungeon_11260006  S6: Commodore Sinkage as the first arena's boss, right after the first
-//                     lobby: the generated arena, our boss bar, the arena's reward.
+//                     lobby: the generated arena, our boss bar.
+//   dungeon_11260007  S7: the other eight HW2 bosses, one arena each, right after the first
+//                     lobby: Shock Widow, Malgar, Dace Arden, Judge Supreme, then the four
+//                     likely to stall without their HW2 arena: Blight, Doombringer, Barrington,
+//                     Archibald.
 //   dungeon_11260003  S4: dungeon_11260001's campaign, but every texture taken compiled from
 //                     HW2's res/assets.bin and packed as is.
 //
 // Each starts with the Hammerwatch 2 level-50 player preset, fully upgraded.
 //
-// --remove deletes the six .h1c files (and description .txt files) again.
+// --remove deletes the seven .h1c files (and description .txt files) again.
 import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { applyFullyUpgraded, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
+import { applyFullyUpgraded, defaultBossFight, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
 import type { DungeonParameters, DungeonResult, GeneratedFile } from '../../src/generator'
 import { parseSlotLabel } from '../../src/generator/campaign'
 import { installScenario } from '../../src/main/packer'
@@ -36,7 +40,7 @@ import { renderLevel } from '../../src/generator/ae/levelWriter'
 
 const AE = process.env.HWAE_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch Anniversary Edition'
 const HW2 = process.env.HW2_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch 2'
-const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006]
+const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007]
 
 if (process.argv.includes('--remove')) {
   for (const seed of SEEDS) {
@@ -97,6 +101,25 @@ function sinkageArena(): DungeonParameters {
   const order = p.levelOrder ?? []
   const ab1 = order.find((slot) => JSON.stringify(slot) === JSON.stringify(parseSlotLabel('AB1')))
   if (ab1 !== undefined) p.levelOrder = [order[0], ab1, ...order.slice(1).filter((slot) => slot !== ab1)]
+  return maxed(p)
+}
+
+/** S7: one arena per remaining HW2 boss, in plan order, all right after the first lobby. */
+function eightArenas(): DungeonParameters {
+  // the four with no arena-gated immortal phase first: a boss that stalls holds the exit shut
+  const ids = ['hw2_shock_widow', 'hw2_malgar', 'hw2_dace_arden', 'hw2_judge_supreme', 'hw2_blight', 'hw2_doombringer', 'hw2_barrington', 'hw2_archibald']
+  const p = defaultParameters()
+  p.boss = {
+    ...p.boss,
+    enabled: true,
+    fights: ids.map((id) => {
+      const fight = defaultBossFight()
+      return { ...fight, arena: { ...fight.arena, bossSelection: 'random', bossPool: [id], bossCount: 1 } }
+    })
+  }
+  const order = (p.levelOrder ?? []).filter((slot) => !/^AB/.test(JSON.stringify(slot)) && !String(JSON.stringify(slot)).includes('"boss"'))
+  const arenas = ids.map((_, i) => parseSlotLabel(`AB${i + 1}`)!)
+  p.levelOrder = [order[0], ...arenas, ...order.slice(1)]
   return maxed(p)
 }
 
@@ -192,3 +215,4 @@ await install(SEEDS[2], floorsCampaign(), true)
 await installUnitSpike(SEEDS[3], 'S2', [{ unit: 'hw2/actors/beasts/wolves/wolf_grey.unit', count: 3 }])
 await installUnitSpike(SEEDS[4], 'S5', [{ unit: 'hw2/actors/bosses/commodore_sinkage/boss_sinkage.unit', count: 1 }], BOSSES)
 await install(SEEDS[5], sinkageArena(), false)
+await install(SEEDS[6], eightArenas(), false)

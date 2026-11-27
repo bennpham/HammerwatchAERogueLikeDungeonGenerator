@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { defaultDungeonBoss, generateDungeon, validateParameters } from '../src/generator'
 import type { DungeonParameters } from '../src/generator'
-import { BOSS_DEFS } from '../src/generator/boss/bosses'
+import { BOSS_DEFS, BOSS_DEF_LIST } from '../src/generator/boss/bosses'
 import { AE_ONLY } from '../src/generator/custom/sources'
 import { hw2CopyPlan } from '../src/main/custom/hw2/copy'
 import { AE_ROOT } from './aeInstall'
@@ -10,6 +10,7 @@ import { HAS_HW2, HW2_CONTENT, HW2_ROOT, danglingPaths } from './hw2Install'
 import { plainParameters } from './params'
 
 const SINKAGE = BOSS_DEFS.hw2_sinkage
+const HW2_BOSSES = BOSS_DEF_LIST.filter((d) => d.source === 'hw2')
 
 /** The stock parameters, the first arena on `pool` (random mode). */
 function arenaOn(pool: string[]): DungeonParameters {
@@ -39,16 +40,22 @@ describe('Hammerwatch 2 bosses', () => {
     expect(validateParameters(p, HW2_CONTENT).errors.some((e) => e.field.startsWith('levelBoss.0'))).toBe(true)
   })
 
-  it('fight in the generated arena with our boss bar, and their unit is carried', () => {
-    const r = generateOk(arenaOn(['hw2_sinkage']), 7)
-    expect(r.customAssets).toContain(SINKAGE.actorPath)
-    const holding = [...levelsOf(r).values()].filter((l) => unitsOf(l, (u) => u.path === SINKAGE.actorPath).length > 0)
+  it('are the nine HW2 bosses, all arena-only', () => {
+    expect(HW2_BOSSES.map((d) => d.id)).toEqual([
+      'hw2_sinkage', 'hw2_shock_widow', 'hw2_malgar', 'hw2_blight', 'hw2_doombringer',
+      'hw2_dace_arden', 'hw2_judge_supreme', 'hw2_barrington', 'hw2_archibald'
+    ])
+    for (const d of HW2_BOSSES) expect(d.arenaOnly && !d.mobile, d.id).toBe(true)
+  })
+
+  it.each(HW2_BOSSES.map((d) => [d.id, d] as const))('%s fights in the generated arena with our boss bar, and its unit is carried', (id, def) => {
+    const r = generateOk(arenaOn([id]), 7)
+    expect(r.customAssets).toContain(def.actorPath)
+    const holding = [...levelsOf(r).values()].filter((l) => unitsOf(l, (u) => u.path === def.actorPath).length > 0)
     expect(holding).toHaveLength(1)
-    const level = holding[0]
-    expect(unitsOf(level, (u) => u.path === SINKAGE.actorPath)).toHaveLength(1)
-    const bars = scriptsOf(level, 'CreateBossBar')
+    const bars = scriptsOf(holding[0], 'CreateBossBar')
     expect(bars).toHaveLength(1)
-    expect(strParam(bars[0], 'Name')).toBe('Commodore Sinkage')
+    expect(strParam(bars[0], 'Name')).toBe(def.barName)
   })
 
   it('never reach an AE-only campaign: the same parameters without them generate the same bytes either way', () => {
@@ -61,14 +68,16 @@ describe('Hammerwatch 2 bosses', () => {
 })
 
 describe.skipIf(!HAS_HW2)('copying Hammerwatch 2 bosses', () => {
-  it("carries Sinkage whole, with his scripts, and none of HW2's loot actions", () => {
-    const plan = hw2CopyPlan(HW2_ROOT, AE_ROOT, [SINKAGE.actorPath])!
+  it.each(HW2_BOSSES.map((d) => [d.id, d] as const))("carries %s whole, with its scripts, and none of HW2's loot actions", (id, def) => {
+    const plan = hw2CopyPlan(HW2_ROOT, AE_ROOT, [def.actorPath])!
     expect(plan.errors).toEqual([])
     expect(danglingPaths(plan, AE_ROOT)).toEqual([])
     const dec = new TextDecoder()
     const paths = plan.files.map((f) => f.path)
-    expect(paths).toContain('scripts/Behaviors/Actors/Enemies/Skills/DashStrike.as')
-    expect(paths).toContain('scripts/Behaviors/Actors/Enemies/Skills/CompositeActorUtilitySkill.as')
+    if (id === 'hw2_sinkage') {
+      expect(paths).toContain('scripts/Behaviors/Actors/Enemies/Skills/DashStrike.as')
+      expect(paths).toContain('scripts/Behaviors/Actors/Enemies/Skills/CompositeActorUtilitySkill.as')
+    }
     for (const f of plan.files.filter((x) => /\.(unit|inc)$/.test(x.path))) {
       // AE has none of HW2's loot tables: a SpawnLoot left behind, its table stripped, crashes on death
       expect(dec.decode(f.data), f.path).not.toMatch(/<string name="class">SpawnLoot<\/string>/)
