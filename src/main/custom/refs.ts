@@ -41,7 +41,9 @@ export function isTextAsset(path: string): boolean {
 }
 
 /** Quoted strings, element text, and the argument of a %include / %replace line. */
-const SEGMENT = /"([^"\r\n]*)"|>([^<\r\n]*)<|^[ \t]*%(?:include[ \t]+|replace[ \t]+\S+[ \t]+)([^"\r\n]+?)[ \t]*$/gm
+// an include may open a quote it never closes: HW2's boss_dace_arden.inc has
+// `%include "actors/bosses/dace_arden/_boss_dace_arden_states.inc`, which the engine reads
+const SEGMENT = /"([^"\r\n]*)"|>([^<\r\n]*)<|^[ \t]*%(?:include[ \t]+"?|replace[ \t]+\S+[ \t]+)([^"\r\n]+?)"?[ \t]*$/gm
 
 /**
  * `text` with every XML comment blanked to spaces (newlines kept), so offsets

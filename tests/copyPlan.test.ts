@@ -2,6 +2,7 @@ import { inflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { extractRefs, resolveRelative } from '../src/main/custom/refs'
 import { planCopy } from '../src/main/custom/copyPlan'
+import { encodeSval } from '../src/main/h1c/write'
 import { bakeTintSheet, parseColorize, readLayeredTif, readTintSheet } from '../src/main/custom/layeredTif'
 import { packSource } from '../src/main/custom/binSource'
 import { HW2_ASSETS_MAGIC } from '../src/main/h1c/read'
@@ -119,6 +120,14 @@ describe('finding the paths a file names', () => {
     for (const r of refs) expect(t.slice(r.start, r.end)).toBe(r.path)
     expect(refs.filter((r) => r.relative).map((r) => r.path)).toEqual(['./base.png', './glass.unit'])
     expect(refs.filter((r) => r.entry !== undefined).map((r) => r.entry)).toEqual(['floor', 'beer'])
+  })
+
+  it('reads an include whose quote never closes, as the engine does', () => {
+    // HW2's boss_dace_arden.inc, line 100
+    const t = '\t%include "actors/bosses/dace_arden/_boss_dace_arden_states.inc\n%include "a/b.inc"'
+    const refs = extractRefs(t)
+    expect(refs.map((r) => r.path)).toEqual(['actors/bosses/dace_arden/_boss_dace_arden_states.inc', 'a/b.inc'])
+    for (const r of refs) expect(t.slice(r.start, r.end)).toBe(r.path)
   })
 
   it('reads a path with effect arguments, and what follows a `?` is never an entry', () => {
@@ -324,6 +333,31 @@ describe('planning a copy', () => {
     expect(p.files.map((f) => f.path)).toEqual(['hw2/fx/text.unit', 'hw2/gui/fonts/hw8.fnt', 'hw2/gui/fonts/lana.ttf'])
     expect(textOf(p, 'hw2/fx/text.unit')).toBe('<text font="gui/fonts/arial11.fnt"/><text font="hw2/gui/fonts/hw8.fnt"/>')
     expect(p.keptAe).toContain('gui/fonts/arial11.fnt')
+  })
+
+  it("ships a compiled prefab as text, its paths followed and rewritten", () => {
+    // HW2's pack holds every .pfb as binary SVAL; shipped as text it read as garbage in AE
+    // ("PrefabLoader: XML error! expected <")
+    const pfb = '<dict>\n\t<int name="version">1</int>\n\t<string name="unit">fx/coin.unit</string>\n</dict>\n'
+    const compiled = [...encodeSval(pfb)]
+    const p = plan({ 'a/boss.unit': '<string name="loot">a/loot.pfb</string><x src="a/loot.pfb"/>', 'fx/coin.unit': '<unit/>' }, ['hw2/a/boss.unit'], {
+      source: {
+        has: (q) => ['a/boss.unit', 'a/loot.pfb', 'fx/coin.unit'].includes(q),
+        read: (q) =>
+          q === 'a/loot.pfb'
+            ? { flag: 3, data: Uint8Array.from(compiled) }
+            : q === 'a/boss.unit'
+              ? { flag: 1, data: enc.encode('<x src="a/loot.pfb"/>') }
+              : q === 'fx/coin.unit'
+                ? { flag: 1, data: enc.encode('<unit/>') }
+                : null
+      }
+    })
+    expect(p.files.map((f) => f.path)).toEqual(['hw2/a/boss.unit', 'hw2/a/loot.pfb', 'hw2/fx/coin.unit'])
+    const text = textOf(p, 'hw2/a/loot.pfb')
+    expect(text.startsWith('<')).toBe(true)
+    expect(text).toContain('<string name="unit">hw2/fx/coin.unit</string>')
+    expect(p.files.find((f) => f.path === 'hw2/a/loot.pfb')!.flag).toBe(1)
   })
 
   it('ships the textures a model names, beside it', () => {

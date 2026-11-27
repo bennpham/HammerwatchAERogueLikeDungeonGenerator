@@ -22,6 +22,7 @@
  */
 
 import { dirOf, extractRefs, isTextAsset, maskComments, resolveRelative } from './refs'
+import { binarySvalToText } from '../h1c/read'
 import type { Ref } from './refs'
 import { bakeTintSheet, encodePng, parseColorize, readTintSheet } from './layeredTif'
 import type { TintSheet } from './layeredTif'
@@ -230,7 +231,21 @@ export function planCopy(input: CopyInput): CopyPlan {
     if (cached !== undefined) return cached
     const f = source.read(path)
     if (f === null) return null
-    const content = decoder.decode(f.data)
+    let content: string
+    if (f.flag === 3) {
+      // a compiled text asset (HW2's pack holds every .pfb as binary SVAL): back to text, so
+      // its paths can be followed and rewritten, and AE reads it as a plain file
+      try {
+        content = binarySvalToText(f.data)
+      } catch (e) {
+        const plain = input.plain?.read(path) ?? null
+        if (plain === null || plain.flag === 3) {
+          notes.push(`${path}: compiled, and the copy can't read it (${(e as Error).message}); left out`)
+          return null
+        }
+        content = decoder.decode(plain.data)
+      }
+    } else content = decoder.decode(f.data)
     const entry = { content, refs: extractRefs(content) }
     text.set(path, entry)
     return entry

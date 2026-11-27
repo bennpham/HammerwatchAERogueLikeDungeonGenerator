@@ -6,7 +6,7 @@ import type { CopySource } from '../src/main/custom/copyPlan'
 import { aeBinSource, hw2CopyPlan, scriptIndexOf } from '../src/main/custom/hw2/copy'
 import { hw2Sources } from '../src/main/custom/hw2/detect'
 import { AE_ROOT } from './aeInstall'
-import { HAS_HW2, HW2_ROOT } from './hw2Install'
+import { HAS_HW2, HW2_ROOT, danglingPaths } from './hw2Install'
 
 const enc = new TextEncoder()
 const dec = new TextDecoder()
@@ -177,6 +177,8 @@ describe.skipIf(!HAS_HW2)("carrying the HW2 bosses' scripts", () => {
     ]
     const plan = hw2CopyPlan(HW2_ROOT, AE_ROOT, BOSSES.map((b) => `hw2/actors/bosses/${b}`))!
     expect(plan.errors).toEqual([])
+    // every path the bosses' files name resolves, every material exists, every prefab is text
+    expect(danglingPaths(plan, AE_ROOT)).toEqual([])
     const scripts = plan.files.filter((f) => f.path.startsWith('scripts/'))
     expect(scripts.map((f) => f.path)).toEqual([
       'scripts/Behaviors/Actions/ChainAction.as',

@@ -49,6 +49,8 @@ export function danglingPaths(copy: CopyPlan, aeRoot: string): string[] {
     return matsCache.get(path)!
   }
   const out = new Set<string>()
+  // a compiled prefab shipped as if it were text reads as garbage in AE
+  for (const f of copy.files) if (f.path.endsWith('.pfb') && f.flag === 1 && dec.decode(f.data.subarray(0, 1)) !== '<') out.add(`${f.path} is not text`)
   for (const f of copy.files) {
     if (!/\.(unit|inc|tileset|effect|env|sval|pfb)$/.test(f.path)) continue
     // comments aren't read: XML ones and the preprocessor's `%//` lines
