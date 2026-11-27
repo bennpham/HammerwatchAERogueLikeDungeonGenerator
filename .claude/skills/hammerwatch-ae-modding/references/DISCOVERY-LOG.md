@@ -1509,3 +1509,13 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
 - `[VERIFIED]` A packed `.png` (in either game's `assets.bin`) is the engine's own compressed
   form: header `width, height, 0xffffffff, 4`, then data that isn't zlib. AE reads HW2's as its
   own, so an install packs them as they are; only a folder or zip export needs plain PNGs.
+- `[VERIFIED]` In game (2026-11-26): `dungeon_11260004` loads with HW2's `DashStrike.as` and
+  `scripts/Hw2Compat.as` (`easeSineOut`); the grey wolves, their sheet baked from `assets.bin`,
+  draw correctly and dash. **A scenario can add script classes AE lacks** (S2), provided every
+  shipped script compiles against AE's.
+- `[VERIFIED]` In game: HW2 monsters move and chase with their speed ranges collapsed
+  (`dungeon_11260001`, `002`), and `dungeon_11260003`'s compiled HW2 textures look the same as
+  plain PNGs (S4).
+- `[VERIFIED]` In game (S3): an HW2 track from `hw2/music/music.sbnk` and `.ogg` files packed raw in
+  the `.h1c` plays and loops, AE's music returns on the next default-music floor, and leaving the
+  level stops the loop. The mistdeep pattern (muted `PlayMusic` + looping `PlaySound`) works packed.

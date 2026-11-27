@@ -1,5 +1,14 @@
 # Hammerwatch 2 content: what only the game can answer
 
+**Answered (2026-11-26):** all four are CONFIRMED in game.
+- S1: HW2 content under a top-level `hw2/` folder loads and plays.
+- S2: AE compiles a scenario's scripts with its own. HW2's `DashStrike.as`, plus HW2's
+  `easeSineOut` shipped beside it, compiles, and the grey wolves dash. One compile error stops
+  every script, so whatever a scenario ships must compile against AE's.
+- S3: HW2 music plays from inside a `.h1c` and loops; AE's music returns on a default-music
+  floor, and leaving stops the track.
+- S4: textures packed as compiled in HW2's `assets.bin` look the same as plain PNGs.
+
 These four questions decide how HW2 content ships. The facts behind them are in
 `hammerwatch-2-assets.md`. Each spike is a small test scenario the app installs once the
 copy-and-pack step lands (plan commit 7). Report each result as `CONFIRMED` or
