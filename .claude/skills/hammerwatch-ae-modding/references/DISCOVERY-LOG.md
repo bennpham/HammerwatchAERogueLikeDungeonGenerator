@@ -1625,3 +1625,13 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   spot (`GlobalEventRanged`, radius 64, `AlertUnits`; or `SetFlag` State 1). `BossDef.hidden`:
   pickers leave the boss out, and a campaign naming it is warned. Blight, Doombringer and
   Archibald are hidden.
+- `[VERIFIED]` S8, first play: Doombringer with `doombringer_introduced` can be hurt but stands
+  still. All his attacks are conditioned on `flag is west_side`/`east_side` (his perch, set by his
+  arena) and `must-be-inside-arc` (45°, `vision-arc-dir` 0° for west, 180° for east). Blight with
+  `event_intro` attacks but can't be hurt; the cause isn't visible (AE's release build doesn't log
+  `DebugLog` actions).
+- `[EMITTED]` Doombringer also gets `west_side`; every start signal is sent on load and 3 s later.
+- `[VERIFIED]` With `override` dropped from every carried method, AE logs "Missing override
+  keyword on method: …" for each that does override a base method (`ChannelingSpewSkill::IsCasting`
+  and others). It compiles; it's log noise. Keeping `override` wherever AE names the method was
+  tried and dropped: a name AE uses in another class than the base would be a compile error.

@@ -190,6 +190,17 @@ hellcube phases. Note where he gets stuck, if he does.
 Archibald gets no signal: his fight is his arena's formations, until he yields (he has 100,000 HP
 and isn't meant to be killed). He stays hidden until his arena is ported.
 
+**First play (2026-11-27):**
+- **Doombringer** can be hurt now, but just stands there. Every attack of his needs a flag saying
+  which side of his arena he's perched on (`west_side` or `east_side`), set by his arena; his attacks
+  also only fire into a 45° arc facing that side. He now also gets `west_side`: perched west,
+  facing east (0°), so he attacks east of him. Reinstalled.
+- **Blight** attacks but can't be hurt. AE's release build logs nothing for HW2's `DebugLog`
+  actions, so which state holds him isn't visible. Read from the files, his `event_intro` should
+  arrive (same position, AE's `GlobalEventRanged` alerts units, his `events` list is read), and his
+  sphere ends by itself without his arena. Start signals now go again 3 s after load, in case the
+  first came too early for him. If he's still invincible, he needs his arena (plan step 5).
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor
