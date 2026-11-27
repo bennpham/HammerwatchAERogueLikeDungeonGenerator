@@ -76,8 +76,8 @@ import type { Gateway } from '../campaign'
 import type { BossArenaOptions, SurvivalOptions } from '../config/parameters'
 import type { LevelPreview, PreviewRoom } from '../index'
 import { ENTRANCE_DEPTH, ENTRANCE_WIDTH, anchors } from './anchors'
-import { BOSS_DEFS, expandLineup, isStationary, pickBosses, topWallBossClearance, topWallBossY } from './bosses'
-import type { AlcoveWall, BossDef, BossId } from './bosses'
+import { BOSS_DEFS, expandLineup, isStationary, pickBosses, sideWallBossX, startSignalsFor, topWallBossClearance, topWallBossY } from './bosses'
+import type { AlcoveWall, BossDef, BossId, BossSide } from './bosses'
 import { isFree, placeCoverPillars, reachableMask } from './cover'
 import type { CoverArena, Rect } from './cover'
 import { arenaBossLayout } from './geometry'
@@ -220,7 +220,9 @@ export function buildBossArena(
   // single boss these are simply whichever one `bossDef` is, so this reduces
   // to the historical single-boss computation.
   const topWallDef = pickedDefs.find((d) => d.placement === 'topWall')
-  const centreDefs = pickedDefs.filter((d) => d.placement !== 'topWall')
+  // a sideWall boss (Doombringer) fights alone (validation), so it's the only pick when present
+  const sideDef = pickedDefs.find((d) => d.placement === 'sideWall')
+  const centreDefs = pickedDefs.filter((d) => d.placement === 'centre')
   const centrePrimaryDef = centreDefs.find((d) => d.id === 'boss_queen') ?? centreDefs[0]
 
   const midX = Math.trunc(width / 2)
@@ -228,7 +230,14 @@ export function buildBossArena(
   // A topWall boss is inset from the north wall, not flush against it: its
   // collider (offset included) has to clear the wall band or the engine leaves
   // it unreachable and unable to fire. bosses.ts owns that math.
-  const bossLocal = topWallDef !== undefined && centrePrimaryDef === undefined ? { x: midX, y: topWallBossY(topWallDef) } : { x: midX, y: midY }
+  // a sideWall boss's wall: drawn only when one is picked, so no other arena moves
+  const bossSide: BossSide | undefined = sideDef === undefined ? undefined : ctx.bossRand.iRand(0, 2) === 0 ? 'W' : 'E'
+  const bossLocal =
+    sideDef !== undefined && bossSide !== undefined
+      ? { x: sideWallBossX(sideDef, bossSide, width), y: midY }
+      : topWallDef !== undefined && centrePrimaryDef === undefined
+        ? { x: midX, y: topWallBossY(topWallDef) }
+        : { x: midX, y: midY }
 
   // Seeded pick of N/E/W (S is always the entrance), filtered by the UNION of
   // every picked boss's own vetoes. Never empty: only the dragon forbids a
@@ -236,6 +245,8 @@ export function buildBossArena(
   // least 2 of the 3 candidates, so this needs no retry loop. A survival arena
   // has no boss to veto anything, so all three stay in.
   const forbiddenWalls = new Set<AlcoveWall>(pickedDefs.flatMap((d) => d.forbiddenAlcoveWalls))
+  // never open the way out behind a boss perched on that wall
+  if (bossSide !== undefined) forbiddenWalls.add(bossSide)
   const alcoveCandidates = (['N', 'E', 'W'] as AlcoveWall[]).filter((w) => !forbiddenWalls.has(w))
   const alcoveWall = alcoveCandidates[ctx.bossRand.iRand(0, alcoveCandidates.length)]
 
@@ -376,6 +387,17 @@ export function buildBossArena(
     ...(topWallDef !== undefined ? { northClearance: topWallBossClearance(topWallDef, topWallBossY(topWallDef)) } : {}),
     ...(centrePrimaryDef !== undefined
       ? { centreBoss: { width: centrePrimaryDef.footprintWidth, height: centrePrimaryDef.footprintHeight } }
+      : {}),
+    ...(sideDef !== undefined && bossSide !== undefined
+      ? {
+          sideBoss: {
+            side: bossSide,
+            freeColumn:
+              bossSide === 'W'
+                ? Math.ceil(bossLocal.x + sideDef.footprintWidth / 2) + 1
+                : Math.floor(bossLocal.x - sideDef.footprintWidth / 2) - 1
+          }
+        }
       : {})
   }
   const anchorList = anchors(width, height, anchorClearance)
@@ -429,7 +451,7 @@ export function buildBossArena(
     // sent from where it stands, on load and again a little later (an event is harmless twice:
     // Blight's only re-arms the skill that ends his opening); a boss without any allocates nothing
     bossPlacements.forEach((p) => {
-      for (const signal of p.def.startSignals ?? []) {
+      for (const signal of startSignalsFor(p.def, p.def.placement === 'sideWall' ? bossSide : undefined)) {
         const node = 'event' in signal ? new NodeGlobalEventRanged(ctx, p.x, p.y, signal.event, START_SIGNAL_RADIUS) : new NodeSetFlag(ctx, p.x, p.y, signal.flag)
         loaded.connectTo(node)
         loaded.connectTo(node, START_SIGNAL_RESEND_MS)

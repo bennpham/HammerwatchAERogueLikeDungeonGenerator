@@ -94,15 +94,15 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     actorPath: `${B}/doombringer/boss_doombringer.unit`,
     footprintWidth: 96 / 16,
     footprintHeight: 96 / 16,
-    placement: 'centre',
+    placement: 'sideWall',
     forbiddenAlcoveWalls: [],
     barName: 'Doombringer',
     arenaOnly: true,
     // his arena sets it after his roar; until then state_intro holds him immortal
-    // and which side of his HW2 arena he's perched on: every attack of his needs one. West
-    // faces east (vision 0°), so he attacks east of him; without one he just stands there
-    startSignals: [{ flag: 'doombringer_introduced' }, { flag: 'west_side' }],
-    hidden: HW2_UNTESTED,
+    startSignals: [{ flag: 'doombringer_introduced' }],
+    // which side of his HW2 arena he's perched on: every attack of his needs it, and only fires
+    // into a 45° arc facing in (west faces east, vision 0°). Without it he just stands there.
+    sideSignals: { W: [{ flag: 'west_side' }], E: [{ flag: 'east_side' }] },
     label: 'Doombringer',
     source: 'hw2'
   },

@@ -166,7 +166,8 @@ export function buildWorld(
     scatterProps(ctx, scatter, grid, biome, def.scatter)
 
     const reached = grid.reach(arrival)
-    if (sites.some((s) => reached[s.y * width + s.x] !== 1)) {
+    // the sites, and any boss perched at an island end instead (placed.bosses)
+    if ([...sites, ...placed.bosses].some((s) => reached[s.y * width + s.x] !== 1)) {
       fail('reach')
       continue
     }

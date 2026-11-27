@@ -109,7 +109,7 @@ import {
   resolveActorPath,
   monsterCap
 } from '../objects/monsterTypes'
-import { BOSS_DEFS, expandLineup, isMobileBoss, topWallBossClearance, topWallBossY, UNIQUE_BOSS_IDS } from '../boss/bosses'
+import { BOSS_DEFS, expandLineup, isMobileBoss, topWallBossClearance, topWallBossY, UNIQUE_BOSS_IDS, WORLD_BOSS_IDS } from '../boss/bosses'
 import type { BossDef } from '../boss/bosses'
 import { arenaBossLayout } from '../boss/geometry'
 import { anchors as computeAnchors, ENTRANCE_DEPTH, ENTRANCE_WIDTH } from '../boss/anchors'
@@ -602,17 +602,17 @@ function validateWorld(w: WorldDef, index: number, poolSize: number, errors: Val
   }
   const bosses = worldBossCount(w)
   if (bossSelection(w) === 'lineup') {
-    validateBossLineup(w.bossLineup, at('bossLineup'), MOBILE_BOSS_IDS, errors, subject)
+    validateBossLineup(w.bossLineup, at('bossLineup'), WORLD_BOSS_IDS, errors, subject)
   } else {
     if (w.bossCount !== undefined) whole('bossCount', 'the boss count', 0, MAX_BOSS_COUNT)
     if (bosses > 0 && bossPool.length === 0) {
       errors.push({ field: at('bossPool'), message: `${subject}: pick at least one boss for the pool.` })
     }
     for (const id of bossPool) {
-      if (!(MOBILE_BOSS_IDS as readonly string[]).includes(id)) {
+      if (!(WORLD_BOSS_IDS as readonly string[]).includes(id)) {
         errors.push({
           field: at('bossPool'),
-          message: `${subject}: "${id}" can't roam a world. Pick from: ${MOBILE_BOSS_IDS.join(', ')}.`
+          message: `${subject}: "${id}" can't roam a world. Pick from: ${WORLD_BOSS_IDS.join(', ')}.`
         })
       }
     }
@@ -1190,6 +1190,18 @@ function validateBossFight(
   // arenaBossCount() already applies the lineup-aware rule, so both modes
   // share this one read.
   const bossCount = arenaBossCount(arena)
+
+  // a sideWall boss (Doombringer) fights alone: the level flags that turn him to face the
+  // arena are shared by the whole level, and he takes a whole wall
+  const sideWall = (selection === 'lineup' ? Object.keys(arena.bossLineup ?? {}) : arena.bossPool).find(
+    (id) => (BOSS_IDS as readonly string[]).includes(id) && BOSS_DEFS[id as (typeof BOSS_IDS)[number]].placement === 'sideWall'
+  )
+  if (sideWall !== undefined && bossCount > 1) {
+    bossErrors.push({
+      field: af(selection === 'lineup' ? 'bossLineup' : 'bossCount'),
+      message: `Fight ${index + 1}: ${BOSS_DEFS[sideWall as (typeof BOSS_IDS)[number]].label ?? sideWall} fights alone. Set 1 boss.`
+    })
+  }
 
   // a boss pickers leave out because it can't be fought yet (BossDef.hidden): still
   // generated, for whoever imported it, but said

@@ -25,6 +25,7 @@ import type { Rand } from '../core/rand'
 import type { Gateway } from '../campaign'
 import { Doodad } from '../objects/doodad'
 import { Item } from '../objects/item'
+import { LEVEL_LOADED_EVENT } from '../core/events'
 import { Monster } from '../objects/monster'
 import { addArrival, buildExitRig } from '../objects/objectSet'
 import { SensorShape } from '../objects/scriptNode'
@@ -35,16 +36,20 @@ import {
   NodeChangeDoodadState,
   NodeCreateBossBar,
   NodeGameEnd,
+  NodeGlobalEventRanged,
+  NodeGlobalEventTrigger,
   NodeHideUnit,
   NodeObjectEventTrigger,
   NodePlaySound,
+  NodeSetFlag,
   NodeToggleElement,
   NodeUnitPickedUpTrigger
 } from '../objects/nodes'
 import { SEAL_SOUND, buildButtonCountdown } from '../map/buttonSeal'
 import { MYSTERY_BUTTON_STATE } from '../mystery/rig'
 import { MYSTERY_PLATE } from './encounters'
-import { BOSS_DEFS, expandLineup, pickBosses } from '../boss/bosses'
+import { BOSS_DEFS, expandLineup, pickBosses, startSignalsFor } from '../boss/bosses'
+import type { BossSide } from '../boss/bosses'
 import type { BossId } from '../boss/bosses'
 import { buildBossStatue } from '../boss/statue'
 import { bossSelection, worldBossCount } from '../config/parameters'
@@ -183,8 +188,26 @@ export function buildObjectives(
   const bosses: Tile[] = []
   const bossSites = bossSiteIndexes(sites.length, ids.length)
   ids.forEach((id, i) => {
-    const site = sites[bossSites[i]]
     const boss = BOSS_DEFS[id]
+    // a sideWall boss (Doombringer, a perched dragon) takes the island's west or east end,
+    // facing in, instead of its site; its site stays empty
+    let site = sites[bossSites[i]]
+    let side: BossSide | undefined
+    if (boss.placement === 'sideWall') {
+      side = rand.iRand(0, 2) === 0 ? 'W' : 'E'
+      const radius = Math.ceil(boss.footprintWidth / 2) + 1
+      // reached from where the party arrives (the hub itself is solid by now)
+      const reached = grid.reach({ x: hub.x, y: hub.y + 3 })
+      const spot = islandEndSpot(grid, side, radius, reached) ?? islandEndSpot(grid, side === 'W' ? 'E' : 'W', radius, reached)
+      if (spot !== null) {
+        if (spot.side !== side) side = spot.side
+        site = spot.at
+        grid.markDisc(site, radius, WorldGrid.RESERVED)
+      } else {
+        // no end fits him: his site, facing the start
+        side = site.x <= hub.x ? 'W' : 'E'
+      }
+    }
     const actor = Monster.create(
       ctx,
       site.x + 0.5,
@@ -205,6 +228,20 @@ export function buildObjectives(
     approach.triggerTimes = 1
     approach.connectToShape(near)
     approach.connectTo(new NodeCreateBossBar(ctx, site.x + 1, site.y - 4, [actor], boss.barName))
+    // what the boss's own arena would tell it as the fight starts (HW2's), on load and again
+    // a little later; a boss without any allocates nothing
+    const signals = startSignalsFor(boss, side)
+    if (signals.length > 0) {
+      const loaded = new NodeGlobalEventTrigger(ctx, site.x - 1, site.y - 4, LEVEL_LOADED_EVENT)
+      for (const signal of signals) {
+        const node =
+          'event' in signal
+            ? new NodeGlobalEventRanged(ctx, site.x + 0.5, site.y + 0.5, signal.event, 64)
+            : new NodeSetFlag(ctx, site.x + 0.5, site.y + 0.5, signal.flag)
+        loaded.connectTo(node)
+        loaded.connectTo(node, 3000)
+      }
+    }
     const died = new NodeObjectEventTrigger(ctx, site.x, site.y - 3)
     died.connectObject(actor)
     died.triggerTimes = 1
@@ -232,6 +269,25 @@ export function buildObjectives(
     for (const node of reveal) zero.connectTo(node)
   }
   return { buttons, bosses, plates }
+}
+
+/**
+ * The westmost (or eastmost) spot where a disc of `radius` is all free land the
+ * party can walk to: a perched boss's place at that end of the island, kept off
+ * the coast and the cliffs. Rows nearer the island's middle first. Null if none.
+ */
+function islandEndSpot(grid: WorldGrid, side: BossSide, radius: number, reached: Uint8Array): { at: Tile; side: BossSide } | null {
+  const midY = Math.trunc(grid.height / 2)
+  const rows = Array.from({ length: grid.height }, (_, y) => y).sort((a, b) => Math.abs(a - midY) - Math.abs(b - midY) || a - b)
+  for (let i = 0; i < grid.width; i++) {
+    const x = side === 'W' ? i : grid.width - 1 - i
+    for (const y of rows) {
+      const at = { x, y }
+      if (reached[y * grid.width + x] !== 1) continue
+      if (grid.discAll(at, radius, (cx, cy) => grid.free(cx, cy))) return { at, side }
+    }
+  }
+  return null
 }
 
 function announce(ctx: GenerationContext, hub: Tile, text: string): NodeAnnounceText {

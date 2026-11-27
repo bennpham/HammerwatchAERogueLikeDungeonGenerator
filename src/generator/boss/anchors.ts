@@ -85,6 +85,13 @@ export interface AnchorClearance {
    * width matter; its position is `(midX, midY)` by construction.
    */
   centreBoss?: { width: number; height: number }
+  /**
+   * A `sideWall` boss: the side it stands on and the first column free of its
+   * collider on the arena side (west boss: the column past its east edge). Only
+   * that side's mid anchor can land in it; the corner anchors sit far above and
+   * below a boss centred on midY.
+   */
+  sideBoss?: { side: 'W' | 'E'; freeColumn: number }
 }
 
 /**
@@ -131,8 +138,8 @@ export function anchors(width: number, height: number, clearance: AnchorClearanc
   return [
     { id: 'N', x: midX, y: northMid },
     { id: 'S', x: midX, y: bottom },
-    { id: 'E', x: right, y: midY },
-    { id: 'W', x: left, y: midY },
+    { id: 'E', x: clearance.sideBoss?.side === 'E' ? Math.max(midX + 1, Math.min(right, clearance.sideBoss.freeColumn)) : right, y: midY },
+    { id: 'W', x: clearance.sideBoss?.side === 'W' ? Math.min(midX - 1, Math.max(left, clearance.sideBoss.freeColumn)) : left, y: midY },
     { id: 'NE', x: right, y: top },
     { id: 'NW', x: left, y: top },
     { id: 'SE', x: right, y: bottom },

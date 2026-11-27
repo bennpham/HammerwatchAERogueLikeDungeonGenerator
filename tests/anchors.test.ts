@@ -5,6 +5,7 @@ import {
   largestBossFootprintArea,
   BOSS_DEF_LIST,
   BOSS_DEFS,
+  sideWallBossX,
   topWallBossClearance,
   topWallBossY
 } from '../src/generator/boss/bosses'
@@ -180,6 +181,47 @@ describe('boss arena anchors — topWall boss clearance', () => {
  * monster the anchor rig sent to C spawned inside the boss. Visibly so with the
  * queen, whose collider is the largest of the seven at 5.06 x 5.19 tiles.
  */
+/**
+ * A `sideWall` boss (HW2's Doombringer) stands flush inside the west or east
+ * wall, centred on midY: the W or E anchor would land in him, so it moves
+ * inward to the first free column (arena.ts computes that column).
+ */
+describe('boss arena anchors — side-wall boss clearance', () => {
+  const sideBosses = BOSS_DEF_LIST.filter((d) => d.placement === 'sideWall')
+
+  it('has a side-wall boss to test', () => {
+    expect(sideBosses.map((d) => d.id)).toEqual(['hw2_doombringer'])
+  })
+
+  for (const [width, height] of SIZES) {
+    for (const def of sideBosses) {
+      for (const side of ['W', 'E'] as const) {
+        const x = sideWallBossX(def, side, width)
+        const freeColumn = side === 'W' ? Math.ceil(x + def.footprintWidth / 2) + 1 : Math.floor(x - def.footprintWidth / 2) - 1
+        const cleared = anchors(width, height, { sideBoss: { side, freeColumn } })
+        const plain = anchors(width, height)
+        const moved = cleared.find((a) => a.id === side)!
+        const midY = Math.trunc(height / 2)
+
+        it(`${width}x${height} ${def.id} on ${side}: its anchor is outside the boss, on the floor, on no other anchor`, () => {
+          const inside = Math.abs(moved.x - x) < def.footprintWidth / 2 && Math.abs(moved.y - midY) < def.footprintHeight / 2
+          expect(inside).toBe(false)
+          expect(moved.x).toBeGreaterThan(0)
+          expect(moved.x).toBeLessThan(width - 1)
+          expect(new Set(cleared.map((a) => `${a.x},${a.y}`)).size).toBe(9)
+        })
+
+        it(`${width}x${height} ${def.id} on ${side}: nothing but that anchor moves`, () => {
+          for (const a of cleared) {
+            if (a.id === side) continue
+            expect(a).toEqual(plain.find((b) => b.id === a.id))
+          }
+        })
+      }
+    }
+  }
+})
+
 describe('boss arena anchors — centre boss clearance', () => {
   const centreBosses = BOSS_DEF_LIST.filter((d) => d.placement === 'centre')
 

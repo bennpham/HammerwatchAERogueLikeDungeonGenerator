@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { defaultDungeonBoss, generateDungeon, validateParameters } from '../src/generator'
+import { defaultDungeonBoss, defaultWorld, generateDungeon, validateParameters } from '../src/generator'
+import type { AeLevel } from '../src/generator/ae/model'
 import type { DungeonParameters } from '../src/generator'
 import { BOSS_DEFS, BOSS_DEF_LIST } from '../src/generator/boss/bosses'
 import { AE_ONLY } from '../src/generator/custom/sources'
 import { hw2CopyPlan } from '../src/main/custom/hw2/copy'
 import { AE_ROOT } from './aeInstall'
-import { generateOk, levelsOf, scriptsOf, strParam, unitsOf } from './ae'
+import { generateOk, idsParam, levelsOf, scriptsOf, strParam, unitById, unitsOf } from './ae'
 import { HAS_HW2, HW2_CONTENT, HW2_ROOT, danglingPaths } from './hw2Install'
 import { plainParameters } from './params'
 
@@ -69,17 +70,87 @@ describe('Hammerwatch 2 bosses', () => {
     }
     // Blight waits, immortal, on his arena's "event_intro"; Doombringer on its flag
     expect(signals('hw2_blight')).toEqual({ events: [['event_intro', true]], flags: [] })
-    // and his side of the arena: every attack of his needs one
-    expect(signals('hw2_doombringer')).toEqual({ events: [], flags: [['doombringer_introduced', 1], ['west_side', 1]] })
+    // and the flag for the side he's perched on: every attack of his needs one
+    const doom = signals('hw2_doombringer')
+    expect(doom.events).toEqual([])
+    expect(doom.flags[0]).toEqual(['doombringer_introduced', 1])
+    expect([['west_side', 1], ['east_side', 1]]).toContainEqual(doom.flags[1])
     expect(signals('hw2_sinkage')).toEqual({ events: [], flags: [] })
   })
 
   it("aren't offered while they can't be fought, and a campaign naming one is warned, not refused", () => {
     const hidden = HW2_BOSSES.filter((d) => d.hidden !== undefined).map((d) => d.id)
-    expect(hidden).toEqual(['hw2_blight', 'hw2_doombringer', 'hw2_archibald'])
+    expect(hidden).toEqual(['hw2_blight', 'hw2_archibald'])
     const v = validateParameters(arenaOn(['hw2_archibald']), HW2_CONTENT)
     expect(v.errors).toEqual([])
     expect(v.warnings.some((w) => w.field === 'boss.fights.0.arena.bossPool' && /Archibald Steelwill: can't be fought yet/.test(w.message))).toBe(true)
+  })
+
+  describe('Doombringer, a dragon perched on one wall', () => {
+    const DOOM = BOSS_DEFS.hw2_doombringer
+    const flagsOf = (level: AeLevel) => scriptsOf(level, 'SetFlag').map((s) => strParam(s, 'Flag'))
+
+    it('stands against the west or east wall, facing in, with the way out never behind him', () => {
+      const sides = new Set<string>()
+      for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+        const r = generateOk(arenaOn(['hw2_doombringer']), seed)
+        const level = [...levelsOf(r).values()].find((l) => unitsOf(l, (u) => u.path === DOOM.actorPath).length > 0)!
+        const boss = unitsOf(level, (u) => u.path === DOOM.actorPath)[0]
+        // the bar node sits at the arena's midX; the alcove seals are what the boss's death destroys
+        const midX = scriptsOf(level, 'CreateBossBar')[0].x
+        const west = boss.x < midX
+        sides.add(west ? 'W' : 'E')
+        const flags = flagsOf(level)
+        expect(flags, `seed ${seed}`).toContain(west ? 'west_side' : 'east_side')
+        expect(flags, `seed ${seed}`).not.toContain(west ? 'east_side' : 'west_side')
+        // his collider flush with the inside of his wall: well off the middle
+        expect(Math.abs(boss.x - midX), `seed ${seed}`).toBeGreaterThan(10 * 16)
+        const seals = scriptsOf(level, 'DestroyUnits').flatMap((d) => idsParam(d, 'Units')).map((id) => unitById(level, id)!)
+        expect(seals.length, `seed ${seed}`).toBeGreaterThan(0)
+        for (const seal of seals) {
+          // north, or the far wall: never his
+          const onHisWall = west ? seal.x < midX - 10 * 16 : seal.x > midX + 10 * 16
+          expect(onHisWall, `seed ${seed}: the alcove opens behind him`).toBe(false)
+        }
+      }
+      expect([...sides].sort()).toEqual(['E', 'W'])
+    })
+
+    it('fights alone, and never on a dungeon floor', () => {
+      const two = arenaOn(['hw2_doombringer', 'hw2_sinkage'])
+      two.boss.fights[0].arena = { ...two.boss.fights[0].arena, bossCount: 2 }
+      expect(validateParameters(two, HW2_CONTENT).errors.some((e) => /Doombringer fights alone/.test(e.message))).toBe(true)
+      const p = plainParameters()
+      p.levelBoss = Array.from({ length: p.levels }, (_, i) => ({ ...defaultDungeonBoss(), enabled: i === 0, bossPool: ['hw2_doombringer'] }))
+      expect(validateParameters(p, HW2_CONTENT).errors.some((e) => e.field.startsWith('levelBoss.0'))).toBe(true)
+    })
+
+    it('perches on the west or east end of a World island, facing in', () => {
+      const sides = new Set<string>()
+      for (const seed of [1, 2, 3, 4, 5, 6]) {
+        const p = plainParameters()
+        p.world = {
+          enabled: true,
+          worlds: [{ ...defaultWorld(), minWidth: 96, maxWidth: 96, minHeight: 96, maxHeight: 96, buttons: 1, bossCount: 1, bossPool: ['hw2_doombringer'] }]
+        }
+        expect(validateParameters(p, HW2_CONTENT).errors).toEqual([])
+        const r = generateOk(p, seed)
+        const level = [...levelsOf(r).values()].find((l) => unitsOf(l, (u) => u.path === DOOM.actorPath).length > 0)!
+        const boss = unitsOf(level, (u) => u.path === DOOM.actorPath)[0]
+        // the island's land runs between its westmost and eastmost wall pieces of cliff
+        const xs = level.units.map((u) => u.x)
+        const minX = Math.min(...xs)
+        const maxX = Math.max(...xs)
+        const west = boss.x - minX < maxX - boss.x
+        sides.add(west ? 'W' : 'E')
+        expect(flagsOf(level), `seed ${seed}`).toContain(west ? 'west_side' : 'east_side')
+        expect(flagsOf(level), `seed ${seed}`).toContain('doombringer_introduced')
+        // at that end: within a fifth of the island's span of its edge
+        const edge = west ? boss.x - minX : maxX - boss.x
+        expect(edge, `seed ${seed}`).toBeLessThan((maxX - minX) / 5)
+      }
+      expect(sides.size).toBeGreaterThan(0)
+    })
   })
 
   it('never reach an AE-only campaign: the same parameters without them generate the same bytes either way', () => {

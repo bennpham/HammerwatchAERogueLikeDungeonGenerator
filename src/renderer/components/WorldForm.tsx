@@ -67,8 +67,8 @@ function bossLabel(id: string): string {
 const MYSTERY_SOME_PLATES = 6
 const MYSTERY_HUNT_PLATES = 16
 
-/** Bosses that can roam a world: the floors' mobile list. */
-const MOBILE_BOSS_DEFS = BOSS_DEF_LIST.filter((def) => def.mobile)
+/** Bosses a world may host: the floors' mobile list, and a boss perched on an island end (Doombringer). */
+const WORLD_BOSS_DEFS = BOSS_DEF_LIST.filter((def) => def.mobile || def.placement === 'sideWall')
 
 /**
  * The World tab: open islands, each its own `W` slot in the campaign. Built
@@ -343,7 +343,9 @@ export function WorldForm({ params, issues, onChange }: WorldFormProps) {
               bossPool={world.bossPool}
               bossCount={worldBossCount(world)}
               bossLineup={world.bossLineup}
-              defs={MOBILE_BOSS_DEFS.map((def) => ({ id: def.id, label: bossLabel(def.id), unique: def.unique }))}
+              defs={WORLD_BOSS_DEFS.filter(
+                (def) => (offerable(def.id, content) && def.hidden === undefined) || world.bossPool.includes(def.id) || (world.bossLineup ?? {})[def.id] !== undefined
+              ).map((def) => ({ id: def.id, label: offeredLabel(def.id, def.label ?? bossLabel(def.id), content), unique: def.unique }))}
               fieldPrefix={prefix}
               issues={issues}
               onChange={(patch) => setWorld(patch)}

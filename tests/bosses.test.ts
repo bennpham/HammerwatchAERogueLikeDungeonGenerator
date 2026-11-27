@@ -47,8 +47,10 @@ describe('boss defs', () => {
   })
 
 
-  it('places exactly the two dragons in the top wall; everything else is centred', () => {
-    for (const def of BOSS_DEF_LIST) expect(def.placement).toBe(TOP_WALL.includes(def.id) ? 'topWall' : 'centre')
+  it('places the two dragons in the top wall, Doombringer on a side wall; everything else is centred', () => {
+    for (const def of BOSS_DEF_LIST) {
+      expect(def.placement, def.id).toBe(TOP_WALL.includes(def.id) ? 'topWall' : def.id === 'hw2_doombringer' ? 'sideWall' : 'centre')
+    }
   })
 
   it('has only the dragons forbid an alcove wall, and they forbid N', () => {
@@ -96,11 +98,12 @@ describe('topWall boss placement', () => {
     }
   })
 
-  it('is unique for exactly the two dragons and the queen', () => {
+  it('is unique for exactly the three dragons and the queen', () => {
     for (const def of BOSS_DEF_LIST) {
       expect(def.unique).toBe((UNIQUE_BOSS_IDS as readonly string[]).includes(def.id))
     }
-    expect([...UNIQUE_BOSS_IDS].sort()).toEqual(['boss_dragon', 'boss_dragon_hwr', 'boss_queen'])
+    // Doombringer: his side flags are level-wide, so one per fight
+    expect([...UNIQUE_BOSS_IDS].sort()).toEqual(['boss_dragon', 'boss_dragon_hwr', 'boss_queen', 'hw2_doombringer'])
   })
 })
 

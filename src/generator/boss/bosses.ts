@@ -13,6 +13,12 @@ export type AlcoveWall = 'N' | 'E' | 'W'
 
 export type BossId = (typeof BOSS_IDS)[number]
 
+/** Which wall a `sideWall` boss stands against. */
+export type BossSide = 'W' | 'E'
+
+/** What a boss's own arena tells it as the fight starts: an event, or a level flag. */
+export type StartSignal = { event: string } | { flag: string }
+
 export interface BossDef {
   id: BossId
   /** in-level actor path, e.g. actors/boss_queen/boss_queen.xml */
@@ -37,8 +43,13 @@ export interface BossDef {
    * body 121 px, far past the one circle `footprint` describes.
    */
   hitCircles?: ReadonlyArray<readonly [number, number, number]>
-  /** where the arena places this boss */
-  placement: 'centre' | 'topWall'
+  /**
+   * where the arena places this boss: the centre, against the north wall (the
+   * dragons), or against the west or east wall, facing in (`sideWall`: HW2's
+   * Doombringer, a perched dragon whose every attack faces one way; the exit
+   * never opens on his side, and he fights alone)
+   */
+  placement: 'centre' | 'topWall' | 'sideWall'
   /**
    * For a `topWall` boss, tiles to move the emitted actor past the spot
    * `topWallBossY` computes (negative = up). Art only: the layout and the
@@ -112,7 +123,12 @@ export interface BossDef {
    * arenas; without these some never leave an immortal opening (Blight waits on
    * `event_intro`, Doombringer on the flag `doombringer_introduced`).
    */
-  startSignals?: ReadonlyArray<{ event: string } | { flag: string }>
+  startSignals?: ReadonlyArray<StartSignal>
+  /**
+   * A `sideWall` boss's start signals for the side it stands on: `W` on the
+   * west, facing east. Doombringer's attacks all need the flag for his perch.
+   */
+  sideSignals?: Readonly<Record<BossSide, ReadonlyArray<StartSignal>>>
   /**
    * Why the boss isn't offered: it can't be fought yet. Pickers leave it out,
    * and a campaign naming it gets a warning (Archibald, whose fight is his HW2
@@ -129,7 +145,7 @@ export interface BossDef {
  * Bosses a campaign may only roll ONE of: the two dragons (static, welded to
  * the top wall) and the queen (static, by far the largest footprint).
  */
-export const UNIQUE_BOSS_IDS: readonly BossId[] = ['boss_dragon', 'boss_dragon_hwr', 'boss_queen']
+export const UNIQUE_BOSS_IDS: readonly BossId[] = ['boss_dragon', 'boss_dragon_hwr', 'boss_queen', 'hw2_doombringer']
 
 /**
  * Every AE end boss and its real footprint, measured from the actor's own
@@ -237,6 +253,15 @@ export function isStationary(def: BossDef): boolean {
   return !def.mobile && def.arenaOnly !== true
 }
 
+/**
+ * The bosses a World island may host: those that chase (`MOBILE_BOSS_IDS`), and
+ * a `sideWall` boss, which perches on the island's west or east end
+ * (world/objectives.ts).
+ */
+export const WORLD_BOSS_IDS: readonly BossId[] = BOSS_IDS.filter(
+  (id) => (MOBILE_BOSS_IDS as readonly string[]).includes(id) || BOSS_DEFS[id].placement === 'sideWall'
+)
+
 /** `BOSS_DEFS` as a `BOSS_IDS`-ordered array, for callers that want to iterate. */
 export const BOSS_DEF_LIST: readonly BossDef[] = BOSS_IDS.map((id) => BOSS_DEFS[id])
 
@@ -270,6 +295,20 @@ export function topWallBossY(def: BossDef): number {
  */
 export function topWallBossClearance(def: BossDef, bossY: number): number {
   return Math.ceil(bossY + def.footprintHeight / 2 + (def.collisionOffsetY ?? 0)) + 1
+}
+
+/**
+ * The column a `sideWall` boss stands on: its collider flush with the inside
+ * of the west or east wall band, never in it.
+ */
+export function sideWallBossX(def: BossDef, side: BossSide, width: number): number {
+  const half = Math.ceil(def.footprintWidth / 2)
+  return side === 'W' ? half : width - half
+}
+
+/** A boss's start signals for where it stands (its side, for a `sideWall` boss). */
+export function startSignalsFor(def: BossDef, side?: BossSide): StartSignal[] {
+  return [...(def.startSignals ?? []), ...(side === undefined ? [] : (def.sideSignals?.[side] ?? []))]
 }
 
 /** Whether `id` names a boss a dungeon floor may host — see MOBILE_BOSS_IDS. */

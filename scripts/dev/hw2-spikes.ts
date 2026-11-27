@@ -17,12 +17,14 @@
 //   dungeon_11260008  … Doombringer.
 //   dungeon_11260009  … Barrington.
 //   dungeon_11260010  … Archibald. (The other five HW2 bosses are confirmed.)
+//   dungeon_11260011  Doombringer on a World island right after the first lobby, perched on
+//                     the island's west or east end.
 //   dungeon_11260003  S4: dungeon_11260001's campaign, but every texture taken compiled from
 //                     HW2's res/assets.bin and packed as is.
 //
 // Each starts with the Hammerwatch 2 level-50 player preset, fully upgraded.
 //
-// --remove deletes the ten .h1c files (and description .txt files) again.
+// --remove deletes the eleven .h1c files (and description .txt files) again.
 import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyFullyUpgraded, defaultBossFight, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
@@ -40,7 +42,7 @@ import { renderLevel } from '../../src/generator/ae/levelWriter'
 
 const AE = process.env.HWAE_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch Anniversary Edition'
 const HW2 = process.env.HW2_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch 2'
-const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007, 11260008, 11260009, 11260010]
+const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007, 11260008, 11260009, 11260010, 11260011]
 
 if (process.argv.includes('--remove')) {
   for (const seed of SEEDS) {
@@ -85,6 +87,15 @@ function worldCampaign(): DungeonParameters {
     worlds: [{ ...defaultWorld(), biome: 'hw2_highlands', music: 'hw2_highlands_day', monsters: ['hw2_troll_brute', 'hw2_crab', 'hw2_tick'] }]
   }
   // the island right after the first lobby
+  const order = p.levelOrder ?? []
+  p.levelOrder = [...order.slice(0, 1), parseSlotLabel('W1')!, ...order.slice(1)]
+  return maxed(p)
+}
+
+/** A maxed stock campaign with a World island right after the first lobby, its one boss `id`. */
+function worldFor(id: string): DungeonParameters {
+  const p = defaultParameters()
+  p.world = { enabled: true, worlds: [{ ...defaultWorld(), buttons: 1, bossCount: 1, bossPool: [id] }] }
   const order = p.levelOrder ?? []
   p.levelOrder = [...order.slice(0, 1), parseSlotLabel('W1')!, ...order.slice(1)]
   return maxed(p)
@@ -202,3 +213,4 @@ await install(SEEDS[6], arenaFor('hw2_blight'), false)
 await install(SEEDS[7], arenaFor('hw2_doombringer'), false)
 await install(SEEDS[8], arenaFor('hw2_barrington'), false)
 await install(SEEDS[9], arenaFor('hw2_archibald'), false)
+await install(SEEDS[10], worldFor('hw2_doombringer'), false)
