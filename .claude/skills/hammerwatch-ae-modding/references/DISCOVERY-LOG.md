@@ -1635,3 +1635,11 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   keyword on method: …" for each that does override a base method (`ChannelingSpewSkill::IsCasting`
   and others). It compiles; it's log noise. Keeping `override` wherever AE names the method was
   tried and dropped: a name AE uses in another class than the base would be a compile error.
+- `[VERIFIED]` S8 second play: Doombringer with `doombringer_introduced` and `west_side` can be hurt
+  and attacks. Blight, with `event_intro` on load and again at 3 s, still can't be hurt.
+- `[EMITTED]` Placement `sideWall` (Doombringer): the arena draws W or E (`bossRand`, only when such a
+  boss is picked), stands him flush inside that wall (`sideWallBossX`), forbids that wall to the
+  exit alcove, pushes the W/E spawn anchor clear, and sends that side's `sideSignals` (`west_side`
+  or `east_side`). He fights alone and is unique; `WORLD_BOSS_IDS` lets him onto World islands,
+  where he takes the westmost or eastmost free, reachable land his footprint fits, with the
+  matching flag (world/objectives.ts `islandEndSpot`).
