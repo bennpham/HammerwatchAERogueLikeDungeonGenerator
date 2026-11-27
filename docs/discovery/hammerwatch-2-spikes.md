@@ -168,6 +168,10 @@ others, each arena right after the first lobby:
 | `dungeon_11260009` | Barrington |
 | `dungeon_11260010` | Archibald Steelwill (only his own unit: his formations come from his HW2 arena) |
 
+**Third play:** Barrington killed, levers or not. Blight, Doombringer and Archibald are
+invincible and still: each stays in the immortal opening state only his HW2 arena ends. Six of
+the nine HW2 bosses work in a generated arena; these three need their arenas (plan step 5).
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor

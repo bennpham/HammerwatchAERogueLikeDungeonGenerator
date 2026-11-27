@@ -1610,3 +1610,7 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   `tag <tags>` (always "has"). Shock Widow's `spew_web.unit` logged "SValue::GetString can only be
   used on strings, not array". 22 `tag has` in HW2's actors, 1 `tag hasnt` (the horde necromancer).
 - `[EMITTED]` The copy rewrites `tag has` to AE's `tag`, and notes a `tag hasnt`.
+- `[VERIFIED]` S7 in game: in a generated arena, Commodore Sinkage, Shock Widow, Malgar, Dace Arden,
+  Judge Supreme and Barrington fight and can be killed (Barrington without his levers). Blight,
+  Doombringer and Archibald are invincible and idle, held in the immortal opening states their
+  HW2 arenas end (Blight `state_start`, Doombringer `state_intro`, Archibald `state_start`).
