@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BOSS_IDS } from '../src/generator/config/parameters'
 import {
+  BOSS_CAMPAIGNS,
   BOSS_DEF_LIST,
   BOSS_DEFS,
   UNIQUE_BOSS_IDS,
@@ -12,6 +13,7 @@ import {
 } from '../src/generator/boss/bosses'
 import { ARENA_MIN_HEIGHT } from '../src/generator/boss/geometry'
 import { Rand } from '../src/generator/core/rand'
+import { aeAssetExists } from '../src/generator/catalog/assets'
 
 /** The two static dragons — the only bosses pinned to the arena's top wall. */
 const TOP_WALL = ['boss_dragon', 'boss_dragon_hwr']
@@ -24,12 +26,23 @@ describe('boss defs', () => {
     }
   })
 
-  it('every def has an AE actor unit and a positive footprint', () => {
+  it('every def has an actor unit and a positive footprint', () => {
     for (const def of BOSS_DEF_LIST) {
-      expect(def.actorPath).toMatch(/^actors\/.+\.unit$/)
       expect(def.footprintWidth).toBeGreaterThan(0)
       expect(def.footprintHeight).toBeGreaterThan(0)
-      expect(def.barName).toMatch(/^\.(d\.)?ig\./)
+      expect(aeAssetExists(def.actorPath), def.actorPath).toBe(true)
+      if (def.source === undefined) {
+        expect(def.actorPath).toMatch(/^actors\/.+\.unit$/)
+        expect(def.barName).toMatch(/^\.(d\.)?ig\./)
+      } else {
+        // custom content: under its source's prefix, offered only with that source loaded,
+        // never in a floor's pool, and named plainly (its game's language keys aren't AE's)
+        expect(def.id.startsWith(`${def.source}_`), def.id).toBe(true)
+        expect(def.actorPath.startsWith(`${def.source}/actors/`), def.actorPath).toBe(true)
+        expect(def.mobile, def.id).toBe(false)
+        expect(def.barName).not.toMatch(/^\./)
+        expect(BOSS_CAMPAIGNS.find((c) => c.bosses.includes(def.id))?.label).toBe('Hammerwatch 2')
+      }
     }
   })
 

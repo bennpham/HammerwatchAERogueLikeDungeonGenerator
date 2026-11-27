@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { GroupedOptions } from '../customContent'
+import { GroupedOptions, offerable, offeredLabel, useContentSources } from '../customContent'
 import {
   ARENA_PATTERN_LABELS,
   campaignCounts,
@@ -498,6 +498,15 @@ function BossOnlyArenaFields({ arena, fieldPrefix, issues, setArena, setWave }: 
   )
 
   const bossCount = arenaBossCount(arena)
+  const content = useContentSources()
+  // Hammerwatch 2's bosses only while it's loaded; one this arena already holds
+  // (an imported parameters.txt) stays listed, marked, beside its validation error
+  const held = new Set<string>([...arena.bossPool, ...Object.keys(arena.bossLineup ?? {})])
+  const bossDefs = BOSS_DEF_LIST.filter((def) => offerable(def.id, content) || held.has(def.id)).map((def) => ({
+    id: def.id,
+    label: offeredLabel(def.id, def.label ?? bossLabel(def.id), content),
+    unique: def.unique
+  }))
   // With 2+ bosses the engine's Boss 75/50/25% events can't tell them apart,
   // so the generator skips those three tiers, invulnerability and checkpoints
   // entirely (see isMultiBoss's doc comment) — hidden below, never disabled,
@@ -545,7 +554,7 @@ function BossOnlyArenaFields({ arena, fieldPrefix, issues, setArena, setWave }: 
 
   return (
     <>
-      <Section title="Boss" badge={`${arena.bossPool.length}/${BOSS_DEF_LIST.length}`}>
+      <Section title="Boss" badge={`${arena.bossPool.length}/${bossDefs.length}`}>
         {multiBoss && (
           <p className="hint">
             Multiple bosses: 75/50/25% tiers, invulnerability and checkpoints are hidden — they
@@ -557,7 +566,7 @@ function BossOnlyArenaFields({ arena, fieldPrefix, issues, setArena, setWave }: 
           bossPool={arena.bossPool}
           bossCount={bossCount}
           bossLineup={arena.bossLineup}
-          defs={BOSS_DEF_LIST.map((def) => ({ id: def.id, label: bossLabel(def.id), unique: def.unique }))}
+          defs={bossDefs}
           fieldPrefix={fieldPrefix}
           issues={issues}
           onChange={(patch) => setArena(patch)}

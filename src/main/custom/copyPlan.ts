@@ -82,6 +82,14 @@ export const MAX_COPY_FILES = 20_000
 
 /** Unit parameters naming the other game's own tables. */
 const FOREIGN_PARAMS = /[ \t]*<string name="(?:team|loot|gore)">[^<]*<\/string>[ \t]*\r?\n?/g
+/**
+ * A `SpawnLoot` action, whole. Its `loot` names one of the other game's loot
+ * tables, which AE lacks; with that line stripped, AE's SpawnLoot dereferences
+ * a missing table (Sinkage's death: "Null pointer access" in SpawnLoot.as).
+ * The arena's own reward stands in. Its dict holds only strings, so the first
+ * `</dict>` closes it.
+ */
+const SPAWN_LOOT = /[ \t]*<dict>\s*<string name="class">SpawnLoot<\/string>[\s\S]*?<\/dict>[ \t]*\r?\n?/g
 const CLASS_NAMES = /\bclass="(\w+)"|<string name="class">(\w+)<\/string>/g
 const SOUND_EVENT = /event:\/[\w/\-.]+/g
 
@@ -364,7 +372,7 @@ export function planCopy(input: CopyInput): CopyPlan {
       }
       out += t.content.slice(last)
       if (path.endsWith('.unit') || path.endsWith('.inc')) {
-        out = singleSpeeds(out.replace(FOREIGN_PARAMS, ''))
+        out = singleSpeeds(out.replace(SPAWN_LOOT, '').replace(FOREIGN_PARAMS, ''))
         out = out.replace(SOUND_EVENT, (e) => (input.aeEvents.has(e) ? e : ''))
         // a commented-out block is never loaded, so its classes aren't needed
         for (const m of maskComments(out).matchAll(CLASS_NAMES)) {

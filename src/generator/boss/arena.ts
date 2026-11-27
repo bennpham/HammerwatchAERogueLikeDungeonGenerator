@@ -74,7 +74,7 @@ import type { Gateway } from '../campaign'
 import type { BossArenaOptions, SurvivalOptions } from '../config/parameters'
 import type { LevelPreview, PreviewRoom } from '../index'
 import { ENTRANCE_DEPTH, ENTRANCE_WIDTH, anchors } from './anchors'
-import { BOSS_DEFS, expandLineup, pickBosses, topWallBossClearance, topWallBossY } from './bosses'
+import { BOSS_DEFS, expandLineup, isStationary, pickBosses, topWallBossClearance, topWallBossY } from './bosses'
 import type { AlcoveWall, BossDef, BossId } from './bosses'
 import { isFree, placeCoverPillars, reachableMask } from './cover'
 import type { CoverArena, Rect } from './cover'
@@ -641,7 +641,7 @@ export function buildBossArena(
     // projectile can hit on them, placed where Monster.create put the actor
     // (art nudge included)
     stationaryBosses: bossPlacements
-      .filter((p) => !p.def.mobile)
+      .filter((p) => isStationary(p.def))
       .flatMap((p) => {
         const ay = p.y + (p.def.placement === 'topWall' ? (p.def.artNudgeY ?? 0) : 0)
         return (p.def.hitCircles ?? [[0, (p.def.collisionOffsetY ?? 0) * 16, p.def.footprintWidth * 8]]).map(([ox, oy, r]) => ({

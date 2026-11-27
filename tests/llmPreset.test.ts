@@ -137,7 +137,12 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toMatch(/Castle Hammerwatch monsters: [^\n]*skeleton_warrior/)
     expect(prompt).toMatch(/Temple of the Sun monsters: [^\n]*mummy/)
     expect(prompt).toMatch(/Castle Hammerwatch themes: prison, armory, archives, chambers/)
+    // stock bosses only: custom ones (Hammerwatch 2's) need their source loaded
     for (const id of BOSS_IDS) {
+      if (id.startsWith('hw2_')) {
+        expect(prompt).not.toContain(id)
+        continue
+      }
       const line = prompt.split('\n').find((l) => l.startsWith(`- ${id}:`))
       expect(line, id).toBeDefined()
       expect(line!.includes('ARENA ONLY'), id).toBe(!(MOBILE_BOSS_IDS as readonly string[]).includes(id))

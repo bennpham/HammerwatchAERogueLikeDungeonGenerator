@@ -130,8 +130,13 @@ function themeLines(): string[] {
   return groups.map((group) => idList(`${group} themes`, THEME_DEFS.filter((t) => t.group === group).map((t) => t.id)))
 }
 
-/** Which boss is whose: typed against BossId so a new boss cannot ship without a line here. */
-const BOSS_NOTES: Record<BossId, string> = {
+/** The stock bosses: custom content (Hammerwatch 2, `hw2_`) needs its source loaded, so the assistant isn't told of it. */
+type StockBossId = Exclude<BossId, `hw2_${string}`>
+
+const isStockBoss = (id: BossId): id is StockBossId => !id.startsWith('hw2_')
+
+/** Which boss is whose: typed against the stock bosses so a new one cannot ship without a line here. */
+const BOSS_NOTES: Record<StockBossId, string> = {
   boss_queen: 'Castle Hammerwatch Act 1 boss, the Queen',
   boss_knight: 'Castle Hammerwatch Act 2 boss, the Knight',
   boss_lich: 'Castle Hammerwatch Act 3 boss, the Lich',
@@ -149,7 +154,7 @@ const BOSS_NOTES: Record<BossId, string> = {
 }
 
 function bossLines(): string[] {
-  return BOSS_IDS.map((id) => {
+  return BOSS_IDS.filter(isStockBoss).map((id) => {
     const mobile = (MOBILE_BOSS_IDS as readonly string[]).includes(id)
     return `- ${id}: ${BOSS_NOTES[id]}${mobile ? '' : '. Cannot move: ARENA ONLY, never on a floor'}`
   })

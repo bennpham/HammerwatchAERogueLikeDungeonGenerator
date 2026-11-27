@@ -32,6 +32,8 @@ const MAX_DEPTH = 16
 /** What to call the content in the message, from where it sits. */
 function kindOf(field: string): string {
   const f = field.toLowerCase()
+  // a boss fight's own fields (`boss.fights.0.arena.bossPool`), not its monster waves
+  if (/(^|\.)boss(pool|lineup)/.test(f)) return 'boss'
   if (f.includes('biome')) return 'biome'
   if (f.includes('theme')) return 'theme'
   if (f.includes('music')) return 'track'

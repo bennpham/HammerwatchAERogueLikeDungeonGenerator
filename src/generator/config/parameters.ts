@@ -1522,7 +1522,10 @@ export const BOSS_IDS = [
   'boss_eye',
   'boss_vampire',
   'boss_dragon_hwr',
-  'boss_seeress'
+  'boss_seeress',
+  // Hammerwatch 2 (experimental "Load custom"; custom/hw2/bosses.ts): offered only
+  // while HW2 is loaded, never in a default or a floor's pool
+  'hw2_sinkage'
 ] as const
 
 /**

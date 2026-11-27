@@ -27,7 +27,7 @@ import { validateParameters } from '../src/generator/config/validation'
 import { PROJECTILE_DEFS, PROJECTILE_GROUPS, projectileById } from '../src/generator/objects/projectileTypes'
 import { buildBossArena } from '../src/generator/boss/arena'
 import { BOSS_LANE_MARGIN, TRAP_MIN_SPACING, TRAP_WALL_MARGIN, buildTrapRig, wallCapacity, wallSlots } from '../src/generator/boss/traps'
-import { BOSS_DEFS } from '../src/generator/boss/bosses'
+import { BOSS_DEFS, isStationary } from '../src/generator/boss/bosses'
 import type { BossId } from '../src/generator/boss/bosses'
 import { TILE_CENTRE } from '../src/generator/traps/slots'
 import type { TrapArena } from '../src/generator/boss/traps'
@@ -712,7 +712,7 @@ describe('boss traps — never aimed at a stationary boss', () => {
         const actors = ctx.bossActors as unknown as Array<{ x: number; y: number; type: { id: BossId } }>
         const circles = actors.flatMap((m) => {
           const def = BOSS_DEFS[m.type.id]
-          if (def === undefined || def.mobile) return []
+          if (def === undefined || !isStationary(def)) return []
           return (def.hitCircles ?? []).map(([ox, oy, r]) => ({ x: m.x + ox / 16, y: m.y + oy / 16, radius: r / 16 }))
         })
         expect(circles.length, `${label} seed ${seed}: stationary hit circles`).toBeGreaterThanOrEqual(Object.keys(lineup).length)
@@ -729,7 +729,7 @@ describe('boss traps — never aimed at a stationary boss', () => {
 })
 
 describe("boss traps — the stationary bosses' hit circles", () => {
-  const stationary = Object.values(BOSS_DEFS).filter((d) => !d.mobile)
+  const stationary = Object.values(BOSS_DEFS).filter(isStationary)
 
   it('every stationary boss carries its hit circles', () => {
     expect(stationary.map((d) => d.id).sort()).toEqual(['boss_dragon', 'boss_dragon_hwr', 'boss_queen'])

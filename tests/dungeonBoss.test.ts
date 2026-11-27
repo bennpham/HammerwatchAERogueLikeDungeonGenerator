@@ -510,7 +510,8 @@ describe('dungeon boss — validation', () => {
   it('rejects a stationary boss', () => {
     // A boss that cannot chase is one the party walks away from — and on a
     // sealed floor, walking away means never opening the way out.
-    const stationary = BOSS_DEF_LIST.filter((d) => !d.mobile).map((d) => d.id)
+    // (stock bosses: custom ones, Hammerwatch 2's, are arena-only from the start)
+    const stationary = BOSS_DEF_LIST.filter((d) => !d.mobile && d.source === undefined).map((d) => d.id)
     expect(stationary.sort(), 'the two dragons and the queen').toEqual(['boss_dragon', 'boss_dragon_hwr', 'boss_queen'])
 
     const result = validateParameters(withBoss({ bossPool: ['boss_queen'] }))

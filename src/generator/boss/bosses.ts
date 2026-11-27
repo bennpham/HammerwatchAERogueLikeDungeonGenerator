@@ -1,5 +1,7 @@
 import { BOSS_IDS, MOBILE_BOSS_IDS } from '../config/parameters'
 import type { Rand } from '../core/rand'
+import type { ContentSource } from '../custom/sources'
+import { HW2_BOSS_DEFS } from '../custom/hw2/bosses'
 
 /**
  * Which walls of the arena's sealed reward alcove a boss's presence rules out.
@@ -96,6 +98,17 @@ export interface BossDef {
    * statue's static collision rect, in tiles.
    */
   statue?: { actorPath: string; footprint: number }
+  /**
+   * Kept off dungeon floors by choice, though it chases: Hammerwatch 2's bosses
+   * start Arena-tab only (docs/plans/hammerwatch-2-bosses.md). Such a boss
+   * isn't `mobile` (the floor pool), and isn't stationary either: see
+   * `isStationary`.
+   */
+  arenaOnly?: boolean
+  /** What pickers call it, when its id doesn't read as a name (`hw2_sinkage`) */
+  label?: string
+  /** Custom content's source; stock bosses have none (custom/sources.ts) */
+  source?: ContentSource
 }
 
 /**
@@ -145,7 +158,8 @@ const BOSS_DEFS_LIST: Omit<BossDef, 'mobile' | 'unique'>[] = [
   // <circle offset="0 -10" radius="35"> static, Shaftlocke's frost dragon
   { id: 'boss_dragon_hwr', actorPath: 'actors/bosses/boss_dragon_hwr/dragon.unit', footprintWidth: 70 / 16, footprintHeight: 70 / 16, collisionOffsetY: -10 / 16, placement: 'topWall', artNudgeY: -16 / 16, forbiddenAlcoveWalls: ['N'], barName: '.ig.hwr.boss6' },
   // the seeress is the giant bat Shaftlocke fights as a boss
-  { id: 'boss_seeress', actorPath: 'actors/beasts/bats/bat_mb_boss.unit', footprintWidth: 16 / 16, footprintHeight: 16 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss_seeress' }
+  { id: 'boss_seeress', actorPath: 'actors/beasts/bats/bat_mb_boss.unit', footprintWidth: 16 / 16, footprintHeight: 16 / 16, placement: 'centre', forbiddenAlcoveWalls: [], barName: '.ig.hwr.boss_seeress' },
+  ...HW2_BOSS_DEFS
 ]
 
 /**
@@ -199,8 +213,15 @@ export const BOSS_CAMPAIGNS: readonly { id: string; label: string; bosses: reado
     id: 'shaftlocke',
     label: 'Shaftlocke Tower',
     bosses: ['boss_golem', 'boss_warden', 'boss_wraith', 'boss_eye', 'boss_vampire', 'boss_dragon_hwr', 'boss_seeress']
-  }
+  },
+  // offered only while Hammerwatch 2 is loaded (renderer/customContent.tsx)
+  { id: 'hw2', label: 'Hammerwatch 2', bosses: HW2_BOSS_DEFS.map((d) => d.id) }
 ]
+
+/** A boss that stands still (the dragons, the queen): not `mobile`, and not kept off floors only by choice. */
+export function isStationary(def: BossDef): boolean {
+  return !def.mobile && def.arenaOnly !== true
+}
 
 /** `BOSS_DEFS` as a `BOSS_IDS`-ordered array, for callers that want to iterate. */
 export const BOSS_DEF_LIST: readonly BossDef[] = BOSS_IDS.map((id) => BOSS_DEFS[id])

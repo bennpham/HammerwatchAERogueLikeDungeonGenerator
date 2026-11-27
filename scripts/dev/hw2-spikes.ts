@@ -11,12 +11,14 @@
 //                     scripts they need (DashStrike.as, and easeSineOut in Hw2Compat.as).
 //   dungeon_11260005  S5: every HW2 boss's scripts, to see them all compile, and a first look
 //                     at Commodore Sinkage on floor 1 (not S6: no arena).
+//   dungeon_11260006  S6: Commodore Sinkage as the first arena's boss, right after the first
+//                     lobby: the generated arena, our boss bar, the arena's reward.
 //   dungeon_11260003  S4: dungeon_11260001's campaign, but every texture taken compiled from
 //                     HW2's res/assets.bin and packed as is.
 //
 // Each starts with the Hammerwatch 2 level-50 player preset, fully upgraded.
 //
-// --remove deletes the five .h1c files (and description .txt files) again.
+// --remove deletes the six .h1c files (and description .txt files) again.
 import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyFullyUpgraded, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
@@ -34,7 +36,7 @@ import { renderLevel } from '../../src/generator/ae/levelWriter'
 
 const AE = process.env.HWAE_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch Anniversary Edition'
 const HW2 = process.env.HW2_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch 2'
-const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005]
+const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006]
 
 if (process.argv.includes('--remove')) {
   for (const seed of SEEDS) {
@@ -81,6 +83,20 @@ function worldCampaign(): DungeonParameters {
   // the island right after the first lobby
   const order = p.levelOrder ?? []
   p.levelOrder = [...order.slice(0, 1), parseSlotLabel('W1')!, ...order.slice(1)]
+  return maxed(p)
+}
+
+/** S6: the first arena fights Commodore Sinkage, and comes right after the first lobby. */
+function sinkageArena(): DungeonParameters {
+  const p = defaultParameters()
+  p.boss = {
+    ...p.boss,
+    enabled: true,
+    fights: p.boss.fights.map((f, i) => (i === 0 ? { ...f, arena: { ...f.arena, bossSelection: 'random', bossPool: ['hw2_sinkage'], bossCount: 1 } } : f))
+  }
+  const order = p.levelOrder ?? []
+  const ab1 = order.find((slot) => JSON.stringify(slot) === JSON.stringify(parseSlotLabel('AB1')))
+  if (ab1 !== undefined) p.levelOrder = [order[0], ab1, ...order.slice(1).filter((slot) => slot !== ab1)]
   return maxed(p)
 }
 
@@ -175,3 +191,4 @@ await install(SEEDS[1], worldCampaign(), false)
 await install(SEEDS[2], floorsCampaign(), true)
 await installUnitSpike(SEEDS[3], 'S2', [{ unit: 'hw2/actors/beasts/wolves/wolf_grey.unit', count: 3 }])
 await installUnitSpike(SEEDS[4], 'S5', [{ unit: 'hw2/actors/bosses/commodore_sinkage/boss_sinkage.unit', count: 1 }], BOSSES)
+await install(SEEDS[5], sinkageArena(), false)
