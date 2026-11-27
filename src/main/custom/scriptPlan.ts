@@ -69,11 +69,11 @@ export interface ScriptPlan {
 export const COMPAT_PATH = 'scripts/Hw2Compat.as'
 
 /**
- * The script with its \`override\` keywords dropped. \`override\` only asks the
+ * The script with its `override` keywords dropped. `override` only asks the
  * compiler to check that a method replaces one of its base class, so dropping
  * it changes nothing where it does, and lets the file compile where AE's base
- * lacks the method: HW2's ResistBuffSkill overrides \`OnBuffApplied\` and
- * \`OnStackApplied\`, which AE's skills don't have, and that one error stopped
+ * lacks the method: HW2's ResistBuffSkill overrides `OnBuffApplied` and
+ * `OnStackApplied`, which AE's skills don't have, and that one error stopped
  * every script (spike S5). AE then never calls those methods.
  */
 export function withoutOverride(text: string): string {
@@ -87,10 +87,44 @@ export function withoutOverride(text: string): string {
   return out + text.slice(last)
 }
 
+/**
+ * One edit that lets a carried file compile against AE's scripts: the first
+ * `find` in the file (after `after`, when given) becomes `replace`.
+ */
+export interface ScriptPatch {
+  path: string
+  after?: string
+  find: string
+  replace: string
+  /** what AE has differently */
+  why: string
+}
+
+/** `text`, a piece of the file at `path`, with that file's patches applied; and the patches that found nothing in it. */
+function patched(text: string, path: string, patches: readonly ScriptPatch[]): { text: string; unmatched: ScriptPatch[] } {
+  const unmatched: ScriptPatch[] = []
+  for (const p of patches) {
+    if (p.path !== path) continue
+    const from = p.after === undefined ? 0 : text.indexOf(p.after)
+    const at = from < 0 ? -1 : text.indexOf(p.find, from)
+    if (at < 0) {
+      unmatched.push(p)
+      continue
+    }
+    text = text.slice(0, at) + p.replace + text.slice(at + p.find.length)
+  }
+  return { text, unmatched }
+}
+
 /** Bounds the walk; the nine HW2 bosses need about a dozen pieces. */
 export const MAX_SCRIPT_PIECES = 400
 
-export function planScripts(classes: Iterable<string>, source: ScriptIndex, ae: ScriptBase): ScriptPlan & { error?: string } {
+export function planScripts(
+  classes: Iterable<string>,
+  source: ScriptIndex,
+  ae: ScriptBase,
+  patches: readonly ScriptPatch[] = []
+): ScriptPlan & { error?: string } {
   const theirsOnly = (name: string): boolean => !ae.names.has(name) && source.byName.has(name)
   const wholeOk = new Map<string, boolean>()
   const canShipWhole = (path: string): boolean => {
@@ -125,9 +159,9 @@ export function planScripts(classes: Iterable<string>, source: ScriptIndex, ae: 
     queue.push({ text: file.text.slice(decl.start, decl.end), scope: new Set(decl.namespace) })
   }
   /**
-   * The declarations a use of \`name\` can mean. A global one by its bare name; a
-   * namespaced one only as \`Namespace::name\`, or bare from inside that namespace:
-   * a variable \`n\` in HW2's \`Modifiers\` isn't every \`n\` in its scripts.
+   * The declarations a use of `name` can mean. A global one by its bare name; a
+   * namespaced one only as `Namespace::name`, or bare from inside that namespace:
+   * a variable `n` in HW2's `Modifiers` isn't every `n` in its scripts.
    */
   const meant = (name: string, qualifier: string | null, scope: ReadonlySet<string>): Array<{ path: string; decl: Decl }> =>
     (source.byName.get(name) ?? []).filter(({ decl }) => {
@@ -159,7 +193,15 @@ export function planScripts(classes: Iterable<string>, source: ScriptIndex, ae: 
     }
   }
 
-  const files = [...wholeFiles].sort().map((path) => ({ path, text: withoutOverride(source.files.get(path)!.text) }))
+  // a patch that no longer matches a whole file means the other game changed: compiling it
+  // would fail and stop every script, so it's an error. (A cut declaration may simply not
+  // contain the patched text, so those aren't checked.)
+  const stale: string[] = []
+  const files = [...wholeFiles].sort().map((path) => {
+    const p = patched(withoutOverride(source.files.get(path)!.text), path, patches)
+    for (const u of p.unmatched) stale.push(`${path}: "${u.find}"`)
+    return { path, text: p.text }
+  })
   // a whole file already carries whatever was also asked of it
   const cutPaths = [...cut.keys()].filter((p) => !wholeFiles.has(p)).sort()
   let compat: ScriptFile | null = null
@@ -168,7 +210,7 @@ export function planScripts(classes: Iterable<string>, source: ScriptIndex, ae: 
     for (const path of cutPaths) {
       const text = source.files.get(path)!.text
       for (const d of [...cut.get(path)!].sort((a, b) => a.start - b.start)) {
-        const body = withoutOverride(text.slice(d.start, d.end))
+        const body = patched(withoutOverride(text.slice(d.start, d.end)), path, patches).text
         const open = d.namespace.map((n) => `namespace ${n} { `).join('')
         const close = d.namespace.map(() => ' }').join('')
         parts.push(`// from ${path}\n${open}${body}${close}\n`)
@@ -176,5 +218,6 @@ export function planScripts(classes: Iterable<string>, source: ScriptIndex, ae: 
     }
     compat = { path: COMPAT_PATH, text: parts.join('\n') }
   }
+  if (stale.length > 0) return { files, compat, missing, error: `script patches that no longer match: ${stale.join('; ')}` }
   return { files, compat, missing }
 }

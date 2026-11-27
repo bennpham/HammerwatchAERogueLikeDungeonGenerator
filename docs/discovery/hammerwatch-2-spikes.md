@@ -102,6 +102,11 @@ rewrite rule, and the scenario is reinstalled until it's clean.
 methods `override` that AE's base class doesn't have, and that one compile error stopped every
 script. Carried scripts now drop `override`, and a font AE has stays AE's. Reinstalled.
 
+**Second try:** no error box, but frozen on the character screen. The log showed three more
+compile errors where HW2's scripts call AE's differently, all in Blight's two classes
+(`EnemyOwnedActor`, `SteeringMovement`). Each became a patch (src/main/custom/hw2/scriptPatches.ts).
+Reinstalled.
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor

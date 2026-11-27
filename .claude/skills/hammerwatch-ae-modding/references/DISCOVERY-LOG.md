@@ -1546,3 +1546,15 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   know `.ttf` ("FontLoader: Couldn't find font hw2/gui/fonts/arialuni.ttf"). AE has its own
   `gui/fonts/arial11.fnt` and `hw8.fnt`.
 - `[EMITTED]` A `gui/fonts/` file AE has stays AE's; one it lacks ships with its `.ttf`.
+- `[VERIFIED]` S5, second try (`override` dropped): the next compile errors, all in two
+  Blight-only files. Each is where HW2's scripts and AE's differ:
+  - `EnemyOwnedActor.as` line 20 calls `IOwnedUnitSave(this, sval, 0)`; AE's takes
+    `(owned, builder, owner, weaponInfo)`;
+  - line 147, `EnemyOwnedStateActor`, calls `super(unit)`; AE's `StateActorBehavior` has only
+    `(unit, params)`;
+  - `SteeringMovement.as` line 48 reads `m_resetSceneTimeOnActivate`, which AE's
+    `ActorMovement` lacks.
+  The party froze on the character screen.
+- `[EMITTED]` Data-driven script patches (src/main/custom/hw2/scriptPatches.ts): find a short
+  text in one carried file, optionally after an anchor, and replace it. A patch that no longer
+  matches a carried file is an error, since the file would then fail to compile.

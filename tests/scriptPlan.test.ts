@@ -117,6 +117,19 @@ describe('planning the scripts a scenario carries', () => {
     expect(plan.files[0].text).toBe('class Resist : ACompositeActorSkill\n{\n\tActorBuff@ OnBuffApplied(ActorBuff@ b) { return b; }\n\tstring s = "override";\n}')
   })
 
+  it('applies the patches that make a carried file compile, and refuses one that no longer matches', () => {
+    const own = indexScripts([
+      { path: 'scripts/Owned.as', text: 'class A : B { A(UnitPtr u) { super(u); } }\nclass C : D { C(UnitPtr u, SValue& p) { super(u); } }' }
+    ])
+    const patch = { path: 'scripts/Owned.as', after: 'class C', find: 'super(u);', replace: 'super(u, p);', why: "AE's D takes params" }
+    const plan = planScripts(['C'], own, scriptBase(indexScripts([])), [patch])
+    expect(plan.error).toBeUndefined()
+    // only the one after the anchor
+    expect(plan.files[0].text).toBe('class A : B { A(UnitPtr u) { super(u); } }\nclass C : D { C(UnitPtr u, SValue& p) { super(u, p); } }')
+    const stale = planScripts(['C'], own, scriptBase(indexScripts([])), [{ ...patch, find: 'gone();' }])
+    expect(stale.error).toBe('script patches that no longer match: scripts/Owned.as: "gone();"')
+  })
+
   it('reports classes the other game lacks too, and stops on a runaway closure', () => {
     expect(planScripts(['Nowhere'], theirs, scriptBase(ae)).missing).toEqual(['Nowhere'])
     const chain = indexScripts(
@@ -184,6 +197,13 @@ describe.skipIf(!HAS_HW2)("carrying the HW2 bosses' scripts", () => {
       expect(aeIndex.files.has(f.path), f.path).toBe(false)
       for (const d of scriptDeclarations(dec.decode(f.data))) expect(aeIndex.byName.has(d.name), `${f.path} declares ${d.name}`).toBe(false)
     }
+    // the patches for what AE's scripts have differently (src/main/custom/hw2/scriptPatches.ts)
+    const text = (p: string) => dec.decode(scripts.find((f) => f.path === p)!.data)
+    const owned = text('scripts/Behaviors/Actors/Enemies/EnemyOwnedActor.as')
+    expect(owned).toContain('IOwnedUnitSave(this, sval, GetOwner(), 0);')
+    expect(owned.slice(owned.indexOf('class EnemyOwnedStateActor'))).toContain('super(unit, params);')
+    expect(text('scripts/Behaviors/Actors/Enemies/Movements/SteeringMovement.as')).not.toContain('m_resetSceneTimeOnActivate')
+    for (const f of scripts) expect(dec.decode(f.data), f.path).not.toMatch(/\boverride\b/)
     expect(hw2Sources(HW2_ROOT)).not.toBeNull()
   }, 300_000)
 })

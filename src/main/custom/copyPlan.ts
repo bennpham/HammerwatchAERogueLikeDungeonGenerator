@@ -26,7 +26,7 @@ import type { Ref } from './refs'
 import { bakeTintSheet, encodePng, parseColorize, readTintSheet } from './layeredTif'
 import type { TintSheet } from './layeredTif'
 import { planScripts } from './scriptPlan'
-import type { ScriptBase, ScriptIndex } from './scriptPlan'
+import type { ScriptBase, ScriptIndex, ScriptPatch } from './scriptPlan'
 
 export interface CopySourceFile {
   flag: number
@@ -57,7 +57,7 @@ export interface CopyInput {
    * The other game's scripts and AE's, to carry the classes its units need and
    * AE lacks (scriptPlan.ts). Without them, such a unit is an error.
    */
-  scripts?: { source: ScriptIndex; ae: ScriptBase } | null
+  scripts?: { source: ScriptIndex; ae: ScriptBase; patches?: readonly ScriptPatch[] } | null
 }
 
 export interface CopiedFile {
@@ -384,7 +384,7 @@ export function planCopy(input: CopyInput): CopyPlan {
   if (neededClasses.size > 0) {
     const missing = new Set(neededClasses.keys())
     if (input.scripts != null) {
-      const plan = planScripts(neededClasses.keys(), input.scripts.source, input.scripts.ae)
+      const plan = planScripts(neededClasses.keys(), input.scripts.source, input.scripts.ae, input.scripts.patches)
       if (plan.error !== undefined) errors.push(plan.error)
       missing.clear()
       for (const cls of plan.missing) missing.add(cls)

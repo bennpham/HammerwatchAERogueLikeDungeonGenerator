@@ -6,7 +6,8 @@ import { planCopy } from '../copyPlan'
 import type { CopyPlan } from '../copyPlan'
 import { AE_SCRIPT_CLASSES, AE_SOUND_EVENTS } from '../aeRuntime.generated'
 import { indexScripts, scriptBase } from '../scriptPlan'
-import type { ScriptBase, ScriptIndex } from '../scriptPlan'
+import type { ScriptBase, ScriptIndex, ScriptPatch } from '../scriptPlan'
+import { HW2_SCRIPT_PATCHES } from './scriptPatches'
 import { hw2Sources } from './detect'
 
 const AE_CLASSES: ReadonlySet<string> = new Set(AE_SCRIPT_CLASSES)
@@ -41,9 +42,9 @@ export function scriptIndexOf(source: BinSource): ScriptIndex {
 }
 
 /** HW2's scripts and the user's own AE's, for carrying the classes HW2 units need; null without AE. */
-export function hw2Scripts(hw2: BinSource, ae: BinSource | null): { source: ScriptIndex; ae: ScriptBase } | null {
+export function hw2Scripts(hw2: BinSource, ae: BinSource | null): { source: ScriptIndex; ae: ScriptBase; patches: readonly ScriptPatch[] } | null {
   if (ae === null) return null
-  return { source: scriptIndexOf(hw2), ae: scriptBase(scriptIndexOf(ae)) }
+  return { source: scriptIndexOf(hw2), ae: scriptBase(scriptIndexOf(ae)), patches: HW2_SCRIPT_PATCHES }
 }
 
 /**
