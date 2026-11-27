@@ -115,6 +115,9 @@ const ALCOVE_POCKET = 5
 /** How far a boss's start event reaches, in px: the boss itself, where it stands (HW2's default is 75). */
 const START_SIGNAL_RADIUS = 64
 
+/** When a boss's start signals go again, after the level loads. */
+const START_SIGNAL_RESEND_MS = 3000
+
 export interface BossArenaResult {
   level: AeLevel
   preview: LevelPreview
@@ -423,10 +426,13 @@ export function buildBossArena(
     const loaded = new NodeGlobalEventTrigger(ctx, midX, height + 1, LEVEL_LOADED_EVENT)
     bossPlacements.forEach((p, i) => loaded.connectTo(new NodeCreateBossBar(ctx, midX + i, height + 2, [bossActors[i]], p.def.barName)))
     // what each boss's own arena would tell it as the fight starts (HW2's: `startSignals`),
-    // sent from where it stands; a boss without any allocates nothing
+    // sent from where it stands, on load and again a little later (an event is harmless twice:
+    // Blight's only re-arms the skill that ends his opening); a boss without any allocates nothing
     bossPlacements.forEach((p) => {
       for (const signal of p.def.startSignals ?? []) {
-        loaded.connectTo('event' in signal ? new NodeGlobalEventRanged(ctx, p.x, p.y, signal.event, START_SIGNAL_RADIUS) : new NodeSetFlag(ctx, p.x, p.y, signal.flag))
+        const node = 'event' in signal ? new NodeGlobalEventRanged(ctx, p.x, p.y, signal.event, START_SIGNAL_RADIUS) : new NodeSetFlag(ctx, p.x, p.y, signal.flag)
+        loaded.connectTo(node)
+        loaded.connectTo(node, START_SIGNAL_RESEND_MS)
       }
     })
   }

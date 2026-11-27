@@ -75,6 +75,12 @@ export const COMPAT_PATH = 'scripts/Hw2Compat.as'
  * lacks the method: HW2's ResistBuffSkill overrides `OnBuffApplied` and
  * `OnStackApplied`, which AE's skills don't have, and that one error stopped
  * every script (spike S5). AE then never calls those methods.
+ *
+ * It goes from every method, not just those AE's bases lack: AE then logs
+ * "Missing override keyword on method" for each that does override, which is
+ * only noise. Keeping it wherever AE's scripts name the method would be wrong
+ * where AE names it in some other class than the base, and that is a compile
+ * error, which stops every script.
  */
 export function withoutOverride(text: string): string {
   const masked = maskScript(text)

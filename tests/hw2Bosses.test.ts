@@ -69,7 +69,8 @@ describe('Hammerwatch 2 bosses', () => {
     }
     // Blight waits, immortal, on his arena's "event_intro"; Doombringer on its flag
     expect(signals('hw2_blight')).toEqual({ events: [['event_intro', true]], flags: [] })
-    expect(signals('hw2_doombringer')).toEqual({ events: [], flags: [['doombringer_introduced', 1]] })
+    // and his side of the arena: every attack of his needs one
+    expect(signals('hw2_doombringer')).toEqual({ events: [], flags: [['doombringer_introduced', 1], ['west_side', 1]] })
     expect(signals('hw2_sinkage')).toEqual({ events: [], flags: [] })
   })
 

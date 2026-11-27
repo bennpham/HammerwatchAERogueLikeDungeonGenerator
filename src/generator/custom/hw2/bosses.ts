@@ -99,7 +99,9 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     barName: 'Doombringer',
     arenaOnly: true,
     // his arena sets it after his roar; until then state_intro holds him immortal
-    startSignals: [{ flag: 'doombringer_introduced' }],
+    // and which side of his HW2 arena he's perched on: every attack of his needs one. West
+    // faces east (vision 0°), so he attacks east of him; without one he just stands there
+    startSignals: [{ flag: 'doombringer_introduced' }, { flag: 'west_side' }],
     hidden: HW2_UNTESTED,
     label: 'Doombringer',
     source: 'hw2'
