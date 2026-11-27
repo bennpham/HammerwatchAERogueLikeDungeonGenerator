@@ -603,6 +603,46 @@ export class NodeCreateBossBar extends ScriptNode {
   }
 }
 
+/**
+ * `SetFlag` — sets a flag the units' state conditions read (`flag is <name>`).
+ * State 1 is `FlagState::Level`: it lasts while the level does.
+ */
+export class NodeSetFlag extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public flag: string,
+    public state: number = 1
+  ) {
+    super(ctx, x, y, 'SetFlag')
+  }
+
+  params(): Param[] {
+    return [P.str('Flag', this.flag), P.int('State', this.state)]
+  }
+}
+
+/**
+ * `GlobalEventRanged` — raises a named event for the units within `radius` px of
+ * where it stands (`AlertUnits`): a unit's `events` list answers it.
+ */
+export class NodeGlobalEventRanged extends ScriptNode {
+  constructor(
+    ctx: GenerationContext,
+    x: number,
+    y: number,
+    public eventName: string,
+    public radius: number
+  ) {
+    super(ctx, x, y, 'GlobalEventRanged')
+  }
+
+  params(): Param[] {
+    return [P.str('EventName', this.eventName), P.int('Radius', this.radius), P.bool('AlertUnits', true)]
+  }
+}
+
 // --- Units -------------------------------------------------------------------------
 
 /** `SpawnUnit` (HW1 SpawnObject) — spawns `unitPath` where the script stands. */

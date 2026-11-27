@@ -105,6 +105,20 @@ export interface BossDef {
    * `isStationary`.
    */
   arenaOnly?: boolean
+  /**
+   * What the boss's own arena tells it as the fight starts, which a generated
+   * arena sends on arrival instead: an event (to the boss's `events` list) or a
+   * level flag (its state conditions). HW2's bosses are built around their
+   * arenas; without these some never leave an immortal opening (Blight waits on
+   * `event_intro`, Doombringer on the flag `doombringer_introduced`).
+   */
+  startSignals?: ReadonlyArray<{ event: string } | { flag: string }>
+  /**
+   * Why the boss isn't offered: it can't be fought yet. Pickers leave it out,
+   * and a campaign naming it gets a warning (Archibald, whose fight is his HW2
+   * arena's formations).
+   */
+  hidden?: string
   /** What pickers call it, when its id doesn't read as a name (`hw2_sinkage`) */
   label?: string
   /** Custom content's source; stock bosses have none (custom/sources.ts) */

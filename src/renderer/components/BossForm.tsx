@@ -502,7 +502,8 @@ function BossOnlyArenaFields({ arena, fieldPrefix, issues, setArena, setWave }: 
   // Hammerwatch 2's bosses only while it's loaded; one this arena already holds
   // (an imported parameters.txt) stays listed, marked, beside its validation error
   const held = new Set<string>([...arena.bossPool, ...Object.keys(arena.bossLineup ?? {})])
-  const bossDefs = BOSS_DEF_LIST.filter((def) => offerable(def.id, content) || held.has(def.id)).map((def) => ({
+  // and a boss that can't be fought yet (BossDef.hidden) only when it's already held
+  const bossDefs = BOSS_DEF_LIST.filter((def) => (offerable(def.id, content) && def.hidden === undefined) || held.has(def.id)).map((def) => ({
     id: def.id,
     label: offeredLabel(def.id, def.label ?? bossLabel(def.id), content),
     unique: def.unique

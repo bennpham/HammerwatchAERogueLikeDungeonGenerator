@@ -29,6 +29,9 @@ import type { BossDef } from '../../boss/bosses'
 
 const B = 'hw2/actors/bosses'
 
+/** Invincible in a generated arena until start signals are confirmed in game (S8). */
+const HW2_UNTESTED = "can't be fought yet: invincible in a generated arena until his start signal is confirmed"
+
 export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
   // boss_sinkage.inc: <circle radius="8">, not static
   {
@@ -79,6 +82,9 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     forbiddenAlcoveWalls: [],
     barName: 'Blight the Horrible',
     arenaOnly: true,
+    // his arena's GlobalEventRanged "event_intro" gives skill_sphere_stop_intro a charge
+    startSignals: [{ event: 'event_intro' }],
+    hidden: HW2_UNTESTED,
     label: 'Blight the Horrible',
     source: 'hw2'
   },
@@ -92,6 +98,9 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     forbiddenAlcoveWalls: [],
     barName: 'Doombringer',
     arenaOnly: true,
+    // his arena sets it after his roar; until then state_intro holds him immortal
+    startSignals: [{ flag: 'doombringer_introduced' }],
+    hidden: HW2_UNTESTED,
     label: 'Doombringer',
     source: 'hw2'
   },
@@ -144,6 +153,7 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     forbiddenAlcoveWalls: [],
     barName: 'Archibald Steelwill',
     arenaOnly: true,
+    hidden: "can't be fought yet: his fight is the formations his own Hammerwatch 2 arena spawns, until he yields",
     label: 'Archibald Steelwill',
     source: 'hw2'
   }

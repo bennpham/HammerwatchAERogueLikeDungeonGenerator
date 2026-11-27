@@ -58,6 +58,29 @@ describe('Hammerwatch 2 bosses', () => {
     expect(strParam(bars[0], 'Name')).toBe(def.barName)
   })
 
+  it("send what their own arena would as the fight starts, and nothing for a boss that needs none", () => {
+    const signals = (id: string) => {
+      const r = generateOk(arenaOn([id]), 7)
+      const level = [...levelsOf(r).values()].find((l) => unitsOf(l, (u) => u.path === BOSS_DEFS[id as keyof typeof BOSS_DEFS].actorPath).length > 0)!
+      return {
+        events: scriptsOf(level, 'GlobalEventRanged').map((s) => [strParam(s, 'EventName'), s.params.find((p) => p.name === 'AlertUnits')?.value]),
+        flags: scriptsOf(level, 'SetFlag').map((s) => [strParam(s, 'Flag'), s.params.find((p) => p.name === 'State')?.value])
+      }
+    }
+    // Blight waits, immortal, on his arena's "event_intro"; Doombringer on its flag
+    expect(signals('hw2_blight')).toEqual({ events: [['event_intro', true]], flags: [] })
+    expect(signals('hw2_doombringer')).toEqual({ events: [], flags: [['doombringer_introduced', 1]] })
+    expect(signals('hw2_sinkage')).toEqual({ events: [], flags: [] })
+  })
+
+  it("aren't offered while they can't be fought, and a campaign naming one is warned, not refused", () => {
+    const hidden = HW2_BOSSES.filter((d) => d.hidden !== undefined).map((d) => d.id)
+    expect(hidden).toEqual(['hw2_blight', 'hw2_doombringer', 'hw2_archibald'])
+    const v = validateParameters(arenaOn(['hw2_archibald']), HW2_CONTENT)
+    expect(v.errors).toEqual([])
+    expect(v.warnings.some((w) => w.field === 'boss.fights.0.arena.bossPool' && /Archibald Steelwill: can't be fought yet/.test(w.message))).toBe(true)
+  })
+
   it('never reach an AE-only campaign: the same parameters without them generate the same bytes either way', () => {
     const stock = arenaOn(['boss_knight'])
     const a = generateDungeon(stock, 3, AE_ONLY)

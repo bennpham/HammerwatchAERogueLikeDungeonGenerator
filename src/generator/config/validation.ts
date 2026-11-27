@@ -1191,6 +1191,16 @@ function validateBossFight(
   // share this one read.
   const bossCount = arenaBossCount(arena)
 
+  // a boss pickers leave out because it can't be fought yet (BossDef.hidden): still
+  // generated, for whoever imported it, but said
+  const named = selection === 'lineup' ? Object.keys(arena.bossLineup ?? {}) : arena.bossPool
+  for (const id of new Set(named)) {
+    const hidden = (BOSS_IDS as readonly string[]).includes(id) ? BOSS_DEFS[id as (typeof BOSS_IDS)[number]].hidden : undefined
+    if (hidden !== undefined) {
+      bossWarnings.push({ field: af(selection === 'lineup' ? 'bossLineup' : 'bossPool'), message: `${BOSS_DEFS[id as (typeof BOSS_IDS)[number]].label ?? id}: ${hidden}` })
+    }
+  }
+
   if (selection === 'lineup') {
     // Lineup mode does not read bossPool at all, so it gets none of the pool
     // errors below — only the lineup's own keys and counts are validated. Any
