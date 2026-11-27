@@ -31,10 +31,10 @@ export interface Ref {
   entry?: string
 }
 
-const ASSET_EXT = /\.(?:unit|inc|png|effect|sval|tileset|env|mats|pfb|fbx|tif|tga|brush|sbnk|ogg|wav|gui|fnt|dds|jpg|txt)$/i
+const ASSET_EXT = /\.(?:unit|inc|png|effect|sval|tileset|env|mats|pfb|fbx|tif|tga|brush|sbnk|ogg|wav|gui|fnt|ttf|otf|dds|jpg|txt)$/i
 
 /** Text extensions worth reading for further references; everything else is a leaf. */
-const TEXT_EXT = /\.(?:unit|inc|effect|sval|tileset|env|mats|pfb|brush|sbnk|gui|txt)$/i
+const TEXT_EXT = /\.(?:unit|inc|effect|sval|tileset|env|mats|pfb|brush|sbnk|gui|fnt|txt)$/i
 
 export function isTextAsset(path: string): boolean {
   return TEXT_EXT.test(path)

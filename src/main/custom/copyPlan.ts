@@ -304,6 +304,11 @@ export function planCopy(input: CopyInput): CopyPlan {
         keptAe.add(target)
         continue
       }
+      // a font AE has stays AE's: HW2's arial11.fnt draws from a 23 MB arialuni.ttf
+      if (target.startsWith('gui/fonts/') && ae?.has(target) === true) {
+        keptAe.add(target)
+        continue
+      }
       if (!source.has(target)) {
         // AE's own file of that name serves (it was never the other game's), else it's absent
         if (ae?.has(target) === true) keptAe.add(target)

@@ -1535,3 +1535,14 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
 - `[VERIFIED]` HW2's scripts use the engine preprocessor too (`%defblock` … `%endblock` in
   `WorldScript/Scripts/TimedScriptLink.as`), so a script scan has to skip those lines.
 - `[UNVERIFIED]` That all of these compile together in AE: spike S5, `dungeon_11260005`.
+- `[VERIFIED]` S5, first try: the only compile error was HW2's `ResistBuffSkill.as` marking
+  `OnBuffApplied` and `OnStackApplied` `override` ("marked as override but does not replace any
+  base class or interface method"): AE's skills have no such hooks. It stopped every script, and
+  the party froze.
+- `[EMITTED]` Carried scripts drop every `override` keyword. It's only a compile-time check, so a
+  method that does override still does; AE never calls the two hooks it lacks, so HW2's resist
+  buffs probably don't fire.
+- `[VERIFIED]` HW2's `gui/fonts/arial11.fnt` draws from `./arialuni.ttf` (23 MB); the copy didn't
+  know `.ttf` ("FontLoader: Couldn't find font hw2/gui/fonts/arialuni.ttf"). AE has its own
+  `gui/fonts/arial11.fnt` and `hw8.fnt`.
+- `[EMITTED]` A `gui/fonts/` file AE has stays AE's; one it lacks ships with its `.ttf`.

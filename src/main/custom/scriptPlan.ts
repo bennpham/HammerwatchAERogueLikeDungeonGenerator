@@ -18,7 +18,7 @@
  *     inventory and quests.
  * Nothing replaces an AE file, and nothing AE declares is declared again.
  */
-import { qualifiedNames, scriptDeclarations, scriptIdentifiers } from './angelscript'
+import { maskScript, qualifiedNames, scriptDeclarations, scriptIdentifiers } from './angelscript'
 import type { Decl } from './angelscript'
 
 export interface ScriptFile {
@@ -67,6 +67,25 @@ export interface ScriptPlan {
 }
 
 export const COMPAT_PATH = 'scripts/Hw2Compat.as'
+
+/**
+ * The script with its \`override\` keywords dropped. \`override\` only asks the
+ * compiler to check that a method replaces one of its base class, so dropping
+ * it changes nothing where it does, and lets the file compile where AE's base
+ * lacks the method: HW2's ResistBuffSkill overrides \`OnBuffApplied\` and
+ * \`OnStackApplied\`, which AE's skills don't have, and that one error stopped
+ * every script (spike S5). AE then never calls those methods.
+ */
+export function withoutOverride(text: string): string {
+  const masked = maskScript(text)
+  let out = ''
+  let last = 0
+  for (const m of masked.matchAll(/[ \t]*\boverride\b/g)) {
+    out += text.slice(last, m.index)
+    last = m.index + m[0].length
+  }
+  return out + text.slice(last)
+}
 
 /** Bounds the walk; the nine HW2 bosses need about a dozen pieces. */
 export const MAX_SCRIPT_PIECES = 400
@@ -140,7 +159,7 @@ export function planScripts(classes: Iterable<string>, source: ScriptIndex, ae: 
     }
   }
 
-  const files = [...wholeFiles].sort().map((path) => ({ path, text: source.files.get(path)!.text }))
+  const files = [...wholeFiles].sort().map((path) => ({ path, text: withoutOverride(source.files.get(path)!.text) }))
   // a whole file already carries whatever was also asked of it
   const cutPaths = [...cut.keys()].filter((p) => !wholeFiles.has(p)).sort()
   let compat: ScriptFile | null = null
@@ -149,7 +168,7 @@ export function planScripts(classes: Iterable<string>, source: ScriptIndex, ae: 
     for (const path of cutPaths) {
       const text = source.files.get(path)!.text
       for (const d of [...cut.get(path)!].sort((a, b) => a.start - b.start)) {
-        const body = text.slice(d.start, d.end)
+        const body = withoutOverride(text.slice(d.start, d.end))
         const open = d.namespace.map((n) => `namespace ${n} { `).join('')
         const close = d.namespace.map(() => ' }').join('')
         parts.push(`// from ${path}\n${open}${body}${close}\n`)

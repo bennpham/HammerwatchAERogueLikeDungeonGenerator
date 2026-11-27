@@ -308,6 +308,24 @@ describe('planning a copy', () => {
     )
   })
 
+  it("keeps a font AE has at AE's path, and follows one it lacks to its .ttf", () => {
+    // HW2's gui/fonts/arial11.fnt draws from a 23 MB arialuni.ttf; AE has its own arial11.fnt
+    const p = plan(
+      {
+        'fx/text.unit': '<text font="gui/fonts/arial11.fnt"/><text font="gui/fonts/hw8.fnt"/>',
+        'gui/fonts/arial11.fnt': '{\nfile="./arialuni.ttf"\n}',
+        'gui/fonts/arialuni.ttf': [1],
+        'gui/fonts/hw8.fnt': '{\nfile="./lana.ttf"\n}',
+        'gui/fonts/lana.ttf': [2]
+      },
+      ['hw2/fx/text.unit'],
+      { ae: mem({ 'gui/fonts/arial11.fnt': '{}' }) }
+    )
+    expect(p.files.map((f) => f.path)).toEqual(['hw2/fx/text.unit', 'hw2/gui/fonts/hw8.fnt', 'hw2/gui/fonts/lana.ttf'])
+    expect(textOf(p, 'hw2/fx/text.unit')).toBe('<text font="gui/fonts/arial11.fnt"/><text font="hw2/gui/fonts/hw8.fnt"/>')
+    expect(p.keptAe).toContain('gui/fonts/arial11.fnt')
+  })
+
   it('ships the textures a model names, beside it', () => {
     const fbx = [...enc.encode('\u0000\u0016crystal.png\u0000D:\\Projects\\HW2\\fx\\crystal.png\u0000')]
     const p = plan({ 'fx/a.effect': '<mesh src="fx/m/crystal.fbx"/>', 'fx/m/crystal.fbx': fbx, 'fx/m/crystal.png': [7] }, ['hw2/fx/a.effect'])

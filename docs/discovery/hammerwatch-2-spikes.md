@@ -98,6 +98,10 @@ rewrite rule, and the scenario is reinstalled until it's clean.
 
 **And Sinkage:** does he fight on floor 1? Does he take damage and die? What does he do?
 
+**First try (2026-11-26):** a font error, then frozen. HW2's `ResistBuffSkill.as` marked two
+methods `override` that AE's base class doesn't have, and that one compile error stopped every
+script. Carried scripts now drop `override`, and a font AE has stays AE's. Reinstalled.
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor

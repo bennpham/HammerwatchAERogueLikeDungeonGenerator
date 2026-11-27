@@ -105,6 +105,18 @@ describe('planning the scripts a scenario carries', () => {
     expect(plan.files.map((f) => f.path)).toEqual(['scripts/A.as'])
   })
 
+  it("drops `override`, which fails where AE's base class lacks the method", () => {
+    // HW2's ResistBuffSkill overrides OnBuffApplied, which AE's skills don't have (spike S5)
+    const own = indexScripts([
+      {
+        path: 'scripts/Resist.as',
+        text: 'class Resist : ACompositeActorSkill\n{\n\tActorBuff@ OnBuffApplied(ActorBuff@ b) override { return b; }\n\tstring s = "override";\n}'
+      }
+    ])
+    const plan = planScripts(['Resist'], own, scriptBase(indexScripts([])))
+    expect(plan.files[0].text).toBe('class Resist : ACompositeActorSkill\n{\n\tActorBuff@ OnBuffApplied(ActorBuff@ b) { return b; }\n\tstring s = "override";\n}')
+  })
+
   it('reports classes the other game lacks too, and stops on a runaway closure', () => {
     expect(planScripts(['Nowhere'], theirs, scriptBase(ae)).missing).toEqual(['Nowhere'])
     const chain = indexScripts(
