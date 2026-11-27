@@ -7,13 +7,16 @@
 //                     default music, to hear AE's return), an HW2 arena and lobby track.
 //                     Textures plain, from the unpacked extract.
 //   dungeon_11260002  S1 + S3 on a World: an HW2 Highlands island with HW2 monsters and music.
-//   dungeon_11260004  S2: floor 1 has three of HW2's grey wolves, and the scenario ships HW2's DashStrike.as.
+//   dungeon_11260004  S2: floor 1 has three of HW2's grey wolves; the copy carries the HW2
+//                     scripts they need (DashStrike.as, and easeSineOut in Hw2Compat.as).
+//   dungeon_11260005  S5: every HW2 boss's scripts, to see them all compile, and a first look
+//                     at Commodore Sinkage on floor 1 (not S6: no arena).
 //   dungeon_11260003  S4: dungeon_11260001's campaign, but every texture taken compiled from
 //                     HW2's res/assets.bin and packed as is.
 //
 // Each starts with the Hammerwatch 2 level-50 player preset, fully upgraded.
 //
-// --remove deletes the four .h1c files (and description .txt files) again.
+// --remove deletes the five .h1c files (and description .txt files) again.
 import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyFullyUpgraded, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
@@ -21,7 +24,7 @@ import type { DungeonParameters, DungeonResult, GeneratedFile } from '../../src/
 import { parseSlotLabel } from '../../src/generator/campaign'
 import { installScenario } from '../../src/main/packer'
 import { customFiles } from '../../src/main/custom/hw2/files'
-import { aeBinSource } from '../../src/main/custom/hw2/copy'
+import { aeBinSource, hw2CopyPlan } from '../../src/main/custom/hw2/copy'
 import { hw2Sources } from '../../src/main/custom/hw2/detect'
 import { hw2MusicFiles, isHw2MusicPath } from '../../src/main/custom/hw2/music'
 import { planCopy } from '../../src/main/custom/copyPlan'
@@ -31,7 +34,7 @@ import { renderLevel } from '../../src/generator/ae/levelWriter'
 
 const AE = process.env.HWAE_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch Anniversary Edition'
 const HW2 = process.env.HW2_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch 2'
-const SEEDS = [11260001, 11260002, 11260003, 11260004]
+const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005]
 
 if (process.argv.includes('--remove')) {
   for (const seed of SEEDS) {
@@ -121,57 +124,54 @@ async function install(seed: number, params: DungeonParameters, compiled: boolea
   console.log(`${r.campaignName}: ${result.message} (${r.customAssets.length} HW2 roots, ${extra.length} HW2 files)`)
 }
 
+const asGenerated = (f: { path: string; data: Uint8Array }): GeneratedFile => ({
+  path: f.path,
+  content: Buffer.from(f.data).toString('base64'),
+  encoding: 'base64'
+})
+
 /**
- * S2: a stock campaign whose first floor has three of its monsters swapped
- * for HW2's grey wolf, which needs only DashStrike, a class AE lacks. The
- * scenario ships HW2's own DashStrike.as at its HW2 path (AE has no file
- * there). If AE compiles a scenario's scripts, the wolves dash at the party.
+ * A maxed stock campaign whose first floor has some monsters swapped for HW2
+ * units (ids and spots kept), carrying their copy, and the scripts of
+ * `scriptsOf` too. The copy carries the HW2 script classes the units need
+ * (scriptPlan.ts): AE compiles a scenario's scripts with its own, so if they
+ * compile the units run.
  */
-async function installScriptSpike(seed: number): Promise<void> {
-  const WOLF = 'hw2/actors/beasts/wolves/wolf_grey.unit'
-  const SCRIPT = 'scripts/Behaviors/Actors/Enemies/Skills/DashStrike.as'
+async function installUnitSpike(seed: number, label: string, swaps: Array<{ unit: string; count: number }>, scriptsOf: readonly string[] = []): Promise<void> {
   const p = maxed(defaultParameters())
   const gen = generateDungeon(p, seed)
   if (!gen.ok) throw new Error(gen.errors.join('; '))
   const r = gen as DungeonResult
-  const sources = hw2Sources(HW2)!
-  const plan = planCopy({
-    roots: [WOLF],
-    prefix: 'hw2/',
-    source: sources.primary,
-    plain: sources.unpacked,
-    ae: aeBinSource(AE),
-    aeClasses: new Set([...AE_SCRIPT_CLASSES, 'DashStrike']),
-    aeEvents: new Set(AE_SOUND_EVENTS)
-  })
+  const plan = hw2CopyPlan(HW2, AE, swaps.map((s) => s.unit))!
   if (plan.errors.length > 0) throw new Error(plan.errors.join('; '))
-  const script = sources.primary.read(SCRIPT)
-  if (script === null) throw new Error(`HW2 has no ${SCRIPT}`)
-  // AE compiles a scenario's scripts with its own, and one error stops them all (the first
-  // play: no doors, pickups or monsters). DashStrike calls easeSineOut, a helper only HW2's
-  // scripts/Utils/Functions.as defines, so it ships beside it under a name AE doesn't use.
-  const fns = sources.primary.read('scripts/Utils/Functions.as')
-  const helper = fns === null ? null : /float easeSineOut\(float t\)\s*\{[^}]*\}/.exec(Buffer.from(fns.data).toString('utf8'))
-  if (helper === null) throw new Error("HW2's scripts/Utils/Functions.as has no easeSineOut")
-  const COMPAT = 'scripts/Hw2Compat.as'
-  // the first floor: three monster actors become wolves, ids and spots kept
+  let files = plan.files
+  if (scriptsOf.length > 0) {
+    // every listed unit's scripts, in place of the swapped units' own (a superset)
+    const scripts = hw2CopyPlan(HW2, AE, scriptsOf)!
+    if (scripts.errors.length > 0) throw new Error(scripts.errors.join('; '))
+    files = [...files.filter((x) => !x.path.startsWith('scripts/')), ...scripts.files.filter((x) => x.path.startsWith('scripts/'))]
+  }
   // stem floor0 is written in play order as `NN_floor1.lvl`
   const floor = r.files.find((f) => /[/_]floor1\.lvl$/.test(f.path))!
   const parsed = readLevel(floor.content).level
   const actors = parsed.units.filter((u) => u.path.startsWith('actors/') && !u.path.includes('spawner'))
-  for (const u of actors.slice(0, 3)) u.path = WOLF
-  console.log(`  S2: ${Math.min(3, actors.length)} wolves on floor 1, ${plan.files.length} HW2 files, ${SCRIPT}`)
-  const files: GeneratedFile[] = [
-    ...r.files.map((f) => (f === floor ? { ...f, content: renderLevel(parsed) } : f)),
-    ...plan.files.map((f) => ({ path: f.path, content: Buffer.from(f.data).toString('base64'), encoding: 'base64' as const })),
-    { path: SCRIPT, content: Buffer.from(script.data).toString('base64'), encoding: 'base64' },
-    { path: COMPAT, content: `// Hammerwatch 2's own helpers that its scripts call and AE lacks\n${helper[0]}\n` }
-  ]
-  const result = await installScenario(AE, r.campaignName, files, false, r.assetOverrides)
+  let at = 0
+  for (const { unit, count } of swaps) for (let i = 0; i < count && at < actors.length; i++) actors[at++].path = unit
+  const scripts = files.filter((x) => x.path.startsWith('scripts/')).map((x) => x.path)
+  console.log(`  ${label}: ${at} units swapped on floor 1, ${files.length} files, scripts: ${scripts.join(', ')}`)
+  const out: GeneratedFile[] = [...r.files.map((f) => (f === floor ? { ...f, content: renderLevel(parsed) } : f)), ...files.map(asGenerated)]
+  const result = await installScenario(AE, r.campaignName, out, false, r.assetOverrides)
   console.log(`${r.campaignName}: ${result.message}`)
 }
+
+const BOSSES = [
+  'archibald_steelwill/boss_brother.unit', 'barrington/boss_barrington.unit', 'blight_the_horrible/boss_blight.unit',
+  'commodore_sinkage/boss_sinkage.unit', 'dace_arden/boss_dace_arden.unit', 'doombringer/boss_doombringer.unit',
+  'judge_supreme/boss_judge.unit', 'malgar/boss_malgar.unit', 'shock_widow/boss_shock_widow.unit'
+].map((b) => `hw2/actors/bosses/${b}`)
 
 await install(SEEDS[0], floorsCampaign(), false)
 await install(SEEDS[1], worldCampaign(), false)
 await install(SEEDS[2], floorsCampaign(), true)
-await installScriptSpike(SEEDS[3])
+await installUnitSpike(SEEDS[3], 'S2', [{ unit: 'hw2/actors/beasts/wolves/wolf_grey.unit', count: 3 }])
+await installUnitSpike(SEEDS[4], 'S5', [{ unit: 'hw2/actors/bosses/commodore_sinkage/boss_sinkage.unit', count: 1 }], BOSSES)

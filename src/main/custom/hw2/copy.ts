@@ -5,6 +5,8 @@ import type { BinSource } from '../binSource'
 import { planCopy } from '../copyPlan'
 import type { CopyPlan } from '../copyPlan'
 import { AE_SCRIPT_CLASSES, AE_SOUND_EVENTS } from '../aeRuntime.generated'
+import { indexScripts, scriptBase } from '../scriptPlan'
+import type { ScriptBase, ScriptIndex } from '../scriptPlan'
 import { hw2Sources } from './detect'
 
 const AE_CLASSES: ReadonlySet<string> = new Set(AE_SCRIPT_CLASSES)
@@ -17,6 +19,31 @@ export function aeBinSource(aePath: string): BinSource | null {
   if (pack !== null) return pack
   const extract = newestUnpacked(aePath)
   return extract === null ? null : folderSource(extract)
+}
+
+const scriptIndexes = new Map<string, ScriptIndex>()
+
+/** Every `scripts/*.as` a source holds, indexed by declaration; cached per source. */
+export function scriptIndexOf(source: BinSource): ScriptIndex {
+  let index = scriptIndexes.get(source.label)
+  if (index === undefined) {
+    const dec = new TextDecoder('utf-8', { ignoreBOM: true })
+    const files: { path: string; text: string }[] = []
+    for (const path of source.list()) {
+      if (!path.startsWith('scripts/') || !path.endsWith('.as')) continue
+      const f = source.read(path)
+      if (f !== null) files.push({ path, text: dec.decode(f.data) })
+    }
+    index = indexScripts(files)
+    scriptIndexes.set(source.label, index)
+  }
+  return index
+}
+
+/** HW2's scripts and the user's own AE's, for carrying the classes HW2 units need; null without AE. */
+export function hw2Scripts(hw2: BinSource, ae: BinSource | null): { source: ScriptIndex; ae: ScriptBase } | null {
+  if (ae === null) return null
+  return { source: scriptIndexOf(hw2), ae: scriptBase(scriptIndexOf(ae)) }
 }
 
 /**
@@ -36,13 +63,15 @@ export function hw2CopyPlan(hw2Path: string, aePath: string, roots: readonly str
       errors: ['This campaign uses Hammerwatch 2 content: load your Hammerwatch 2 folder with Load custom.']
     }
   }
+  const ae = aeBinSource(aePath)
   return planCopy({
     roots,
     prefix: 'hw2/',
     source: hw2.primary,
     plain: hw2.unpacked,
-    ae: aeBinSource(aePath),
+    ae,
     aeClasses: AE_CLASSES,
-    aeEvents: AE_EVENTS
+    aeEvents: AE_EVENTS,
+    scripts: hw2Scripts(hw2.primary, ae)
   })
 }

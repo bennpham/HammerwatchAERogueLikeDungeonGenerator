@@ -25,6 +25,8 @@ import { dirOf, extractRefs, isTextAsset, maskComments, resolveRelative } from '
 import type { Ref } from './refs'
 import { bakeTintSheet, encodePng, parseColorize, readTintSheet } from './layeredTif'
 import type { TintSheet } from './layeredTif'
+import { planScripts } from './scriptPlan'
+import type { ScriptBase, ScriptIndex } from './scriptPlan'
 
 export interface CopySourceFile {
   flag: number
@@ -51,6 +53,11 @@ export interface CopyInput {
   aeClasses: ReadonlySet<string>
   /** FMOD events AE's assets name */
   aeEvents: ReadonlySet<string>
+  /**
+   * The other game's scripts and AE's, to carry the classes its units need and
+   * AE lacks (scriptPlan.ts). Without them, such a unit is an error.
+   */
+  scripts?: { source: ScriptIndex; ae: ScriptBase } | null
 }
 
 export interface CopiedFile {
@@ -172,6 +179,8 @@ export function planCopy(input: CopyInput): CopyPlan {
   const visited = new Set<string>()
   /** `file\nrefStart` of each `.tif` reference that keeps its `.tif` (no `.png` beside it) */
   const keptTif = new Set<string>()
+  /** script classes the shipped units name and AE lacks → the first file naming each */
+  const neededClasses = new Map<string, string>()
   /** a `.png` baked from a layered `.tif` with none beside it → the sheet, and the root whose colorize tints it */
   const baked = new Map<string, { tif: string; root: string }>()
   /** each root unit's `colorize` slots, from the first text of its closure that has them */
@@ -340,7 +349,8 @@ export function planCopy(input: CopyInput): CopyPlan {
         // a commented-out block is never loaded, so its classes aren't needed
         for (const m of maskComments(out).matchAll(CLASS_NAMES)) {
           const cls = m[1] ?? m[2]
-          if (!input.aeClasses.has(cls)) errors.push(`${prefix}${path}: needs the script class ${cls}, which AE doesn't have`)
+          if (input.aeClasses.has(cls)) continue
+          if (!neededClasses.has(cls)) neededClasses.set(cls, `${prefix}${path}`)
         }
       }
       files.push({ path: prefix + path, data: encoder.encode(out), flag: 1 })
@@ -364,6 +374,25 @@ export function planCopy(input: CopyInput): CopyPlan {
     const slots = colorizeOf.get(root)
     if (slots === undefined) notes.push(`${prefix}${png}: baked from ${tif} with no colorize (left grey)`)
     files.push({ path: prefix + png, data: encodePng(sheet.width, sheet.height, bakeTintSheet(sheet, slots ?? new Map())), flag: 1 })
+  }
+  // the script classes AE lacks: carried from the other game's scripts when it has them
+  if (neededClasses.size > 0) {
+    const missing = new Set(neededClasses.keys())
+    if (input.scripts != null) {
+      const plan = planScripts(neededClasses.keys(), input.scripts.source, input.scripts.ae)
+      if (plan.error !== undefined) errors.push(plan.error)
+      missing.clear()
+      for (const cls of plan.missing) missing.add(cls)
+      for (const f of [...plan.files, ...(plan.compat === null ? [] : [plan.compat])]) {
+        files.push({ path: f.path, data: encoder.encode(f.text), flag: 1 })
+      }
+      if (plan.files.length + (plan.compat === null ? 0 : 1) > 0) {
+        notes.push(`scripts carried for ${[...neededClasses.keys()].filter((c) => !missing.has(c)).sort().join(', ')}`)
+      }
+    }
+    for (const cls of [...missing].sort()) {
+      errors.push(`${neededClasses.get(cls)}: needs the script class ${cls}, which AE doesn't have`)
+    }
   }
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
   return { files, keptAe: [...keptAe].sort(), notes, errors: [...new Set(errors)] }
