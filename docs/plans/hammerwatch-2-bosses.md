@@ -169,6 +169,10 @@ Each step is a commit (or a few), each passing the gate.
    placement `sideWall`, against the arena's west or east wall (never in it), facing in, with
    the exit never on his wall; he fights alone; never on a dungeon floor; on a World island he
    perches on its west or east end, fully on land. Blight is still invincible and stays hidden.
+   *2026-11-27, Blight:* asked for simple mode now. The copy makes his two immortal states (his
+   meditating opening, his sphere) mortal, since nothing in a generated arena runs what ends
+   them: his arena's intro trigger, and the hellcubes that clear the flag `event_sphere`.
+   A full mode, with his set pieces, is the open question below.
 5. **Only if a fight goes wrong: port its HW2 arena.** `readLevel` the HW2 arena, prefix every
    asset path (script parameters included), make its closure the copy's roots, replace its exits
    with ours, and add our boss bar and music. It also needs the arena script types AE lacks

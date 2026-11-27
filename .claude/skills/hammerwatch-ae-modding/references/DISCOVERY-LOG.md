@@ -1643,3 +1643,14 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   or `east_side`). He fights alone and is unique; `WORLD_BOSS_IDS` lets him onto World islands,
   where he takes the westmost or eastmost free, reachable land his footprint fits, with the
   matching flag (world/objectives.ts `islandEndSpot`).
+- `[VERIFIED]` (reading the files) What Blight's HW2 arena (`_boss_blight_repeat.lvl`) does: it spawns
+  him (`SpawnUnit` "blight", on a `GameEventTrigger`); sends `event_intro` (radius 360) when the party
+  enters a circle around him; on his `blight_event_sphere` it spawns 3 of 8 hellcubes, enables his
+  tentacles and a healing crystal, and sets `event_sphere`; on `blight_event_sphere_stop` it clears
+  that; his `blight_teleport` events move him to waypoints; at 80/60/40/20% health it runs meteor
+  drops, a ceiling collapse and a Doombringer assist. AE handles everything his unit relies on the same
+  way HW2 does (events, `stop-actions`, state charges, the state loop), so what holds him is an
+  immortal state his arena would have ended.
+- `[EMITTED]` File patches (`FilePatch`, src/main/custom/hw2/filePatches.ts): find/replace in a
+  carried text file by its source path; one that no longer matches is an error. Blight's two immortal
+  states (`_boss_blight_states.inc`) are made mortal: simple mode. He's offered again.
