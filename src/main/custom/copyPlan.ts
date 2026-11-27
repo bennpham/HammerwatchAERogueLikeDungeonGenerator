@@ -91,6 +91,14 @@ const FOREIGN_PARAMS = /[ \t]*<string name="(?:team|loot|gore)">[^<]*<\/string>[
  * `</dict>` closes it.
  */
 const SPAWN_LOOT = /[ \t]*<dict>\s*<string name="class">SpawnLoot<\/string>[\s\S]*?<\/dict>[ \t]*\r?\n?/g
+/**
+ * A tag condition. HW2 writes `tag has <tags>` (and `tag hasnt <tags>`); AE's
+ * Conditional.as reads `tag <tags>`, always "has", so it took `has` for the tags
+ * and choked on the list after it ("SValue::GetString can only be used on
+ * strings, not array", Shock Widow's spew_web.unit). AE has no "hasnt".
+ */
+const TAG_HAS = /(<s>tag<\/s>)(\s*)<s>has<\/s>/g
+const TAG_HASNT = /<s>tag<\/s>\s*<s>hasnt<\/s>/
 const CLASS_NAMES = /\bclass="(\w+)"|<string name="class">(\w+)<\/string>/g
 const SOUND_EVENT = /event:\/[\w/\-.]+/g
 
@@ -373,7 +381,8 @@ export function planCopy(input: CopyInput): CopyPlan {
       }
       out += t.content.slice(last)
       if (path.endsWith('.unit') || path.endsWith('.inc')) {
-        out = singleSpeeds(out.replace(SPAWN_LOOT, '').replace(FOREIGN_PARAMS, ''))
+        out = singleSpeeds(out.replace(SPAWN_LOOT, '').replace(FOREIGN_PARAMS, '')).replace(TAG_HAS, '$1$2')
+        if (TAG_HASNT.test(out)) notes.push(`${prefix}${path}: a "tag hasnt" condition, which AE can't read`)
         out = out.replace(SOUND_EVENT, (e) => (input.aeEvents.has(e) ? e : ''))
         // a commented-out block is never loaded, so its classes aren't needed
         for (const m of maskComments(out).matchAll(CLASS_NAMES)) {

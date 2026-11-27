@@ -13,10 +13,10 @@
 //                     at Commodore Sinkage on floor 1 (not S6: no arena).
 //   dungeon_11260006  S6: Commodore Sinkage as the first arena's boss, right after the first
 //                     lobby: the generated arena, our boss bar.
-//   dungeon_11260007  S7: the other eight HW2 bosses, one arena each, right after the first
-//                     lobby: Shock Widow, Malgar, Dace Arden, Judge Supreme, then the four
-//                     likely to stall without their HW2 arena: Blight, Doombringer, Barrington,
-//                     Archibald.
+//   dungeon_11260007  S7: the HW2 bosses still to confirm, one arena each, right after the
+//                     first lobby: Dace Arden, Judge Supreme, then the four likely to stall
+//                     without their HW2 arena: Blight, Doombringer, Barrington, Archibald.
+//                     (Shock Widow and Malgar are confirmed.)
 //   dungeon_11260003  S4: dungeon_11260001's campaign, but every texture taken compiled from
 //                     HW2's res/assets.bin and packed as is.
 //
@@ -104,10 +104,11 @@ function sinkageArena(): DungeonParameters {
   return maxed(p)
 }
 
-/** S7: one arena per remaining HW2 boss, in plan order, all right after the first lobby. */
+/** S7: one arena per HW2 boss still to confirm, all right after the first lobby. */
 function eightArenas(): DungeonParameters {
-  // the four with no arena-gated immortal phase first: a boss that stalls holds the exit shut
-  const ids = ['hw2_shock_widow', 'hw2_malgar', 'hw2_dace_arden', 'hw2_judge_supreme', 'hw2_blight', 'hw2_doombringer', 'hw2_barrington', 'hw2_archibald']
+  // Shock Widow and Malgar are confirmed (and Malgar is a long fight): the rest, the two with
+  // no arena-gated immortal phase first, since a boss that stalls holds the exit shut
+  const ids = ['hw2_dace_arden', 'hw2_judge_supreme', 'hw2_blight', 'hw2_doombringer', 'hw2_barrington', 'hw2_archibald']
   const p = defaultParameters()
   p.boss = {
     ...p.boss,

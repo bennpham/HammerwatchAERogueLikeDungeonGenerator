@@ -17,6 +17,10 @@
  * yields while the formations his arena spawns fight. Shock Widow, Malgar,
  * Dace Arden and Judge Supreme have no arena-gated immortal state.
  *
+ * Malgar opens invisible and untargetable (`state_start`), and only moves once
+ * the party is over 160 px away while he's at full health: in HW2 his arena
+ * walks the party in from afar. In ours, wait or step back, and he starts.
+ *
  * Like AE's bosses they set `hide-health`, so their health shows only in our
  * `CreateBossBar`. HW2 names them by language keys AE doesn't have, so the bar
  * shows a plain name.

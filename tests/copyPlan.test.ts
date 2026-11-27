@@ -360,6 +360,19 @@ describe('planning a copy', () => {
     expect(p.files.find((f) => f.path === 'hw2/a/loot.pfb')!.flag).toBe(1)
   })
 
+  it("writes HW2's `tag has` condition the way AE reads it, and notes a `tag hasnt`", () => {
+    // Shock Widow's spew_web.unit: AE's Conditional.as reads `tag <tags>`, always "has"
+    const p = plan(
+      {
+        'a/web.unit': '<array name="conditional">\n\t<s>tag</s><s>has</s><a><s>player</s></a>\n</array>',
+        'a/necro.unit': '<array name="conditional"><s>tag</s><s>hasnt</s><a><s>undead</s></a></array>'
+      },
+      ['hw2/a/web.unit', 'hw2/a/necro.unit']
+    )
+    expect(textOf(p, 'hw2/a/web.unit')).toBe('<array name="conditional">\n\t<s>tag</s><a><s>player</s></a>\n</array>')
+    expect(p.notes).toContain('hw2/a/necro.unit: a "tag hasnt" condition, which AE can\'t read')
+  })
+
   it('ships the textures a model names, beside it', () => {
     const fbx = [...enc.encode('\u0000\u0016crystal.png\u0000D:\\Projects\\HW2\\fx\\crystal.png\u0000')]
     const p = plan({ 'fx/a.effect': '<mesh src="fx/m/crystal.fbx"/>', 'fx/m/crystal.fbx': fbx, 'fx/m/crystal.png': [7] }, ['hw2/fx/a.effect'])
