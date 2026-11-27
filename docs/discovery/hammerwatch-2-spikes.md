@@ -75,6 +75,29 @@ Windows or Linux. The folder only still helps a folder or zip export, which can'
 form of ordinary textures. Still to see in game: that `dungeon_11260003`'s art (packed textures)
 looks the same as `dungeon_11260001`'s.
 
+## S5: every HW2 boss's scripts compile (installed 2026-11-26)
+
+**Setup:** `dungeon_11260005`, a maxed stock campaign carrying the scripts all nine HW2 bosses
+need, planned by the copier (src/main/custom/scriptPlan.ts):
+- 8 HW2 files: `ChainAction.as`, `EnemyOwnedActor.as`, `SteeringMovement.as`,
+  `ChannelingSpewSkill.as`, `CompositeActorUtilitySkill.as`, `DashStrike.as`,
+  `ResistBuffSkill.as`, `ClearAggro.as`;
+- `scripts/Hw2Compat.as`, with three declarations cut from files AE has its own of:
+  `CompositeActorDamagedPeriodTriggeredSkill`, `IOwnedUnitLoad` and `easeSineOut`.
+
+Floor 1 also has Commodore Sinkage in place of one stock monster. That's a first look, not S6:
+he's on a dungeon floor, with no arena and no boss bar.
+
+**Check:**
+- the scenario starts, and you can move, open doors and fight (one compile error stops every
+  script);
+- the log has no `ERR` lines naming `scripts/`.
+
+If it fails, send `HW1A.exe.log` (I can read it myself). Each compile error gets a shim or a
+rewrite rule, and the scenario is reinstalled until it's clean.
+
+**And Sinkage:** does he fight on floor 1? Does he take damage and die? What does he do?
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor

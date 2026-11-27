@@ -1519,3 +1519,19 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
 - `[VERIFIED]` In game (S3): an HW2 track from `hw2/music/music.sbnk` and `.ogg` files packed raw in
   the `.h1c` plays and loops, AE's music returns on the next default-music floor, and leaving the
   level stops the loop. The mistdeep pattern (muted `PlayMusic` + looping `PlaySound`) works packed.
+
+## 2026-11-26 — Carrying HW2 scripts
+
+- `[EMITTED]` The copy carries the script classes a copied unit needs and AE lacks
+  (src/main/custom/scriptPlan.ts, angelscript.ts):
+  - a class ships as its whole HW2 file when AE has no file at that path and declares none of
+    its names;
+  - otherwise only the declaration is cut out, with its namespaces, into `scripts/Hw2Compat.as`;
+  - names follow transitively, never through a file AE has: a global by bare name, a
+    namespaced one as `Namespace::name` or from inside its namespace;
+  - AE's names come from the user's own AE scripts, read at install.
+  The nine bosses need 8 files and 3 cut declarations (`CompositeActorDamagedPeriodTriggeredSkill`,
+  `IOwnedUnitLoad`, `easeSineOut`).
+- `[VERIFIED]` HW2's scripts use the engine preprocessor too (`%defblock` … `%endblock` in
+  `WorldScript/Scripts/TimedScriptLink.as`), so a script scan has to skip those lines.
+- `[UNVERIFIED]` That all of these compile together in AE: spike S5, `dungeon_11260005`.

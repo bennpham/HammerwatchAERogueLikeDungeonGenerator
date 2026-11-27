@@ -118,7 +118,10 @@ while his formations fight. That's why he's last.
 
 Each step is a commit (or a few), each passing the gate.
 
-1. **Shipping scripts, generally.** Generalise the S2 spike into the copier.
+1. **Shipping scripts, generally.** *Done 2026-11-26:* `src/main/custom/angelscript.ts` reads
+   a script's top-level declarations, and `scriptPlan.ts` plans what ships. The copier carries
+   whatever classes a unit needs. The nine bosses come to 8 files plus 3 cut-out declarations,
+   as planned (tests/scriptPlan.test.ts). Generalising the S2 spike into the copier:
    - A unit closure's missing classes become script files: a whole HW2 file when AE has no file
      of that path and none of its names, otherwise just the class or function cut out of it.
    - Helpers are found by name, transitively, but never by following into a file AE has (so
@@ -130,7 +133,7 @@ Each step is a commit (or a few), each passing the gate.
      symbols, with no name AE declares.
    - Monsters use the same path, which is how the wider HW2 roster (wolves, wasps, boars, the
      empire, the archons…) comes over afterwards.
-2. **Spike S5: everything compiles.** One test scenario ships all 9 files and the cut symbols.
+2. **Spike S5: everything compiles.** *Installed 2026-11-26 as `dungeon_11260005`.* One test scenario ships all 9 files and the cut symbols.
    You start it; I read `HW1A.exe.log` and fix each compile error with a shim or a rewrite rule.
    Repeat until clean. One compile error stops every script, so this comes before any boss
    reaches a campaign.
