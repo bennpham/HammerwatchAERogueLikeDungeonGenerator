@@ -1717,3 +1717,9 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   `FLOOR_BOSS_IDS` plus Doombringer's perch again. Archibald is offered nowhere.
 - `[VERIFIED]` (in game, 2026-11-28, `dungeon_11260016`) Sinkage, Shock Widow, Dace Arden and Barrington hold World
   island sites: bars, fights, deaths, each kill counting toward the portal.
+- `[EMITTED]` (2026-11-28) The four HW2 player presets also own each class's skills 2 and 3 (`classes.sval` order,
+  0-based: the two bought actives) and sell growing upgrades to tier 99 (`players/hw2Shop.ts`): health, mana, armor,
+  regen, damage and healing, the combo timer and its regen buffs. Chances, projectile and spawn counts, speeds,
+  reach and durations stay at the stock top. A new key, `player.<chain>.hold.<field>=1`, keeps one number of a
+  chain's added tiers at its last stock value (the ladder's step for it is 0), so the bow's damage climbs while its
+  arrow speed and lifetime don't. The Endgame preset patches 60 player files, ~2 MB.
