@@ -1672,3 +1672,9 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
 - `[EMITTED]` `BossDef.waitsForParty` (Blight): a stationary boss small enough for a floor's room or a World
   site; `FLOOR_BOSS_IDS` = the chasing bosses plus these. A floor boss's start signals go on load and at
   3 s from where it stands, as in an arena; AE's bosses have none, so their floors are unchanged.
+- `[VERIFIED]` (in game, 2026-11-27, and his files) Doombringer takes off on his own (`skill_take_flight_*`: the party
+  700 px away, or every 45-60 s) into `state_flying_transition`: immortal, untargetable, a `PatrolMovement` along his HW2
+  arena's `flying_transition_wp` nodes. Only arriving ends it (`flying_transition` → the arena sets his side and lands
+  him). A generated arena has no such nodes, so he hung invincible for good. `[EMITTED]` The copy drops his six
+  take-off skill blocks (`hw2/filePatches.ts`): he stays perched. The user's rule: HW2 bosses stay simple, as AE's
+  do; nothing of their own arenas is ported.
