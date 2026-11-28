@@ -1707,3 +1707,7 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
 - `[VERIFIED]` (in game, 2026-11-28) With one FMOD layer per sound, at most 16 sources, `dungeon_11260014` loads and
   Doombringer, perched on his wall, fights and dies. So a sound listing ~50 `<source>`s was what made AE quit
   (0xc0000409): keep `MAX_SOUND_SOURCES` at 16 or below. All eight offered HW2 bosses are now confirmed killable.
+- `[EMITTED]` (2026-11-28) HW2 bosses that move on their own (`BossDef.chases`: Sinkage, Shock Widow, Malgar, Dace
+  Arden, Judge Supreme, Barrington) join `FLOOR_BOSS_IDS`: offered as dungeon floor bosses with HW2 loaded, never in a
+  default pool. Not on World islands (asked for floors). Doombringer and Archibald stay `arenaOnly`. Barrington's
+  movement is HW2 arena patrols (`PatrolMovement` along its waypoints), so on a floor he mostly waits.
