@@ -1704,3 +1704,6 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   `[UNVERIFIED]` that the source count was the cause. `[EMITTED]` A carried sound now lists only its event's first
   FMOD layer (the layers play together in HW2; AE plays one sample a sound), at most 16 sources
   (`MAX_SOUND_SOURCES`, copyPlan.ts).
+- `[VERIFIED]` (in game, 2026-11-28) With one FMOD layer per sound, at most 16 sources, `dungeon_11260014` loads and
+  Doombringer, perched on his wall, fights and dies. So a sound listing ~50 `<source>`s was what made AE quit
+  (0xc0000409): keep `MAX_SOUND_SOURCES` at 16 or below. All eight offered HW2 bosses are now confirmed killable.
