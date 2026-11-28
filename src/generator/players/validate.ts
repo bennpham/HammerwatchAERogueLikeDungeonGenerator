@@ -48,6 +48,10 @@ export function validatePlayerTweaks(tweaks: PlayerTweaks): { errors: PlayerIssu
       })
       continue
     }
+    if (field.kind === 'hold' && value !== 0 && value !== 1) {
+      errors.push({ field: key, message: 'Must be 1 (held at its last stock value past stock) or 0.' })
+      continue
+    }
     if (field.added === true && field.tier! > chainLevels(field.chainKey!, lower)) {
       warnings.push({
         field: key,

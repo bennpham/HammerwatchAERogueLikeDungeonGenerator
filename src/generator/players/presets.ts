@@ -1,5 +1,6 @@
 import { PLAYER_FIELD_MAP, extraKey, prunePlayerTweaks, skillKey, statKey } from './fields'
 import type { PlayerTweaks } from './fields'
+import { hw2Shop } from './hw2Shop'
 import { allOriginalToggles } from './original'
 import { setEveryoneSpeed } from './speed'
 import { PLAYER_STOCK } from './stock.generated'
@@ -353,14 +354,15 @@ function hw2Skills(): PlayerTweaks {
 }
 
 function hw2Build(level: number): PlayerTweaks {
-  const t: PlayerTweaks = { ...hw2Skills() }
+  // skills 2 and 3 owned, the long shop (players/hw2Shop.ts), then HW2's own numbers
+  const t: PlayerTweaks = { ...hw2Shop(), ...hw2Skills() }
   for (const c of HW2_CLASSES) Object.assign(t, bodyOverrides(c.cls, hw2Body(c, level)))
   for (const cls of HW2_ANCHORED) Object.assign(t, bodyOverrides(cls, anchoredBody(cls, level)))
   return prunePlayerTweaks(t)
 }
 
 const SKILLS_NOTE =
-  'HW2’s skill values where they carry over. Priest and sorcerer, not in HW2, are scaled off the wizard (the priest stays frailest with the fastest mana regen).'
+  'Every class owns its skills 2 and 3 from the start, and health, mana, armor, regen and damage upgrades sell up to tier 99 (chances, projectile counts and move speed stop at stock). HW2’s skill values where they carry over. Priest and sorcerer, not in HW2, are scaled off the wizard (the priest stays frailest with the fastest mana regen).'
 
 export const PLAYER_PRESETS: readonly PlayerPreset[] = [
   {

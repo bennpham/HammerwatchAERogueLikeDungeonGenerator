@@ -1,6 +1,6 @@
 import { fmtNum } from '../ae/sval'
 import { deriveGroupFactor } from './bulk'
-import { CHAIN_BY_KEY, PLAYER_FIELD_MAP, chainLevels, extraKey, levelsKey, skillKey } from './fields'
+import { CHAIN_BY_KEY, PLAYER_FIELD_MAP, chainLevels, extraKey, holdKey, levelsKey, skillKey } from './fields'
 import type { PlayerTweaks } from './fields'
 import {
   addedCategory,
@@ -60,6 +60,7 @@ function effectiveBase(file: PlayerSkillFile, chain: PlayerChain, tweaks: Player
       return b === undefined ? at(chain.key, stock, s.name, last.binds[s.name].stock) : at(b.chainKey, b.tier + 1, s.name, b.stock)
     },
     override: (t, name) => tweaks[skillKey(chain.key, t, name)],
+    held: (s) => tweaks[holdKey(chain.key, s.name)] === 1,
     costFactor: deriveGroupFactor('cost', tweaks) ?? 1
   }
 }

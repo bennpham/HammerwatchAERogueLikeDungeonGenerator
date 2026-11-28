@@ -12,6 +12,7 @@ import {
   classLabel,
   extraKey,
   extraLabel,
+  holdKey,
   levelsKey,
   playerField,
   setChainLevels,
@@ -67,6 +68,7 @@ function keysOfFile(file: PlayerSkillFile, tweaks: PlayerTweaks): string[] {
   for (const chain of file.chains) {
     if (PLAYER_FIELD_MAP.has(startingLevelKey(chain.key))) keys.push(startingLevelKey(chain.key))
     if (PLAYER_FIELD_MAP.has(levelsKey(chain.key))) keys.push(levelsKey(chain.key), ...addedKeysOf(chain, tweaks))
+    for (const spec of addedFieldSpecs(chain)) if (PLAYER_FIELD_MAP.has(holdKey(chain.key, spec.name))) keys.push(holdKey(chain.key, spec.name))
     chain.tiers.forEach((tier, i) => {
       if (tier.cost !== undefined) keys.push(skillKey(chain.key, i + 1, 'cost'))
       for (const name of Object.keys(tier.binds)) keys.push(skillKey(chain.key, i + 1, name))
@@ -166,6 +168,24 @@ export function PlayerForm({ tweaks, issues, onChange }: PlayerFormProps) {
                 onChange={(n) => onChange(setChainLevels(tweaks, chain.key, n))}
               />
             )}
+          </div>
+        )}
+        {levels > chain.tiers.length && (
+          <div className="player-chain-holds">
+            {specs
+              .filter((s) => PLAYER_FIELD_MAP.has(holdKey(chain.key, s.name)))
+              .map((s) => {
+                const field = PLAYER_FIELD_MAP.get(holdKey(chain.key, s.name))!
+                return (
+                  <BoolField
+                    key={field.key}
+                    label={`hold ${s.name}`}
+                    title={`Tiers past ${chain.tiers.length} keep ${s.name} at its tier-${chain.tiers.length} value instead of raising it`}
+                    checked={(tweaks[field.key] ?? 0) === 1}
+                    onChange={(on) => set(field, on ? 1 : 0)}
+                  />
+                )
+              })}
           </div>
         )}
         {chain.tiers.slice(0, levels).map((tier, i) => (

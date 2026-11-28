@@ -133,6 +133,8 @@ export interface LadderBase {
   last(spec: AddedFieldSpec): number
   prev(spec: AddedFieldSpec): number
   override(tier: number, name: string): number | undefined
+  /** a number kept at its last stock value on every added tier (`player.<chain>.hold.<field>`) */
+  held?(spec: AddedFieldSpec): boolean
   /** the Prices knob, applied to the stock price ladder */
   costFactor: number
 }
@@ -150,7 +152,8 @@ export interface AddedTier {
  * Tiers stock+1 … `levels`. A price follows the stock price ladder (its last
  * step, never down) times the Prices knob; every other number takes the step
  * of its last two stock tiers (as edited) on from the tier below, overrides
- * included, so an edited tier 7 moves 8 and up by as much.
+ * included, so an edited tier 7 moves 8 and up by as much. A held number
+ * takes no step: it stays at its last stock value (an override still sets it).
  */
 export function extendLadder(chain: PlayerChain, levels: number, base: LadderBase): AddedTier[] {
   const stock = chain.tiers.length
@@ -160,7 +163,7 @@ export function extendLadder(chain: PlayerChain, levels: number, base: LadderBas
   const v1: Record<string, number> = {}
   for (const s of specs) {
     v1[s.name] = base.last(s)
-    steps[s.name] = stepOf(s, base.prev(s), v1[s.name])
+    steps[s.name] = s.kind !== 'cost' && base.held?.(s) === true ? { add: 0 } : stepOf(s, base.prev(s), v1[s.name])
   }
   const lastCost = templateTier(chain).cost?.stock ?? 0
   const costStep = Math.max(0, lastCost - (chain.tiers[stock - 2].cost?.stock ?? lastCost))

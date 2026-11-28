@@ -20,6 +20,7 @@ import { PLAYER_STOCK } from './stock.generated'
  *   player.<chain>.1.starting-level             levels of a skill owned from the start (1: no need to buy it)
  *   player.<chain>.levels                       how many tiers the chain has, 1 to 999 (stock: as the game ships it)
  *   player.<chain>.<tier>.<field>               past stock too: a tier added by `levels` (`added`)
+ *   player.<chain>.hold.<field>                 1: that number stays at its last stock value on added tiers
  *   player.shop.<id>.cost                       a potion or item price (a script, not players/)
  *   player.extra.<id>                           a skill number outside players/ (combo buffs, lightning bolt)
  *
@@ -43,7 +44,7 @@ export interface PlayerFieldDef {
    * that count, 1 to `maxLevel`; a `cost` with no `chainKey` is a potion or
    * item price; a `param` is a skill-level number beside the binds
    */
-  kind: 'stat' | 'cost' | 'bind' | 'param' | 'unlock' | 'levels'
+  kind: 'stat' | 'cost' | 'bind' | 'param' | 'unlock' | 'levels' | 'hold'
   /** an `unlock`: the chain's stock level count; `levels`: the most it can have */
   maxLevel?: number
   /**
@@ -95,6 +96,14 @@ export function unlockKey(stem: string): string {
 /** How many tiers a chain has: the skill and its upgrades, past stock or fewer. */
 export function levelsKey(chainKey: string): string {
   return `${PLAYER_KEY_PREFIX}${chainKey}.levels`
+}
+
+/**
+ * 1: a number of a chain's tiers past stock stays at its last stock value
+ * instead of climbing on (a dodge chance, a projectile count, a speed).
+ */
+export function holdKey(chainKey: string, field: string): string {
+  return `${PLAYER_KEY_PREFIX}${chainKey}.hold.${field}`
 }
 
 export function shopKey(id: string): string {
@@ -213,6 +222,23 @@ export const PLAYER_FIELDS: readonly PlayerFieldDef[] = (() => {
         name: 'levels',
         chainKey: chain.key
       })
+    }
+    // which numbers of a chain's added tiers stay where stock leaves them
+    for (const chain of file.chains) {
+      if (!canAddTiers(chain)) continue
+      for (const spec of addedFieldSpecs(chain)) {
+        if (spec.kind === 'cost') continue
+        out.push({
+          key: holdKey(chain.key, spec.name),
+          type: 'int',
+          stock: 0,
+          kind: 'hold',
+          path: file.path,
+          line: spec.line,
+          name: spec.name,
+          chainKey: chain.key
+        })
+      }
     }
   }
   for (const p of PLAYER_STOCK.shop) {

@@ -10,6 +10,7 @@ export {
   formatPlayerLine,
   isPlayerKey,
   levelsKey,
+  holdKey,
   parsePlayerValue,
   playerField,
   boughtRoot,
@@ -98,6 +99,7 @@ export {
   speedOf
 } from './speed'
 export type { SpeedGroup, SpeedMode } from './speed'
+export { GROWING_NUMBERS, HELD_NUMBERS, HW2_OWNED_SKILLS, HW2_SHOP_TIERS, hw2Shop } from './hw2Shop'
 export { HW2_CLASSES, PLAYER_PRESETS, PLAYER_PRESET_GROUPS, hw2AttributePoints, hw2Body, playerPresetById } from './presets'
 export type { Hw2Body, Hw2Class, PlayerPreset, PlayerPresetGroupId } from './presets'
 export { ORIGINAL_ATTACKS, ORIGINAL_TOGGLES, allOriginalToggles, isOriginalToggleOn, setOriginalToggle } from './original'

@@ -28,15 +28,17 @@
 //   dungeon_11260015  HW2 bosses as floor bosses: floor 1 Sinkage, 2 Shock Widow, 3 Dace Arden,
 //                     4 Barrington (Malgar and Judge, confirmed in arenas, left out on request).
 //   dungeon_11260016  The same four on one World island, right after the first lobby.
+//   dungeon_11260017  The HW2 level-1 player preset as a player gets it (not upgraded), every
+//                     price 0: skills 2 and 3 owned, the shop past tier 5. A stock campaign.
 //   dungeon_11260003  S4: dungeon_11260001's campaign, but every texture taken compiled from
 //                     HW2's res/assets.bin and packed as is.
 //
 // Each starts with the Hammerwatch 2 level-50 player preset, fully upgraded.
 //
-// --remove deletes the sixteen .h1c files (and description .txt files) again.
+// --remove deletes the seventeen .h1c files (and description .txt files) again.
 import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { applyFullyUpgraded, defaultBossFight, defaultDungeonBoss, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
+import { applyEverythingFree, applyFullyUpgraded, defaultBossFight, defaultDungeonBoss, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
 import type { DungeonParameters, DungeonResult, GeneratedFile } from '../../src/generator'
 import { parseSlotLabel } from '../../src/generator/campaign'
 import { installScenario } from '../../src/main/packer'
@@ -51,7 +53,7 @@ import { renderLevel } from '../../src/generator/ae/levelWriter'
 
 const AE = process.env.HWAE_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch Anniversary Edition'
 const HW2 = process.env.HW2_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch 2'
-const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007, 11260008, 11260009, 11260010, 11260011, 11260012, 11260013, 11260014, 11260015, 11260016]
+const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007, 11260008, 11260009, 11260010, 11260011, 11260012, 11260013, 11260014, 11260015, 11260016, 11260017]
 
 if (process.argv.includes('--remove')) {
   for (const seed of SEEDS) {
@@ -150,6 +152,12 @@ function worldLineup(ids: string[]): DungeonParameters {
     bossCount: ids.length
   }
   return p
+}
+
+/** A stock campaign on the HW2 level-1 preset, not upgraded, every price 0 (the long shop to try). */
+function hw2ShopCampaign(): DungeonParameters {
+  const p = defaultParameters()
+  return { ...p, playerTweaks: applyEverythingFree(playerPresetById('hw2-level-1')!.build()) }
 }
 
 /** A maxed stock campaign whose floors 1.. are each held by one of `ids`. */
@@ -299,3 +307,4 @@ await install(SEEDS[12], rosterCampaign(), false)
 await install(SEEDS[13], arenaLoadedFor('hw2_doombringer'), false)
 await install(SEEDS[14], floorBosses(['hw2_sinkage', 'hw2_shock_widow', 'hw2_dace_arden', 'hw2_barrington']), false)
 await install(SEEDS[15], worldLineup(['hw2_sinkage', 'hw2_shock_widow', 'hw2_dace_arden', 'hw2_barrington']), false)
+await install(SEEDS[16], hw2ShopCampaign(), false)

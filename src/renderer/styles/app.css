@@ -2153,6 +2153,14 @@ button.danger:hover:not(:disabled) {
   margin-bottom: 0;
 }
 
+/* the numbers kept flat on tiers past stock, as a row of checkboxes */
+.player-chain-holds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  margin-bottom: 6px;
+}
+
 /* quick setup: the count and its buttons on one baseline */
 .tier-count-row {
   align-items: flex-end;
