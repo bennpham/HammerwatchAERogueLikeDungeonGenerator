@@ -81,6 +81,13 @@ export interface SoundSource {
   ogg(index: number): Uint8Array
 }
 
+/**
+ * Most `<source>`s one carried sound lists. Doombringer's take-off listed 52 and
+ * AE quit as his arena started (0xc0000409 in ucrtbase, no log line, 2026-11-28);
+ * HW2's horde guard's 20 played fine.
+ */
+export const MAX_SOUND_SOURCES = 16
+
 /** Where the carried sound effects' bank ships, under the prefix. */
 export const SOUND_BANK = 'sounds/sounds.sbnk'
 
@@ -308,7 +315,8 @@ export function planCopy(input: CopyInput): CopyPlan {
         const base = key.replace(/^event:\/(sfx\/)?/, '').replace(/[^a-z0-9_]/g, '_')
         entry = base
         for (let n = 2; sounds.has(entry); n++) entry = `${base}_${n}`
-        sounds.set(entry, { event: key, ...found })
+        if (found.samples.length > MAX_SOUND_SOURCES) notes.push(`${event}: ${found.samples.length} samples, the first ${MAX_SOUND_SOURCES} kept`)
+        sounds.set(entry, { event: key, samples: found.samples.slice(0, MAX_SOUND_SOURCES), looping: found.looping })
       }
       soundEntryOf.set(key, entry)
     }

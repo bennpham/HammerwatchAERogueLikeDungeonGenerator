@@ -99,9 +99,9 @@ describe('reading FMOD Studio banks', () => {
     const b = readStudioBank(reader(bank), bank.length)
     expect(b.fsbOffset).toBe(1234)
     // its multi-instrument's two waveforms; one of them loops
-    expect(b.samplesOf(hex(1))).toEqual({ subsounds: [2, 5], looping: true })
+    expect(b.samplesOf(hex(1))).toEqual({ subsounds: [2, 5], layers: [[2, 5]], looping: true })
     // its own waveform, and the event it nests
-    expect(b.samplesOf(hex(2))).toEqual({ subsounds: [2, 5, 9], looping: true })
+    expect(b.samplesOf(hex(2))).toEqual({ subsounds: [2, 5, 9], layers: [[9], [2, 5]], looping: true })
     expect(b.samplesOf(hex(9))).toBeNull()
   })
 

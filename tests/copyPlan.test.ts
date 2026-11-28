@@ -1,7 +1,7 @@
 import { inflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { extractRefs, resolveRelative } from '../src/main/custom/refs'
-import { planCopy } from '../src/main/custom/copyPlan'
+import { MAX_SOUND_SOURCES, planCopy } from '../src/main/custom/copyPlan'
 import { encodeSval } from '../src/main/h1c/write'
 import { bakeTintSheet, parseColorize, readLayeredTif, readTintSheet } from '../src/main/custom/layeredTif'
 import { packSource } from '../src/main/custom/binSource'
@@ -253,6 +253,16 @@ describe('planning a copy', () => {
         '  </sound>\n' +
         '</soundbank>\n'
     )
+    // AE quits on a sound listing too many sources (Doombringer's 52): the first ones are kept, and noted
+    const many = plan({ 'b.unit': '<s>event:/sfx/big</s>' }, ['hw2/b.unit'], {
+      sounds: {
+        resolve: () => ({ samples: Array.from({ length: 40 }, (_, i) => ({ index: i, name: `s${String(i).padStart(2, '0')}` })), looping: false }),
+        ogg: (i: number) => enc.encode(`OggS${i}`)
+      }
+    })
+    expect((textOf(many, 'hw2/sounds/sounds.sbnk').match(/<source /g) ?? []).length).toBe(MAX_SOUND_SOURCES)
+    expect(many.files.filter((f) => f.path.endsWith('.ogg'))).toHaveLength(MAX_SOUND_SOURCES)
+    expect(many.notes).toContain(`event:/sfx/big: 40 samples, the first ${MAX_SOUND_SOURCES} kept`)
     // without a sound source, as before: blanked
     expect(textOf(plan({ 'a.unit': '<s>event:/sfx/actors/troll/troll_hurt</s>' }, ['hw2/a.unit']), 'hw2/a.unit')).toBe('<s></s>')
   })

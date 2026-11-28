@@ -99,7 +99,10 @@ export function hw2SoundSource(sfxBank: string | null, stringsBank: string | nul
         const guid = byPath.get(event.toLowerCase())
         const found = guid === undefined ? null : bank.samplesOf(guid)
         if (found === null) return null
-        const picked = found.subsounds.filter((i) => i < samples.length).map((i) => ({ index: i, name: samples[i].name }))
+        // AE plays one sample a sound, so the event's first layer stands for it: the others
+        // play alongside it in HW2 (a dragon's voice over its wings, skin and crackle)
+        const layer = found.layers.find((l) => l.some((i) => i < samples.length)) ?? []
+        const picked = layer.filter((i) => i < samples.length).map((i) => ({ index: i, name: samples[i].name }))
         return picked.length === 0 ? null : { samples: picked, looping: found.looping }
       },
       ogg(index) {

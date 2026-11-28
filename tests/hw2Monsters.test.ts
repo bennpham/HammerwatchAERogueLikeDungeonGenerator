@@ -5,6 +5,7 @@ import { generateDungeon } from '../src/generator'
 import type { DungeonResult } from '../src/generator'
 import { MONSTER_TYPES, monsterCap } from '../src/generator/objects/monsterTypes'
 import { hw2CopyPlan } from '../src/main/custom/hw2/copy'
+import { MAX_SOUND_SOURCES } from '../src/main/custom/copyPlan'
 import { AE_ROOT } from './aeInstall'
 import { levelsOf } from './ae'
 import { HAS_HW2, HW2_CONTENT, HW2_ROOT, danglingPaths } from './hw2Install'
@@ -79,6 +80,9 @@ describe.skipIf(!HAS_HW2)('copying Hammerwatch 2 monsters', () => {
     const bank = dec.decode(plan.files.find((f) => f.path === 'hw2/sounds/sounds.sbnk')!.data)
     const entries = new Set([...bank.matchAll(/<sound [^>]*name="([^"]+)"/g)].map((m) => m[1]))
     expect(entries.size).toBeGreaterThan(100)
+    for (const m of bank.matchAll(/<sound [^>]*name="([^"]+)"[^>]*>([\s\S]*?)<\/sound>/g)) {
+      expect((m[2].match(/<source /g) ?? []).length, m[1]).toBeLessThanOrEqual(MAX_SOUND_SOURCES)
+    }
     const named = new Set(plan.files.flatMap((f) => [...dec.decode(f.data).matchAll(/hw2\/sounds\/sounds\.sbnk:(\w+)/g)].map((m) => m[1])))
     for (const n of named) expect(entries.has(n), n).toBe(true)
     for (const m of bank.matchAll(/<source res="\.\/([^"]+)"/g)) expect(shipped.has(`hw2/sounds/${m[1]}`), m[1]).toBe(true)

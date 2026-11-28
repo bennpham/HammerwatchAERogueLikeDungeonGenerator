@@ -38,6 +38,12 @@ import type { ReadAt } from '../../h1c/read'
 /** One event's samples: FSB5 subsound indices, in their sound bank's order. */
 export interface EventSamples {
   subsounds: number[]
+  /**
+   * The same, by layer: what each instrument sitting straight on the event's
+   * timeline (or a parameter sheet) reaches, in the bank's order. FMOD plays an
+   * event's layers together; within one, a playlist picks.
+   */
+  layers: number[][]
   /** an instrument it reaches loops forever */
   looping: boolean
 }
@@ -312,13 +318,10 @@ export function readStudioBank(readAt: ReadAt, size: number): StudioBank {
     (c) => !INSTRUMENT_LISTS.has(c.type!) && c.type !== 'SND '
   )
 
-  const samplesOf = (eventGuid: string): EventSamples | null => {
-    const start = events.get(eventGuid)
-    if (start === undefined) return null
-    const subsounds = new Set<number>()
+  /** Everything reachable from `from`, into `subsounds`; whether any of it loops. */
+  const reach = (eventGuid: string, from: readonly string[], seen: Set<string>, subsounds: Set<number>): boolean => {
     let looping = false
-    const seen = new Set<string>()
-    const stack = [...start]
+    const stack = [...from]
     for (let steps = 0; stack.length > 0; steps++) {
       if (steps > MAX_WALK) throw new Error(`event ${eventGuid} reaches too much`)
       const g = stack.pop()!
@@ -337,7 +340,25 @@ export function readStudioBank(readAt: ReadAt, size: number): StudioBank {
         else if (inst.kind !== 'wave') stack.push(ref)
       }
     }
-    return { subsounds: [...subsounds].sort((a, b) => a - b), looping }
+    return looping
+  }
+
+  const samplesOf = (eventGuid: string): EventSamples | null => {
+    const start = events.get(eventGuid)
+    if (start === undefined) return null
+    // its layers: each instrument sitting straight on its timeline or a parameter sheet, in
+    // the bank's order (FMOD plays them together), with what each reaches
+    const seen = new Set<string>(start)
+    const top = start.flatMap((g) => [...(onParent.get(g) ?? []), ...(triggerBoxes.get(g) ?? [])])
+    const layers: number[][] = []
+    let looping = false
+    for (const g of top) {
+      const subsounds = new Set<number>()
+      if (reach(eventGuid, [g], seen, subsounds)) looping = true
+      if (subsounds.size > 0) layers.push([...subsounds].sort((a, b) => a - b))
+    }
+    const all = new Set(layers.flat())
+    return { subsounds: [...all].sort((a, b) => a - b), layers, looping }
   }
   return { fsbOffset: fsbOffsets[0] ?? -1, samplesOf }
 }

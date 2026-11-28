@@ -6,6 +6,7 @@ import { BOSS_DEFS, BOSS_DEF_LIST, FLOOR_BOSS_IDS, WORLD_BOSS_IDS, isStationary 
 import { MOBILE_BOSS_IDS } from '../src/generator/config/parameters'
 import { AE_ONLY } from '../src/generator/custom/sources'
 import { hw2CopyPlan } from '../src/main/custom/hw2/copy'
+import { MAX_SOUND_SOURCES } from '../src/main/custom/copyPlan'
 import { AE_ROOT } from './aeInstall'
 import { generateOk, idsParam, levelsOf, scriptsOf, strParam, unitById, unitsOf } from './ae'
 import { HAS_HW2, HW2_CONTENT, HW2_ROOT, danglingPaths } from './hw2Install'
@@ -237,6 +238,13 @@ describe.skipIf(!HAS_HW2)('copying Hammerwatch 2 bosses', () => {
     for (const f of plan.files.filter((x) => /\.(unit|inc)$/.test(x.path))) {
       // AE has none of HW2's loot tables: a SpawnLoot left behind, its table stripped, crashes on death
       expect(dec.decode(f.data), f.path).not.toMatch(/<string name="class">SpawnLoot<\/string>/)
+    }
+    // AE quit as Doombringer's arena started while a sound listed 52 sources (2026-11-28)
+    const bank = plan.files.find((f) => f.path === 'hw2/sounds/sounds.sbnk')
+    if (bank !== undefined) {
+      for (const m of dec.decode(bank.data).matchAll(/<sound [^>]*name="([^"]+)"[^>]*>([\s\S]*?)<\/sound>/g)) {
+        expect((m[2].match(/<source /g) ?? []).length, m[1]).toBeLessThanOrEqual(MAX_SOUND_SOURCES)
+      }
     }
     if (id === 'hw2_doombringer') {
       // he never takes off: landing again needs his HW2 arena's waypoints
