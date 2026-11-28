@@ -1678,3 +1678,6 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   him). A generated arena has no such nodes, so he hung invincible for good. `[EMITTED]` The copy drops his six
   take-off skill blocks (`hw2/filePatches.ts`): he stays perched. The user's rule: HW2 bosses stay simple, as AE's
   do; nothing of their own arenas is ported.
+- `[VERIFIED]` (in game, 2026-11-27) Blight in simple mode is killable on a floor and a World island and counts
+  toward the way out. Doombringer on an island hits the party from across it: his beam, rain and sinus breath have
+  range 2000 px and `must-see` false, as in HW2. The user wants that kept: no nerfs to HW2 bosses.
