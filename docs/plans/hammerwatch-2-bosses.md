@@ -173,6 +173,12 @@ Each step is a commit (or a few), each passing the gate.
    meditating opening, his sphere) mortal, since nothing in a generated arena runs what ends
    them: his arena's intro trigger, and the hellcubes that clear the flag `event_sphere`.
    A full mode, with his set pieces, is the open question below.
+   *2026-11-27, Blight, later:* simple mode confirmed hurtable. He stands still
+   (`PassiveMovement`; he moves only by his arena's teleports) and is a monster's size, so the
+   user asked for him on dungeon floors and World islands too: `BossDef.waitsForParty`,
+   `FLOOR_BOSS_IDS`. A floor sends his start signal as an arena does. A floor's default pool
+   stays AE's own. A full-fight Blight (his arena's set pieces) is not decided: see the
+   discovery log for what it would add.
 5. **Only if a fight goes wrong: port its HW2 arena.** `readLevel` the HW2 arena, prefix every
    asset path (script parameters included), make its closure the copy's roots, replace its exits
    with ours, and add our boss bar and music. It also needs the arena script types AE lacks

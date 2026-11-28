@@ -1654,3 +1654,21 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
 - `[EMITTED]` File patches (`FilePatch`, src/main/custom/hw2/filePatches.ts): find/replace in a
   carried text file by its source path; one that no longer matches is an error. Blight's two immortal
   states (`_boss_blight_states.inc`) are made mortal: simple mode. He's offered again.
+- `[VERIFIED]` (reading `_boss_blight_repeat.lvl`'s scripts) Blight's HW2 arena, in full. On load it spawns
+  him with his meditation sphere and up to 12 healing crystals (`crystal_heal_shooter.unit`, each lit by a
+  power-surge tower); HW2 spawns fewer for each crystal the story had you break (`crystals_destroyed`).
+  While he meditates, `event_sphere_heal` goes every 4 s. The party entering a 360 px circle sends
+  `event_intro` and starts the boss music. At 80/60/40/20% health it sets `event_sphere_start`: he
+  teleports to the middle (`blight_teleport_mid` → waypoint `blight_tele_mid`) and raises
+  `blight_event_sphere`, on which the arena spawns hellcubes at a random 3 of 8 spots (one more each
+  time: 3, 4, 5, 6), enables his tentacles (`tentacle_spawn` every 10 s, capped at 5) and the crystals'
+  healing (0.5% of his health, every 8 s), and sets `event_sphere`, which holds him immortal. It ends
+  when every hellcube is broken or after 8 heals: 2 s later `event_sphere` is cleared. His
+  `blight_teleport` (every 8–10 s, and when hit hard) moves him to one of 6 `blight_wp` waypoints. At 30%:
+  Doombringer roars, two volleys of 5 fire bombs crack the ceiling (`ceiling_break`, 14 s apart), and
+  17 s later the ceiling collapses (screen shake, a darkening mask) and `boss_doombringer_blight.unit`
+  fades in to fight beside him. Blight's unit is `PassiveMovement`: without those teleports he never
+  moves.
+- `[EMITTED]` `BossDef.waitsForParty` (Blight): a stationary boss small enough for a floor's room or a World
+  site; `FLOOR_BOSS_IDS` = the chasing bosses plus these. A floor boss's start signals go on load and at
+  3 s from where it stands, as in an arena; AE's bosses have none, so their floors are unchanged.
