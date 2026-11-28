@@ -38,9 +38,9 @@ import type { Level } from '../map/level'
 import { buildInvulnerabilityRig } from '../boss/invulnerability'
 import { buildWaveBuffRig } from '../boss/waveBuffs'
 import { buildAllBossesDied, multiBossTierSource, singleBossTierSource } from '../boss/tierSource'
-import { BOSS_DEFS, expandLineup } from '../boss/bosses'
+import { BOSS_DEFS, expandLineup, START_SIGNAL_RADIUS, START_SIGNAL_RESEND_MS, startSignalsFor } from '../boss/bosses'
 import { LEVEL_LOADED_EVENT } from '../core/events'
-import { NodeCreateBossBar, NodeGlobalEventTrigger } from '../objects/nodes'
+import { NodeCreateBossBar, NodeGlobalEventRanged, NodeGlobalEventTrigger, NodeSetFlag } from '../objects/nodes'
 import { placeFloorBoss, placeFloorBosses } from './actor'
 import { buildBossStatue } from '../boss/statue'
 import { floorInteriorSlots, statueSlot } from './placement'
@@ -99,6 +99,21 @@ export function buildFloorBossRig(
   for (const actor of actors) {
     const def = BOSS_DEFS[actor.type.id as keyof typeof BOSS_DEFS]
     if (def !== undefined) loaded.connectTo(new NodeCreateBossBar(ctx, markerX, markerY, [actor], def.barName))
+  }
+  // what a boss's own arena would tell it as the fight starts (Hammerwatch 2's Blight), sent
+  // from where it waits, on load and again a little later, as an arena does; AE's bosses
+  // have none and allocate nothing here
+  for (const actor of actors) {
+    const def = BOSS_DEFS[actor.type.id as keyof typeof BOSS_DEFS]
+    if (def === undefined) continue
+    for (const signal of startSignalsFor(def)) {
+      const node =
+        'event' in signal
+          ? new NodeGlobalEventRanged(ctx, actor.x, actor.y, signal.event, START_SIGNAL_RADIUS)
+          : new NodeSetFlag(ctx, actor.x, actor.y, signal.flag)
+      loaded.connectTo(node)
+      loaded.connectTo(node, START_SIGNAL_RESEND_MS)
+    }
   }
 
   // 1b. A statue for each boss that stands behind one (the wraith), each wired

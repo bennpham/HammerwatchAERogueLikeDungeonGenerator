@@ -70,7 +70,8 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     label: 'Malgar',
     source: 'hw2'
   },
-  // body <circle radius="9">; starts immortal until his arena raises an event
+  // body <circle radius="8">, and stands still (PassiveMovement: he moves only by his arena's
+  // teleports); starts immortal until his arena raises an event
   {
     id: 'hw2_blight',
     actorPath: `${B}/blight_the_horrible/boss_blight.unit`,
@@ -79,7 +80,8 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     placement: 'centre',
     forbiddenAlcoveWalls: [],
     barName: 'Blight the Horrible',
-    arenaOnly: true,
+    // a monster's size, so he waits in a floor's room or at a World site too (asked 2026-11-27)
+    waitsForParty: true,
     // his arena's GlobalEventRanged "event_intro" gives skill_sphere_stop_intro a charge
     startSignals: [{ event: 'event_intro' }],
     // simple mode: the copy makes his immortal opening and sphere mortal (main/custom/hw2/filePatches.ts),

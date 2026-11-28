@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { defaultDungeonBoss, defaultWorld, generateDungeon, validateParameters } from '../src/generator'
 import type { AeLevel } from '../src/generator/ae/model'
 import type { DungeonParameters } from '../src/generator'
-import { BOSS_DEFS, BOSS_DEF_LIST } from '../src/generator/boss/bosses'
+import { BOSS_DEFS, BOSS_DEF_LIST, FLOOR_BOSS_IDS, WORLD_BOSS_IDS, isStationary } from '../src/generator/boss/bosses'
+import { MOBILE_BOSS_IDS } from '../src/generator/config/parameters'
 import { AE_ONLY } from '../src/generator/custom/sources'
 import { hw2CopyPlan } from '../src/main/custom/hw2/copy'
 import { AE_ROOT } from './aeInstall'
@@ -41,12 +42,14 @@ describe('Hammerwatch 2 bosses', () => {
     expect(validateParameters(p, HW2_CONTENT).errors.some((e) => e.field.startsWith('levelBoss.0'))).toBe(true)
   })
 
-  it('are the nine HW2 bosses, all arena-only', () => {
+  it('are the nine HW2 bosses, all arena-only but Blight, who waits for the party anywhere', () => {
     expect(HW2_BOSSES.map((d) => d.id)).toEqual([
       'hw2_sinkage', 'hw2_shock_widow', 'hw2_malgar', 'hw2_blight', 'hw2_doombringer',
       'hw2_dace_arden', 'hw2_judge_supreme', 'hw2_barrington', 'hw2_archibald'
     ])
-    for (const d of HW2_BOSSES) expect(d.arenaOnly && !d.mobile, d.id).toBe(true)
+    for (const d of HW2_BOSSES) expect(d.mobile, d.id).toBe(false)
+    for (const d of HW2_BOSSES.filter((x) => x.id !== 'hw2_blight')) expect(d.arenaOnly, d.id).toBe(true)
+    expect(HW2_BOSSES.filter((d) => d.waitsForParty === true).map((d) => d.id)).toEqual(['hw2_blight'])
   })
 
   it.each(HW2_BOSSES.map((d) => [d.id, d] as const))('%s fights in the generated arena with our boss bar, and its unit is carried', (id, def) => {
@@ -84,6 +87,64 @@ describe('Hammerwatch 2 bosses', () => {
     const v = validateParameters(arenaOn(['hw2_archibald']), HW2_CONTENT)
     expect(v.errors).toEqual([])
     expect(v.warnings.some((w) => w.field === 'boss.fights.0.arena.bossPool' && /Archibald Steelwill: can't be fought yet/.test(w.message))).toBe(true)
+  })
+
+  describe('Blight, who stands still and waits for the party', () => {
+    const BLIGHT = BOSS_DEFS.hw2_blight
+    const holding = (r: ReturnType<typeof generateOk>) =>
+      [...levelsOf(r).values()].filter((l) => unitsOf(l, (u) => u.path === BLIGHT.actorPath).length > 0)
+    const floorOn = (bossPool: string[]): DungeonParameters => {
+      const p = plainParameters()
+      p.levelBoss = Array.from({ length: p.levels }, (_, i) => ({ ...defaultDungeonBoss(), enabled: i === 0, bossPool }))
+      return p
+    }
+    const intros = (level: AeLevel) => scriptsOf(level, 'GlobalEventRanged').filter((s) => strParam(s, 'EventName') === 'event_intro')
+
+    it('is stationary, so arena traps never aim at him, and may wait on a floor or an island', () => {
+      expect(isStationary(BLIGHT)).toBe(true)
+      expect(FLOOR_BOSS_IDS).toContain('hw2_blight')
+      expect(WORLD_BOSS_IDS).toContain('hw2_blight')
+      // the only custom boss a floor may hold, and a floor's default pool stays AE's own
+      expect(FLOOR_BOSS_IDS.filter((id) => id.startsWith('hw2_'))).toEqual(['hw2_blight'])
+      expect(defaultDungeonBoss().bossPool).toEqual([...MOBILE_BOSS_IDS])
+    })
+
+    it('waits in a dungeon floor room with his bar, woken on load as his arena would', () => {
+      expect(validateParameters(floorOn(['hw2_blight']), AE_ONLY).errors.some((e) => e.field === 'levelBoss.0.bossPool' && /hw2_blight/.test(e.message))).toBe(true)
+      expect(validateParameters(floorOn(['hw2_blight']), HW2_CONTENT).errors).toEqual([])
+      const r = generateOk(floorOn(['hw2_blight']), 5)
+      expect(r.customAssets).toContain(BLIGHT.actorPath)
+      const levels = holding(r)
+      expect(levels).toHaveLength(1)
+      expect(scriptsOf(levels[0], 'CreateBossBar').map((b) => strParam(b, 'Name'))).toEqual(['Blight the Horrible'])
+      const intro = intros(levels[0])
+      expect(intro).toHaveLength(1)
+      // sent from where he stands
+      const boss = unitsOf(levels[0], (u) => u.path === BLIGHT.actorPath)[0]
+      expect([intro[0].x, intro[0].y]).toEqual([boss.x, boss.y])
+      // two of him are fine: simple mode shares nothing between them
+      const two = floorOn(['hw2_blight'])
+      two.levelBoss![0] = { ...two.levelBoss![0], bossSelection: 'lineup', bossLineup: { hw2_blight: 2 } }
+      expect(validateParameters(two, HW2_CONTENT).errors).toEqual([])
+      expect(intros(holding(generateOk(two, 5))[0])).toHaveLength(2)
+    })
+
+    it('waits at a World site, woken on load', () => {
+      const p = plainParameters()
+      p.world = { enabled: true, worlds: [{ ...defaultWorld(), buttons: 1, bossCount: 1, bossPool: ['hw2_blight'] }] }
+      expect(validateParameters(p, HW2_CONTENT).errors).toEqual([])
+      const levels = holding(generateOk(p, 4))
+      expect(levels).toHaveLength(1)
+      expect(intros(levels[0])).toHaveLength(1)
+    })
+
+    it("leaves an AE floor boss's bytes alone", () => {
+      const stock = floorOn(['boss_knight'])
+      const a = generateDungeon(stock, 3, AE_ONLY)
+      const b = generateDungeon(stock, 3, HW2_CONTENT)
+      expect(a.ok && b.ok).toBe(true)
+      if (a.ok && b.ok) expect(b.files).toEqual(a.files)
+    })
   })
 
   describe('Doombringer, a dragon perched on one wall', () => {

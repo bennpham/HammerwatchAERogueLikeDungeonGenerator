@@ -6,6 +6,7 @@ import {
   matchingTheme,
   mysteryStarterPool,
   BOSS_DEF_LIST,
+  WORLD_BOSS_IDS,
   MUSIC_DEFAULT,
   WORLD_MAX_AMBUSHES,
   WORLD_MAX_BUTTONS,
@@ -67,8 +68,8 @@ function bossLabel(id: string): string {
 const MYSTERY_SOME_PLATES = 6
 const MYSTERY_HUNT_PLATES = 16
 
-/** Bosses a world may host: the floors' mobile list, and a boss perched on an island end (Doombringer). */
-const WORLD_BOSS_DEFS = BOSS_DEF_LIST.filter((def) => def.mobile || def.placement === 'sideWall')
+/** Bosses a world may host: a floor's, and a boss perched on an island end (Doombringer). See WORLD_BOSS_IDS. */
+const WORLD_BOSS_DEFS = BOSS_DEF_LIST.filter((def) => (WORLD_BOSS_IDS as readonly string[]).includes(def.id))
 
 /**
  * The World tab: open islands, each its own `W` slot in the campaign. Built

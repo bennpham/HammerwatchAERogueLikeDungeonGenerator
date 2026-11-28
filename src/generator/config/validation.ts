@@ -29,7 +29,6 @@ import {
   SURVIVAL_COUNTDOWN_STYLES,
   SURVIVAL_SECONDS_MAX,
   SURVIVAL_COUNTDOWN_NODE_WARN,
-  MOBILE_BOSS_IDS,
   MAX_BOSS_COUNT,
   BOSS_COUNT_WARN,
   BOSS_SELECTIONS,
@@ -109,7 +108,17 @@ import {
   resolveActorPath,
   monsterCap
 } from '../objects/monsterTypes'
-import { BOSS_DEFS, expandLineup, isMobileBoss, topWallBossClearance, topWallBossY, UNIQUE_BOSS_IDS, WORLD_BOSS_IDS } from '../boss/bosses'
+import {
+  BOSS_DEFS,
+  expandLineup,
+  FLOOR_BOSS_IDS,
+  isFloorBoss,
+  isStationary,
+  topWallBossClearance,
+  topWallBossY,
+  UNIQUE_BOSS_IDS,
+  WORLD_BOSS_IDS
+} from '../boss/bosses'
 import type { BossDef } from '../boss/bosses'
 import { arenaBossLayout } from '../boss/geometry'
 import { anchors as computeAnchors, ENTRANCE_DEPTH, ENTRANCE_WIDTH } from '../boss/anchors'
@@ -1008,7 +1017,7 @@ function bossLayoutFitsEveryCombo(minWidth: number, minHeight: number, pool: rea
  * shared by the arena and the dungeon floor so the two grammars cannot drift.
  *
  * `allowedIds` is `BOSS_IDS` for an arena (any end boss may be lined up) or
- * `MOBILE_BOSS_IDS` for a floor — a stationary boss can never reach the party
+ * `FLOOR_BOSS_IDS` for a floor — a boss that neither chases nor waits can never reach the party
  * there, the same restriction `bossPool` already carries for a floor. An id
  * that IS a real boss but outside `allowedIds` gets the floor's "cannot move"
  * message (the only way that combination happens); anything else is simply
@@ -1030,7 +1039,7 @@ function validateBossLineup(
       if ((BOSS_IDS as readonly string[]).includes(id)) {
         errors.push({
           field,
-          message: `${subject}: "${id}" cannot move, so it can never reach the party on a dungeon floor. Pick one of: ${MOBILE_BOSS_IDS.join(', ')}.`
+          message: `${subject}: "${id}" cannot move, so it can never reach the party on a dungeon floor. Pick one of: ${allowedIds.join(', ')}.`
         })
       } else {
         errors.push({ field, message: `${subject}: unknown boss "${id}" in the lineup.` })
@@ -1706,10 +1715,12 @@ function validateBossFight(
           .filter(([, n]) => (n ?? 0) > 0)
           .map(([id]) => id)
       : arena.bossPool
-  const stationary = possibleBosses.filter((id) => id in BOSS_DEFS && !isMobileBoss(id))
+  const stationary = possibleBosses.filter((id) => id in BOSS_DEFS && isStationary((BOSS_DEFS as Record<string, BossDef>)[id]))
+  const stationaryName = (id: string): string =>
+    id === 'boss_queen' ? 'the queen' : ((BOSS_DEFS as Record<string, BossDef>)[id].label ?? 'a dragon')
   const blockedNote =
     stationary.length > 0
-      ? ` No trap is ever aimed straight at ${stationary.some((id) => id === 'boss_queen') ? 'the queen' : 'a dragon'}${stationary.length > 1 ? ' or the other stationary bosses' : ''}, so even fewer may fit.`
+      ? ` No trap is ever aimed straight at ${stationary.includes('boss_queen') ? 'the queen' : stationaryName(stationary[0])}${stationary.length > 1 ? ' or the other stationary bosses' : ''}, so even fewer may fit.`
       : ''
   for (const [direction, wanted] of perWall) {
     const capacity = wallCapacity(arena.minWidth, arena.minHeight, direction)
@@ -2296,10 +2307,10 @@ function validateLevelBoss(p: DungeonParameters, errors: ValidationIssue[], warn
 
     if (floorSelection === 'lineup') {
       // Lineup mode does not read bossPool at all — restricted to
-      // MOBILE_BOSS_IDS, same reason bossPool is. No layout-fit check: a
+      // FLOOR_BOSS_IDS, same reason bossPool is. No layout-fit check: a
       // floor boss is placed on an ordinary interior room tile, not laid out
       // by arenaBossLayout, so there is nothing geometric to check here.
-      validateBossLineup(boss.bossLineup, bf('bossLineup'), MOBILE_BOSS_IDS, errors, `Floor ${i + 1}`)
+      validateBossLineup(boss.bossLineup, bf('bossLineup'), FLOOR_BOSS_IDS, errors, `Floor ${i + 1}`)
 
       if (!Number.isInteger(floorBossCountValue) || floorBossCountValue < 1 || floorBossCountValue > MAX_BOSS_COUNT) {
         errors.push({
@@ -2315,13 +2326,14 @@ function validateLevelBoss(p: DungeonParameters, errors: ValidationIssue[], warn
       for (const id of boss.bossPool) {
         if (!BOSS_IDS.includes(id as (typeof BOSS_IDS)[number])) {
           errors.push({ field: bf('bossPool'), message: `Floor ${i + 1}: unknown boss "${id}".` })
-        } else if (!isMobileBoss(id)) {
+        } else if (!isFloorBoss(id)) {
           // The floor's way out is sealed until the boss dies, so a boss that
           // cannot cross the floor to reach the party is a floor that can never
           // be finished. An arena confines the fight; a dungeon floor does not.
+          // (A small one that waits in its room, Blight, is walked up to.)
           errors.push({
             field: bf('bossPool'),
-            message: `Floor ${i + 1}: "${id}" cannot move, so it can never reach the party on a dungeon floor. Pick one of: ${MOBILE_BOSS_IDS.join(', ')}.`
+            message: `Floor ${i + 1}: "${id}" cannot move, so it can never reach the party on a dungeon floor. Pick one of: ${FLOOR_BOSS_IDS.join(', ')}.`
           })
         } else {
           knownFloorPoolIds.push(id)
@@ -2330,7 +2342,7 @@ function validateLevelBoss(p: DungeonParameters, errors: ValidationIssue[], warn
 
       // bossCount (issue #64 part 1): a whole number 1..MAX_BOSS_COUNT, and — if
       // the pool holds only unique bosses — never more than the pool can
-      // actually supply. In practice MOBILE_BOSS_IDS has none, but the rule is
+      // actually supply. In practice FLOOR_BOSS_IDS has none, but the rule is
       // the same one an arena's pool follows, not a floor-specific exemption.
       if (!Number.isInteger(floorBossCountValue) || floorBossCountValue < 1 || floorBossCountValue > MAX_BOSS_COUNT) {
         errors.push({

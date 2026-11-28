@@ -119,7 +119,7 @@ export interface WorldDef {
    * Read through `worldBossCount`.
    */
   bossCount?: number
-  /** Bosses a site may roll, a subset of `MOBILE_BOSS_IDS`. */
+  /** Bosses a site may roll, a subset of `WORLD_BOSS_IDS` (boss/bosses.ts). */
   bossPool: string[]
   /** Absent means `random`, read through `bossSelection()`. */
   bossSelection?: BossSelection

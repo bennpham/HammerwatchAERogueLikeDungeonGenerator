@@ -48,7 +48,7 @@ import {
 import { SEAL_SOUND, buildButtonCountdown } from '../map/buttonSeal'
 import { MYSTERY_BUTTON_STATE } from '../mystery/rig'
 import { MYSTERY_PLATE } from './encounters'
-import { BOSS_DEFS, expandLineup, pickBosses, startSignalsFor } from '../boss/bosses'
+import { BOSS_DEFS, expandLineup, pickBosses, START_SIGNAL_RADIUS, START_SIGNAL_RESEND_MS, startSignalsFor } from '../boss/bosses'
 import type { BossSide } from '../boss/bosses'
 import type { BossId } from '../boss/bosses'
 import { buildBossStatue } from '../boss/statue'
@@ -236,10 +236,10 @@ export function buildObjectives(
       for (const signal of signals) {
         const node =
           'event' in signal
-            ? new NodeGlobalEventRanged(ctx, site.x + 0.5, site.y + 0.5, signal.event, 64)
+            ? new NodeGlobalEventRanged(ctx, site.x + 0.5, site.y + 0.5, signal.event, START_SIGNAL_RADIUS)
             : new NodeSetFlag(ctx, site.x + 0.5, site.y + 0.5, signal.flag)
         loaded.connectTo(node)
-        loaded.connectTo(node, 3000)
+        loaded.connectTo(node, START_SIGNAL_RESEND_MS)
       }
     }
     const died = new NodeObjectEventTrigger(ctx, site.x, site.y - 3)

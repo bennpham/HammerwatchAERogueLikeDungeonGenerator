@@ -225,11 +225,14 @@ export type { BossDef, BossId, BossPlacement } from './boss'
 export {
   BOSS_CAMPAIGNS,
   BOSS_DEF_LIST,
+  FLOOR_BOSS_IDS,
   UNIQUE_BOSS_IDS,
+  WORLD_BOSS_IDS,
   ARENA_LAYOUT_SLOTS,
   BOSS_LAYOUT_GAP,
   arenaBossLayout,
   expandLineup,
+  isFloorBoss,
   isMobileBoss,
   pickBosses
 } from './boss'

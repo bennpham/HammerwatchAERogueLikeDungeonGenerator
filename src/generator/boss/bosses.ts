@@ -117,6 +117,13 @@ export interface BossDef {
    */
   arenaOnly?: boolean
   /**
+   * Stands still, yet is offered on dungeon floors and World islands: small
+   * enough to wait in a floor's room or at a site, where the party walks up to
+   * it (Hammerwatch 2's Blight, asked 2026-11-27). Unlike the dragons and the
+   * queen, it takes the space of an ordinary monster. See `FLOOR_BOSS_IDS`.
+   */
+  waitsForParty?: boolean
+  /**
    * What the boss's own arena tells it as the fight starts, which a generated
    * arena sends on arrival instead: an event (to the boss's `events` list) or a
    * level flag (its state conditions). HW2's bosses are built around their
@@ -211,6 +218,11 @@ const HIT_CIRCLES: Partial<Record<BossId, ReadonlyArray<readonly [number, number
   boss_queen: [
     [-15, 9, 58],
     [20, -35, 50]
+  ],
+  // _boss_blight_scenes.inc, the same in every scene
+  hw2_blight: [
+    [0, -10, 12],
+    [0, 0, 8]
   ]
 }
 
@@ -248,19 +260,34 @@ export const BOSS_CAMPAIGNS: readonly { id: string; label: string; bosses: reado
   { id: 'hw2', label: 'Hammerwatch 2', bosses: HW2_BOSS_DEFS.map((d) => d.id) }
 ]
 
-/** A boss that stands still (the dragons, the queen): not `mobile`, and not kept off floors only by choice. */
+/** A boss that stands still (the dragons, the queen, Blight): not `mobile`, and not kept off floors only by choice. */
 export function isStationary(def: BossDef): boolean {
   return !def.mobile && def.arenaOnly !== true
 }
 
 /**
- * The bosses a World island may host: those that chase (`MOBILE_BOSS_IDS`), and
- * a `sideWall` boss, which perches on the island's west or east end
+ * The bosses a dungeon floor may host: those that chase (`MOBILE_BOSS_IDS`), and
+ * a small one that waits in its room for the party (`waitsForParty`). A
+ * floor's default pool stays `MOBILE_BOSS_IDS`, Anniversary Edition's own.
+ */
+export const FLOOR_BOSS_IDS: readonly BossId[] = BOSS_IDS.filter(
+  (id) => (MOBILE_BOSS_IDS as readonly string[]).includes(id) || BOSS_DEFS[id].waitsForParty === true
+)
+
+/**
+ * The bosses a World island may host: a floor's (`FLOOR_BOSS_IDS`), and a
+ * `sideWall` boss, which perches on the island's west or east end
  * (world/objectives.ts).
  */
 export const WORLD_BOSS_IDS: readonly BossId[] = BOSS_IDS.filter(
-  (id) => (MOBILE_BOSS_IDS as readonly string[]).includes(id) || BOSS_DEFS[id].placement === 'sideWall'
+  (id) => (FLOOR_BOSS_IDS as readonly string[]).includes(id) || BOSS_DEFS[id].placement === 'sideWall'
 )
+
+/** How far a boss's start event reaches, in px: the boss itself, where it stands (HW2's default is 75). */
+export const START_SIGNAL_RADIUS = 64
+
+/** When a boss's start signals go again, after the level loads. */
+export const START_SIGNAL_RESEND_MS = 3000
 
 /** `BOSS_DEFS` as a `BOSS_IDS`-ordered array, for callers that want to iterate. */
 export const BOSS_DEF_LIST: readonly BossDef[] = BOSS_IDS.map((id) => BOSS_DEFS[id])
@@ -311,9 +338,14 @@ export function startSignalsFor(def: BossDef, side?: BossSide): StartSignal[] {
   return [...(def.startSignals ?? []), ...(side === undefined ? [] : (def.sideSignals?.[side] ?? []))]
 }
 
-/** Whether `id` names a boss a dungeon floor may host — see MOBILE_BOSS_IDS. */
+/** Whether `id` names a boss that chases the party — see MOBILE_BOSS_IDS. */
 export function isMobileBoss(id: string): boolean {
   return (MOBILE_BOSS_IDS as readonly string[]).includes(id)
+}
+
+/** Whether `id` names a boss a dungeon floor may host — see FLOOR_BOSS_IDS. */
+export function isFloorBoss(id: string): boolean {
+  return (FLOOR_BOSS_IDS as readonly string[]).includes(id)
 }
 
 /**

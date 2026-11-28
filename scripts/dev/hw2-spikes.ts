@@ -19,15 +19,17 @@
 //   dungeon_11260010  … Archibald. (The other five HW2 bosses are confirmed.)
 //   dungeon_11260011  Doombringer on a World island right after the first lobby, perched on
 //                     the island's west or east end.
+//   dungeon_11260012  Blight away from an arena: a World island right after the first lobby
+//                     holds him at a site, and floor 1's boss is Blight, waiting in a room.
 //   dungeon_11260003  S4: dungeon_11260001's campaign, but every texture taken compiled from
 //                     HW2's res/assets.bin and packed as is.
 //
 // Each starts with the Hammerwatch 2 level-50 player preset, fully upgraded.
 //
-// --remove deletes the eleven .h1c files (and description .txt files) again.
+// --remove deletes the twelve .h1c files (and description .txt files) again.
 import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { applyFullyUpgraded, defaultBossFight, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
+import { applyFullyUpgraded, defaultBossFight, defaultDungeonBoss, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
 import type { DungeonParameters, DungeonResult, GeneratedFile } from '../../src/generator'
 import { parseSlotLabel } from '../../src/generator/campaign'
 import { installScenario } from '../../src/main/packer'
@@ -42,7 +44,7 @@ import { renderLevel } from '../../src/generator/ae/levelWriter'
 
 const AE = process.env.HWAE_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch Anniversary Edition'
 const HW2 = process.env.HW2_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch 2'
-const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007, 11260008, 11260009, 11260010, 11260011]
+const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007, 11260008, 11260009, 11260010, 11260011, 11260012]
 
 if (process.argv.includes('--remove')) {
   for (const seed of SEEDS) {
@@ -99,6 +101,13 @@ function worldFor(id: string): DungeonParameters {
   const order = p.levelOrder ?? []
   p.levelOrder = [...order.slice(0, 1), parseSlotLabel('W1')!, ...order.slice(1)]
   return maxed(p)
+}
+
+/** `worldFor(id)`, and floor 1's boss `id` too. */
+function floorAndWorldFor(id: string): DungeonParameters {
+  const p = worldFor(id)
+  p.levelBoss = Array.from({ length: p.levels }, (_, i) => ({ ...defaultDungeonBoss(), enabled: i === 0, bossPool: [id] }))
+  return p
 }
 
 /** A maxed stock campaign whose first arena fights HW2 boss `id`, right after the first lobby. */
@@ -214,3 +223,4 @@ await install(SEEDS[7], arenaFor('hw2_doombringer'), false)
 await install(SEEDS[8], arenaFor('hw2_barrington'), false)
 await install(SEEDS[9], arenaFor('hw2_archibald'), false)
 await install(SEEDS[10], worldFor('hw2_doombringer'), false)
+await install(SEEDS[11], floorAndWorldFor('hw2_blight'), false)

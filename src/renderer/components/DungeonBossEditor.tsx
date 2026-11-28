@@ -3,6 +3,7 @@ import {
   BOSS_DEATH_WAVE,
   BOSS_DEF_LIST,
   bossSelection,
+  isFloorBoss,
   defaultDungeonBoss,
   floorBossCount,
   isMultiBoss,
@@ -19,6 +20,7 @@ import { PickupListEditor } from './PickupListEditor'
 import { WaveEditor, WAVE_LABELS } from './WaveEditor'
 import { InvulnerabilityEditor, invulnBadge } from './InvulnerabilityEditor'
 import { BossSelectionEditor } from './BossSelectionEditor'
+import { offerable, offeredLabel, useContentSources } from '../customContent'
 
 interface DungeonBossEditorProps {
   params: DungeonParameters
@@ -32,8 +34,8 @@ function bossLabel(id: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
-/** Only bosses that can chase the party across a floor — see MOBILE_BOSS_IDS. */
-const MOBILE_BOSS_DEFS = BOSS_DEF_LIST.filter((def) => def.mobile)
+/** Only bosses that chase the party across a floor, or wait small in a room for it — see FLOOR_BOSS_IDS. */
+const FLOOR_BOSS_DEFS = BOSS_DEF_LIST.filter((def) => isFloorBoss(def.id))
 
 /**
  * Dungeon -> Boss: a mobile boss standing on an ordinary dungeon floor
@@ -222,6 +224,11 @@ function DungeonBossFloorEditor({
   onCopyWavePickupDown
 }: DungeonBossFloorEditorProps) {
   const fieldPrefix = `levelBoss.${level}`
+  const content = useContentSources()
+  // custom bosses only while their source is loaded, unless this floor already holds one
+  const floorDefs = FLOOR_BOSS_DEFS.filter(
+    (def) => (offerable(def.id, content) && def.hidden === undefined) || boss.bossPool.includes(def.id) || (boss.bossLineup ?? {})[def.id] !== undefined
+  )
   const bossCount = floorBossCount(boss)
   // Same multi-boss re-keying as an arena's bossCount (see isMultiBoss) — the
   // generator skips the 75/50/25% tiers, invulnerability and checkpoints
@@ -233,10 +240,10 @@ function DungeonBossFloorEditor({
 
   return (
     <>
-      <Section title="Boss" badge={`${boss.bossPool.length}/${MOBILE_BOSS_DEFS.length}`}>
+      <Section title="Boss" badge={`${boss.bossPool.length}/${floorDefs.length}`}>
         <p className="hint">
-          Only bosses that can move are offered — a stationary one parked in a room could never
-          reach the party on an open floor.
+          Only bosses that can move are offered — a big stationary one parked in a room could never
+          reach the party on an open floor.{content.sources.includes('hw2') && ' Blight stands still, but waits in his room for you.'}
         </p>
         {multiBoss && (
           <p className="hint">
@@ -249,7 +256,7 @@ function DungeonBossFloorEditor({
           bossPool={boss.bossPool}
           bossCount={bossCount}
           bossLineup={boss.bossLineup}
-          defs={MOBILE_BOSS_DEFS.map((def) => ({ id: def.id, label: bossLabel(def.id), unique: def.unique }))}
+          defs={floorDefs.map((def) => ({ id: def.id, label: offeredLabel(def.id, def.label ?? bossLabel(def.id), content), unique: def.unique }))}
           fieldPrefix={fieldPrefix}
           issues={issues}
           onChange={(patch) => onChange(patch)}

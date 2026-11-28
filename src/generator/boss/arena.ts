@@ -76,7 +76,18 @@ import type { Gateway } from '../campaign'
 import type { BossArenaOptions, SurvivalOptions } from '../config/parameters'
 import type { LevelPreview, PreviewRoom } from '../index'
 import { ENTRANCE_DEPTH, ENTRANCE_WIDTH, anchors } from './anchors'
-import { BOSS_DEFS, expandLineup, isStationary, pickBosses, sideWallBossX, startSignalsFor, topWallBossClearance, topWallBossY } from './bosses'
+import {
+  BOSS_DEFS,
+  expandLineup,
+  isStationary,
+  pickBosses,
+  sideWallBossX,
+  START_SIGNAL_RADIUS,
+  START_SIGNAL_RESEND_MS,
+  startSignalsFor,
+  topWallBossClearance,
+  topWallBossY
+} from './bosses'
 import type { AlcoveWall, BossDef, BossId, BossSide } from './bosses'
 import { isFree, placeCoverPillars, reachableMask } from './cover'
 import type { CoverArena, Rect } from './cover'
@@ -111,12 +122,6 @@ const BLACK_TILESET = 'tilesets/__black.tileset'
 
 /** Floored rows/cols inside the alcove pocket, behind the mouth. */
 const ALCOVE_POCKET = 5
-
-/** How far a boss's start event reaches, in px: the boss itself, where it stands (HW2's default is 75). */
-const START_SIGNAL_RADIUS = 64
-
-/** When a boss's start signals go again, after the level loads. */
-const START_SIGNAL_RESEND_MS = 3000
 
 export interface BossArenaResult {
   level: AeLevel

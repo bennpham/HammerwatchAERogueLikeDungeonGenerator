@@ -41,6 +41,7 @@ import { placements } from './ae'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { aeAssetsDir } from './aeInstall'
+import { hw2AssetsDir } from './hw2Install'
 
 const ARENA_W = 30
 const ARENA_H = 40
@@ -704,7 +705,8 @@ describe('boss traps — never aimed at a stationary boss', () => {
     ['queen', { boss_queen: 1 }],
     ['dragon', { boss_dragon: 1 }],
     ['frost dragon', { boss_dragon_hwr: 1 }],
-    ['queen and dragon', { boss_queen: 1, boss_dragon: 1 }]
+    ['queen and dragon', { boss_queen: 1, boss_dragon: 1 }],
+    ['Blight', { hw2_blight: 1 }]
   ] as const) {
     it(`${label}: no emitted spewer fires straight into a stationary boss`, () => {
       for (const seed of [1, 2, 3]) {
@@ -732,12 +734,13 @@ describe("boss traps — the stationary bosses' hit circles", () => {
   const stationary = Object.values(BOSS_DEFS).filter(isStationary)
 
   it('every stationary boss carries its hit circles', () => {
-    expect(stationary.map((d) => d.id).sort()).toEqual(['boss_dragon', 'boss_dragon_hwr', 'boss_queen'])
+    expect(stationary.map((d) => d.id).sort()).toEqual(['boss_dragon', 'boss_dragon_hwr', 'boss_queen', 'hw2_blight'])
     for (const d of stationary) expect(d.hitCircles?.length ?? 0, d.id).toBeGreaterThan(0)
   })
 
   it.skipIf(aeAssetsDir() === null)('match every circle a projectile can hit in the unit file, across all scenes', () => {
-    for (const d of stationary) {
+    // Anniversary Edition's own; Blight's are checked against his Hammerwatch 2 files below
+    for (const d of stationary.filter((x) => x.source === undefined)) {
       const text = readFileSync(join(aeAssetsDir()!, d.actorPath), 'utf8')
       const fromUnit = new Set<string>()
       for (const m of text.matchAll(/<circle([^>]*)\/>/g)) {
@@ -749,5 +752,18 @@ describe("boss traps — the stationary bosses' hit circles", () => {
       const authored = new Set((d.hitCircles ?? []).map(([x, y, r]) => `${x},${y},${r}`))
       expect([...authored].sort(), d.id).toEqual([...fromUnit].sort())
     }
+  })
+
+  it.skipIf(hw2AssetsDir() === null)("match Blight's, in his Hammerwatch 2 scenes", () => {
+    const text = readFileSync(join(hw2AssetsDir()!, 'actors/bosses/blight_the_horrible/_boss_blight_scenes.inc'), 'utf8')
+    const fromUnit = new Set<string>()
+    for (const m of text.matchAll(/<circle([^>]*)\/>/g)) {
+      if (/shoot-through="true"/.test(m[1])) continue
+      const off = /offset="(-?\d+) (-?\d+)"/.exec(m[1])
+      const r = /radius="(\d+)"/.exec(m[1])
+      fromUnit.add(`${off?.[1] ?? 0},${off?.[2] ?? 0},${r![1]}`)
+    }
+    const authored = (BOSS_DEFS.hw2_blight.hitCircles ?? []).map(([x, y, r]) => `${x},${y},${r}`)
+    expect(authored.sort()).toEqual([...fromUnit].sort())
   })
 })
