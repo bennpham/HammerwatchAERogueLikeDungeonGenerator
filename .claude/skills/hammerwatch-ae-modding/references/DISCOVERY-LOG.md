@@ -1697,3 +1697,10 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   Other). Every one copies with no script class missing (the boss work's script carrying covers them all).
 - `[VERIFIED]` (in game, 2026-11-27, `dungeon_11260013`) HW2's wider roster works on floors (beasts, humans, undead),
   and its sound effects play from a scenario's `hw2/sounds/sounds.sbnk` of `.ogg` files packed in the `.h1c`.
+- `[VERIFIED]` (in game, 2026-11-28) AE quit with no log line as `dungeon_11260014`'s Doombringer arena started
+  (just after its autosave). Windows logged `0xc0000409` (fail-fast) in `ucrtbase.dll`. That arena differed from the
+  one that worked only in layout, no cover, 184 pickups, and the HW2 sound effects added since; its pickups sat far
+  from him. Doombringer's sounds listed up to 52 `<source>`s each, where the roster's largest (20) played fine.
+  `[UNVERIFIED]` that the source count was the cause. `[EMITTED]` A carried sound now lists only its event's first
+  FMOD layer (the layers play together in HW2; AE plays one sample a sound), at most 16 sources
+  (`MAX_SOUND_SOURCES`, copyPlan.ts).
