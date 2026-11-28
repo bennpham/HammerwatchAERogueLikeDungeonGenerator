@@ -1695,3 +1695,5 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   `[UNVERIFIED]` that AE picks among several `<source>`s.
 - `[EMITTED]` 64 more HW2 monsters (79 in all), in four picker groups (Hammerwatch 2: Beasts, Humans, Undead,
   Other). Every one copies with no script class missing (the boss work's script carrying covers them all).
+- `[VERIFIED]` (in game, 2026-11-27, `dungeon_11260013`) HW2's wider roster works on floors (beasts, humans, undead),
+  and its sound effects play from a scenario's `hw2/sounds/sounds.sbnk` of `.ogg` files packed in the `.h1c`.
