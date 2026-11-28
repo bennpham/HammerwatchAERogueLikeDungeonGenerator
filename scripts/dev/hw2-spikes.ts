@@ -23,12 +23,14 @@
 //                     holds him at a site, and floor 1's boss is Blight, waiting in a room.
 //   dungeon_11260013  The wider HW2 roster, with HW2's own sound effects: floor 1 beasts,
 //                     floor 2 humans, floor 3 undead, on HW2 themes.
+//   dungeon_11260014  Doombringer's arena again (#157), to get a verdict: no cover pillars, and a
+//                     pile of upgrades and potions dropped as the party arrives.
 //   dungeon_11260003  S4: dungeon_11260001's campaign, but every texture taken compiled from
 //                     HW2's res/assets.bin and packed as is.
 //
 // Each starts with the Hammerwatch 2 level-50 player preset, fully upgraded.
 //
-// --remove deletes the thirteen .h1c files (and description .txt files) again.
+// --remove deletes the fourteen .h1c files (and description .txt files) again.
 import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyFullyUpgraded, defaultBossFight, defaultDungeonBoss, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
@@ -46,7 +48,7 @@ import { renderLevel } from '../../src/generator/ae/levelWriter'
 
 const AE = process.env.HWAE_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch Anniversary Edition'
 const HW2 = process.env.HW2_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch 2'
-const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007, 11260008, 11260009, 11260010, 11260011, 11260012, 11260013]
+const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007, 11260008, 11260009, 11260010, 11260011, 11260012, 11260013, 11260014]
 
 if (process.argv.includes('--remove')) {
   for (const seed of SEEDS) {
@@ -103,6 +105,36 @@ function worldFor(id: string): DungeonParameters {
   const order = p.levelOrder ?? []
   p.levelOrder = [...order.slice(0, 1), parseSlotLabel('W1')!, ...order.slice(1)]
   return maxed(p)
+}
+
+/** `arenaFor(id)` with no cover pillars, and a pile of upgrades and potions on arrival (tier 0). */
+function arenaLoadedFor(id: string): DungeonParameters {
+  const p = arenaFor(id)
+  const drops = [
+    { item: 'upgrade_damage_2', count: 64 },
+    { item: 'upgrade_defense_2', count: 40 },
+    { item: 'upgrade_health_2', count: 20 },
+    { item: 'upgrade_attackspeed_2', count: 20 },
+    { item: 'potion_1', count: 10 },
+    { item: 'potion_3', count: 10 },
+    { item: 'health_4', count: 20 }
+  ]
+  p.boss = {
+    ...p.boss,
+    fights: p.boss.fights.map((f, i) =>
+      i === 0
+        ? {
+            ...f,
+            arena: {
+              ...f.arena,
+              cover: { ...f.arena.cover, density: 0 },
+              waves: f.arena.waves.map((w, t) => (t === 0 ? { ...w, pickups: drops } : w))
+            }
+          }
+        : f
+    )
+  }
+  return p
 }
 
 /** Floors 1–3 on HW2 themes, each with a third of the wider roster. */
@@ -240,3 +272,4 @@ await install(SEEDS[9], arenaFor('hw2_archibald'), false)
 await install(SEEDS[10], worldFor('hw2_doombringer'), false)
 await install(SEEDS[11], floorAndWorldFor('hw2_blight'), false)
 await install(SEEDS[12], rosterCampaign(), false)
+await install(SEEDS[13], arenaLoadedFor('hw2_doombringer'), false)
