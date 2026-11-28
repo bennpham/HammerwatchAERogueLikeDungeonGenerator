@@ -110,12 +110,17 @@ export interface BossDef {
    */
   statue?: { actorPath: string; footprint: number }
   /**
-   * Kept off dungeon floors by choice, though it chases: Hammerwatch 2's bosses
-   * start Arena-tab only (docs/plans/hammerwatch-2-bosses.md). Such a boss
-   * isn't `mobile` (the floor pool), and isn't stationary either: see
-   * `isStationary`.
+   * Kept off dungeon floors: Hammerwatch 2's Doombringer (a perched dragon) and
+   * Archibald. Such a boss isn't `mobile` (the floor pool), and isn't
+   * stationary either: see `isStationary`.
    */
   arenaOnly?: boolean
+  /**
+   * Moves on its own, like a `MOBILE_BOSS_IDS` boss, so it may hold a dungeon
+   * floor (`FLOOR_BOSS_IDS`): Hammerwatch 2's bosses (asked 2026-11-28). Custom
+   * content, so never in a default pool. Not stationary: arena traps may aim at it.
+   */
+  chases?: boolean
   /**
    * Stands still, yet is offered on dungeon floors and World islands: small
    * enough to wait in a floor's room or at a site, where the party walks up to
@@ -260,27 +265,30 @@ export const BOSS_CAMPAIGNS: readonly { id: string; label: string; bosses: reado
   { id: 'hw2', label: 'Hammerwatch 2', bosses: HW2_BOSS_DEFS.map((d) => d.id) }
 ]
 
-/** A boss that stands still (the dragons, the queen, Blight): not `mobile`, and not kept off floors only by choice. */
+/** A boss that stands still (the dragons, the queen, Blight): not `mobile`, not chasing, and not kept off floors. */
 export function isStationary(def: BossDef): boolean {
-  return !def.mobile && def.arenaOnly !== true
+  return !def.mobile && def.arenaOnly !== true && def.chases !== true
 }
 
 /**
- * The bosses a dungeon floor may host: those that chase (`MOBILE_BOSS_IDS`), and
- * a small one that waits in its room for the party (`waitsForParty`). A
- * floor's default pool stays `MOBILE_BOSS_IDS`, Anniversary Edition's own.
+ * The bosses a dungeon floor may host: those that chase (`MOBILE_BOSS_IDS`, and
+ * custom ones marked `chases`), and a small one that waits in its room for the
+ * party (`waitsForParty`). A floor's default pool stays `MOBILE_BOSS_IDS`,
+ * Anniversary Edition's own.
  */
 export const FLOOR_BOSS_IDS: readonly BossId[] = BOSS_IDS.filter(
-  (id) => (MOBILE_BOSS_IDS as readonly string[]).includes(id) || BOSS_DEFS[id].waitsForParty === true
+  (id) => (MOBILE_BOSS_IDS as readonly string[]).includes(id) || BOSS_DEFS[id].chases === true || BOSS_DEFS[id].waitsForParty === true
 )
 
 /**
- * The bosses a World island may host: a floor's (`FLOOR_BOSS_IDS`), and a
- * `sideWall` boss, which perches on the island's west or east end
- * (world/objectives.ts).
+ * The bosses a World island may host: those that chase (`MOBILE_BOSS_IDS`), one
+ * that waits for the party (`waitsForParty`), and a `sideWall` boss, which
+ * perches on the island's west or east end (world/objectives.ts). Custom bosses
+ * that chase are offered on floors only (asked for floors, 2026-11-28).
  */
 export const WORLD_BOSS_IDS: readonly BossId[] = BOSS_IDS.filter(
-  (id) => (FLOOR_BOSS_IDS as readonly string[]).includes(id) || BOSS_DEFS[id].placement === 'sideWall'
+  (id) =>
+    (MOBILE_BOSS_IDS as readonly string[]).includes(id) || BOSS_DEFS[id].waitsForParty === true || BOSS_DEFS[id].placement === 'sideWall'
 )
 
 /** How far a boss's start event reaches, in px: the boss itself, where it stands (HW2's default is 75). */

@@ -40,7 +40,7 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     placement: 'centre',
     forbiddenAlcoveWalls: [],
     barName: 'Commodore Sinkage',
-    arenaOnly: true,
+    chases: true,
     label: 'Commodore Sinkage',
     source: 'hw2'
   },
@@ -53,7 +53,7 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     placement: 'centre',
     forbiddenAlcoveWalls: [],
     barName: 'Shock Widow',
-    arenaOnly: true,
+    chases: true,
     label: 'Shock Widow',
     source: 'hw2'
   },
@@ -66,7 +66,7 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     placement: 'centre',
     forbiddenAlcoveWalls: [],
     barName: 'Malgar',
-    arenaOnly: true,
+    chases: true,
     label: 'Malgar',
     source: 'hw2'
   },
@@ -116,7 +116,7 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     placement: 'centre',
     forbiddenAlcoveWalls: [],
     barName: 'Dace Arden',
-    arenaOnly: true,
+    chases: true,
     label: 'Dace Arden',
     source: 'hw2'
   },
@@ -129,7 +129,7 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     placement: 'centre',
     forbiddenAlcoveWalls: [],
     barName: 'Judge Supreme',
-    arenaOnly: true,
+    chases: true,
     label: 'Judge Supreme',
     source: 'hw2'
   },
@@ -142,7 +142,7 @@ export const HW2_BOSS_DEFS: Omit<BossDef, 'mobile' | 'unique'>[] = [
     placement: 'centre',
     forbiddenAlcoveWalls: [],
     barName: 'Barrington',
-    arenaOnly: true,
+    chases: true,
     label: 'Barrington',
     source: 'hw2'
   },

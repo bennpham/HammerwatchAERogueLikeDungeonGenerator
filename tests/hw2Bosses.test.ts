@@ -36,21 +36,49 @@ describe('Hammerwatch 2 bosses', () => {
     expect(validateParameters(arenaOn(['hw2_sinkage']), HW2_CONTENT).errors).toEqual([])
   })
 
-  it('stay off dungeon floors: they need an arena', () => {
+  it('hold dungeon floors, all but Doombringer and Archibald, never by default', () => {
     expect(SINKAGE.mobile).toBe(false)
-    const p = plainParameters()
-    p.levelBoss = Array.from({ length: p.levels }, (_, i) => ({ ...defaultDungeonBoss(), enabled: i === 0, bossPool: ['hw2_sinkage'] }))
-    expect(validateParameters(p, HW2_CONTENT).errors.some((e) => e.field.startsWith('levelBoss.0'))).toBe(true)
+    const floorOn = (pool: string[]) => {
+      const p = plainParameters()
+      p.levelBoss = Array.from({ length: p.levels }, (_, i) => ({ ...defaultDungeonBoss(), enabled: i === 0, bossPool: pool }))
+      return p
+    }
+    const chasers = ['hw2_sinkage', 'hw2_shock_widow', 'hw2_malgar', 'hw2_dace_arden', 'hw2_judge_supreme', 'hw2_barrington']
+    expect(validateParameters(floorOn(chasers), HW2_CONTENT).errors).toEqual([])
+    expect(validateParameters(floorOn(['hw2_sinkage']), AE_ONLY).errors.some((e) => e.field === 'levelBoss.0.bossPool' && /hw2_sinkage/.test(e.message))).toBe(true)
+    for (const id of ['hw2_doombringer', 'hw2_archibald']) {
+      expect(validateParameters(floorOn([id]), HW2_CONTENT).errors.some((e) => e.field.startsWith('levelBoss.0')), id).toBe(true)
+    }
+    expect(FLOOR_BOSS_IDS.filter((id) => id.startsWith('hw2_'))).toEqual([...chasers.slice(0, 3), 'hw2_blight', ...chasers.slice(3)])
+    // islands were asked for Blight only (and Doombringer's perch)
+    expect(WORLD_BOSS_IDS.filter((id) => id.startsWith('hw2_'))).toEqual(['hw2_blight', 'hw2_doombringer'])
+    // they move, so arena traps may still aim at them, as before
+    for (const id of chasers) expect(isStationary(BOSS_DEFS[id as keyof typeof BOSS_DEFS]), id).toBe(false)
   })
 
-  it('are the nine HW2 bosses, all arena-only but Blight, who waits for the party anywhere', () => {
+  it.each(['hw2_sinkage', 'hw2_shock_widow', 'hw2_malgar', 'hw2_dace_arden', 'hw2_judge_supreme', 'hw2_barrington'])(
+    '%s stands on a dungeon floor with its bar, and its unit is carried',
+    (id) => {
+      const p = plainParameters()
+      p.levelBoss = Array.from({ length: p.levels }, (_, i) => ({ ...defaultDungeonBoss(), enabled: i === 0, bossPool: [id] }))
+      const def = BOSS_DEFS[id as keyof typeof BOSS_DEFS]
+      const r = generateOk(p, 9)
+      expect(r.customAssets).toContain(def.actorPath)
+      const holding = [...levelsOf(r).values()].filter((l) => unitsOf(l, (u) => u.path === def.actorPath).length > 0)
+      expect(holding).toHaveLength(1)
+      expect(scriptsOf(holding[0], 'CreateBossBar').map((b) => strParam(b, 'Name'))).toEqual([def.barName])
+    }
+  )
+
+  it('are the nine HW2 bosses: six that chase, Blight who waits, and two kept to arenas', () => {
     expect(HW2_BOSSES.map((d) => d.id)).toEqual([
       'hw2_sinkage', 'hw2_shock_widow', 'hw2_malgar', 'hw2_blight', 'hw2_doombringer',
       'hw2_dace_arden', 'hw2_judge_supreme', 'hw2_barrington', 'hw2_archibald'
     ])
     for (const d of HW2_BOSSES) expect(d.mobile, d.id).toBe(false)
-    for (const d of HW2_BOSSES.filter((x) => x.id !== 'hw2_blight')) expect(d.arenaOnly, d.id).toBe(true)
+    expect(HW2_BOSSES.filter((d) => d.arenaOnly === true).map((d) => d.id)).toEqual(['hw2_doombringer', 'hw2_archibald'])
     expect(HW2_BOSSES.filter((d) => d.waitsForParty === true).map((d) => d.id)).toEqual(['hw2_blight'])
+    expect(HW2_BOSSES.filter((d) => d.chases === true)).toHaveLength(6)
   })
 
   it.each(HW2_BOSSES.map((d) => [d.id, d] as const))('%s fights in the generated arena with our boss bar, and its unit is carried', (id, def) => {
@@ -105,8 +133,7 @@ describe('Hammerwatch 2 bosses', () => {
       expect(isStationary(BLIGHT)).toBe(true)
       expect(FLOOR_BOSS_IDS).toContain('hw2_blight')
       expect(WORLD_BOSS_IDS).toContain('hw2_blight')
-      // the only custom boss a floor may hold, and a floor's default pool stays AE's own
-      expect(FLOOR_BOSS_IDS.filter((id) => id.startsWith('hw2_'))).toEqual(['hw2_blight'])
+      // a floor's default pool stays AE's own
       expect(defaultDungeonBoss().bossPool).toEqual([...MOBILE_BOSS_IDS])
     })
 

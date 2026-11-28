@@ -36,7 +36,7 @@ describe('boss defs', () => {
         expect(def.barName).toMatch(/^\.(d\.)?ig\./)
       } else {
         // custom content: under its source's prefix, offered only with that source loaded,
-        // never chasing (only Blight, who waits, joins a floor's), and named plainly (its
+        // never in a default pool (floors take them by choice), and named plainly (its
         // game's language keys aren't AE's)
         expect(def.id.startsWith(`${def.source}_`), def.id).toBe(true)
         expect(def.actorPath.startsWith(`${def.source}/actors/`), def.actorPath).toBe(true)
