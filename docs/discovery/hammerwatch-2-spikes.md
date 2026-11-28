@@ -201,6 +201,18 @@ and isn't meant to be killed). He stays hidden until his arena is ported.
   sphere ends by itself without his arena. Start signals now go again 3 s after load, in case the
   first came too early for him. If he's still invincible, he needs his arena (plan step 5).
 
+## S9: the wider roster, with HW2's sound effects (installed 2026-11-27)
+
+`dungeon_11260013`: floor 1 beasts, floor 2 humans, floor 3 undead, from the 79 HW2 monsters now offered
+(64 new, `custom/hw2/monsters.ts`), each with its sounds: an `hw2/sounds/sounds.sbnk` (mistdeep's format)
+and the samples as `.ogg` files, read from HW2's `sfx.bank` and `master_bank.strings.bank`
+(`main/custom/fmod/studioBank.ts`, `main/custom/hw2/sounds.ts`). Checklist #161 (sounds) and #162 (roster).
+
+What to listen for: an event with several variants lists them all as `<source>`s of one `<sound>`. If AE
+plays only the first, every hit sounds the same; if it plays none, nothing is heard (then: one sound per
+variant, picked by the unit). FMOD layers some events (two samples at once, `bomb_throw`): AE plays one
+of the layers. Volumes are all 1: FMOD's own mix isn't carried.
+
 ## S1: files under a top-level `hw2/` folder
 
 **Setup:** one floor themed with an HW2 wall set (`hw2/doodads/walls/crypt/…`), an HW2 floor

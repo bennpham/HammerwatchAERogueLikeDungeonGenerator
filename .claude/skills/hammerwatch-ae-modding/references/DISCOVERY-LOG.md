@@ -1681,3 +1681,17 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
 - `[VERIFIED]` (in game, 2026-11-27) Blight in simple mode is killable on a floor and a World island and counts
   toward the way out. Doombringer on an island hits the party from across it: his beam, rain and sinus breath have
   range 2000 px and `must-see` false, as in HW2. The user wants that kept: no nerfs to HW2 bosses.
+- `[VERIFIED]` (reading HW2's banks, 2026-11-27) FMOD Studio banks (RIFF "FEV ", version 0x8e) map an event to its
+  samples as CUE4Parse's FMod reader lays them out: the strings bank's `STDT` radix tree gives each event GUID its
+  path (3,956 in HW2); in `sfx.bank`, `EVTB` → timeline GUID; each instrument (`LIST WAIT/MUIT/SPIT/EVIT`) names
+  what it sits on in its `INST`; `WAIB` → waveform GUID; `MUIB`/`SPIB` + `PLST` → child instruments; `EVIB` →
+  a nested event; `WAV` → (sound bank, FSB5 subsound). 547 of the 583 events HW2's actors name resolve; 14 aren't
+  in the strings bank, 22 play nothing in `sfx.bank`. Trap: the all-zero GUID means "none", and HW2's ~7,000
+  playlist entries all sit on it, so a waveform-less wave instrument that names it must not be followed (it
+  reached all 4,700 samples).
+- `[EMITTED]` HW2 sound effects: the copy turns each HW2 event AE lacks into an entry of `hw2/sounds/sounds.sbnk`
+  (`category="sfx" is3d="true"`, looping when FMOD loops it, a `<source>` per sample) and ships its samples as
+  `.ogg`; one it can't resolve is blanked as before. All 79 HW2 monsters together: 216 entries, 645 files, 14 MB.
+  `[UNVERIFIED]` that AE picks among several `<source>`s.
+- `[EMITTED]` 64 more HW2 monsters (79 in all), in four picker groups (Hammerwatch 2: Beasts, Humans, Undead,
+  Other). Every one copies with no script class missing (the boss work's script carrying covers them all).
