@@ -13,8 +13,14 @@ export function useContentSources(): ContentContext {
   return useContext(ContentSourcesContext)
 }
 
-/** Display groups made of one source's content (MONSTER_GROUPS' 'Hammerwatch 2'). */
-const SOURCE_GROUPS: Readonly<Record<string, string>> = { 'Hammerwatch 2': 'hw2' }
+/** Display groups made of one source's content (themes' 'Hammerwatch 2', MONSTER_GROUPS' four). */
+const SOURCE_GROUPS: Readonly<Record<string, string>> = {
+  'Hammerwatch 2': 'hw2',
+  'Hammerwatch 2: Beasts': 'hw2',
+  'Hammerwatch 2: Humans': 'hw2',
+  'Hammerwatch 2: Undead': 'hw2',
+  'Hammerwatch 2: Other': 'hw2'
+}
 
 /**
  * The display groups a picker shows: a source's own group only with that

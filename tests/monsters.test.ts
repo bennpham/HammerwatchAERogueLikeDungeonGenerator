@@ -78,7 +78,7 @@ describe('monster roster', () => {
     expect(hw2.length).toBeGreaterThan(0)
     for (const type of MONSTER_TYPES) expect(type.id.startsWith('hw2_'), type.id).toBe(type.source === 'hw2')
     for (const type of hw2) {
-      expect(type.group).toBe('Hammerwatch 2')
+      expect(type.group.startsWith('Hammerwatch 2: '), type.id).toBe(true)
       for (const path of type.tiers) {
         expect(path).toMatch(/^hw2\/actors\/[a-z0-9_/]+\.unit$/)
         expect(aeAssetExists(path), `${type.id} -> ${path}`).toBe(true)

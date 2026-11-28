@@ -63,7 +63,7 @@ describe('Hammerwatch 2 monsters on a floor', () => {
 })
 
 describe.skipIf(!HAS_HW2)('copying Hammerwatch 2 monsters', () => {
-  it('copies every curated monster whole, with no script class AE lacks', () => {
+  it('copies every curated monster whole, with no script class AE lacks', async () => {
     const roots = HW2.flatMap((t) => t.tiers)
     const plan = hw2CopyPlan(HW2_ROOT, AE_ROOT, roots)!
     expect(plan.errors).toEqual([])
@@ -74,6 +74,18 @@ describe.skipIf(!HAS_HW2)('copying Hammerwatch 2 monsters', () => {
     const dec = new TextDecoder()
     for (const f of plan.files.filter((x) => x.path.endsWith('.unit') || x.path.endsWith('.inc'))) {
       expect(dec.decode(f.data), f.path).not.toMatch(/<string name="(team|loot|gore)">/)
+    }
+    // their sounds: every bank entry a file names is in the bank, every sample it lists ships
+    const bank = dec.decode(plan.files.find((f) => f.path === 'hw2/sounds/sounds.sbnk')!.data)
+    const entries = new Set([...bank.matchAll(/<sound [^>]*name="([^"]+)"/g)].map((m) => m[1]))
+    expect(entries.size).toBeGreaterThan(100)
+    const named = new Set(plan.files.flatMap((f) => [...dec.decode(f.data).matchAll(/hw2\/sounds\/sounds\.sbnk:(\w+)/g)].map((m) => m[1])))
+    for (const n of named) expect(entries.has(n), n).toBe(true)
+    for (const m of bank.matchAll(/<source res="\.\/([^"]+)"/g)) expect(shipped.has(`hw2/sounds/${m[1]}`), m[1]).toBe(true)
+    // no HW2 event is left behind: AE's own, a bank entry, or blanked
+    const aeEvents = new Set((await import('../src/main/custom/aeRuntime.generated')).AE_SOUND_EVENTS)
+    for (const f of plan.files.filter((x) => /\.(unit|inc|sval|pfb)$/.test(x.path))) {
+      for (const m of dec.decode(f.data).matchAll(/event:\/[\w/\-.]+/g)) expect(aeEvents.has(m[0]), `${f.path}: ${m[0]}`).toBe(true)
     }
   }, 300_000)
 })

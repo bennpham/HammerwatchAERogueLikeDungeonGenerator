@@ -21,12 +21,14 @@
 //                     the island's west or east end.
 //   dungeon_11260012  Blight away from an arena: a World island right after the first lobby
 //                     holds him at a site, and floor 1's boss is Blight, waiting in a room.
+//   dungeon_11260013  The wider HW2 roster, with HW2's own sound effects: floor 1 beasts,
+//                     floor 2 humans, floor 3 undead, on HW2 themes.
 //   dungeon_11260003  S4: dungeon_11260001's campaign, but every texture taken compiled from
 //                     HW2's res/assets.bin and packed as is.
 //
 // Each starts with the Hammerwatch 2 level-50 player preset, fully upgraded.
 //
-// --remove deletes the twelve .h1c files (and description .txt files) again.
+// --remove deletes the thirteen .h1c files (and description .txt files) again.
 import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyFullyUpgraded, defaultBossFight, defaultDungeonBoss, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
@@ -44,7 +46,7 @@ import { renderLevel } from '../../src/generator/ae/levelWriter'
 
 const AE = process.env.HWAE_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch Anniversary Edition'
 const HW2 = process.env.HW2_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch 2'
-const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007, 11260008, 11260009, 11260010, 11260011, 11260012]
+const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007, 11260008, 11260009, 11260010, 11260011, 11260012, 11260013]
 
 if (process.argv.includes('--remove')) {
   for (const seed of SEEDS) {
@@ -100,6 +102,19 @@ function worldFor(id: string): DungeonParameters {
   p.world = { enabled: true, worlds: [{ ...defaultWorld(), buttons: 1, bossCount: 1, bossPool: [id] }] }
   const order = p.levelOrder ?? []
   p.levelOrder = [...order.slice(0, 1), parseSlotLabel('W1')!, ...order.slice(1)]
+  return maxed(p)
+}
+
+/** Floors 1–3 on HW2 themes, each with a third of the wider roster. */
+function rosterCampaign(): DungeonParameters {
+  const p = defaultParameters()
+  p.themes = p.themes.map((t, i) => (i === 0 ? 'hw2_cave_dark' : i === 1 ? 'hw2_sewer' : i === 2 ? 'hw2_crypt' : t))
+  const pools = [
+    ['wolf_grey', 'boar', 'beetle_green', 'beetle_frost_ranged', 'spider_black', 'wasp', 'troll_shaman', 'maggot_giant', 'shambler_small', 'worg'],
+    ['empire_footman', 'empire_crossbowman', 'empire_sage', 'pirate_raider', 'pirate_scout', 'thief_bandit', 'thief_hunter', 'thief_mage', 'corsair_captain'],
+    ['horde_warrior', 'horde_ranger', 'horde_sorcerer', 'horde_necromancer', 'archon_punisher', 'archon_sniper', 'archon_wizard', 'wisp_fire', 'horde_guard']
+  ]
+  p.levelMonsters = p.levelMonsters.map((pool, i) => (i < pools.length ? pools[i].map((m) => `hw2_${m}`) : pool))
   return maxed(p)
 }
 
@@ -224,3 +239,4 @@ await install(SEEDS[8], arenaFor('hw2_barrington'), false)
 await install(SEEDS[9], arenaFor('hw2_archibald'), false)
 await install(SEEDS[10], worldFor('hw2_doombringer'), false)
 await install(SEEDS[11], floorAndWorldFor('hw2_blight'), false)
+await install(SEEDS[12], rosterCampaign(), false)

@@ -43,7 +43,11 @@ export const MONSTER_GROUPS = [
   'Mini-bosses',
   'Bodyguards',
   'Bonus',
-  'Hammerwatch 2'
+  // offered only while Hammerwatch 2 is loaded (renderer/customContent.tsx)
+  'Hammerwatch 2: Beasts',
+  'Hammerwatch 2: Humans',
+  'Hammerwatch 2: Undead',
+  'Hammerwatch 2: Other'
 ] as const
 
 export type MonsterGroup = (typeof MONSTER_GROUPS)[number]
