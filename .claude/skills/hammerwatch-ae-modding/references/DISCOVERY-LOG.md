@@ -1715,3 +1715,5 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   floors: bar, fight, death, the sealed way out opens.
 - `[EMITTED]` (2026-11-28) The same six HW2 bosses (`chases`) may hold World island sites too: `WORLD_BOSS_IDS` is
   `FLOOR_BOSS_IDS` plus Doombringer's perch again. Archibald is offered nowhere.
+- `[VERIFIED]` (in game, 2026-11-28, `dungeon_11260016`) Sinkage, Shock Widow, Dace Arden and Barrington hold World
+  island sites: bars, fights, deaths, each kill counting toward the portal.
