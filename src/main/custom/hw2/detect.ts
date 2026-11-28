@@ -15,7 +15,8 @@ import type { Hw2Status } from '../../../shared/ipc'
  * copy reads HW2's tinted sprite sheets from the pack itself (layeredTif.ts), and
  * an install packs compiled textures as they are. It only gives an export plain
  * PNGs (docs/discovery/hammerwatch-2-spikes.md, S4). Music comes from
- * `res/assets/sound/music.bank` beside the pack.
+ * `res/assets/sound/music.bank` beside the pack, sound effects from `sfx.bank`
+ * with `master_bank.strings.bank` naming its events.
  */
 export interface Hw2Sources {
   /** assets.bin when readable, else the extract */
@@ -24,6 +25,9 @@ export interface Hw2Sources {
   unpacked: BinSource | null
   /** `res/assets/sound/music.bank`, when present */
   musicBank: string | null
+  /** `res/assets/sound/sfx.bank` and `master_bank.strings.bank` (its event names), when both are present */
+  sfxBank: string | null
+  stringsBank: string | null
 }
 
 /** The HW2 sources in `dir`, or null when it isn't a usable HW2 install. */
@@ -34,8 +38,14 @@ export function hw2Sources(dir: string): Hw2Sources | null {
   const unpacked = extract === null ? null : folderSource(extract)
   const primary = pack ?? unpacked
   if (primary === null) return null
-  const bank = join(dir, 'res', 'assets', 'sound', 'music.bank')
-  return { primary, unpacked, musicBank: existsSync(bank) ? bank : null }
+  const sound = (name: string): string | null => {
+    const p = join(dir, 'res', 'assets', 'sound', name)
+    return existsSync(p) ? p : null
+  }
+  const sfx = sound('sfx.bank')
+  const strings = sound('master_bank.strings.bank')
+  const both = sfx !== null && strings !== null
+  return { primary, unpacked, musicBank: sound('music.bank'), sfxBank: both ? sfx : null, stringsBank: both ? strings : null }
 }
 
 /** What the Load custom dialog shows for a chosen folder. */

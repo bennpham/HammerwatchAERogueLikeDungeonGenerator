@@ -10,6 +10,7 @@ import type { ScriptBase, ScriptIndex, ScriptPatch } from '../scriptPlan'
 import { HW2_SCRIPT_PATCHES } from './scriptPatches'
 import { HW2_FILE_PATCHES } from './filePatches'
 import { hw2Sources } from './detect'
+import { hw2SoundSource } from './sounds'
 
 const AE_CLASSES: ReadonlySet<string> = new Set(AE_SCRIPT_CLASSES)
 const AE_EVENTS: ReadonlySet<string> = new Set(AE_SOUND_EVENTS)
@@ -75,6 +76,7 @@ export function hw2CopyPlan(hw2Path: string, aePath: string, roots: readonly str
     aeClasses: AE_CLASSES,
     aeEvents: AE_EVENTS,
     scripts: hw2Scripts(hw2.primary, ae),
-    filePatches: HW2_FILE_PATCHES
+    filePatches: HW2_FILE_PATCHES,
+    sounds: hw2SoundSource(hw2.sfxBank, hw2.stringsBank)
   })
 }

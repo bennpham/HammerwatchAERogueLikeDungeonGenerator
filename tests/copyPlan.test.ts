@@ -209,6 +209,54 @@ describe('planning a copy', () => {
     expect(p.errors).toEqual(["hw2/actors/troll.unit: needs the script class DashStrike, which AE doesn't have"])
   })
 
+  it("ships the other game's sound effects as an .sbnk of .ogg files, keeping AE's and blanking the rest", () => {
+    const sounds = {
+      resolve: (event: string) =>
+        event.toLowerCase() === 'event:/sfx/actors/troll/troll_hurt'
+          ? { samples: [{ index: 7, name: 'Troll Hurt-001' }, { index: 3, name: 'Troll_Hurt-002' }], looping: false }
+          : event.toLowerCase() === 'event:/sfx/actors/troll/breath_loop'
+            ? { samples: [{ index: 3, name: 'Troll_Hurt-002' }], looping: true }
+            : null,
+      ogg: (index: number) => enc.encode(`OggS${index}`)
+    }
+    const p = plan(
+      {
+        'actors/troll.unit':
+          '%replace SFX_HURT event:/SFX/Actors/troll/troll_hurt\n%replace SFX_OK event:/sfx/known\n%replace SFX_GONE event:/sfx/nowhere\n' +
+          '<string name="sound">event:/sfx/actors/troll/breath_loop</string>\n<string name="again">event:/sfx/actors/troll/troll_hurt</string>'
+      },
+      ['hw2/actors/troll.unit'],
+      { sounds }
+    )
+    expect(p.errors).toEqual([])
+    const t = textOf(p, 'hw2/actors/troll.unit')
+    expect(t).toContain('%replace SFX_HURT hw2/sounds/sounds.sbnk:actors_troll_troll_hurt\n')
+    expect(t).toContain('<string name="again">hw2/sounds/sounds.sbnk:actors_troll_troll_hurt</string>')
+    expect(t).toContain('%replace SFX_OK event:/sfx/known')
+    expect(t).toContain('%replace SFX_GONE \n')
+    expect(t).toContain('hw2/sounds/sounds.sbnk:actors_troll_breath_loop')
+    // each sample once, by its own name made a file name
+    expect(p.files.filter((f) => f.path.endsWith('.ogg')).map((f) => [f.path, dec.decode(f.data)])).toEqual([
+      ['hw2/sounds/Troll_Hurt-001.ogg', 'OggS7'],
+      ['hw2/sounds/Troll_Hurt-002.ogg', 'OggS3']
+    ])
+    expect(textOf(p, 'hw2/sounds/sounds.sbnk')).toBe(
+      '<soundbank>\n' +
+        '  <!-- event:/sfx/actors/troll/breath_loop -->\n' +
+        '  <sound category="sfx" name="actors_troll_breath_loop" volume="1" is3d="true" looping="true">\n' +
+        '    <source res="./Troll_Hurt-002.ogg" />\n' +
+        '  </sound>\n' +
+        '  <!-- event:/sfx/actors/troll/troll_hurt -->\n' +
+        '  <sound category="sfx" name="actors_troll_troll_hurt" volume="1" is3d="true" looping="false">\n' +
+        '    <source res="./Troll_Hurt-001.ogg" />\n' +
+        '    <source res="./Troll_Hurt-002.ogg" />\n' +
+        '  </sound>\n' +
+        '</soundbank>\n'
+    )
+    // without a sound source, as before: blanked
+    expect(textOf(plan({ 'a.unit': '<s>event:/sfx/actors/troll/troll_hurt</s>' }, ['hw2/a.unit']), 'hw2/a.unit')).toBe('<s></s>')
+  })
+
   it('follows effect paths with arguments, keeping the arguments', () => {
     // HW2's particles_smoke.unit names `smoke_4.effect?scale=0.3`; AE uses the same form
     const p = plan(

@@ -66,7 +66,23 @@ export interface CopyInput {
    * error: the other game changed.
    */
   filePatches?: readonly FilePatch[]
+  /**
+   * The other game's sound effects (hw2/sounds.ts). An event AE lacks that this
+   * resolves ships as an entry of `<prefix>sounds/sounds.sbnk`, its samples as
+   * `.ogg` files beside it; one it can't is blanked, as without it.
+   */
+  sounds?: SoundSource | null
 }
+
+/** What an event plays, and its samples as Ogg files. */
+export interface SoundSource {
+  /** an event's samples (any one plays), or null when there's nothing to play */
+  resolve(event: string): { samples: ReadonlyArray<{ index: number; name: string }>; looping: boolean } | null
+  ogg(index: number): Uint8Array
+}
+
+/** Where the carried sound effects' bank ships, under the prefix. */
+export const SOUND_BANK = 'sounds/sounds.sbnk'
 
 /** One edit to a carried text file: every `find` in it becomes `replace`. */
 export interface FilePatch {
@@ -202,6 +218,51 @@ function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
   return true
 }
 
+/**
+ * The carried sound effects: an `.sbnk` as AE's custom scenarios write theirs
+ * (mistdeep's `sounds/sounds.sbnk`), one `<sound>` per event with a `<source>`
+ * per sample it may play, and each sample once, as an `.ogg` beside it. An
+ * event whose samples can't be converted is an error, since a unit names it.
+ */
+function soundFiles(
+  prefix: string,
+  sounds: ReadonlyMap<string, { event: string; samples: ReadonlyArray<{ index: number; name: string }>; looping: boolean }>,
+  source: SoundSource,
+  errors: string[]
+): CopiedFile[] {
+  const fileOf = new Map<number, string>()
+  const taken = new Set<string>()
+  const indices = [...new Set([...sounds.values()].flatMap((s) => s.samples.map((x) => x.index)))].sort((a, b) => a - b)
+  const named = new Map([...sounds.values()].flatMap((s) => s.samples.map((x) => [x.index, x.name] as const)))
+  for (const index of indices) {
+    const base = named.get(index)!.replace(/[^\w.-]/g, '_')
+    const name = taken.has(base.toLowerCase()) ? `${base}_${index}` : base
+    taken.add(name.toLowerCase())
+    fileOf.set(index, `${name}.ogg`)
+  }
+  const dir = SOUND_BANK.slice(0, SOUND_BANK.lastIndexOf('/') + 1)
+  const out: CopiedFile[] = []
+  const failed = new Set<number>()
+  for (const index of indices) {
+    try {
+      out.push({ path: `${prefix}${dir}${fileOf.get(index)}`, data: source.ogg(index), flag: 1 })
+    } catch (e) {
+      failed.add(index)
+      errors.push(`${prefix}${dir}${fileOf.get(index)}: ${(e as Error).message}`)
+    }
+  }
+  let xml = '<soundbank>\n'
+  for (const entry of [...sounds.keys()].sort()) {
+    const s = sounds.get(entry)!
+    xml += `  <!-- ${s.event.replace(/-{2,}/g, '-')} -->\n  <sound category="sfx" name="${entry}" volume="1" is3d="true" looping="${s.looping}">\n`
+    for (const x of s.samples) if (!failed.has(x.index)) xml += `    <source res="./${fileOf.get(x.index)}" />\n`
+    xml += '  </sound>\n'
+  }
+  xml += '</soundbank>\n'
+  out.push({ path: `${prefix}${SOUND_BANK}`, data: new TextEncoder().encode(xml), flag: 1 })
+  return out
+}
+
 export function planCopy(input: CopyInput): CopyPlan {
   const { prefix, source, ae } = input
   const notes: string[] = []
@@ -233,8 +294,29 @@ export function planCopy(input: CopyInput): CopyPlan {
   const addedMaterials = new Map<string, Set<string>>()
   const matNames = new Map<string, { ae: Set<string>; source: Set<string> }>()
   const decoder = new TextDecoder('utf-8', { ignoreBOM: true })
+  /** a carried sound effect's bank entry → its event's samples and whether it loops */
+  const sounds = new Map<string, { event: string; samples: ReadonlyArray<{ index: number; name: string }>; looping: boolean }>()
+  const soundEntryOf = new Map<string, string | null>()
+  /** what a carried file's sound event becomes: AE's own, a bank entry, or nothing */
+  const soundRef = (event: string): string => {
+    if (input.aeEvents.has(event)) return event
+    const key = event.toLowerCase()
+    if (!soundEntryOf.has(key)) {
+      const found = input.sounds?.resolve(event) ?? null
+      let entry: string | null = null
+      if (found !== null) {
+        const base = key.replace(/^event:\/(sfx\/)?/, '').replace(/[^a-z0-9_]/g, '_')
+        entry = base
+        for (let n = 2; sounds.has(entry); n++) entry = `${base}_${n}`
+        sounds.set(entry, { event: key, ...found })
+      }
+      soundEntryOf.set(key, entry)
+    }
+    const entry = soundEntryOf.get(key)!
+    return entry === null ? '' : `${prefix}${SOUND_BANK}:${entry}`
+  }
 
-  const materialsOf = (path: string): { ae: Set<string>; source: Set<string> } | null => {
+  const materialsOf =(path: string): { ae: Set<string>; source: Set<string> } | null => {
     let m = matNames.get(path)
     if (m === undefined) {
       const mine = source.read(path)
@@ -404,10 +486,11 @@ export function planCopy(input: CopyInput): CopyPlan {
         }
         out = out.split(patch.find).join(patch.replace)
       }
+      if (/\.(sval|pfb)$/.test(path)) out = out.replace(SOUND_EVENT, soundRef)
       if (path.endsWith('.unit') || path.endsWith('.inc')) {
         out = singleSpeeds(out.replace(SPAWN_LOOT, '').replace(FOREIGN_PARAMS, '')).replace(TAG_HAS, '$1$2')
         if (TAG_HASNT.test(out)) notes.push(`${prefix}${path}: a "tag hasnt" condition, which AE can't read`)
-        out = out.replace(SOUND_EVENT, (e) => (input.aeEvents.has(e) ? e : ''))
+        out = out.replace(SOUND_EVENT, soundRef)
         // a commented-out block is never loaded, so its classes aren't needed
         for (const m of maskComments(out).matchAll(CLASS_NAMES)) {
           const cls = m[1] ?? m[2]
@@ -456,6 +539,7 @@ export function planCopy(input: CopyInput): CopyPlan {
       errors.push(`${neededClasses.get(cls)}: needs the script class ${cls}, which AE doesn't have`)
     }
   }
+  if (sounds.size > 0) files.push(...soundFiles(prefix, sounds, input.sounds!, errors))
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
   return { files, keptAe: [...keptAe].sort(), notes, errors: [...new Set(errors)] }
 }
