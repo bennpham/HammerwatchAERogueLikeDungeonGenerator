@@ -238,6 +238,12 @@ describe.skipIf(!HAS_HW2)('copying Hammerwatch 2 bosses', () => {
       // AE has none of HW2's loot tables: a SpawnLoot left behind, its table stripped, crashes on death
       expect(dec.decode(f.data), f.path).not.toMatch(/<string name="class">SpawnLoot<\/string>/)
     }
+    if (id === 'hw2_doombringer') {
+      // he never takes off: landing again needs his HW2 arena's waypoints
+      const unit = dec.decode(plan.files.find((f) => f.path === def.actorPath)!.data)
+      expect(unit).not.toContain('SkillTakeFlight')
+      expect(unit).toContain('%block SkillBeam east')
+    }
     if (id === 'hw2_blight') {
       // simple mode: his opening and sphere were immortal until his HW2 arena moved him on
       const states = dec.decode(plan.files.find((f) => f.path.endsWith('/_boss_blight_states.inc'))!.data)
