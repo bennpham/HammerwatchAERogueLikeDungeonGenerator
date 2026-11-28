@@ -188,7 +188,7 @@ Each step is a commit (or a few), each passing the gate.
    *Skipped 2026-11-27 (the user):* no boss gets its own arena's set pieces in this generator,
    HW2's or AE's. Those special cases are left to a possible separate Hammerwatch 2 campaign
    generator. Archibald, whose fight is his arena's formations, stays hidden.
-   *2026-11-28:* the six that move on their own are offered on dungeon floors too (`BossDef.chases`);
+   *2026-11-28:* the six that move on their own are offered on dungeon floors (confirmed) and World islands (`BossDef.chases`);
    Blight waits on floors and islands; Doombringer perches in arenas and on islands; Archibald stays hidden.
 6. **Later, optional:** HW2 boss sounds (with the monster sounds, as an `hw2/sounds/sounds.sbnk`).
 

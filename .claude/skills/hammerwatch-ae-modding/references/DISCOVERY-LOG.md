@@ -1711,3 +1711,7 @@ The whole report: `docs/discovery/hammerwatch-2-assets.md`. The in-game spikes:
   Arden, Judge Supreme, Barrington) join `FLOOR_BOSS_IDS`: offered as dungeon floor bosses with HW2 loaded, never in a
   default pool. Not on World islands (asked for floors). Doombringer and Archibald stay `arenaOnly`. Barrington's
   movement is HW2 arena patrols (`PatrolMovement` along its waypoints), so on a floor he mostly waits.
+- `[VERIFIED]` (in game, 2026-11-28, `dungeon_11260015`) Sinkage, Shock Widow, Dace Arden and Barrington hold dungeon
+  floors: bar, fight, death, the sealed way out opens.
+- `[EMITTED]` (2026-11-28) The same six HW2 bosses (`chases`) may hold World island sites too: `WORLD_BOSS_IDS` is
+  `FLOOR_BOSS_IDS` plus Doombringer's perch again. Archibald is offered nowhere.
