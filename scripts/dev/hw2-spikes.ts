@@ -27,12 +27,13 @@
 //                     pile of upgrades and potions dropped as the party arrives.
 //   dungeon_11260015  HW2 bosses as floor bosses: floor 1 Sinkage, 2 Shock Widow, 3 Dace Arden,
 //                     4 Barrington (Malgar and Judge, confirmed in arenas, left out on request).
+//   dungeon_11260016  The same four on one World island, right after the first lobby.
 //   dungeon_11260003  S4: dungeon_11260001's campaign, but every texture taken compiled from
 //                     HW2's res/assets.bin and packed as is.
 //
 // Each starts with the Hammerwatch 2 level-50 player preset, fully upgraded.
 //
-// --remove deletes the fifteen .h1c files (and description .txt files) again.
+// --remove deletes the sixteen .h1c files (and description .txt files) again.
 import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyFullyUpgraded, defaultBossFight, defaultDungeonBoss, defaultParameters, defaultWorld, generateDungeon, playerPresetById } from '../../src/generator'
@@ -50,7 +51,7 @@ import { renderLevel } from '../../src/generator/ae/levelWriter'
 
 const AE = process.env.HWAE_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch Anniversary Edition'
 const HW2 = process.env.HW2_ROOT ?? 'D:/Program Files (x86)/Steam/steamapps/common/Hammerwatch 2'
-const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007, 11260008, 11260009, 11260010, 11260011, 11260012, 11260013, 11260014, 11260015]
+const SEEDS = [11260001, 11260002, 11260003, 11260004, 11260005, 11260006, 11260007, 11260008, 11260009, 11260010, 11260011, 11260012, 11260013, 11260014, 11260015, 11260016]
 
 if (process.argv.includes('--remove')) {
   for (const seed of SEEDS) {
@@ -135,6 +136,18 @@ function arenaLoadedFor(id: string): DungeonParameters {
           }
         : f
     )
+  }
+  return p
+}
+
+/** `worldFor`, its island holding one each of `ids` (an exact lineup). */
+function worldLineup(ids: string[]): DungeonParameters {
+  const p = worldFor(ids[0])
+  p.world!.worlds[0] = {
+    ...p.world!.worlds[0],
+    bossSelection: 'lineup',
+    bossLineup: Object.fromEntries(ids.map((id) => [id, 1])),
+    bossCount: ids.length
   }
   return p
 }
@@ -285,3 +298,4 @@ await install(SEEDS[11], floorAndWorldFor('hw2_blight'), false)
 await install(SEEDS[12], rosterCampaign(), false)
 await install(SEEDS[13], arenaLoadedFor('hw2_doombringer'), false)
 await install(SEEDS[14], floorBosses(['hw2_sinkage', 'hw2_shock_widow', 'hw2_dace_arden', 'hw2_barrington']), false)
+await install(SEEDS[15], worldLineup(['hw2_sinkage', 'hw2_shock_widow', 'hw2_dace_arden', 'hw2_barrington']), false)

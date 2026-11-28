@@ -50,11 +50,26 @@ describe('Hammerwatch 2 bosses', () => {
       expect(validateParameters(floorOn([id]), HW2_CONTENT).errors.some((e) => e.field.startsWith('levelBoss.0')), id).toBe(true)
     }
     expect(FLOOR_BOSS_IDS.filter((id) => id.startsWith('hw2_'))).toEqual([...chasers.slice(0, 3), 'hw2_blight', ...chasers.slice(3)])
-    // islands were asked for Blight only (and Doombringer's perch)
-    expect(WORLD_BOSS_IDS.filter((id) => id.startsWith('hw2_'))).toEqual(['hw2_blight', 'hw2_doombringer'])
+    // islands take them too, and Doombringer's perch; Archibald nowhere
+    expect(WORLD_BOSS_IDS.filter((id) => id.startsWith('hw2_'))).toEqual(HW2_BOSSES.map((d) => d.id).filter((id) => id !== 'hw2_archibald'))
     // they move, so arena traps may still aim at them, as before
     for (const id of chasers) expect(isStationary(BOSS_DEFS[id as keyof typeof BOSS_DEFS]), id).toBe(false)
   })
+
+  it.each(['hw2_sinkage', 'hw2_shock_widow', 'hw2_malgar', 'hw2_dace_arden', 'hw2_judge_supreme', 'hw2_barrington'])(
+    '%s holds a World island site, its bar shown as the party nears',
+    (id) => {
+      const p = plainParameters()
+      p.world = { enabled: true, worlds: [{ ...defaultWorld(), buttons: 1, bossCount: 1, bossPool: [id] }] }
+      expect(validateParameters(p, HW2_CONTENT).errors).toEqual([])
+      const def = BOSS_DEFS[id as keyof typeof BOSS_DEFS]
+      const r = generateOk(p, 6)
+      expect(r.customAssets).toContain(def.actorPath)
+      const holding = [...levelsOf(r).values()].filter((l) => unitsOf(l, (u) => u.path === def.actorPath).length > 0)
+      expect(holding).toHaveLength(1)
+      expect(scriptsOf(holding[0], 'CreateBossBar').map((b) => strParam(b, 'Name'))).toEqual([def.barName])
+    }
+  )
 
   it.each(['hw2_sinkage', 'hw2_shock_widow', 'hw2_malgar', 'hw2_dace_arden', 'hw2_judge_supreme', 'hw2_barrington'])(
     '%s stands on a dungeon floor with its bar, and its unit is carried',

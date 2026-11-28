@@ -117,8 +117,9 @@ export interface BossDef {
   arenaOnly?: boolean
   /**
    * Moves on its own, like a `MOBILE_BOSS_IDS` boss, so it may hold a dungeon
-   * floor (`FLOOR_BOSS_IDS`): Hammerwatch 2's bosses (asked 2026-11-28). Custom
-   * content, so never in a default pool. Not stationary: arena traps may aim at it.
+   * floor (`FLOOR_BOSS_IDS`) or a World island: Hammerwatch 2's bosses (asked
+   * 2026-11-28). Custom content, so never in a default pool. Not stationary:
+   * arena traps may aim at it.
    */
   chases?: boolean
   /**
@@ -281,14 +282,12 @@ export const FLOOR_BOSS_IDS: readonly BossId[] = BOSS_IDS.filter(
 )
 
 /**
- * The bosses a World island may host: those that chase (`MOBILE_BOSS_IDS`), one
- * that waits for the party (`waitsForParty`), and a `sideWall` boss, which
- * perches on the island's west or east end (world/objectives.ts). Custom bosses
- * that chase are offered on floors only (asked for floors, 2026-11-28).
+ * The bosses a World island may host: a floor's (`FLOOR_BOSS_IDS`), and a
+ * `sideWall` boss, which perches on the island's west or east end
+ * (world/objectives.ts).
  */
 export const WORLD_BOSS_IDS: readonly BossId[] = BOSS_IDS.filter(
-  (id) =>
-    (MOBILE_BOSS_IDS as readonly string[]).includes(id) || BOSS_DEFS[id].waitsForParty === true || BOSS_DEFS[id].placement === 'sideWall'
+  (id) => (FLOOR_BOSS_IDS as readonly string[]).includes(id) || BOSS_DEFS[id].placement === 'sideWall'
 )
 
 /** How far a boss's start event reaches, in px: the boss itself, where it stands (HW2's default is 75). */
